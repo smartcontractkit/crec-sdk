@@ -1,0 +1,138 @@
+{
+  "resourceLogs": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "beholder_data_type",
+            "value": {
+              "stringValue": "custom_message"
+            }
+          },
+          {
+            "key": "csa_public_key",
+            "value": {
+              "stringValue": "not-configured"
+            }
+          },
+          {
+            "key": "host.name",
+            "value": {
+              "stringValue": "3779cdfb5413"
+            }
+          },
+          {
+            "key": "os.description",
+            "value": {
+              "stringValue": "Ubuntu 24.04.2 LTS (Noble Numbat) (Linux 3779cdfb5413 6.10.14-linuxkit #1 SMP Mon Feb 24 16:35:16 UTC 2025 aarch64)"
+            }
+          },
+          {
+            "key": "os.type",
+            "value": {
+              "stringValue": "linux"
+            }
+          },
+          {
+            "key": "package_name",
+            "value": {
+              "stringValue": "beholder"
+            }
+          },
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "unknown_service:workflowevent"
+            }
+          },
+          {
+            "key": "telemetry.sdk.language",
+            "value": {
+              "stringValue": "go"
+            }
+          },
+          {
+            "key": "telemetry.sdk.name",
+            "value": {
+              "stringValue": "opentelemetry"
+            }
+          },
+          {
+            "key": "telemetry.sdk.version",
+            "value": {
+              "stringValue": "1.30.0"
+            }
+          }
+        ]
+      },
+      "scopeLogs": [
+        {
+          "scope": {
+            "name": "beholder"
+          },
+          "logRecords": [
+            {
+              "observedTimeUnixNano": "1747684181342099335",
+              "body": {
+                "bytesValue": "CiwKCWNvbXBvbmVudBIfCh1DaGFpbmxpbmsgUnVudGltZSBFbnZpcm9ubWVudAoRCgtmaW5hbF9ldmVudBICEAEKFgoQcGFydGljaXBhbnRfcm9sZRICCgAKJQoFdGl0bGUSHAoaRGV0ZWN0IGlkZW50aXR5IHJlZ2lzdGVyZWQKoQQKCmF0dHJpYnV0ZXMSkgQijwQKfAoHYWRkcmVzcxJxIm8KFAoKdmlzaWJpbGl0eRIGCgRJTkZPChAKA2tleRIJCgdhY2NvdW50CjUKBXZhbHVlEiwKKjB4MTIzNDU2Nzg5MGFiY2RlRjEyMzQ1Njc4OTBhYmNkRWYxMjM0NTY3OQoOCghvbl9jaGFpbhICEAEKWQoIY2hhaW5faWQSTSJLCg4KCG9uX2NoYWluEgIQAQoUCgp2aXNpYmlsaXR5EgYKBElORk8KEQoDa2V5EgoKCGNoYWluX2lkChAKBXZhbHVlEgcKBTMxMzM3CqIBChlpZGVudGl0eV9yZWdpc3RyeV9hZGRyZXNzEoQBIoEBCg4KCG9uX2NoYWluEgIQAQoUCgp2aXNpYmlsaXR5EgYKBElORk8KIgoDa2V5EhsKGWlkZW50aXR5X3JlZ2lzdHJ5X2FkZHJlc3MKNQoFdmFsdWUSLAoqMHgzQWE1ZWJCMTBEQzc5N0NBQzgyODUyNGU1OUEzMzNkMEEzNzE0NDNjCo4BCgRjY2lkEoUBIoIBCg0KA2tleRIGCgRjY2lkCksKBXZhbHVlEkIKQDZhNzVmMmFkYjZhYzg3YWU3ZDVmNDVkNGJiOTQ3NzIyMWRjNTZjY2VkNWIxNTkyYWViYWYzNDYzNGJiZDdiMzUKDgoIb25fY2hhaW4SAhABChQKCnZpc2liaWxpdHkSBgoESU5GTwqHAQoQdHJpZ2dlcl9ldmVudF9pZBJzCnFDTS1JUi02YTc1ZjJhZGI2YWM4N2FlN2Q1ZjQ1ZDRiYjk0NzcyMjFkYzU2Y2NlZDViMTU5MmFlYmFmMzQ2MzRiYmQ3YjM1LTB4MTIzNDU2Nzg5MGFiY2RlRjEyMzQ1Njc4OTBhYmNkRWYxMjM0NTY3OQozCg9ldmVudF90aW1lc3RhbXASIAoeMjAyNS0wNS0xOVQxOTo0OTo0MS4zNDE4MjIwODVaChoKEGV2ZW50X3R5cGVfbGFiZWwSBgoEUkVBRApTCg5wcm9jZXNzX2xhYmVscxJBKj8SHwodQ3JlZGVudGlhbCAmIElkZW50aXR5IE1hbmFnZXISHAoaRGV0ZWN0IGlkZW50aXR5IHJlZ2lzdGVyZWQKbgoIcmF3X2RhdGESYgpgeyJBY2NvdW50IjoiRWpSV2VKQ3J6ZThTTkZaNGtLdk43eEkwVm5rPSIsIkNjaWQiOiJhblh5cmJhc2g2NTlYMFhVdTVSM0loM0ZiTTdWc1ZrcTY2ODBZMHU5ZXpVPSJ9CiwKAmlkEiYKJGNhOGE0OTJhLWViZGItNGUwOS1hMGQ0LTFjM2NhNmFkNjg2ZgqIAQoRYnVzaW5lc3NfZXZlbnRfaWQScwpxQ00tSVItNmE3NWYyYWRiNmFjODdhZTdkNWY0NWQ0YmI5NDc3MjIxZGM1NmNjZWQ1YjE1OTJhZWJhZjM0NjM0YmJkN2IzNS0weDEyMzQ1Njc4OTBhYmNkZUYxMjM0NTY3ODkwYWJjZEVmMTIzNDU2NzkKDAoGZmFpbGVkEgIQAAoRCgtwYXJ0aWNpcGFudBICCgA="
+              },
+              "attributes": [
+                {
+                  "key": "beholder_data_type",
+                  "value": {
+                    "stringValue": "custom_message"
+                  }
+                },
+                {
+                  "key": "beholder_domain",
+                  "value": {
+                    "stringValue": "platform"
+                  }
+                },
+                {
+                  "key": "beholder_entity",
+                  "value": {
+                    "stringValue": "values"
+                  }
+                },
+                {
+                  "key": "workflow_id",
+                  "value": {
+                    "stringValue": "af1d16585f2d70454f5a3b301891dd29540e811692e445653eaceb44fab8b32f"
+                  }
+                },
+                {
+                  "key": "execution_id",
+                  "value": {
+                    "stringValue": "a17bb7c8d9b2470080cb47f2567b9c7c0ba096f8bc4e152475158c327870281f"
+                  }
+                },
+                {
+                  "key": "workflow_name",
+                  "value": {
+                    "stringValue": "646972"
+                  }
+                },
+                {
+                  "key": "workflow_owner",
+                  "value": {
+                    "stringValue": "FE3B557E8Fb62b89F4916B721be55cEb828dBd73"
+                  }
+                },
+                {
+                  "key": "beholder_data_schema",
+                  "value": {
+                    "stringValue": "/custom-message/versions/1"
+                  }
+                }
+              ],
+              "traceId": "",
+              "spanId": ""
+            }
+          ]
+        }
+      ],
+      "schemaUrl": "https://opentelemetry.io/schemas/1.26.0"
+    }
+  ]
+}
