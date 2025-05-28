@@ -1,20 +1,14 @@
-package events
+package listener
 
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/rs/zerolog"
 
+	"github.com/smartcontractkit/cvm-sdk/events/types"
 	"github.com/smartcontractkit/cvm-sdk/internal/creclient/kafka"
 )
-
-type CVMEvent struct {
-	ID        string    `json:"id"`
-	Timestamp time.Time `json:"timestamp"`
-	Data      string    `json:"data"`
-}
 
 type EventListenerOptions struct {
 	Brokers []string
@@ -40,20 +34,13 @@ func NewEventListener(opts *EventListenerOptions) *EventListener {
 	}
 }
 
-func (l *EventListener) Read() (*CVMEvent, error) {
+func (l *EventListener) Read() (*types.VerifiableEvent, error) {
 	l.Log.Debug().Msg("Reading event from broker")
-
-	msg, err := l.KafkaReader.ReadMessage()
+	verifiableEvent, err := l.KafkaReader.ReadMessage()
 	if err != nil {
 		return nil, fmt.Errorf("error while reading message: %w", err)
 	}
-	l.Log.Debug().Str("data", string(msg.Value)).Msg("Event received")
-
-	return &CVMEvent{
-		ID:        "1",
-		Timestamp: msg.Time,
-		Data:      string(msg.Value),
-	}, nil
+	return verifiableEvent, nil
 }
 
 func (l *EventListener) Close() error {

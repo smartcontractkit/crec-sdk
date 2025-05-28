@@ -1,0 +1,138 @@
+{
+  "resourceLogs": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "beholder_data_type",
+            "value": {
+              "stringValue": "custom_message"
+            }
+          },
+          {
+            "key": "csa_public_key",
+            "value": {
+              "stringValue": "not-configured"
+            }
+          },
+          {
+            "key": "host.name",
+            "value": {
+              "stringValue": "3779cdfb5413"
+            }
+          },
+          {
+            "key": "os.description",
+            "value": {
+              "stringValue": "Ubuntu 24.04.2 LTS (Noble Numbat) (Linux 3779cdfb5413 6.10.14-linuxkit #1 SMP Mon Feb 24 16:35:16 UTC 2025 aarch64)"
+            }
+          },
+          {
+            "key": "os.type",
+            "value": {
+              "stringValue": "linux"
+            }
+          },
+          {
+            "key": "package_name",
+            "value": {
+              "stringValue": "beholder"
+            }
+          },
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "unknown_service:workflowevent"
+            }
+          },
+          {
+            "key": "telemetry.sdk.language",
+            "value": {
+              "stringValue": "go"
+            }
+          },
+          {
+            "key": "telemetry.sdk.name",
+            "value": {
+              "stringValue": "opentelemetry"
+            }
+          },
+          {
+            "key": "telemetry.sdk.version",
+            "value": {
+              "stringValue": "1.30.0"
+            }
+          }
+        ]
+      },
+      "scopeLogs": [
+        {
+          "scope": {
+            "name": "beholder"
+          },
+          "logRecords": [
+            {
+              "observedTimeUnixNano": "1747684181342099335",
+              "body": {
+                "bytesValue": "ewogICJ0eXBlIjogIlNldHRsZW1lbnRBY2NlcHRlZCIsCiAgInZlcmlmaWFibGVFdmVudCI6ICJld29nSUNKamNtVmhkR1ZrUVhRaU9pQWlNakF5TlMwd05TMHlNRlF5TWpveE9Eb3lNeTQ1TWpKYUlpd0tJQ0FpWlhabGJuUWlPaUI3Q2lBZ0lDQWlkSGx3WlNJNklDSmtkbkFpTEFvZ0lDQWdJbUZrWkhKbGMzTWlPaUFpTUhoRVl6WTBZVEUwTUVGaE0wVTVPREV4TURCaE9XSmxZMEUwUlRZNE5XWTVOakptTUdOR05rTTVJaXdLSUNBZ0lDSnVZVzFsSWpvZ0lsTmxkSFJzWlcxbGJuUkJZMk5sY0hSbFpDSXNDaUFnSUNBaWRHOXdhV05JWVhOb0lqb2dJakI0TlRRM01HSmtZVGhqWldaalkyTTBOalprWXpOaU16bGpNR1F6TXpBM05EZzVNalJpWWpNNE1qYzJaak5oTmpkbU56Um1ZbUU0TldGaU1qUTFaamN3TnlJc0NpQWdJQ0FpYzJWMGRHeGxiV1Z1ZEVsa0lqb2dJakI0WVRBd1l6WTBNREV4TW1abFpUa3lZVGcwT0dKalpUazBNelEwTXpKak5EVXdNRE0wWm1FeE1tSmpOelkwTmpsbE1tTTRZVGd6T1dOaE9HSTBaREUzTkNJc0NpQWdJQ0FpYzJWMGRHeGxiV1Z1ZEVoaGMyZ2lPaUFpTUhnNU5tSTROV1UzTURFM09UZ3hObU15WVRNMlltSTFOVEkyTVdFeE1EWTJZVGcyTjJVNU9HWXlOalJtWW1WaFlqY3dNMlEyTm1ZMk5EQmhZbVV3WkRJNElnb2dJSDBzQ2lBZ0luUnlZVzV6WVdOMGFXOXVJam9nZXdvZ0lDQWdJblJwYldWemRHRnRjQ0k2SURFM05EZzBOalk1TWpBc0NpQWdJQ0FpWTJoaGFXNUpaQ0k2SUNJek1UTXpOeUlzQ2lBZ0lDQWlhR0Z6YUNJNklDSXdlR1kwTnpRMU5EazJaV00wTnpCaE5HVTFNVGhoTXprek5qQXhaRGxtTVRNM09HUmxPRGRsTlRBMll6ZzRObVl6WXpJd1pXVTRaREl3Tm1JeU1qWTFOemtpTEFvZ0lDQWdJbVp5YjIxQlpHUnlaWE56SWpvZ0lqQjRaak01Um1RMlpUVXhZV0ZrT0RoR05rWTBZMlUyWVVJNE9ESTNNamM1WTJabVJtSTVNakkyTmlJc0NpQWdJQ0FpZEc5QlpHUnlaWE56SWpvZ0lqQjROekE1T1RjNU56QkROVEU0TVRKa1l6TkJNREV3UXpka01ERmlOVEJsTUdReE4yUmpOemxET0NJS0lDQjlMQW9nSUNKdFpYUmhaR0YwWVNJNklIc0tJQ0FnSUNKa2RuQWlPaUI3Q2lBZ0lDQWdJQ0p3WVhKMGVVbHVabThpT2lCN0NpQWdJQ0FnSUNBZ0ltSjFlV1Z5VTI5MWNtTmxRV1JrY21WemN5STZJQ0l3ZUdZek9VWmtObVUxTVdGaFpEZzRSalpHTkdObE5tRkNPRGd5TnpJM09XTm1aa1ppT1RJeU5qWWlMQW9nSUNBZ0lDQWdJQ0ppZFhsbGNrUmxjM1JwYm1GMGFXOXVRV1JrY21WemN5STZJQ0l3ZUdZek9VWmtObVUxTVdGaFpEZzRSalpHTkdObE5tRkNPRGd5TnpJM09XTm1aa1ppT1RJeU5qWWlMQW9nSUNBZ0lDQWdJQ0p6Wld4c1pYSlRiM1Z5WTJWQlpHUnlaWE56SWpvZ0lqQjROekE1T1RjNU56QkROVEU0TVRKa1l6TkJNREV3UXpka01ERmlOVEJsTUdReE4yUmpOemxET0NJc0NpQWdJQ0FnSUNBZ0luTmxiR3hsY2tSbGMzUnBibUYwYVc5dVFXUmtjbVZ6Y3lJNklDSXdlRGN3T1RrM09UY3dRelV4T0RFeVpHTXpRVEF4TUVNM1pEQXhZalV3WlRCa01UZGtZemM1UXpnaUxBb2dJQ0FnSUNBZ0lDSmxlR1ZqZFhSdmNrRmtaSEpsYzNNaU9pQWlNSGd3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd0lnb2dJQ0FnSUNCOUxBb2dJQ0FnSUNBaWRHOXJaVzVKYm1adklqb2dld29nSUNBZ0lDQWdJQ0p3WVhsdFpXNTBWRzlyWlc1VGIzVnlZMlZCWkdSeVpYTnpJam9nSWpCNE1FSXpNRFpDUmpreE5VTTBaRFkwTldabU5UazJaVFV4T0daQlpqTkdPVFkyT1dJNU56QXhOaUlzQ2lBZ0lDQWdJQ0FnSW5CaGVXMWxiblJVYjJ0bGJrUmxjM1JwYm1GMGFXOXVRV1JrY21WemN5STZJQ0l3ZURCQ016QTJRa1k1TVRWRE5HUTJORFZtWmpVNU5tVTFNVGhtUVdZelJqazJOamxpT1Rjd01UWWlMQW9nSUNBZ0lDQWdJQ0poYzNObGRGUnZhMlZ1VTI5MWNtTmxRV1JrY21WemN5STZJQ0l3ZURWR1lrUkNNak14TlRZM09HRm1aV05pTXpZM1pqQXpNbVE1TTBZMk5ESm1OalF4T0RCaFlUTWlMQW9nSUNBZ0lDQWdJQ0poYzNObGRGUnZhMlZ1UkdWemRHbHVZWFJwYjI1QlpHUnlaWE56SWpvZ0lqQjROVVppUkVJeU16RTFOamM0WVdabFkySXpOamRtTURNeVpEa3pSalkwTW1ZMk5ERTRNR0ZoTXlJc0NpQWdJQ0FnSUNBZ0luQmhlVzFsYm5SRGRYSnlaVzVqZVNJNklEQXNDaUFnSUNBZ0lDQWdJbkJoZVcxbGJuUlViMnRsYmtGdGIzVnVkQ0k2SUNJeE1EQXdNREF3TURBd01EQXdNQ0lzQ2lBZ0lDQWdJQ0FnSW1GemMyVjBWRzlyWlc1QmJXOTFiblFpT2lBaU16SXdNekF3TURBd01EQXdNQ0lzQ2lBZ0lDQWdJQ0FnSW5CaGVXMWxiblJVYjJ0bGJsUjVjR1VpT2lBeExBb2dJQ0FnSUNBZ0lDSmhjM05sZEZSdmEyVnVWSGx3WlNJNklERUtJQ0FnSUNBZ2ZTd0tJQ0FnSUNBZ0ltUmxiR2wyWlhKNVNXNW1ieUk2SUhzS0lDQWdJQ0FnSUNBaWNHRjViV1Z1ZEZOdmRYSmpaVU5vWVdsdVUyVnNaV04wYjNJaU9pQWlNakl5TWpJeU1qSXlNakl5SWl3S0lDQWdJQ0FnSUNBaWNHRjViV1Z1ZEVSbGMzUnBibUYwYVc5dVEyaGhhVzVUWld4bFkzUnZjaUk2SUNJeU1qSXlNakl5TWpJeU1qSWlMQW9nSUNBZ0lDQWdJQ0poYzNObGRGTnZkWEpqWlVOb1lXbHVVMlZzWldOMGIzSWlPaUFpTWpJeU1qSXlNakl5TWpJeUlpd0tJQ0FnSUNBZ0lDQWlZWE56WlhSRVpYTjBhVzVoZEdsdmJrTm9ZV2x1VTJWc1pXTjBiM0lpT2lBaU1qSXlNakl5TWpJeU1qSXlJZ29nSUNBZ0lDQjlMQW9nSUNBZ0lDQWljMlZqY21WMFNHRnphQ0k2SUNJd2VEQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQWlMQW9nSUNBZ0lDQWlaWGhsWTNWMFpVRm1kR1Z5SWpvZ01Dd0tJQ0FnSUNBZ0ltVjRjR2x5WVhScGIyNGlPaUF4TnpVNE5EWTJPVEl3TEFvZ0lDQWdJQ0FpWTJOcGNFTmhiR3hpWVdOclIyRnpUR2x0YVhRaU9pQTRNREF3TURBc0NpQWdJQ0FnSUNKa1lYUmhJam9nSWpCNElnb2dJQ0FnZlFvZ0lIMEtmUW89IiwKICAic2lnbmF0dXJlcyI6IFsKICAgICIweGI4MzNlOTAyYjFmNzZhOWVjZTc5Mzg5MWZkYWU1NDJjMDFiNzQyZWE4M2RmYmZiNzIxZGYxZTgyNDEzZmI1ZmMiCiAgXQp9"
+              },
+              "attributes": [
+                {
+                  "key": "beholder_data_type",
+                  "value": {
+                    "stringValue": "custom_message"
+                  }
+                },
+                {
+                  "key": "beholder_domain",
+                  "value": {
+                    "stringValue": "platform"
+                  }
+                },
+                {
+                  "key": "beholder_entity",
+                  "value": {
+                    "stringValue": "values"
+                  }
+                },
+                {
+                  "key": "workflow_id",
+                  "value": {
+                    "stringValue": "af1d16585f2d70454f5a3b301891dd29540e811692e445653eaceb44fab8b32f"
+                  }
+                },
+                {
+                  "key": "execution_id",
+                  "value": {
+                    "stringValue": "a17bb7c8d9b2470080cb47f2567b9c7c0ba096f8bc4e152475158c327870281f"
+                  }
+                },
+                {
+                  "key": "workflow_name",
+                  "value": {
+                    "stringValue": "646972"
+                  }
+                },
+                {
+                  "key": "workflow_owner",
+                  "value": {
+                    "stringValue": "FE3B557E8Fb62b89F4916B721be55cEb828dBd73"
+                  }
+                },
+                {
+                  "key": "beholder_data_schema",
+                  "value": {
+                    "stringValue": "/custom-message/versions/1"
+                  }
+                }
+              ],
+              "traceId": "",
+              "spanId": ""
+            }
+          ]
+        }
+      ],
+      "schemaUrl": "https://opentelemetry.io/schemas/1.26.0"
+    }
+  ]
+}

@@ -6,14 +6,15 @@ import (
 	"log"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 
-	"github.com/smartcontractkit/cvm-sdk/events"
+	"github.com/smartcontractkit/cvm-sdk/events/listener"
 )
 
 const (
 	KafkaTopicName = "beholder_otlp_logs"
-	KafkaGroupId   = "cvm-example"
+	KafkaGroupId   = "cvn-sdk-ci"
 )
 
 func setupTestEnv(ctx context.Context) (
@@ -53,19 +54,21 @@ func TestEventListener(t *testing.T) {
 
 	broker, dockerNetwork, rpCtr, kcatCtr := setupTestEnv(ctx)
 
-	listener := events.NewEventListener(
-		&events.EventListenerOptions{
+	l := listener.NewEventListener(
+		&listener.EventListenerOptions{
 			Brokers: []string{broker},
 			Topic:   KafkaTopicName,
 			GroupID: KafkaGroupId,
 		},
 	)
 
-	evt, err := listener.Read()
+	evt, err := l.Read()
 	if err != nil {
 		t.Fatalf("failed to read event: %v", err)
 	}
 	log.Printf("Event received: %v", evt)
+
+	assert.Equal(t, evt.Type, "SettlementAccepted")
 
 	teardownTestEnv(ctx, dockerNetwork, *rpCtr, *kcatCtr)
 }

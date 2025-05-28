@@ -2,9 +2,12 @@ package kafka
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 
 	"github.com/segmentio/kafka-go"
+
+	"github.com/smartcontractkit/cvm-sdk/events/types"
 )
 
 type Reader struct {
@@ -18,7 +21,7 @@ func NewKafkaEventListener(brokers []string, topic string, groupId string) *Read
 				Brokers:  brokers,
 				Topic:    topic,
 				GroupID:  groupId,
-				MinBytes: 1,    // 10KB
+				MinBytes: 1,    // do not block for small messages
 				MaxBytes: 10e6, // 10MB
 			},
 		),
@@ -29,12 +32,25 @@ func (t *Reader) Close() error {
 	return t.EventReader.Close()
 }
 
-func (t *Reader) ReadMessage() (*kafka.Message, error) {
+func (t *Reader) ReadMessage() (*types.VerifiableEvent, error) {
 	msg, err := t.EventReader.ReadMessage(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	return &msg, nil
+	msgs, err := t.parseJsonAndExtractBytesValueBody(msg.Value)
+
+	var verifiableEvent types.VerifiableEvent
+
+	decoded, err := base64.StdEncoding.DecodeString(msgs[0])
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(decoded, &verifiableEvent)
+	if err != nil {
+		return nil, err
+	}
+
+	return &verifiableEvent, nil
 }
 
 func (t *Reader) parseJsonAndExtractBytesValueBody(jsonData []byte) ([]string, error) {
@@ -53,39 +69,3 @@ func (t *Reader) parseJsonAndExtractBytesValueBody(jsonData []byte) ([]string, e
 	}
 	return msgs, nil
 }
-
-// func (t *KafkaReader) ReadBeholderEventsFromKafkaMessage() ([]CREEvent, error) {
-// 	var beholderEvents []CREEvent
-// 	msg, err := t.EventReader.ReadMessage(context.Background())
-// 	if err != nil {
-// 		return nil, fmt.Errorf("error while reading message: %w", err)
-// 	}
-// 	msgs, err := t.parseJsonAndExtractBytesValueBody(msg.Value)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
-// 	}
-//
-// 	for _, bodyBytesValue := range msgs {
-// 		decodedBody, err := base64.StdEncoding.DecodeString(bodyBytesValue)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("failed to decode base64, %w", err)
-// 		}
-// 		pbMap := new(pb.Map)
-// 		if err := proto.Unmarshal(decodedBody, pbMap); err != nil {
-// 			return nil, fmt.Errorf("error unmarshalling body into pb.Map: %w", err)
-// 		}
-// 		value, err := values.FromMapValueProto(pbMap)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("error creating values.Value object from pb.Value: %w", err)
-// 		}
-// 		var creEvent CREEvent
-// 		err = value.UnwrapTo(&creEvent)
-// 		if err != nil {
-// 			return nil, fmt.Errorf(
-// 				"error unwrapping values.Value into model.BeholderEvent (possibly not bff event): %w", err,
-// 			)
-// 		}
-// 		beholderEvents = append(beholderEvents, creEvent)
-// 	}
-// 	return beholderEvents, nil
-// }
