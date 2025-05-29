@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 
 	"github.com/segmentio/kafka-go"
 
@@ -32,12 +33,18 @@ func (t *Reader) Close() error {
 	return t.EventReader.Close()
 }
 
-func (t *Reader) ReadMessage() (*types.VerifiableEvent, error) {
-	msg, err := t.EventReader.ReadMessage(context.Background())
+func (t *Reader) ReadMessage(ctx context.Context) (*types.VerifiableEvent, error) {
+	msg, err := t.EventReader.ReadMessage(ctx)
 	if err != nil {
 		return nil, err
 	}
 	msgs, err := t.parseJsonAndExtractBytesValueBody(msg.Value)
+	if err != nil {
+		return nil, err
+	}
+	if len(msgs) == 0 {
+		return nil, errors.New("cannot process empty message body")
+	}
 
 	var verifiableEvent types.VerifiableEvent
 

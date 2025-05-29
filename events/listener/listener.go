@@ -1,6 +1,7 @@
 package listener
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -11,32 +12,31 @@ import (
 )
 
 type EventListenerOptions struct {
-	Brokers []string
-	Topic   string
-	GroupID string
+	Endpoints []string
 }
 
 type EventListener struct {
-	KafkaReader *kafka.Reader
-	Log         zerolog.Logger
+	kafkaReader *kafka.Reader
+	logger      zerolog.Logger
 }
 
 func NewEventListener(opts *EventListenerOptions) *EventListener {
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
-	logger.Info().Msg("Creating CRE event listener")
+	logger.Info().Msg("Creating CVN event listener")
 
-	kafkaReader := kafka.NewKafkaEventListener(opts.Brokers, opts.Topic, opts.GroupID)
+	// TODO: The topic is hard coded since using beholder otlp logs is a temporary solution.
+	kafkaReader := kafka.NewKafkaEventListener(opts.Endpoints, "beholder_otlp_logs", "")
 
 	return &EventListener{
-		KafkaReader: kafkaReader,
-		Log:         logger,
+		kafkaReader: kafkaReader,
+		logger:      logger,
 	}
 }
 
-func (l *EventListener) Read() (*types.VerifiableEvent, error) {
-	l.Log.Debug().Msg("Reading event from broker")
-	verifiableEvent, err := l.KafkaReader.ReadMessage()
+func (l *EventListener) Read(cxt context.Context) (*types.VerifiableEvent, error) {
+	l.logger.Debug().Msg("Reading event from broker")
+	verifiableEvent, err := l.kafkaReader.ReadMessage(cxt)
 	if err != nil {
 		return nil, fmt.Errorf("error while reading message: %w", err)
 	}
@@ -44,6 +44,6 @@ func (l *EventListener) Read() (*types.VerifiableEvent, error) {
 }
 
 func (l *EventListener) Close() error {
-	l.Log.Info().Msg("Closing event listener")
-	return l.KafkaReader.EventReader.Close()
+	l.logger.Info().Msg("Closing event listener")
+	return l.kafkaReader.EventReader.Close()
 }

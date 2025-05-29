@@ -18,9 +18,8 @@ type EventVerifierOptions struct {
 }
 
 type EventVerifier struct {
-	Log                   zerolog.Logger
-	ValidSigners          []string
-	MinRequiredSignatures int
+	logger  zerolog.Logger
+	options *EventVerifierOptions
 }
 
 func NewEventVerifier(opts *EventVerifierOptions) *EventVerifier {
@@ -28,69 +27,78 @@ func NewEventVerifier(opts *EventVerifierOptions) *EventVerifier {
 
 	logger.Info().Msg("Creating CVN event verifier")
 
+	// TODO: Validate options
+
 	return &EventVerifier{
-		Log:                   logger,
-		ValidSigners:          opts.ValidSigners,
-		MinRequiredSignatures: opts.MinRequiredSignatures,
+		logger:  logger,
+		options: opts,
 	}
 }
 
 func (v *EventVerifier) Verify(verifiableEvent *types.VerifiableEvent) (bool, error) {
-	v.Log.Debug().Str("eventType", verifiableEvent.Type).Msg("Verifying verifiableEvent")
+	v.logger.Debug().Str("eventType", verifiableEvent.Type).Msg("Verifying verifiableEvent")
 
 	hash := v.EventHash(verifiableEvent)
 
-	v.Log.Debug().Str("hash", hash.Hex()).Msg("Verifying event hash")
+	v.logger.Debug().Str("hash", hash.Hex()).Msg("Verifying event hash")
 
 	validSigCount := 0
 	availableSigners := make(map[common.Address]bool)
 
-	for _, signer := range v.ValidSigners {
+	for _, signer := range v.options.ValidSigners {
 		availableSigners[common.HexToAddress(signer)] = true
 	}
 
 	for _, sig := range verifiableEvent.Signatures {
 		sigBytes, err := common.ParseHexOrString(sig)
 		if err != nil {
-			v.Log.Error().Err(err).Msg("Failed to parse signature")
+			v.logger.Error().Err(err).Msg("Failed to parse signature")
 			return false, err
 		}
 		if sigBytes[64] == 27 || sigBytes[64] == 28 {
-			sigBytes[64] -= 27 // Adjust signature format for Ethereum signatures
+			sigBytes[64] -= 27 // Adjust signature for Ethereum signatures
 		}
 		pubKey, err := crypto.SigToPub(hash.Bytes(), sigBytes)
 		if err != nil {
-			v.Log.Error().Err(err).Msg("Failed to recover public key from signature")
+			v.logger.Error().Err(err).Msg("Failed to recover public key from signature")
 			return false, err
 		}
 
 		signer := crypto.PubkeyToAddress(*pubKey)
-		v.Log.Debug().Str("signer", signer.Hex()).Msg("Recovered signer from signature")
+		v.logger.Debug().Str("signer", signer.Hex()).Msg("Recovered signer from signature")
 
 		if availableSigners[signer] {
-			v.Log.Info().Str("signer", signer.Hex()).Msg("Signature verified successfully")
+			v.logger.Info().Str("signer", signer.Hex()).Msg("Signature verified successfully")
 			validSigCount++
 			availableSigners[signer] = false // Mark this signer as used
 		}
 
 		// If we have enough valid signatures, we can return early
-		if validSigCount >= v.MinRequiredSignatures {
+		if validSigCount >= v.options.MinRequiredSignatures {
 			return true, nil
 		}
 	}
-	v.Log.Debug().Int("validSigCount", validSigCount).Msg("Total valid signatures")
+	v.logger.Debug().Int("validSigCount", validSigCount).Msg("Total valid signatures")
 
-	return validSigCount >= v.MinRequiredSignatures, nil
+	return validSigCount >= v.options.MinRequiredSignatures, nil
 }
 
 func (v *EventVerifier) Decode(verifiableEvent *types.VerifiableEvent, event any) error {
-	decodedStr, err := base64.StdEncoding.DecodeString(verifiableEvent.Payload)
+	jsonBytes, err := v.ToJson(verifiableEvent)
 	if err != nil {
-		v.Log.Error().Err(err).Msg("Failed to decode base64 payload")
+		v.logger.Error().Err(err).Msg("Failed to convert verifiable event to JSON")
 		return err
 	}
+	return json.Unmarshal(jsonBytes, event)
+}
 
-	return json.Unmarshal(decodedStr, event)
+func (v *EventVerifier) ToJson(verifiableEvent *types.VerifiableEvent) ([]byte, error) {
+	decodedStr, err := base64.StdEncoding.DecodeString(verifiableEvent.Payload)
+	if err != nil {
+		v.logger.Error().Err(err).Msg("Failed to decode base64 payload")
+		return []byte{}, err
+	}
+	return decodedStr, nil
 }
 
 func (v *EventVerifier) EventHash(verifiableEvent *types.VerifiableEvent) common.Hash {

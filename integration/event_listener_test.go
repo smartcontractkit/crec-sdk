@@ -56,19 +56,17 @@ func TestEventListener(t *testing.T) {
 
 	l := listener.NewEventListener(
 		&listener.EventListenerOptions{
-			Brokers: []string{broker},
-			Topic:   KafkaTopicName,
-			GroupID: KafkaGroupId,
+			Endpoints: []string{broker},
 		},
 	)
 
-	evt, err := l.Read()
+	evt, err := l.Read(context.Background())
 	if err != nil {
 		t.Fatalf("failed to read event: %v", err)
 	}
 	log.Printf("Event received: %v", evt)
 
-	assert.Equal(t, evt.Type, "SettlementAccepted")
+	assert.Equal(t, evt.Type, "dvp.SettlementAccepted")
 
 	teardownTestEnv(ctx, dockerNetwork, *rpCtr, *kcatCtr)
 }
