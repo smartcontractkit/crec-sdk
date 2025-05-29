@@ -38,7 +38,7 @@ func NewEventVerifier(opts *EventVerifierOptions) *EventVerifier {
 func (v *EventVerifier) Verify(verifiableEvent *types.VerifiableEvent) (bool, error) {
 	v.Log.Debug().Str("eventType", verifiableEvent.Type).Msg("Verifying verifiableEvent")
 
-	hash := crypto.Keccak256Hash([]byte(verifiableEvent.Type + verifiableEvent.Payload))
+	hash := v.EventHash(verifiableEvent)
 
 	v.Log.Debug().Str("hash", hash.Hex()).Msg("Verifying event hash")
 
@@ -91,4 +91,8 @@ func (v *EventVerifier) Decode(verifiableEvent *types.VerifiableEvent, event any
 	}
 
 	return json.Unmarshal(decodedStr, event)
+}
+
+func (v *EventVerifier) EventHash(verifiableEvent *types.VerifiableEvent) common.Hash {
+	return crypto.Keccak256Hash([]byte(verifiableEvent.Type + verifiableEvent.Payload))
 }
