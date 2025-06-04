@@ -17,5 +17,12 @@ func NewLocalSigner(privateKey *ecdsa.PrivateKey) *LocalSigner {
 }
 
 func (s *LocalSigner) Sign(hash []byte) ([]byte, error) {
-	return crypto.Sign(hash, s.privateKey)
+	sig, err := crypto.Sign(hash, s.privateKey)
+	if err != nil {
+		return nil, err
+	}
+	if sig[64] <= 1 {
+		sig[64] += 27 // Adjust the signature to be in the ethereum form
+	}
+	return sig, nil
 }
