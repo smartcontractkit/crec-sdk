@@ -15,15 +15,20 @@ import (
 type EventVerifierOptions struct {
 	ValidSigners          []string
 	MinRequiredSignatures int
+	Logger                *zerolog.Logger
 }
 
 type EventVerifier struct {
-	logger  zerolog.Logger
+	logger  *zerolog.Logger
 	options *EventVerifierOptions
 }
 
 func NewEventVerifier(opts *EventVerifierOptions) *EventVerifier {
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	logger := opts.Logger
+	if logger == nil {
+		lgr := zerolog.New(os.Stdout).With().Timestamp().Logger()
+		logger = &lgr
+	}
 
 	logger.Info().Msg("Creating CVN event verifier")
 

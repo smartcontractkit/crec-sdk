@@ -37,7 +37,7 @@ type LogRecord struct {
 type Body struct {
 	ResourceLogs []ResourceLogs `json:"resourceLogs"`
 }
-type CREEvent struct {
+type BeholderEvent struct {
 	ID                string         `json:"id" mapstructure:"id"`
 	BusinessEventID   string         `json:"business_event_id" mapstructure:"business_event_id"`
 	TriggerEventId    string         `json:"trigger_event_id" mapstructure:"trigger_event_id"`
