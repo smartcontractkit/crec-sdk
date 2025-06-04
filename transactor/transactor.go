@@ -138,9 +138,9 @@ func (t *Transactor) SendSignedOperation(
 		return err
 	}
 	t.logger.Debug().
-		Str("gateway_url", t.options.GatewayURL).
-		RawJSON("request", rawMsg).
-		Msg("Trigger request JSON")
+		Str("request_url", t.options.GatewayURL).
+		RawJSON("request_body", rawMsg).
+		Msg("Trigger request")
 
 	client := &http.Client{}
 	req, err := http.NewRequestWithContext(
@@ -165,9 +165,9 @@ func (t *Transactor) SendSignedOperation(
 		return err
 	}
 	t.logger.Debug().
-		Int("http_response_code", resp.StatusCode).
-		RawJSON("response", body).
-		Msg("Trigger response JSON")
+		Int("response_code", resp.StatusCode).
+		RawJSON("response_body", body).
+		Msg("Trigger response")
 
 	return nil
 }
