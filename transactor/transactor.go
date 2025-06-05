@@ -26,6 +26,7 @@ type Options struct {
 	GatewayURL        string
 	DonID             string
 	ChainID           uint64
+	KeystoneForwarder string
 }
 
 type Transactor struct {
@@ -97,11 +98,22 @@ func (t *Transactor) SendSignedOperation(
 		return err
 	}
 
+	var transactions []interface{}
+	for _, tx := range op.Transactions {
+		transactions = append(
+			transactions, map[string]interface{}{
+				"to":    tx.To.String(),
+				"value": tx.Value.String(),
+				"data":  "0x" + common.Bytes2Hex(tx.Data),
+			},
+		)
+	}
+
 	var triggerParams = map[string]interface{}{
-		"operation_id": op.ID,
-		"transactions": op.Transactions,
+		"operation_id": op.ID.String(),
+		"transactions": transactions,
 		"account":      op.Account,
-		"signature":    common.Bytes2Hex(signature),
+		"signature":    "0x" + common.Bytes2Hex(signature),
 	}
 
 	payload := webapicap.TriggerRequestPayload{

@@ -17,7 +17,7 @@ const (
 
 type Transaction struct {
 	To    *common.Address `json:"to"`
-	Value big.Int         `json:"value"`
+	Value *big.Int        `json:"value,string"`
 	Data  hexutil.Bytes   `json:"data"`
 }
 

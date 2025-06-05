@@ -26,7 +26,7 @@ func NewEventListener(opts *EventListenerOptions) *EventListener {
 	logger.Info().Msg("Creating CVN event listener")
 
 	// TODO: The topic is hard coded since using beholder otlp logs is a temporary solution.
-	kafkaReader := kafka.NewKafkaEventListener(opts.Endpoints, "beholder_otlp_logs", "")
+	kafkaReader := kafka.NewKafkaEventListener(opts.Endpoints, "beholder_otlp_logs", "t1")
 
 	return &EventListener{
 		kafkaReader: kafkaReader,

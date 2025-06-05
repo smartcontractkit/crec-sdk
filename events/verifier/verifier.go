@@ -12,6 +12,10 @@ import (
 	"github.com/smartcontractkit/cvm-sdk/events/types"
 )
 
+const (
+	ocrReportMetadataLen = 109
+)
+
 type EventVerifierOptions struct {
 	ValidSigners          []string
 	MinRequiredSignatures int
@@ -43,9 +47,34 @@ func NewEventVerifier(opts *EventVerifierOptions) *EventVerifier {
 func (v *EventVerifier) Verify(verifiableEvent *types.VerifiableEvent) (bool, error) {
 	v.logger.Debug().Str("eventType", verifiableEvent.Type).Msg("Verifying verifiableEvent")
 
-	hash := v.EventHash(verifiableEvent)
+	eventHash := v.EventHash(verifiableEvent)
 
-	v.logger.Debug().Str("hash", hash.Hex()).Msg("Verifying event hash")
+	report, err := common.ParseHexOrString(verifiableEvent.Report)
+	if err != nil {
+		v.logger.Error().Err(err).Msg("Failed to parse report")
+		return false, err
+	}
+	reportContext, err := common.ParseHexOrString(verifiableEvent.Context)
+	if err != nil {
+		v.logger.Error().Err(err).Msg("Failed to parse report context")
+		return false, err
+	}
+
+	if len(report) < ocrReportMetadataLen {
+		v.logger.Error().Msg("Report is too short")
+		return false, nil
+	}
+
+	// build new report with the locally calculated event hash
+	verifiableReport := append(report[:ocrReportMetadataLen], eventHash.Bytes()...)
+
+	// generate the report hash matching the DON signing format
+	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(verifiableReport), reportContext...))
+
+	v.logger.Debug().
+		Str("eventHash", eventHash.String()).
+		Str("reportHash", reportHash.String()).
+		Msg("Verifying report hash")
 
 	validSigCount := 0
 	availableSigners := make(map[common.Address]bool)
@@ -63,14 +92,17 @@ func (v *EventVerifier) Verify(verifiableEvent *types.VerifiableEvent) (bool, er
 		if sigBytes[64] == 27 || sigBytes[64] == 28 {
 			sigBytes[64] -= 27 // Adjust signature for Ethereum signatures
 		}
-		pubKey, err := crypto.SigToPub(hash.Bytes(), sigBytes)
+		pubKey, err := crypto.SigToPub(reportHash.Bytes(), sigBytes)
 		if err != nil {
 			v.logger.Error().Err(err).Msg("Failed to recover public key from signature")
 			return false, err
 		}
 
 		signer := crypto.PubkeyToAddress(*pubKey)
-		v.logger.Debug().Str("signer", signer.Hex()).Msg("Recovered signer from signature")
+		v.logger.Debug().
+			Str("signer", signer.Hex()).
+			Str("signature", sig).
+			Msg("Recovered signer from signature")
 
 		if availableSigners[signer] {
 			v.logger.Info().Str("signer", signer.Hex()).Msg("Signature verified successfully")

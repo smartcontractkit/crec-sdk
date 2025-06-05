@@ -29,8 +29,9 @@ func TestHashOperation(t *testing.T) {
 		Account: &account,
 		Transactions: []*types.Transaction{
 			{
-				To:   &to,
-				Data: []byte(""),
+				To:    &to,
+				Value: big.NewInt(0),
+				Data:  []byte(""),
 			},
 		},
 	}
@@ -61,8 +62,9 @@ func TestSignOperation(t *testing.T) {
 		Account: &account,
 		Transactions: []*types.Transaction{
 			{
-				To:   &to,
-				Data: []byte(""),
+				To:    &to,
+				Value: big.NewInt(0),
+				Data:  []byte(""),
 			},
 		},
 	}
@@ -77,7 +79,7 @@ func TestSignOperation(t *testing.T) {
 	// check for pre-computed signature for the operation based on the above to/account and private key
 	require.Equal(
 		t,
-		"5e1d5b835e963051f75e33bb8d20dd6464afe89268d53cfc06f3223ffcc1357b30f5fe9f75ceddf99792d9e1c877a3824bef0f79d522985723df46f3185ec75f00",
+		"5e1d5b835e963051f75e33bb8d20dd6464afe89268d53cfc06f3223ffcc1357b30f5fe9f75ceddf99792d9e1c877a3824bef0f79d522985723df46f3185ec75f1b",
 		common.Bytes2Hex(sig),
 	)
 }
