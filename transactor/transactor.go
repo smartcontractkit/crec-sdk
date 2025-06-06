@@ -16,8 +16,8 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/capabilities/webapi/webapicap"
 	"github.com/smartcontractkit/chainlink/v2/core/services/gateway/api"
 
-	"github.com/smartcontractkit/cvm-sdk/transactor/signer"
-	"github.com/smartcontractkit/cvm-sdk/transactor/types"
+	"github.com/smartcontractkit/cvn-sdk/transactor/signer"
+	"github.com/smartcontractkit/cvn-sdk/transactor/types"
 )
 
 type Options struct {

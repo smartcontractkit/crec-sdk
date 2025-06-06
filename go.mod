@@ -1,4 +1,4 @@
-module github.com/smartcontractkit/cvm-sdk
+module github.com/smartcontractkit/cvn-sdk
 
 go 1.24
 

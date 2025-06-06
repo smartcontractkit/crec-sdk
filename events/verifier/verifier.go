@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
 
-	"github.com/smartcontractkit/cvm-sdk/events/types"
+	"github.com/smartcontractkit/cvn-sdk/events/types"
 )
 
 const (

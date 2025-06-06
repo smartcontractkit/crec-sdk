@@ -7,8 +7,8 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/smartcontractkit/cvm-sdk/events/types"
-	"github.com/smartcontractkit/cvm-sdk/internal/creclient/kafka"
+	"github.com/smartcontractkit/cvn-sdk/events/types"
+	"github.com/smartcontractkit/cvn-sdk/internal/creclient/kafka"
 )
 
 type EventListenerOptions struct {

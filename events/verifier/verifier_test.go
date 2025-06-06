@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/cvm-sdk/events/types"
+	"github.com/smartcontractkit/cvn-sdk/events/types"
 )
 
 func TestVerifyEvent(t *testing.T) {

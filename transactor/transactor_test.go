@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/cvm-sdk/transactor/signer"
-	"github.com/smartcontractkit/cvm-sdk/transactor/types"
+	"github.com/smartcontractkit/cvn-sdk/transactor/signer"
+	"github.com/smartcontractkit/cvn-sdk/transactor/types"
 )
 
 func TestHashOperation(t *testing.T) {

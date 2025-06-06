@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 
-	"github.com/smartcontractkit/cvm-sdk/events/listener"
+	"github.com/smartcontractkit/cvn-sdk/events/listener"
 )
 
 const (

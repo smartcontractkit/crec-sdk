@@ -11,7 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/values/pb"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/smartcontractkit/cvm-sdk/events/types"
+	"github.com/smartcontractkit/cvn-sdk/events/types"
 )
 
 type Reader struct {
