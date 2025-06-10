@@ -33,7 +33,7 @@ func NewCcipService(opts *CcipServiceOptions) *CcipService {
 		logger = &lgr
 	}
 
-	logger.Info().Msg("Creating CVN DvP service")
+	logger.Info().Msg("Creating CVN CCIP service")
 
 	return &CcipService{
 		logger:  logger,
