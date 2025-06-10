@@ -11,9 +11,10 @@ import (
 	"github.com/rs/zerolog"
 
 	eventTypes "github.com/smartcontractkit/cvn-sdk/events/types"
+	transactTypes "github.com/smartcontractkit/cvn-sdk/transactor/types"
+
 	"github.com/smartcontractkit/cvn-sdk/services/dvp/gen/contract"
 	"github.com/smartcontractkit/cvn-sdk/services/dvp/gen/events"
-	transactTypes "github.com/smartcontractkit/cvn-sdk/transactor/types"
 )
 
 type DvpServiceOptions struct {
