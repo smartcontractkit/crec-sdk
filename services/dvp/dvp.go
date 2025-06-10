@@ -45,15 +45,17 @@ func NewDvpService(opts *DvpServiceOptions) *DvpService {
 func (s *DvpService) DecodeSettlementAccepted(verifiableEvent *eventTypes.VerifiableEvent) (
 	*events.DvpSettlementAccepted, error,
 ) {
-	var event events.DvpSettlementAccepted
 	jsonBytes, err := s.toJson(verifiableEvent)
 	if err != nil {
 		return nil, err
 	}
+
+	var event events.DvpSettlementAccepted
 	err = json.Unmarshal(jsonBytes, &event)
 	if err != nil {
 		return nil, err
 	}
+
 	return &event, nil
 }
 
