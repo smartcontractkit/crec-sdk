@@ -1,0 +1,262 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dvp",
+  "type": "object",
+  "properties": {
+    "SettlementOpened": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the event was created"
+        },
+        "event": {
+          "$ref": "#/$defs/dvpEvent"
+        },
+        "transaction": {
+          "$ref": "#/$defs/transaction"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "SettlementAccepted": {
+      "type": "object",
+      "description": "Emitted as dvp.SettlementAccepted when a DvP settlement is accepted by the buyer",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the event was created"
+        },
+        "event": {
+          "$ref": "#/$defs/dvpEvent"
+        },
+        "transaction": {
+          "$ref": "#/$defs/transaction"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "dvpEvent": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "The type of the event"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the event"
+        },
+        "address": {
+          "type": "string",
+          "description": "The address of the contract that emitted the event"
+        },
+        "settlementId": {
+          "type": "string",
+          "description": "Unique settlement ID, represented as a big integer in string format"
+        },
+        "settlementHash": {
+          "type": "string",
+          "description": "The hash of the settlement"
+        },
+        "topicHash": {
+          "type": "string",
+          "description": "The topic hash of the event"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "address",
+        "settlementId",
+        "settlementHash",
+        "topicHash"
+      ]
+    },
+    "transaction": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "integer",
+          "description": "The unix timestamp of the transaction"
+        },
+        "chainId": {
+          "type": "string",
+          "description": "The chain ID for the transaction"
+        },
+        "hash": {
+          "type": "string",
+          "description": "The hash of the transaction"
+        },
+        "fromAddress": {
+          "type": "string",
+          "description": "The sender address of the transaction"
+        },
+        "toAddress": {
+          "type": "string",
+          "description": "The recipient address of the transaction"
+        }
+      },
+      "required": [
+        "timestamp",
+        "chainId",
+        "hash",
+        "fromAddress",
+        "toAddress"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "dvp": {
+          "$ref": "#/$defs/dvpSettlement"
+        }
+      }
+    },
+    "dvpSettlement": {
+      "type": "object",
+      "properties": {
+        "partyInfo": {
+          "$ref": "#/$defs/dvpSettlementPartyInfo"
+        },
+        "tokenInfo": {
+          "$ref": "#/$defs/dvpSettlementTokenInfo"
+        },
+        "deliveryInfo": {
+          "$ref": "#/$defs/dvpSettlementDeliveryInfo"
+        },
+        "secretHash": {
+          "type": "string",
+          "description": "32-byte hex string"
+        },
+        "executeAfter": {
+          "type": "integer",
+          "description": "The unix timestamp after which the settlement can be executed"
+        },
+        "expiration": {
+          "type": "integer",
+          "description": "The unix timestamp after which the settlement expires"
+        },
+        "ccipCallbackGasLimit": {
+          "type": "integer",
+          "description": "The gas limit for the CCIP callback"
+        },
+        "data": {
+          "type": "string",
+          "description": "Attached DvP data"
+        }
+      },
+      "required": [
+        "partyInfo",
+        "tokenInfo",
+        "deliveryInfo",
+        "secretHash",
+        "executeAfter",
+        "expiration",
+        "ccipCallbackGasLimit",
+        "data"
+      ]
+    },
+    "dvpSettlementPartyInfo": {
+      "type": "object",
+      "properties": {
+        "buyerSourceAddress": {
+          "type": "string"
+        },
+        "buyerDestinationAddress": {
+          "type": "string"
+        },
+        "sellerSourceAddress": {
+          "type": "string"
+        },
+        "sellerDestinationAddress": {
+          "type": "string"
+        },
+        "executorAddress": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "buyerSourceAddress",
+        "buyerDestinationAddress",
+        "sellerSourceAddress",
+        "sellerDestinationAddress",
+        "executorAddress"
+      ]
+    },
+    "dvpSettlementTokenInfo": {
+      "type": "object",
+      "properties": {
+        "paymentTokenSourceAddress": {
+          "type": "string"
+        },
+        "paymentTokenDestinationAddress": {
+          "type": "string"
+        },
+        "assetTokenSourceAddress": {
+          "type": "string"
+        },
+        "assetTokenDestinationAddress": {
+          "type": "string"
+        },
+        "paymentCurrency": {
+          "type": "integer"
+        },
+        "paymentTokenAmount": {
+          "type": "string"
+        },
+        "assetTokenAmount": {
+          "type": "string"
+        },
+        "paymentTokenType": {
+          "type": "integer"
+        },
+        "assetTokenType": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "paymentTokenSourceAddress",
+        "paymentTokenDestinationAddress",
+        "assetTokenSourceAddress",
+        "assetTokenDestinationAddress",
+        "paymentCurrency",
+        "paymentTokenAmount",
+        "assetTokenAmount",
+        "paymentTokenType",
+        "assetTokenType"
+      ]
+    },
+    "dvpSettlementDeliveryInfo": {
+      "type": "object",
+      "properties": {
+        "paymentSourceChainSelector": {
+          "type": "string"
+        },
+        "paymentDestinationChainSelector": {
+          "type": "string"
+        },
+        "assetSourceChainSelector": {
+          "type": "string"
+        },
+        "assetDestinationChainSelector": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "paymentSourceChainSelector",
+        "paymentDestinationChainSelector",
+        "assetSourceChainSelector",
+        "assetDestinationChainSelector"
+      ]
+    }
+  }
+}

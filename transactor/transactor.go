@@ -26,7 +26,6 @@ type Options struct {
 	GatewayURL        string
 	DonID             string
 	ChainID           uint64
-	KeystoneForwarder string
 }
 
 type Transactor struct {
