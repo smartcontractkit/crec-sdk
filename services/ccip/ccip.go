@@ -11,7 +11,7 @@ import (
 	transactTypes "github.com/smartcontractkit/cvn-sdk/transactor/types"
 
 	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/erc20"
-	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/router"
+	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/routerclient"
 )
 
 type CcipServiceOptions struct {
@@ -41,8 +41,8 @@ func NewCcipService(opts *CcipServiceOptions) *CcipService {
 	}
 }
 
-func (s *CcipService) PrepareRouteMessageOperation(
-	message router.ClientAny2EVMMessage, gasForCallExactCheck uint16, gasLimit *big.Int, receiver common.Address,
+func (s *CcipService) PrepareCcipSendOperation(
+	destinationChainSelector uint64, message routerclient.ClientEVM2AnyMessage,
 ) (*transactTypes.Operation, error) {
 
 	erc20Abi, err := erc20.Erc20MetaData.GetAbi()
@@ -51,15 +51,15 @@ func (s *CcipService) PrepareRouteMessageOperation(
 		return nil, err
 	}
 
-	routerAbi, err := router.RouterMetaData.GetAbi()
+	routerClientAbi, err := routerclient.RouterclientMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to get CCIP router ABI")
+		s.logger.Error().Err(err).Msg("failed to get RouterClient ABI")
 		return nil, err
 	}
 
-	routeMessageCalldata, err := routerAbi.Pack("routeMessage", message, gasForCallExactCheck, gasLimit, receiver)
+	ccipSendCalldata, err := routerClientAbi.Pack("ccipSend", destinationChainSelector, message)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to pack calldata for routeMessage")
+		s.logger.Error().Err(err).Msg("failed to pack calldata for ccipSend")
 		return nil, err
 	}
 
@@ -68,9 +68,9 @@ func (s *CcipService) PrepareRouteMessageOperation(
 
 	var transactions []*transactTypes.Transaction
 
-	if s.options.IncludeTokenApprovals && len(message.DestTokenAmounts) > 0 {
+	if s.options.IncludeTokenApprovals && len(message.TokenAmounts) > 0 {
 		// If the message contains token amounts, we need to approve tokens to the CCIP router
-		for _, destTokenAmount := range message.DestTokenAmounts {
+		for _, destTokenAmount := range message.TokenAmounts {
 			approveCalldata, err := erc20Abi.Pack("approve", ccipRouter, destTokenAmount.Amount)
 			if err != nil {
 				s.logger.Error().Err(err).Msg("failed to pack calldata for token approve")
@@ -91,7 +91,7 @@ func (s *CcipService) PrepareRouteMessageOperation(
 		transactions, &transactTypes.Transaction{
 			To:    &ccipRouter,
 			Value: big.NewInt(0),
-			Data:  routeMessageCalldata,
+			Data:  ccipSendCalldata,
 		},
 	)
 
