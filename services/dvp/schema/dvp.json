@@ -95,22 +95,12 @@
         "hash": {
           "type": "string",
           "description": "The hash of the transaction"
-        },
-        "fromAddress": {
-          "type": "string",
-          "description": "The sender address of the transaction"
-        },
-        "toAddress": {
-          "type": "string",
-          "description": "The recipient address of the transaction"
         }
       },
       "required": [
         "timestamp",
         "chainId",
-        "hash",
-        "fromAddress",
-        "toAddress"
+        "hash"
       ]
     },
     "metadata": {

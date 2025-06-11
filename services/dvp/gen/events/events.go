@@ -340,17 +340,11 @@ type Transaction struct {
 	// The chain ID for the transaction
 	ChainId string `json:"chainId" yaml:"chainId" mapstructure:"chainId"`
 
-	// The sender address of the transaction
-	FromAddress string `json:"fromAddress" yaml:"fromAddress" mapstructure:"fromAddress"`
-
 	// The hash of the transaction
 	Hash string `json:"hash" yaml:"hash" mapstructure:"hash"`
 
 	// The unix timestamp of the transaction
 	Timestamp int `json:"timestamp" yaml:"timestamp" mapstructure:"timestamp"`
-
-	// The recipient address of the transaction
-	ToAddress string `json:"toAddress" yaml:"toAddress" mapstructure:"toAddress"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -362,17 +356,11 @@ func (j *Transaction) UnmarshalJSON(value []byte) error {
 	if _, ok := raw["chainId"]; raw != nil && !ok {
 		return fmt.Errorf("field chainId in Transaction: required")
 	}
-	if _, ok := raw["fromAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field fromAddress in Transaction: required")
-	}
 	if _, ok := raw["hash"]; raw != nil && !ok {
 		return fmt.Errorf("field hash in Transaction: required")
 	}
 	if _, ok := raw["timestamp"]; raw != nil && !ok {
 		return fmt.Errorf("field timestamp in Transaction: required")
-	}
-	if _, ok := raw["toAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field toAddress in Transaction: required")
 	}
 	type Plain Transaction
 	var plain Plain
