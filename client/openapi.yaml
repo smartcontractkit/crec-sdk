@@ -1,0 +1,383 @@
+openapi: 3.0.4
+info:
+  title: Chainlink Verifiable Network API
+  version: 0.0.1
+
+paths:
+  /health-check:
+    get:
+      summary: Health check endpoint
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+  /listener:
+    post:
+      summary: Creates a new listener.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListenerRequest"
+      responses:
+        "201":
+          description: Listener created
+
+  /events:
+    get:
+      summary: Retrieves events.
+      parameters:
+        - in: query
+          name: created.lt
+          description: Filter events created before this timestamp
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: created.lte
+          description: Filter events created at or before this timestamp
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: created.gt
+          description: Filter events created after this timestamp
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: created.gte
+          description: Filter events created at or after this timestamp
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: limit
+          description: The number of events to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: starting_after
+          description: Return events starting after this event UUID
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: ending_before
+          description: Return events occurring before this event UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Successful retrieval of events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResponse"
+    post:
+      summary: Creates a new event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventRequest"
+      responses:
+        "201":
+          description: Event created
+
+  /operation/send:
+    post:
+      summary: Sends an onchain transaction event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OperationRequest"
+      responses:
+        "201":
+          description: Operation sent successfully
+  /operation/status:
+    get:
+      summary: Retrieves operation statuses.
+      parameters:
+        - in: query
+          name: created.lt
+          description: Filter operations created before this timestamp
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: created.lte
+          description: Filter operations created at or before this timestamp
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: created.gt
+          description: Filter operations created after this timestamp
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: created.gte
+          description: Filter operations created at or after this timestamp
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: limit
+          description: The number of operations to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: starting_after
+          description: Return operations starting after this operation UUID
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: ending_before
+          description: Return operations occurring before this operation UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Successful operation status retrieval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ArrayOfOperations"
+                  has_more:
+                    type: boolean
+                    description: True if there are more operation statuses to fetch
+    post:
+      summary: Updates the status of an operation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OperationStatusRequest"
+      responses:
+        "202":
+          description: Operation status recorded successfully
+  /operation/status/{operation_id}:
+    get:
+      summary: Retrieves the status of an operation.
+      parameters:
+        - in: path
+          name: operation_id
+          required: true
+          description: Unique identifier for the operation
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operation"
+
+components:
+  schemas:
+    ListenerRequest:
+      type: object
+      properties:
+        service:
+          type: string
+          description: Service namespace for the listener
+        name:
+          type: string
+          description: Name of the event to listen for
+        address:
+          type: string
+          description: Smart contract address to listen for events
+        options:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - service
+        - name
+        - address
+    EventRequest:
+      type: object
+      properties:
+        service:
+          type: string
+          description: Service namespace for the event
+        name:
+          type: string
+          description: Name of the event
+        verifiable_event:
+          type: string
+          description: Base64 encoded verifiable event
+        ocr_report:
+          type: string
+          description: OCR report associated with the event
+        ocr_context:
+          type: string
+          description: OCR context associated with the event
+        signatures:
+          type: array
+          items:
+            type: string
+            description: Signature of the event
+        address:
+          type: string
+          description: Smart contract address from which the event was emitted
+      required:
+        - service
+        - name
+        - verifiable_event
+        - ocr_report
+        - ocr_context
+        - signatures
+        - address
+    EventResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ArrayOfEvents"
+        has_more:
+          type: boolean
+          description: True if there are more events to fetch
+    Event:
+      type: object
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: Unique identifier for the event
+        created_at:
+          type: integer
+          format: int64
+          description: Timestamp of when the event was created
+        service:
+          type: string
+          description: Service namespace for the event
+        name:
+          type: string
+          description: Name of the event
+        verifiable_event:
+          type: string
+          description: Base64 encoded verifiable event
+        ocr_report:
+          type: string
+          description: OCR report associated with the event
+        ocr_context:
+          type: string
+          description: OCR context associated with the event
+        signatures:
+          type: array
+          items:
+            type: string
+            description: Signature of the event
+    ArrayOfEvents:
+      type: array
+      items:
+        $ref: "#/components/schemas/Event"
+    OperationRequest:
+      type: object
+      properties:
+        account_operation_id:
+          type: string
+          description: Unique account operation identifier
+        account:
+          type: string
+          description: Onchain account address performing the operation
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TransactionRequest"
+        signature:
+          type: string
+          description: EIP-712 signature of the operation
+      required:
+        - account_operation_id
+        - account
+        - transactions
+        - signature
+    TransactionRequest:
+      type: object
+      properties:
+        to:
+          type: string
+          description: Address receiving the transaction
+        value:
+          type: string
+          description: Amount of native token value being sent in the transaction
+        data:
+          type: string
+          description: Hex-encoded calldata for the transaction
+      required:
+        - to
+        - value
+        - data
+    OperationStatusRequest:
+      type: object
+      properties:
+        account_operation_id:
+          type: string
+          description: Unique account operation identifier
+        account:
+          type: string
+          description: Onchain account address performing the operation
+        transaction_hash:
+          type: string
+          description: Onchain transaction hash which included the operation
+        transaction_timestamp:
+          type: integer
+          description: Timestamp of onchain transaction which included the operation
+      required:
+        - account_operation_id
+        - account
+        - transaction_hash
+        - transaction_timestamp
+    Operation:
+      type: object
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+          description: Unique identifier for the operation
+        account_operation_id:
+          type: string
+          description: Unique account operation identifier
+        created_at:
+          type: integer
+          description: Timestamp of when the operation was created
+        account:
+          type: string
+          description: Onchain account address performing the operation
+        status:
+          type: string
+          description: Current status of the operation
+        transaction_hash:
+          type: string
+          description: Onchain transaction hash which included the operation
+    ArrayOfOperations:
+      type: array
+      items:
+        $ref: "#/components/schemas/Operation"

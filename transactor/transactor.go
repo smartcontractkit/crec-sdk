@@ -1,39 +1,38 @@
 package transactor
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
-	"net/http"
+	"errors"
 	"os"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/rs/zerolog"
-	"github.com/smartcontractkit/chainlink/v2/core/capabilities/webapi/webapicap"
-	"github.com/smartcontractkit/chainlink/v2/core/services/gateway/api"
 
+	"github.com/smartcontractkit/cvn-sdk/client"
 	"github.com/smartcontractkit/cvn-sdk/transactor/signer"
 	"github.com/smartcontractkit/cvn-sdk/transactor/types"
 )
 
 type Options struct {
-	Logger            *zerolog.Logger
-	TriggerPrivateKey string
-	GatewayURL        string
-	DonID             string
-	ChainID           uint64
+	Logger  *zerolog.Logger
+	ChainID uint64
 }
 
 type Transactor struct {
-	logger  *zerolog.Logger
-	options *Options
+	cvnClient *client.ClientWithResponses
+	logger    *zerolog.Logger
+	chainID   uint64
 }
 
-func NewTransactor(opts *Options) *Transactor {
+func NewTransactor(cvnClient *client.ClientWithResponses, opts *Options) (*Transactor, error) {
+	if cvnClient == nil {
+		return nil, errors.New("Transactor requires a valid CVN client")
+	}
+	if opts == nil {
+		return nil, errors.New("Transactor requires a valid options struct")
+	}
+
 	logger := opts.Logger
 	if logger == nil {
 		lgr := zerolog.New(os.Stdout).With().Timestamp().Logger()
@@ -42,16 +41,15 @@ func NewTransactor(opts *Options) *Transactor {
 
 	logger.Info().Msg("Creating CVN transactor")
 
-	// TODO: Validate options
-
 	return &Transactor{
-		logger:  logger,
-		options: opts,
-	}
+		logger:    logger,
+		cvnClient: cvnClient,
+		chainID:   opts.ChainID,
+	}, nil
 }
 
 func (t *Transactor) HashOperation(op *types.Operation) ([]byte, error) {
-	typedData, err := op.TypedData(t.options.ChainID)
+	typedData, err := op.TypedData(t.chainID)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to create typed data for operation")
 		return nil, err
@@ -83,6 +81,7 @@ func (t *Transactor) SignOperation(
 }
 
 func (t *Transactor) SendSignedOperation(
+	ctx context.Context,
 	op *types.Operation,
 	signature []byte,
 ) error {
@@ -91,94 +90,33 @@ func (t *Transactor) SendSignedOperation(
 		Str("signature", common.Bytes2Hex(signature)).
 		Msg("Sending signed operation")
 
-	key, err := crypto.HexToECDSA(t.options.TriggerPrivateKey)
-	if err != nil {
-		t.logger.Error().Err(err).Msg("Error parsing private key")
-		return err
-	}
-
-	var transactions []interface{}
+	var transactions []client.TransactionRequest
 	for _, tx := range op.Transactions {
 		transactions = append(
-			transactions, map[string]interface{}{
-				"to":    tx.To.String(),
-				"value": tx.Value.String(),
-				"data":  "0x" + common.Bytes2Hex(tx.Data),
+			transactions, client.TransactionRequest{
+				To:    tx.To.String(),
+				Value: tx.Value.String(),
+				Data:  "0x" + common.Bytes2Hex(tx.Data),
 			},
 		)
 	}
 
-	var triggerParams = map[string]interface{}{
-		"operation_id": op.ID.String(),
-		"transactions": transactions,
-		"account":      op.Account,
-		"signature":    "0x" + common.Bytes2Hex(signature),
+	var requestData = client.OperationRequest{
+		AccountOperationId: op.ID.String(),
+		Transactions:       transactions,
+		Account:            op.Account.String(),
+		Signature:          "0x" + common.Bytes2Hex(signature),
 	}
 
-	payload := webapicap.TriggerRequestPayload{
-		TriggerId:      "web-api-trigger@1.0.0",
-		TriggerEventId: op.ID.String(),
-		Timestamp:      time.Now().Unix(),
-		Topics:         []string{"writeOperation"},
-		Params:         triggerParams,
-	}
-	payloadJson, err := json.Marshal(payload)
+	resp, err := t.cvnClient.PostOperationSendWithResponse(ctx, requestData)
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Error marshalling trigger")
+		t.logger.Error().Err(err).Msg("Failed to send signed operation")
 		return err
 	}
 
-	addr := crypto.PubkeyToAddress(key.PublicKey)
-	msg := &api.Message{
-		Body: api.MessageBody{
-			MessageId: payload.TriggerEventId,
-			Method:    "web_api_trigger",
-			DonId:     t.options.DonID,
-			Payload:   json.RawMessage(payloadJson),
-			Sender:    addr.String(),
-		},
-	}
-	if err = msg.Sign(key); err != nil {
-		t.logger.Error().Err(err).Msg("Error signing message")
-		return err
-	}
-	codec := api.JsonRPCCodec{}
-	rawMsg, err := codec.EncodeRequest(msg)
-	if err != nil {
-		t.logger.Error().Err(err).Msg("Error JSON-RPC encoding")
-		return err
-	}
-	t.logger.Debug().
-		Str("request_url", t.options.GatewayURL).
-		RawJSON("request_body", rawMsg).
-		Msg("Trigger request")
-
-	client := &http.Client{}
-	req, err := http.NewRequestWithContext(
-		context.Background(), "POST", t.options.GatewayURL, bytes.NewBuffer(rawMsg),
-	)
-	if err != nil {
-		t.logger.Error().Err(err).Msg("Error creating request")
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		t.logger.Error().Err(err).Msg("Error sending request")
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.logger.Error().Err(err).Msg("Error reading response")
-		return err
-	}
-	t.logger.Debug().
-		Int("response_code", resp.StatusCode).
-		RawJSON("response_body", body).
-		Msg("Trigger response")
+	t.logger.Info().
+		Int("status", resp.StatusCode()).
+		Msg("SendSignedOperation result")
 
 	return nil
 }

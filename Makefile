@@ -5,6 +5,8 @@ tools:
 
 .PHONY: generate
 generate:
+	go generate ./client
+	go generate ./internal/mockserver/api
 	go-jsonschema services/dvp/schema/dvp.json -p events -o services/dvp/gen/events/events.go -t
 	abigen --abi services/dvp/abi/CCIPDVPCoordinator.abi.json --pkg contract --out services/dvp/gen/contract/contract.go
 	abigen --abi services/ccip/abi/IRouterClient.abi.json --pkg routerclient --out services/ccip/gen/routerclient/routerclient.go

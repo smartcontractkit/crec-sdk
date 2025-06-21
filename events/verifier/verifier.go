@@ -3,13 +3,14 @@ package verifier
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
 
-	"github.com/smartcontractkit/cvn-sdk/events/types"
+	"github.com/smartcontractkit/cvn-sdk/client"
 )
 
 const (
@@ -23,11 +24,19 @@ type EventVerifierOptions struct {
 }
 
 type EventVerifier struct {
-	logger  *zerolog.Logger
-	options *EventVerifierOptions
+	logger                *zerolog.Logger
+	minRequiredSignatures int
+	validSigners          []string
 }
 
-func NewEventVerifier(opts *EventVerifierOptions) *EventVerifier {
+func NewEventVerifier(opts *EventVerifierOptions) (*EventVerifier, error) {
+	if opts == nil {
+		return nil, errors.New("EventVerifier requires a valid options struct")
+	}
+	if len(opts.ValidSigners) < opts.MinRequiredSignatures {
+		return nil, errors.New("EventVerifier requires at least as many valid signer as the minimum required signatures")
+	}
+
 	logger := opts.Logger
 	if logger == nil {
 		lgr := zerolog.New(os.Stdout).With().Timestamp().Logger()
@@ -36,25 +45,30 @@ func NewEventVerifier(opts *EventVerifierOptions) *EventVerifier {
 
 	logger.Info().Msg("Creating CVN event verifier")
 
-	// TODO: Validate options
+	validSigners := make([]string, len(opts.ValidSigners))
+	copy(validSigners, opts.ValidSigners)
 
 	return &EventVerifier{
-		logger:  logger,
-		options: opts,
-	}
+		logger:                logger,
+		minRequiredSignatures: opts.MinRequiredSignatures,
+		validSigners:          validSigners,
+	}, nil
 }
 
-func (v *EventVerifier) Verify(verifiableEvent *types.VerifiableEvent) (bool, error) {
-	v.logger.Debug().Str("eventType", verifiableEvent.Type).Msg("Verifying verifiableEvent")
+func (v *EventVerifier) Verify(event *client.Event) (bool, error) {
+	v.logger.Debug().
+		Str("event_service", *event.Service).
+		Str("event_name", *event.Name).
+		Msg("Verifying event")
 
-	eventHash := v.EventHash(verifiableEvent)
+	eventHash := v.EventHash(event)
 
-	report, err := common.ParseHexOrString(verifiableEvent.Report)
+	report, err := common.ParseHexOrString(*event.OcrReport)
 	if err != nil {
 		v.logger.Error().Err(err).Msg("Failed to parse report")
 		return false, err
 	}
-	reportContext, err := common.ParseHexOrString(verifiableEvent.Context)
+	reportContext, err := common.ParseHexOrString(*event.OcrContext)
 	if err != nil {
 		v.logger.Error().Err(err).Msg("Failed to parse report context")
 		return false, err
@@ -72,18 +86,18 @@ func (v *EventVerifier) Verify(verifiableEvent *types.VerifiableEvent) (bool, er
 	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(verifiableReport), reportContext...))
 
 	v.logger.Debug().
-		Str("eventHash", eventHash.String()).
-		Str("reportHash", reportHash.String()).
+		Str("event_hash", eventHash.String()).
+		Str("report_hash", reportHash.String()).
 		Msg("Verifying report hash")
 
 	validSigCount := 0
 	availableSigners := make(map[common.Address]bool)
 
-	for _, signer := range v.options.ValidSigners {
+	for _, signer := range v.validSigners {
 		availableSigners[common.HexToAddress(signer)] = true
 	}
 
-	for _, sig := range verifiableEvent.Signatures {
+	for _, sig := range *event.Signatures {
 		sigBytes, err := common.ParseHexOrString(sig)
 		if err != nil {
 			v.logger.Error().Err(err).Msg("Failed to parse signature")
@@ -111,26 +125,26 @@ func (v *EventVerifier) Verify(verifiableEvent *types.VerifiableEvent) (bool, er
 		}
 
 		// If we have enough valid signatures, we can return early
-		if validSigCount >= v.options.MinRequiredSignatures {
+		if validSigCount >= v.minRequiredSignatures {
 			return true, nil
 		}
 	}
-	v.logger.Debug().Int("validSigCount", validSigCount).Msg("Total valid signatures")
+	v.logger.Debug().Int("valid_signatures", validSigCount).Msg("Finished signature checking")
 
-	return validSigCount >= v.options.MinRequiredSignatures, nil
+	return validSigCount >= v.minRequiredSignatures, nil
 }
 
-func (v *EventVerifier) Decode(verifiableEvent *types.VerifiableEvent, event any) error {
-	jsonBytes, err := v.ToJson(verifiableEvent)
+func (v *EventVerifier) Decode(event *client.Event, payload any) error {
+	jsonBytes, err := v.ToJson(event)
 	if err != nil {
 		v.logger.Error().Err(err).Msg("Failed to convert verifiable event to JSON")
 		return err
 	}
-	return json.Unmarshal(jsonBytes, event)
+	return json.Unmarshal(jsonBytes, payload)
 }
 
-func (v *EventVerifier) ToJson(verifiableEvent *types.VerifiableEvent) ([]byte, error) {
-	decodedStr, err := base64.StdEncoding.DecodeString(verifiableEvent.Payload)
+func (v *EventVerifier) ToJson(event *client.Event) ([]byte, error) {
+	decodedStr, err := base64.StdEncoding.DecodeString(*event.VerifiableEvent)
 	if err != nil {
 		v.logger.Error().Err(err).Msg("Failed to decode base64 payload")
 		return []byte{}, err
@@ -138,6 +152,6 @@ func (v *EventVerifier) ToJson(verifiableEvent *types.VerifiableEvent) ([]byte, 
 	return decodedStr, nil
 }
 
-func (v *EventVerifier) EventHash(verifiableEvent *types.VerifiableEvent) common.Hash {
-	return crypto.Keccak256Hash([]byte(verifiableEvent.Type + verifiableEvent.Payload))
+func (v *EventVerifier) EventHash(event *client.Event) common.Hash {
+	return crypto.Keccak256Hash([]byte(*event.Service + "." + *event.Name + "." + *event.VerifiableEvent))
 }

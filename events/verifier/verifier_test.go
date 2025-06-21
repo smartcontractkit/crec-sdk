@@ -1,48 +1,26 @@
 package verifier
 
 import (
-	"encoding/hex"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/cvn-sdk/events/types"
+	"github.com/smartcontractkit/cvn-sdk/internal/mockdata"
 )
 
 func TestVerifyEvent(t *testing.T) {
-	// Generate a new private key
-	privKey, err := crypto.GenerateKey()
+	event, err := mockdata.LoadMockEvent("valid_event.json")
 	require.NoError(t, err)
 
-	// Create a payload
-	payload := []byte("test-payload")
-
-	// Hash the payload
-	hash := crypto.Keccak256Hash(payload)
-
-	// Sign the hash
-	sig, err := crypto.Sign(hash.Bytes(), privKey)
-	require.NoError(t, err)
-
-	// Encode signature as hex string
-	sigHex := hex.EncodeToString(sig)
-
-	// Prepare VerifiableEvent
-	event := &types.VerifiableEvent{
-		Type:       "TestEvent",
-		Payload:    string(payload),
-		Signatures: []string{sigHex},
-	}
-
-	signer := crypto.PubkeyToAddress(privKey.PublicKey)
-
-	v := NewEventVerifier(
+	v, err := NewEventVerifier(
 		&EventVerifierOptions{
-			ValidSigners:          []string{signer.Hex()},
+			ValidSigners: []string{
+				"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+			},
 			MinRequiredSignatures: 1,
 		},
 	)
+	require.NoError(t, err)
 
 	verified, err := v.Verify(event)
 	require.NoError(t, err)

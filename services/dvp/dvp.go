@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 
-	eventTypes "github.com/smartcontractkit/cvn-sdk/events/types"
+	"github.com/smartcontractkit/cvn-sdk/client"
 	transactTypes "github.com/smartcontractkit/cvn-sdk/transactor/types"
 
 	"github.com/smartcontractkit/cvn-sdk/services/dvp/gen/contract"
@@ -43,25 +43,25 @@ func NewDvpService(opts *DvpServiceOptions) *DvpService {
 	}
 }
 
-func (s *DvpService) DecodeSettlementAccepted(verifiableEvent *eventTypes.VerifiableEvent) (
+func (s *DvpService) DecodeSettlementAccepted(event *client.Event) (
 	*events.DvpSettlementAccepted, error,
 ) {
-	jsonBytes, err := s.toJson(verifiableEvent)
+	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
 	}
 
-	var event events.DvpSettlementAccepted
+	var dvpEvent events.DvpSettlementAccepted
 	err = json.Unmarshal(jsonBytes, &event)
 	if err != nil {
 		return nil, err
 	}
 
-	return &event, nil
+	return &dvpEvent, nil
 }
 
-func (s *DvpService) toJson(verifiableEvent *eventTypes.VerifiableEvent) ([]byte, error) {
-	decodedStr, err := base64.StdEncoding.DecodeString(verifiableEvent.Payload)
+func (s *DvpService) toJson(event *client.Event) ([]byte, error) {
+	decodedStr, err := base64.StdEncoding.DecodeString(*event.VerifiableEvent)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to decode base64 payload")
 		return []byte{}, err
