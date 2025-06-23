@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	ocrReportMetadataLen = 109
+	ocrReportPayloadOffset = 109
 )
 
 type EventVerifierOptions struct {
@@ -59,40 +59,41 @@ func (v *EventVerifier) Verify(event *client.Event) (bool, error) {
 	v.logger.Debug().
 		Str("event_service", *event.Service).
 		Str("event_name", *event.Name).
+		Str("ocr_report", *event.OcrReport).
+		Str("ocr_context", *event.OcrContext).
 		Msg("Verifying event")
 
-	eventHash := v.EventHash(event)
-
-	report, err := common.ParseHexOrString(*event.OcrReport)
+	ocrReport, err := common.ParseHexOrString(*event.OcrReport)
 	if err != nil {
 		v.logger.Error().Err(err).Msg("Failed to parse report")
 		return false, err
 	}
-	reportContext, err := common.ParseHexOrString(*event.OcrContext)
+	ocrContext, err := common.ParseHexOrString(*event.OcrContext)
 	if err != nil {
 		v.logger.Error().Err(err).Msg("Failed to parse report context")
 		return false, err
 	}
 
-	if len(report) < ocrReportMetadataLen {
+	if len(ocrReport) < ocrReportPayloadOffset+32 { // 32 bytes for event hash
 		v.logger.Error().Msg("Report is too short")
-		return false, nil
+		return false, err
 	}
 
-	// build new report with the locally calculated event hash
-	verifiableReport := append(report[:ocrReportMetadataLen], eventHash.Bytes()...)
+	// compute the event hash from the event data
+	eventHash := v.EventHash(event)
+
+	// ensure locally computed event hash matches the one in the report
+	eventHashValid := v.VerifyEventHash(ocrReport, eventHash)
+	if !eventHashValid {
+		v.logger.Error().Err(err).Msg("Failed to verify event hash")
+		return false, err
+	}
 
 	// generate the report hash matching the DON signing format
-	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(verifiableReport), reportContext...))
-
-	v.logger.Debug().
-		Str("event_hash", eventHash.String()).
-		Str("report_hash", reportHash.String()).
-		Msg("Verifying report hash")
+	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
 
 	validSigCount := 0
 	availableSigners := make(map[common.Address]bool)
-
 	for _, signer := range v.validSigners {
 		availableSigners[common.HexToAddress(signer)] = true
 	}
@@ -124,9 +125,9 @@ func (v *EventVerifier) Verify(event *client.Event) (bool, error) {
 			availableSigners[signer] = false // Mark this signer as used
 		}
 
-		// If we have enough valid signatures, we can return early
+		// If we have enough valid signatures, we can stop
 		if validSigCount >= v.minRequiredSignatures {
-			return true, nil
+			break
 		}
 	}
 	v.logger.Debug().Int("valid_signatures", validSigCount).Msg("Finished signature checking")
@@ -154,4 +155,27 @@ func (v *EventVerifier) ToJson(event *client.Event) ([]byte, error) {
 
 func (v *EventVerifier) EventHash(event *client.Event) common.Hash {
 	return crypto.Keccak256Hash([]byte(*event.Service + "." + *event.Name + "." + *event.VerifiableEvent))
+}
+
+func (v *EventVerifier) VerifyEventHash(ocrReport []byte, eventHash common.Hash) bool {
+
+	// OCR report layout:
+	// version                offset   0, size  1
+	// workflow_execution_id  offset   1, size 32
+	// timestamp              offset  33, size  4
+	// don_id                 offset  37, size  4
+	// don_config_version,    offset  41, size  4
+	// workflow_cid           offset  45, size 32
+	// workflow_name          offset  77, size 10
+	// workflow_owner         offset  87, size 20
+	// report_id              offset 107, size  2
+	// payload			      offset 109, size  ... <- event hash
+
+	reportEventHash := common.BytesToHash(ocrReport[ocrReportPayloadOffset:])
+	v.logger.Debug().
+		Str("local_event_hash", eventHash.String()).
+		Str("report_event_hash", reportEventHash.String()).
+		Msg("Comparing event hashes")
+
+	return eventHash == reportEventHash
 }

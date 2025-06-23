@@ -15,9 +15,10 @@ func TestVerifyEvent(t *testing.T) {
 	v, err := NewEventVerifier(
 		&EventVerifierOptions{
 			ValidSigners: []string{
-				"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+				"0xFD528f7bd7a6eB8d6605BF944d122da7665C69A1",
+				"0x4f4ddd274635D014C4584118a0fdD6cf89B25d3b",
 			},
-			MinRequiredSignatures: 1,
+			MinRequiredSignatures: 2,
 		},
 	)
 	require.NoError(t, err)
