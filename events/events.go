@@ -59,9 +59,12 @@ func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Cli
 	}
 
 	return &Client{
-		cvnClient:         cvnClient,
-		logger:            logger,
-		eventsAfter:       eventsAfter,
+		cvnClient:             cvnClient,
+		logger:                logger,
+		eventsAfter:           eventsAfter,
+		minRequiredSignatures: opts.MinRequiredSignatures,
+		validSigners:          opts.ValidSigners,
+
 		lastReadTimestamp: 0,
 		lastReadEventId:   uuid.Nil,
 	}, nil
