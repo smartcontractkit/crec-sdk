@@ -1,4 +1,4 @@
-package transactor
+package transact
 
 import (
 	"math/big"
@@ -10,8 +10,8 @@ import (
 
 	"github.com/smartcontractkit/cvn-sdk/client"
 	"github.com/smartcontractkit/cvn-sdk/internal/mockserver"
-	"github.com/smartcontractkit/cvn-sdk/transactor/signer"
-	"github.com/smartcontractkit/cvn-sdk/transactor/types"
+	"github.com/smartcontractkit/cvn-sdk/transact/signer"
+	"github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
 func TestHashOperation(t *testing.T) {
@@ -28,9 +28,9 @@ func TestHashOperation(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	transactor, err := NewTransactor(
+	transact, err := NewClient(
 		c,
-		&Options{
+		&ClientOptions{
 			ChainID: chainId,
 		},
 	)
@@ -48,7 +48,7 @@ func TestHashOperation(t *testing.T) {
 		},
 	}
 
-	hash, err := transactor.HashOperation(operation)
+	hash, err := transact.HashOperation(operation)
 	if err != nil {
 		t.Fatalf("Failed to hash operation: %v", err)
 	}
@@ -68,9 +68,9 @@ func TestSignOperation(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	transactor, err := NewTransactor(
+	transact, err := NewClient(
 		c,
-		&Options{
+		&ClientOptions{
 			ChainID: chainId,
 		},
 	)
@@ -92,7 +92,7 @@ func TestSignOperation(t *testing.T) {
 	require.NoError(t, err)
 
 	localSigner := signer.NewLocalSigner(privateKey)
-	sig, err := transactor.SignOperation(operation, localSigner)
+	sig, err := transact.SignOperation(operation, localSigner)
 	require.NoError(t, err)
 
 	// check for pre-computed signature for the operation based on the above to/account and private key

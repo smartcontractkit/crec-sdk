@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
-	transactTypes "github.com/smartcontractkit/cvn-sdk/transactor/types"
+	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 
 	"github.com/smartcontractkit/cvn-sdk/services/dvp/gen/contract"
 	"github.com/smartcontractkit/cvn-sdk/services/dvp/gen/events"

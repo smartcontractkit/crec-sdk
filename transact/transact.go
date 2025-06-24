@@ -1,4 +1,4 @@
-package transactor
+package transact
 
 import (
 	"context"
@@ -10,27 +10,27 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
-	"github.com/smartcontractkit/cvn-sdk/transactor/signer"
-	"github.com/smartcontractkit/cvn-sdk/transactor/types"
+	"github.com/smartcontractkit/cvn-sdk/transact/signer"
+	"github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
-type Options struct {
+type ClientOptions struct {
 	Logger  *zerolog.Logger
 	ChainID uint64
 }
 
-type Transactor struct {
+type Client struct {
 	cvnClient *client.ClientWithResponses
 	logger    *zerolog.Logger
 	chainID   uint64
 }
 
-func NewTransactor(cvnClient *client.ClientWithResponses, opts *Options) (*Transactor, error) {
+func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Client, error) {
 	if cvnClient == nil {
-		return nil, errors.New("Transactor requires a valid CVN client")
+		return nil, errors.New("Client requires a valid CVN client")
 	}
 	if opts == nil {
-		return nil, errors.New("Transactor requires a valid options struct")
+		return nil, errors.New("Client requires a valid options struct")
 	}
 
 	logger := opts.Logger
@@ -39,16 +39,16 @@ func NewTransactor(cvnClient *client.ClientWithResponses, opts *Options) (*Trans
 		logger = &lgr
 	}
 
-	logger.Info().Msg("Creating CVN transactor")
+	logger.Info().Msg("Creating CVN transact")
 
-	return &Transactor{
+	return &Client{
 		logger:    logger,
 		cvnClient: cvnClient,
 		chainID:   opts.ChainID,
 	}, nil
 }
 
-func (t *Transactor) HashOperation(op *types.Operation) ([]byte, error) {
+func (t *Client) HashOperation(op *types.Operation) ([]byte, error) {
 	typedData, err := op.TypedData(t.chainID)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to create typed data for operation")
@@ -58,7 +58,7 @@ func (t *Transactor) HashOperation(op *types.Operation) ([]byte, error) {
 	return hash, err
 }
 
-func (t *Transactor) SignOperation(
+func (t *Client) SignOperation(
 	op *types.Operation,
 	signer signer.Signer,
 ) ([]byte, error) {
@@ -80,7 +80,7 @@ func (t *Transactor) SignOperation(
 	return sig, nil
 }
 
-func (t *Transactor) SendSignedOperation(
+func (t *Client) SendSignedOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signature []byte,
