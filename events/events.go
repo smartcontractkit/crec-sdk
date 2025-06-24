@@ -23,8 +23,8 @@ const (
 type ClientOptions struct {
 	Logger                *zerolog.Logger
 	EventsAfter           int64
-	ValidSigners          []string
 	MinRequiredSignatures int
+	ValidSigners          []string
 }
 
 type Client struct {
