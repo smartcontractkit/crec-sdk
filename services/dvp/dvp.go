@@ -61,7 +61,7 @@ func (s *DvpService) DecodeSettlementAccepted(event *client.Event) (
 }
 
 func (s *DvpService) toJson(event *client.Event) ([]byte, error) {
-	decodedStr, err := base64.StdEncoding.DecodeString(*event.VerifiableEvent)
+	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to decode base64 payload")
 		return []byte{}, err

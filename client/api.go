@@ -17,49 +17,18 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-// ArrayOfEvents defines model for ArrayOfEvents.
-type ArrayOfEvents = []Event
-
-// ArrayOfOperations defines model for ArrayOfOperations.
-type ArrayOfOperations = []Operation
-
-// Event defines model for Event.
-type Event struct {
-	// CreatedAt Timestamp of when the event was created
-	CreatedAt *int64 `json:"created_at,omitempty"`
-
-	// EventId Unique identifier for the event
-	EventId *openapi_types.UUID `json:"event_id,omitempty"`
-
-	// Name Name of the event
-	Name *string `json:"name,omitempty"`
-
-	// OcrContext OCR context associated with the event
-	OcrContext *string `json:"ocr_context,omitempty"`
-
-	// OcrReport OCR report associated with the event
-	OcrReport *string `json:"ocr_report,omitempty"`
-
-	// Service Service namespace for the event
-	Service    *string   `json:"service,omitempty"`
-	Signatures *[]string `json:"signatures,omitempty"`
-
-	// VerifiableEvent Base64 encoded verifiable event
-	VerifiableEvent *string `json:"verifiable_event,omitempty"`
-}
-
-// EventRequest defines model for EventRequest.
-type EventRequest struct {
+// CreateEvent defines model for CreateEvent.
+type CreateEvent struct {
 	// Address Smart contract address from which the event was emitted
 	Address string `json:"address"`
 
 	// Name Name of the event
 	Name string `json:"name"`
 
-	// OcrContext OCR context associated with the event
+	// OcrContext OCR context for the event
 	OcrContext string `json:"ocr_context"`
 
-	// OcrReport OCR report associated with the event
+	// OcrReport OCR report for the event
 	OcrReport string `json:"ocr_report"`
 
 	// Service Service namespace for the event
@@ -70,16 +39,8 @@ type EventRequest struct {
 	VerifiableEvent string `json:"verifiable_event"`
 }
 
-// EventResponse defines model for EventResponse.
-type EventResponse struct {
-	Data *ArrayOfEvents `json:"data,omitempty"`
-
-	// HasMore True if there are more events to fetch
-	HasMore *bool `json:"has_more,omitempty"`
-}
-
-// ListenerRequest defines model for ListenerRequest.
-type ListenerRequest struct {
+// CreateListener defines model for CreateListener.
+type CreateListener struct {
 	// Address Smart contract address to listen for events
 	Address string `json:"address"`
 
@@ -91,53 +52,142 @@ type ListenerRequest struct {
 	Service string `json:"service"`
 }
 
-// Operation defines model for Operation.
-type Operation struct {
-	// Account Onchain account address performing the operation
-	Account *string `json:"account,omitempty"`
-
-	// AccountOperationId Unique account operation identifier
-	AccountOperationId *string `json:"account_operation_id,omitempty"`
-
-	// CreatedAt Timestamp of when the operation was created
-	CreatedAt *int `json:"created_at,omitempty"`
-
-	// OperationId Unique identifier for the operation
-	OperationId *openapi_types.UUID `json:"operation_id,omitempty"`
-
-	// Status Current status of the operation
-	Status *string `json:"status,omitempty"`
-
-	// TransactionHash Onchain transaction hash which included the operation
-	TransactionHash *string `json:"transaction_hash,omitempty"`
-}
-
-// OperationRequest defines model for OperationRequest.
-type OperationRequest struct {
+// CreateOperation defines model for CreateOperation.
+type CreateOperation struct {
 	// Account Onchain account address performing the operation
 	Account string `json:"account"`
 
 	// AccountOperationId Unique account operation identifier
 	AccountOperationId string `json:"account_operation_id"`
+
+	// ChainId The id that identifies the chain where the account performing the operation lives
+	ChainId int `json:"chain_id"`
 
 	// Signature EIP-712 signature of the operation
 	Signature    string               `json:"signature"`
 	Transactions []TransactionRequest `json:"transactions"`
 }
 
-// OperationStatusRequest defines model for OperationStatusRequest.
-type OperationStatusRequest struct {
+// Event defines model for Event.
+type Event struct {
+	// CreatedAt Timestamp of when the event was created
+	CreatedAt int64 `json:"created_at"`
+
+	// EventId Unique identifier for the event
+	EventId openapi_types.UUID `json:"event_id"`
+
+	// Name Name of the event
+	Name string `json:"name"`
+
+	// OcrContext OCR context for the event
+	OcrContext string `json:"ocr_context"`
+
+	// OcrReport OCR report for the event
+	OcrReport string `json:"ocr_report"`
+
+	// Service Service namespace for the event
+	Service    string   `json:"service"`
+	Signatures []string `json:"signatures"`
+
+	// VerifiableEvent Base64 encoded verifiable event
+	VerifiableEvent string `json:"verifiable_event"`
+}
+
+// EventList defines model for EventList.
+type EventList struct {
+	Data []Event `json:"data"`
+
+	// HasMore True if there are more events to fetch
+	HasMore bool `json:"has_more"`
+}
+
+// HealthCheck defines model for HealthCheck.
+type HealthCheck struct {
+	Status string `json:"status"`
+}
+
+// Listener defines model for Listener.
+type Listener struct {
+	// Address Smart contract address to listen for events
+	Address string `json:"address"`
+
+	// CreatedAt Timestamp of when the listener was created
+	CreatedAt int64 `json:"created_at"`
+
+	// ListenerId Unique identifier for the listener
+	ListenerId openapi_types.UUID `json:"listener_id"`
+
+	// Name Name of the event to listen for
+	Name    string            `json:"name"`
+	Options map[string]string `json:"options"`
+
+	// Service Service namespace for the listener
+	Service string `json:"service"`
+
+	// Status Current status of the listener
+	Status string `json:"status"`
+}
+
+// ListenerList defines model for ListenerList.
+type ListenerList struct {
+	Data []Listener `json:"data"`
+
+	// HasMore True if there are more listeners to fetch
+	HasMore bool `json:"has_more"`
+}
+
+// Operation defines model for Operation.
+type Operation struct {
 	// Account Onchain account address performing the operation
 	Account string `json:"account"`
+
+	// AccountId Identifier of the account performing the operation
+	AccountId openapi_types.UUID `json:"account_id"`
 
 	// AccountOperationId Unique account operation identifier
 	AccountOperationId string `json:"account_operation_id"`
 
-	// TransactionHash Onchain transaction hash which included the operation
-	TransactionHash string `json:"transaction_hash"`
+	// ChainId The id that identifies the chain where the account performing the operation lives
+	ChainId int `json:"chain_id"`
 
-	// TransactionTimestamp Timestamp of onchain transaction which included the operation
-	TransactionTimestamp int `json:"transaction_timestamp"`
+	// ConfirmedAt Timestamp of when the operation was confirmed
+	ConfirmedAt *int64 `json:"confirmed_at,omitempty"`
+
+	// CreatedAt Timestamp of when the operation was created
+	CreatedAt int64 `json:"created_at"`
+
+	// OperationId Unique identifier for the operation
+	OperationId openapi_types.UUID `json:"operation_id"`
+
+	// Signature EIP-712 signature of the operation
+	Signature string `json:"signature"`
+
+	// Status Current status of the operation
+	Status string `json:"status"`
+
+	// TransactionHash Onchain transaction hash which included the operation
+	TransactionHash *string       `json:"transaction_hash,omitempty"`
+	Transactions    []Transaction `json:"transactions"`
+}
+
+// OperationList defines model for OperationList.
+type OperationList struct {
+	Data []Operation `json:"data"`
+
+	// HasMore True if there are more operations to fetch
+	HasMore bool `json:"has_more"`
+}
+
+// Transaction defines model for Transaction.
+type Transaction struct {
+	// Data Hex-encoded calldata for the transaction
+	Data string `json:"data"`
+
+	// To Address receiving the transaction
+	To string `json:"to"`
+
+	// Value Amount of native token value being sent in the transaction
+	Value string `json:"value"`
 }
 
 // TransactionRequest defines model for TransactionRequest.
@@ -150,6 +200,24 @@ type TransactionRequest struct {
 
 	// Value Amount of native token value being sent in the transaction
 	Value string `json:"value"`
+}
+
+// UpdateOperationStatus defines model for UpdateOperationStatus.
+type UpdateOperationStatus struct {
+	// Account Onchain account address performing the operation
+	Account string `json:"account"`
+
+	// AccountOperationId Unique account operation identifier
+	AccountOperationId string `json:"account_operation_id"`
+
+	// ChainId The id that identifies the chain where the account performing the operation lives
+	ChainId int `json:"chain_id"`
+
+	// TransactionHash Onchain transaction hash which included the operation
+	TransactionHash string `json:"transaction_hash"`
+
+	// TransactionTimestamp Timestamp of onchain transaction which included the operation
+	TransactionTimestamp int `json:"transaction_timestamp"`
 }
 
 // GetEventsParams defines parameters for GetEvents.
@@ -176,8 +244,32 @@ type GetEventsParams struct {
 	EndingBefore *openapi_types.UUID `form:"ending_before,omitempty" json:"ending_before,omitempty"`
 }
 
-// GetOperationStatusParams defines parameters for GetOperationStatus.
-type GetOperationStatusParams struct {
+// GetListenersParams defines parameters for GetListeners.
+type GetListenersParams struct {
+	// CreatedLt Filter events created before this timestamp
+	CreatedLt *int64 `form:"created.lt,omitempty" json:"created.lt,omitempty"`
+
+	// CreatedLte Filter events created at or before this timestamp
+	CreatedLte *int64 `form:"created.lte,omitempty" json:"created.lte,omitempty"`
+
+	// CreatedGt Filter events created after this timestamp
+	CreatedGt *int64 `form:"created.gt,omitempty" json:"created.gt,omitempty"`
+
+	// CreatedGte Filter events created at or after this timestamp
+	CreatedGte *int64 `form:"created.gte,omitempty" json:"created.gte,omitempty"`
+
+	// Limit The number of events to return
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// StartingAfter Return events starting after this event UUID
+	StartingAfter *openapi_types.UUID `form:"starting_after,omitempty" json:"starting_after,omitempty"`
+
+	// EndingBefore Return events occurring before this event UUID
+	EndingBefore *openapi_types.UUID `form:"ending_before,omitempty" json:"ending_before,omitempty"`
+}
+
+// GetOperationsParams defines parameters for GetOperations.
+type GetOperationsParams struct {
 	// CreatedLt Filter operations created before this timestamp
 	CreatedLt *int64 `form:"created.lt,omitempty" json:"created.lt,omitempty"`
 
@@ -201,16 +293,16 @@ type GetOperationStatusParams struct {
 }
 
 // PostEventsJSONRequestBody defines body for PostEvents for application/json ContentType.
-type PostEventsJSONRequestBody = EventRequest
+type PostEventsJSONRequestBody = CreateEvent
 
-// PostListenerJSONRequestBody defines body for PostListener for application/json ContentType.
-type PostListenerJSONRequestBody = ListenerRequest
-
-// PostOperationSendJSONRequestBody defines body for PostOperationSend for application/json ContentType.
-type PostOperationSendJSONRequestBody = OperationRequest
+// PostListenersJSONRequestBody defines body for PostListeners for application/json ContentType.
+type PostListenersJSONRequestBody = CreateListener
 
 // PostOperationStatusJSONRequestBody defines body for PostOperationStatus for application/json ContentType.
-type PostOperationStatusJSONRequestBody = OperationStatusRequest
+type PostOperationStatusJSONRequestBody = UpdateOperationStatus
+
+// PostOperationsJSONRequestBody defines body for PostOperations for application/json ContentType.
+type PostOperationsJSONRequestBody = CreateOperation
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -296,26 +388,29 @@ type ClientInterface interface {
 	// GetHealthCheck request
 	GetHealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostListenerWithBody request with any body
-	PostListenerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetListeners request
+	GetListeners(ctx context.Context, params *GetListenersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostListener(ctx context.Context, body PostListenerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostListenersWithBody request with any body
+	PostListenersWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostOperationSendWithBody request with any body
-	PostOperationSendWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	PostOperationSend(ctx context.Context, body PostOperationSendJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// GetOperationStatus request
-	GetOperationStatus(ctx context.Context, params *GetOperationStatusParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostListeners(ctx context.Context, body PostListenersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostOperationStatusWithBody request with any body
 	PostOperationStatusWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostOperationStatus(ctx context.Context, body PostOperationStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetOperationStatusOperationId request
-	GetOperationStatusOperationId(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetOperations request
+	GetOperations(ctx context.Context, params *GetOperationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostOperationsWithBody request with any body
+	PostOperationsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostOperations(ctx context.Context, body PostOperationsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetOperationsOperationId request
+	GetOperationsOperationId(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) GetEvents(ctx context.Context, params *GetEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -366,8 +461,8 @@ func (c *Client) GetHealthCheck(ctx context.Context, reqEditors ...RequestEditor
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostListenerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostListenerRequestWithBody(c.Server, contentType, body)
+func (c *Client) GetListeners(ctx context.Context, params *GetListenersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetListenersRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -378,8 +473,8 @@ func (c *Client) PostListenerWithBody(ctx context.Context, contentType string, b
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostListener(ctx context.Context, body PostListenerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostListenerRequest(c.Server, body)
+func (c *Client) PostListenersWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostListenersRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -390,32 +485,8 @@ func (c *Client) PostListener(ctx context.Context, body PostListenerJSONRequestB
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostOperationSendWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostOperationSendRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PostOperationSend(ctx context.Context, body PostOperationSendJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostOperationSendRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) GetOperationStatus(ctx context.Context, params *GetOperationStatusParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetOperationStatusRequest(c.Server, params)
+func (c *Client) PostListeners(ctx context.Context, body PostListenersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostListenersRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -450,8 +521,44 @@ func (c *Client) PostOperationStatus(ctx context.Context, body PostOperationStat
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetOperationStatusOperationId(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetOperationStatusOperationIdRequest(c.Server, operationId)
+func (c *Client) GetOperations(ctx context.Context, params *GetOperationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetOperationsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostOperationsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostOperationsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostOperations(ctx context.Context, body PostOperationsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostOperationsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetOperationsOperationId(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetOperationsOperationIdRequest(c.Server, operationId)
 	if err != nil {
 		return nil, err
 	}
@@ -674,19 +781,8 @@ func NewGetHealthCheckRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewPostListenerRequest calls the generic PostListener builder with application/json body
-func NewPostListenerRequest(server string, body PostListenerJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPostListenerRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewPostListenerRequestWithBody generates requests for PostListener with any type of body
-func NewPostListenerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewGetListenersRequest generates requests for GetListeners
+func NewGetListenersRequest(server string, params *GetListenersParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -694,76 +790,7 @@ func NewPostListenerRequestWithBody(server string, contentType string, body io.R
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/listener")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewPostOperationSendRequest calls the generic PostOperationSend builder with application/json body
-func NewPostOperationSendRequest(server string, body PostOperationSendJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPostOperationSendRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewPostOperationSendRequestWithBody generates requests for PostOperationSend with any type of body
-func NewPostOperationSendRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/operation/send")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewGetOperationStatusRequest generates requests for GetOperationStatus
-func NewGetOperationStatusRequest(server string, params *GetOperationStatusParams) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/operation/status")
+	operationPath := fmt.Sprintf("/listeners")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -899,6 +926,46 @@ func NewGetOperationStatusRequest(server string, params *GetOperationStatusParam
 	return req, nil
 }
 
+// NewPostListenersRequest calls the generic PostListeners builder with application/json body
+func NewPostListenersRequest(server string, body PostListenersJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostListenersRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostListenersRequestWithBody generates requests for PostListeners with any type of body
+func NewPostListenersRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/listeners")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewPostOperationStatusRequest calls the generic PostOperationStatus builder with application/json body
 func NewPostOperationStatusRequest(server string, body PostOperationStatusJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -919,7 +986,7 @@ func NewPostOperationStatusRequestWithBody(server string, contentType string, bo
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/operation/status")
+	operationPath := fmt.Sprintf("/operation_status")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -939,8 +1006,193 @@ func NewPostOperationStatusRequestWithBody(server string, contentType string, bo
 	return req, nil
 }
 
-// NewGetOperationStatusOperationIdRequest generates requests for GetOperationStatusOperationId
-func NewGetOperationStatusOperationIdRequest(server string, operationId openapi_types.UUID) (*http.Request, error) {
+// NewGetOperationsRequest generates requests for GetOperations
+func NewGetOperationsRequest(server string, params *GetOperationsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/operations")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.CreatedLt != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "created.lt", runtime.ParamLocationQuery, *params.CreatedLt); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.CreatedLte != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "created.lte", runtime.ParamLocationQuery, *params.CreatedLte); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.CreatedGt != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "created.gt", runtime.ParamLocationQuery, *params.CreatedGt); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.CreatedGte != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "created.gte", runtime.ParamLocationQuery, *params.CreatedGte); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.StartingAfter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "starting_after", runtime.ParamLocationQuery, *params.StartingAfter); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.EndingBefore != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "ending_before", runtime.ParamLocationQuery, *params.EndingBefore); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostOperationsRequest calls the generic PostOperations builder with application/json body
+func NewPostOperationsRequest(server string, body PostOperationsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostOperationsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostOperationsRequestWithBody generates requests for PostOperations with any type of body
+func NewPostOperationsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/operations")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetOperationsOperationIdRequest generates requests for GetOperationsOperationId
+func NewGetOperationsOperationIdRequest(server string, operationId openapi_types.UUID) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -955,7 +1207,7 @@ func NewGetOperationStatusOperationIdRequest(server string, operationId openapi_
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/operation/status/%s", pathParam0)
+	operationPath := fmt.Sprintf("/operations/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1027,32 +1279,35 @@ type ClientWithResponsesInterface interface {
 	// GetHealthCheckWithResponse request
 	GetHealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthCheckResponse, error)
 
-	// PostListenerWithBodyWithResponse request with any body
-	PostListenerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostListenerResponse, error)
+	// GetListenersWithResponse request
+	GetListenersWithResponse(ctx context.Context, params *GetListenersParams, reqEditors ...RequestEditorFn) (*GetListenersResponse, error)
 
-	PostListenerWithResponse(ctx context.Context, body PostListenerJSONRequestBody, reqEditors ...RequestEditorFn) (*PostListenerResponse, error)
+	// PostListenersWithBodyWithResponse request with any body
+	PostListenersWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostListenersResponse, error)
 
-	// PostOperationSendWithBodyWithResponse request with any body
-	PostOperationSendWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostOperationSendResponse, error)
-
-	PostOperationSendWithResponse(ctx context.Context, body PostOperationSendJSONRequestBody, reqEditors ...RequestEditorFn) (*PostOperationSendResponse, error)
-
-	// GetOperationStatusWithResponse request
-	GetOperationStatusWithResponse(ctx context.Context, params *GetOperationStatusParams, reqEditors ...RequestEditorFn) (*GetOperationStatusResponse, error)
+	PostListenersWithResponse(ctx context.Context, body PostListenersJSONRequestBody, reqEditors ...RequestEditorFn) (*PostListenersResponse, error)
 
 	// PostOperationStatusWithBodyWithResponse request with any body
 	PostOperationStatusWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostOperationStatusResponse, error)
 
 	PostOperationStatusWithResponse(ctx context.Context, body PostOperationStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*PostOperationStatusResponse, error)
 
-	// GetOperationStatusOperationIdWithResponse request
-	GetOperationStatusOperationIdWithResponse(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetOperationStatusOperationIdResponse, error)
+	// GetOperationsWithResponse request
+	GetOperationsWithResponse(ctx context.Context, params *GetOperationsParams, reqEditors ...RequestEditorFn) (*GetOperationsResponse, error)
+
+	// PostOperationsWithBodyWithResponse request with any body
+	PostOperationsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostOperationsResponse, error)
+
+	PostOperationsWithResponse(ctx context.Context, body PostOperationsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostOperationsResponse, error)
+
+	// GetOperationsOperationIdWithResponse request
+	GetOperationsOperationIdWithResponse(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetOperationsOperationIdResponse, error)
 }
 
 type GetEventsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *EventResponse
+	JSON200      *EventList
 }
 
 // Status returns HTTPResponse.Status
@@ -1074,6 +1329,7 @@ func (r GetEventsResponse) StatusCode() int {
 type PostEventsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON201      *Event
 }
 
 // Status returns HTTPResponse.Status
@@ -1095,9 +1351,7 @@ func (r PostEventsResponse) StatusCode() int {
 type GetHealthCheckResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *struct {
-		Status *string `json:"status,omitempty"`
-	}
+	JSON200      *HealthCheck
 }
 
 // Status returns HTTPResponse.Status
@@ -1116,13 +1370,14 @@ func (r GetHealthCheckResponse) StatusCode() int {
 	return 0
 }
 
-type PostListenerResponse struct {
+type GetListenersResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *ListenerList
 }
 
 // Status returns HTTPResponse.Status
-func (r PostListenerResponse) Status() string {
+func (r GetListenersResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -1130,20 +1385,21 @@ func (r PostListenerResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PostListenerResponse) StatusCode() int {
+func (r GetListenersResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type PostOperationSendResponse struct {
+type PostListenersResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON201      *Listener
 }
 
 // Status returns HTTPResponse.Status
-func (r PostOperationSendResponse) Status() string {
+func (r PostListenersResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -1151,34 +1407,7 @@ func (r PostOperationSendResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PostOperationSendResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type GetOperationStatusResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *struct {
-		Data *ArrayOfOperations `json:"data,omitempty"`
-
-		// HasMore True if there are more operation statuses to fetch
-		HasMore *bool `json:"has_more,omitempty"`
-	}
-}
-
-// Status returns HTTPResponse.Status
-func (r GetOperationStatusResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r GetOperationStatusResponse) StatusCode() int {
+func (r PostListenersResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1206,14 +1435,14 @@ func (r PostOperationStatusResponse) StatusCode() int {
 	return 0
 }
 
-type GetOperationStatusOperationIdResponse struct {
+type GetOperationsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *Operation
+	JSON200      *OperationList
 }
 
 // Status returns HTTPResponse.Status
-func (r GetOperationStatusOperationIdResponse) Status() string {
+func (r GetOperationsResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -1221,7 +1450,51 @@ func (r GetOperationStatusOperationIdResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetOperationStatusOperationIdResponse) StatusCode() int {
+func (r GetOperationsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostOperationsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *Operation
+}
+
+// Status returns HTTPResponse.Status
+func (r PostOperationsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostOperationsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetOperationsOperationIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Operation
+}
+
+// Status returns HTTPResponse.Status
+func (r GetOperationsOperationIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetOperationsOperationIdResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1263,47 +1536,30 @@ func (c *ClientWithResponses) GetHealthCheckWithResponse(ctx context.Context, re
 	return ParseGetHealthCheckResponse(rsp)
 }
 
-// PostListenerWithBodyWithResponse request with arbitrary body returning *PostListenerResponse
-func (c *ClientWithResponses) PostListenerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostListenerResponse, error) {
-	rsp, err := c.PostListenerWithBody(ctx, contentType, body, reqEditors...)
+// GetListenersWithResponse request returning *GetListenersResponse
+func (c *ClientWithResponses) GetListenersWithResponse(ctx context.Context, params *GetListenersParams, reqEditors ...RequestEditorFn) (*GetListenersResponse, error) {
+	rsp, err := c.GetListeners(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostListenerResponse(rsp)
+	return ParseGetListenersResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostListenerWithResponse(ctx context.Context, body PostListenerJSONRequestBody, reqEditors ...RequestEditorFn) (*PostListenerResponse, error) {
-	rsp, err := c.PostListener(ctx, body, reqEditors...)
+// PostListenersWithBodyWithResponse request with arbitrary body returning *PostListenersResponse
+func (c *ClientWithResponses) PostListenersWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostListenersResponse, error) {
+	rsp, err := c.PostListenersWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostListenerResponse(rsp)
+	return ParsePostListenersResponse(rsp)
 }
 
-// PostOperationSendWithBodyWithResponse request with arbitrary body returning *PostOperationSendResponse
-func (c *ClientWithResponses) PostOperationSendWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostOperationSendResponse, error) {
-	rsp, err := c.PostOperationSendWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) PostListenersWithResponse(ctx context.Context, body PostListenersJSONRequestBody, reqEditors ...RequestEditorFn) (*PostListenersResponse, error) {
+	rsp, err := c.PostListeners(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostOperationSendResponse(rsp)
-}
-
-func (c *ClientWithResponses) PostOperationSendWithResponse(ctx context.Context, body PostOperationSendJSONRequestBody, reqEditors ...RequestEditorFn) (*PostOperationSendResponse, error) {
-	rsp, err := c.PostOperationSend(ctx, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePostOperationSendResponse(rsp)
-}
-
-// GetOperationStatusWithResponse request returning *GetOperationStatusResponse
-func (c *ClientWithResponses) GetOperationStatusWithResponse(ctx context.Context, params *GetOperationStatusParams, reqEditors ...RequestEditorFn) (*GetOperationStatusResponse, error) {
-	rsp, err := c.GetOperationStatus(ctx, params, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGetOperationStatusResponse(rsp)
+	return ParsePostListenersResponse(rsp)
 }
 
 // PostOperationStatusWithBodyWithResponse request with arbitrary body returning *PostOperationStatusResponse
@@ -1323,13 +1579,39 @@ func (c *ClientWithResponses) PostOperationStatusWithResponse(ctx context.Contex
 	return ParsePostOperationStatusResponse(rsp)
 }
 
-// GetOperationStatusOperationIdWithResponse request returning *GetOperationStatusOperationIdResponse
-func (c *ClientWithResponses) GetOperationStatusOperationIdWithResponse(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetOperationStatusOperationIdResponse, error) {
-	rsp, err := c.GetOperationStatusOperationId(ctx, operationId, reqEditors...)
+// GetOperationsWithResponse request returning *GetOperationsResponse
+func (c *ClientWithResponses) GetOperationsWithResponse(ctx context.Context, params *GetOperationsParams, reqEditors ...RequestEditorFn) (*GetOperationsResponse, error) {
+	rsp, err := c.GetOperations(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetOperationStatusOperationIdResponse(rsp)
+	return ParseGetOperationsResponse(rsp)
+}
+
+// PostOperationsWithBodyWithResponse request with arbitrary body returning *PostOperationsResponse
+func (c *ClientWithResponses) PostOperationsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostOperationsResponse, error) {
+	rsp, err := c.PostOperationsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostOperationsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostOperationsWithResponse(ctx context.Context, body PostOperationsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostOperationsResponse, error) {
+	rsp, err := c.PostOperations(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostOperationsResponse(rsp)
+}
+
+// GetOperationsOperationIdWithResponse request returning *GetOperationsOperationIdResponse
+func (c *ClientWithResponses) GetOperationsOperationIdWithResponse(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetOperationsOperationIdResponse, error) {
+	rsp, err := c.GetOperationsOperationId(ctx, operationId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetOperationsOperationIdResponse(rsp)
 }
 
 // ParseGetEventsResponse parses an HTTP response from a GetEventsWithResponse call
@@ -1347,7 +1629,7 @@ func ParseGetEventsResponse(rsp *http.Response) (*GetEventsResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest EventResponse
+		var dest EventList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1371,6 +1653,16 @@ func ParsePostEventsResponse(rsp *http.Response) (*PostEventsResponse, error) {
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Event
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
 	return response, nil
 }
 
@@ -1389,9 +1681,7 @@ func ParseGetHealthCheckResponse(rsp *http.Response) (*GetHealthCheckResponse, e
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest struct {
-			Status *string `json:"status,omitempty"`
-		}
+		var dest HealthCheck
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1402,63 +1692,52 @@ func ParseGetHealthCheckResponse(rsp *http.Response) (*GetHealthCheckResponse, e
 	return response, nil
 }
 
-// ParsePostListenerResponse parses an HTTP response from a PostListenerWithResponse call
-func ParsePostListenerResponse(rsp *http.Response) (*PostListenerResponse, error) {
+// ParseGetListenersResponse parses an HTTP response from a GetListenersWithResponse call
+func ParseGetListenersResponse(rsp *http.Response) (*GetListenersResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PostListenerResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	return response, nil
-}
-
-// ParsePostOperationSendResponse parses an HTTP response from a PostOperationSendWithResponse call
-func ParsePostOperationSendResponse(rsp *http.Response) (*PostOperationSendResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &PostOperationSendResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	return response, nil
-}
-
-// ParseGetOperationStatusResponse parses an HTTP response from a GetOperationStatusWithResponse call
-func ParseGetOperationStatusResponse(rsp *http.Response) (*GetOperationStatusResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &GetOperationStatusResponse{
+	response := &GetListenersResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest struct {
-			Data *ArrayOfOperations `json:"data,omitempty"`
-
-			// HasMore True if there are more operation statuses to fetch
-			HasMore *bool `json:"has_more,omitempty"`
-		}
+		var dest ListenerList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostListenersResponse parses an HTTP response from a PostListenersWithResponse call
+func ParsePostListenersResponse(rsp *http.Response) (*PostListenersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostListenersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Listener
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	}
 
@@ -1481,15 +1760,67 @@ func ParsePostOperationStatusResponse(rsp *http.Response) (*PostOperationStatusR
 	return response, nil
 }
 
-// ParseGetOperationStatusOperationIdResponse parses an HTTP response from a GetOperationStatusOperationIdWithResponse call
-func ParseGetOperationStatusOperationIdResponse(rsp *http.Response) (*GetOperationStatusOperationIdResponse, error) {
+// ParseGetOperationsResponse parses an HTTP response from a GetOperationsWithResponse call
+func ParseGetOperationsResponse(rsp *http.Response) (*GetOperationsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetOperationStatusOperationIdResponse{
+	response := &GetOperationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OperationList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostOperationsResponse parses an HTTP response from a PostOperationsWithResponse call
+func ParsePostOperationsResponse(rsp *http.Response) (*PostOperationsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostOperationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Operation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetOperationsOperationIdResponse parses an HTTP response from a GetOperationsOperationIdWithResponse call
+func ParseGetOperationsOperationIdResponse(rsp *http.Response) (*GetOperationsOperationIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetOperationsOperationIdResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

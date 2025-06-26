@@ -101,14 +101,14 @@ func (t *Client) SendSignedOperation(
 		)
 	}
 
-	var requestData = client.OperationRequest{
+	var requestData = client.CreateOperation{
 		AccountOperationId: op.ID.String(),
 		Transactions:       transactions,
 		Account:            op.Account.String(),
 		Signature:          "0x" + common.Bytes2Hex(signature),
 	}
 
-	resp, err := t.cvnClient.PostOperationSendWithResponse(ctx, requestData)
+	resp, err := t.cvnClient.PostOperationsWithResponse(ctx, requestData)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to send signed operation")
 		return err

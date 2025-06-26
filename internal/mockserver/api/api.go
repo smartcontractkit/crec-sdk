@@ -13,49 +13,18 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-// ArrayOfEvents defines model for ArrayOfEvents.
-type ArrayOfEvents = []Event
-
-// ArrayOfOperations defines model for ArrayOfOperations.
-type ArrayOfOperations = []Operation
-
-// Event defines model for Event.
-type Event struct {
-	// CreatedAt Timestamp of when the event was created
-	CreatedAt *int64 `json:"created_at,omitempty"`
-
-	// EventId Unique identifier for the event
-	EventId *openapi_types.UUID `json:"event_id,omitempty"`
-
-	// Name Name of the event
-	Name *string `json:"name,omitempty"`
-
-	// OcrContext OCR context associated with the event
-	OcrContext *string `json:"ocr_context,omitempty"`
-
-	// OcrReport OCR report associated with the event
-	OcrReport *string `json:"ocr_report,omitempty"`
-
-	// Service Service namespace for the event
-	Service    *string   `json:"service,omitempty"`
-	Signatures *[]string `json:"signatures,omitempty"`
-
-	// VerifiableEvent Base64 encoded verifiable event
-	VerifiableEvent *string `json:"verifiable_event,omitempty"`
-}
-
-// EventRequest defines model for EventRequest.
-type EventRequest struct {
+// CreateEvent defines model for CreateEvent.
+type CreateEvent struct {
 	// Address Smart contract address from which the event was emitted
 	Address string `json:"address"`
 
 	// Name Name of the event
 	Name string `json:"name"`
 
-	// OcrContext OCR context associated with the event
+	// OcrContext OCR context for the event
 	OcrContext string `json:"ocr_context"`
 
-	// OcrReport OCR report associated with the event
+	// OcrReport OCR report for the event
 	OcrReport string `json:"ocr_report"`
 
 	// Service Service namespace for the event
@@ -66,16 +35,8 @@ type EventRequest struct {
 	VerifiableEvent string `json:"verifiable_event"`
 }
 
-// EventResponse defines model for EventResponse.
-type EventResponse struct {
-	Data *ArrayOfEvents `json:"data,omitempty"`
-
-	// HasMore True if there are more events to fetch
-	HasMore *bool `json:"has_more,omitempty"`
-}
-
-// ListenerRequest defines model for ListenerRequest.
-type ListenerRequest struct {
+// CreateListener defines model for CreateListener.
+type CreateListener struct {
 	// Address Smart contract address to listen for events
 	Address string `json:"address"`
 
@@ -87,53 +48,142 @@ type ListenerRequest struct {
 	Service string `json:"service"`
 }
 
-// Operation defines model for Operation.
-type Operation struct {
-	// Account Onchain account address performing the operation
-	Account *string `json:"account,omitempty"`
-
-	// AccountOperationId Unique account operation identifier
-	AccountOperationId *string `json:"account_operation_id,omitempty"`
-
-	// CreatedAt Timestamp of when the operation was created
-	CreatedAt *int `json:"created_at,omitempty"`
-
-	// OperationId Unique identifier for the operation
-	OperationId *openapi_types.UUID `json:"operation_id,omitempty"`
-
-	// Status Current status of the operation
-	Status *string `json:"status,omitempty"`
-
-	// TransactionHash Onchain transaction hash which included the operation
-	TransactionHash *string `json:"transaction_hash,omitempty"`
-}
-
-// OperationRequest defines model for OperationRequest.
-type OperationRequest struct {
+// CreateOperation defines model for CreateOperation.
+type CreateOperation struct {
 	// Account Onchain account address performing the operation
 	Account string `json:"account"`
 
 	// AccountOperationId Unique account operation identifier
 	AccountOperationId string `json:"account_operation_id"`
+
+	// ChainId The id that identifies the chain where the account performing the operation lives
+	ChainId int `json:"chain_id"`
 
 	// Signature EIP-712 signature of the operation
 	Signature    string               `json:"signature"`
 	Transactions []TransactionRequest `json:"transactions"`
 }
 
-// OperationStatusRequest defines model for OperationStatusRequest.
-type OperationStatusRequest struct {
+// Event defines model for Event.
+type Event struct {
+	// CreatedAt Timestamp of when the event was created
+	CreatedAt int64 `json:"created_at"`
+
+	// EventId Unique identifier for the event
+	EventId openapi_types.UUID `json:"event_id"`
+
+	// Name Name of the event
+	Name string `json:"name"`
+
+	// OcrContext OCR context for the event
+	OcrContext string `json:"ocr_context"`
+
+	// OcrReport OCR report for the event
+	OcrReport string `json:"ocr_report"`
+
+	// Service Service namespace for the event
+	Service    string   `json:"service"`
+	Signatures []string `json:"signatures"`
+
+	// VerifiableEvent Base64 encoded verifiable event
+	VerifiableEvent string `json:"verifiable_event"`
+}
+
+// EventList defines model for EventList.
+type EventList struct {
+	Data []Event `json:"data"`
+
+	// HasMore True if there are more events to fetch
+	HasMore bool `json:"has_more"`
+}
+
+// HealthCheck defines model for HealthCheck.
+type HealthCheck struct {
+	Status string `json:"status"`
+}
+
+// Listener defines model for Listener.
+type Listener struct {
+	// Address Smart contract address to listen for events
+	Address string `json:"address"`
+
+	// CreatedAt Timestamp of when the listener was created
+	CreatedAt int64 `json:"created_at"`
+
+	// ListenerId Unique identifier for the listener
+	ListenerId openapi_types.UUID `json:"listener_id"`
+
+	// Name Name of the event to listen for
+	Name    string            `json:"name"`
+	Options map[string]string `json:"options"`
+
+	// Service Service namespace for the listener
+	Service string `json:"service"`
+
+	// Status Current status of the listener
+	Status string `json:"status"`
+}
+
+// ListenerList defines model for ListenerList.
+type ListenerList struct {
+	Data []Listener `json:"data"`
+
+	// HasMore True if there are more listeners to fetch
+	HasMore bool `json:"has_more"`
+}
+
+// Operation defines model for Operation.
+type Operation struct {
 	// Account Onchain account address performing the operation
 	Account string `json:"account"`
+
+	// AccountId Identifier of the account performing the operation
+	AccountId openapi_types.UUID `json:"account_id"`
 
 	// AccountOperationId Unique account operation identifier
 	AccountOperationId string `json:"account_operation_id"`
 
-	// TransactionHash Onchain transaction hash which included the operation
-	TransactionHash string `json:"transaction_hash"`
+	// ChainId The id that identifies the chain where the account performing the operation lives
+	ChainId int `json:"chain_id"`
 
-	// TransactionTimestamp Timestamp of onchain transaction which included the operation
-	TransactionTimestamp int `json:"transaction_timestamp"`
+	// ConfirmedAt Timestamp of when the operation was confirmed
+	ConfirmedAt *int64 `json:"confirmed_at,omitempty"`
+
+	// CreatedAt Timestamp of when the operation was created
+	CreatedAt int64 `json:"created_at"`
+
+	// OperationId Unique identifier for the operation
+	OperationId openapi_types.UUID `json:"operation_id"`
+
+	// Signature EIP-712 signature of the operation
+	Signature string `json:"signature"`
+
+	// Status Current status of the operation
+	Status string `json:"status"`
+
+	// TransactionHash Onchain transaction hash which included the operation
+	TransactionHash *string       `json:"transaction_hash,omitempty"`
+	Transactions    []Transaction `json:"transactions"`
+}
+
+// OperationList defines model for OperationList.
+type OperationList struct {
+	Data []Operation `json:"data"`
+
+	// HasMore True if there are more operations to fetch
+	HasMore bool `json:"has_more"`
+}
+
+// Transaction defines model for Transaction.
+type Transaction struct {
+	// Data Hex-encoded calldata for the transaction
+	Data string `json:"data"`
+
+	// To Address receiving the transaction
+	To string `json:"to"`
+
+	// Value Amount of native token value being sent in the transaction
+	Value string `json:"value"`
 }
 
 // TransactionRequest defines model for TransactionRequest.
@@ -146,6 +196,24 @@ type TransactionRequest struct {
 
 	// Value Amount of native token value being sent in the transaction
 	Value string `json:"value"`
+}
+
+// UpdateOperationStatus defines model for UpdateOperationStatus.
+type UpdateOperationStatus struct {
+	// Account Onchain account address performing the operation
+	Account string `json:"account"`
+
+	// AccountOperationId Unique account operation identifier
+	AccountOperationId string `json:"account_operation_id"`
+
+	// ChainId The id that identifies the chain where the account performing the operation lives
+	ChainId int `json:"chain_id"`
+
+	// TransactionHash Onchain transaction hash which included the operation
+	TransactionHash string `json:"transaction_hash"`
+
+	// TransactionTimestamp Timestamp of onchain transaction which included the operation
+	TransactionTimestamp int `json:"transaction_timestamp"`
 }
 
 // GetEventsParams defines parameters for GetEvents.
@@ -172,8 +240,32 @@ type GetEventsParams struct {
 	EndingBefore *openapi_types.UUID `form:"ending_before,omitempty" json:"ending_before,omitempty"`
 }
 
-// GetOperationStatusParams defines parameters for GetOperationStatus.
-type GetOperationStatusParams struct {
+// GetListenersParams defines parameters for GetListeners.
+type GetListenersParams struct {
+	// CreatedLt Filter events created before this timestamp
+	CreatedLt *int64 `form:"created.lt,omitempty" json:"created.lt,omitempty"`
+
+	// CreatedLte Filter events created at or before this timestamp
+	CreatedLte *int64 `form:"created.lte,omitempty" json:"created.lte,omitempty"`
+
+	// CreatedGt Filter events created after this timestamp
+	CreatedGt *int64 `form:"created.gt,omitempty" json:"created.gt,omitempty"`
+
+	// CreatedGte Filter events created at or after this timestamp
+	CreatedGte *int64 `form:"created.gte,omitempty" json:"created.gte,omitempty"`
+
+	// Limit The number of events to return
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// StartingAfter Return events starting after this event UUID
+	StartingAfter *openapi_types.UUID `form:"starting_after,omitempty" json:"starting_after,omitempty"`
+
+	// EndingBefore Return events occurring before this event UUID
+	EndingBefore *openapi_types.UUID `form:"ending_before,omitempty" json:"ending_before,omitempty"`
+}
+
+// GetOperationsParams defines parameters for GetOperations.
+type GetOperationsParams struct {
 	// CreatedLt Filter operations created before this timestamp
 	CreatedLt *int64 `form:"created.lt,omitempty" json:"created.lt,omitempty"`
 
@@ -197,16 +289,16 @@ type GetOperationStatusParams struct {
 }
 
 // PostEventsJSONRequestBody defines body for PostEvents for application/json ContentType.
-type PostEventsJSONRequestBody = EventRequest
+type PostEventsJSONRequestBody = CreateEvent
 
-// PostListenerJSONRequestBody defines body for PostListener for application/json ContentType.
-type PostListenerJSONRequestBody = ListenerRequest
-
-// PostOperationSendJSONRequestBody defines body for PostOperationSend for application/json ContentType.
-type PostOperationSendJSONRequestBody = OperationRequest
+// PostListenersJSONRequestBody defines body for PostListeners for application/json ContentType.
+type PostListenersJSONRequestBody = CreateListener
 
 // PostOperationStatusJSONRequestBody defines body for PostOperationStatus for application/json ContentType.
-type PostOperationStatusJSONRequestBody = OperationStatusRequest
+type PostOperationStatusJSONRequestBody = UpdateOperationStatus
+
+// PostOperationsJSONRequestBody defines body for PostOperations for application/json ContentType.
+type PostOperationsJSONRequestBody = CreateOperation
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -219,21 +311,24 @@ type ServerInterface interface {
 	// Health check endpoint
 	// (GET /health-check)
 	GetHealthCheck(w http.ResponseWriter, r *http.Request)
+	// Retrieves event listeners.
+	// (GET /listeners)
+	GetListeners(w http.ResponseWriter, r *http.Request, params GetListenersParams)
 	// Creates a new listener.
-	// (POST /listener)
-	PostListener(w http.ResponseWriter, r *http.Request)
-	// Sends an onchain transaction event.
-	// (POST /operation/send)
-	PostOperationSend(w http.ResponseWriter, r *http.Request)
-	// Retrieves operation statuses.
-	// (GET /operation/status)
-	GetOperationStatus(w http.ResponseWriter, r *http.Request, params GetOperationStatusParams)
+	// (POST /listeners)
+	PostListeners(w http.ResponseWriter, r *http.Request)
 	// Updates the status of an operation.
-	// (POST /operation/status)
+	// (POST /operation_status)
 	PostOperationStatus(w http.ResponseWriter, r *http.Request)
+	// Retrieves operations.
+	// (GET /operations)
+	GetOperations(w http.ResponseWriter, r *http.Request, params GetOperationsParams)
+	// Sends an onchain transaction.
+	// (POST /operations)
+	PostOperations(w http.ResponseWriter, r *http.Request)
 	// Retrieves the status of an operation.
-	// (GET /operation/status/{operation_id})
-	GetOperationStatusOperationId(w http.ResponseWriter, r *http.Request, operationId openapi_types.UUID)
+	// (GET /operations/{operation_id})
+	GetOperationsOperationId(w http.ResponseWriter, r *http.Request, operationId openapi_types.UUID)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -348,41 +443,13 @@ func (siw *ServerInterfaceWrapper) GetHealthCheck(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
-// PostListener operation middleware
-func (siw *ServerInterfaceWrapper) PostListener(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostListener(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// PostOperationSend operation middleware
-func (siw *ServerInterfaceWrapper) PostOperationSend(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostOperationSend(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetOperationStatus operation middleware
-func (siw *ServerInterfaceWrapper) GetOperationStatus(w http.ResponseWriter, r *http.Request) {
+// GetListeners operation middleware
+func (siw *ServerInterfaceWrapper) GetListeners(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetOperationStatusParams
+	var params GetListenersParams
 
 	// ------------- Optional query parameter "created.lt" -------------
 
@@ -441,7 +508,21 @@ func (siw *ServerInterfaceWrapper) GetOperationStatus(w http.ResponseWriter, r *
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetOperationStatus(w, r, params)
+		siw.Handler.GetListeners(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostListeners operation middleware
+func (siw *ServerInterfaceWrapper) PostListeners(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostListeners(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -465,8 +546,97 @@ func (siw *ServerInterfaceWrapper) PostOperationStatus(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
-// GetOperationStatusOperationId operation middleware
-func (siw *ServerInterfaceWrapper) GetOperationStatusOperationId(w http.ResponseWriter, r *http.Request) {
+// GetOperations operation middleware
+func (siw *ServerInterfaceWrapper) GetOperations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetOperationsParams
+
+	// ------------- Optional query parameter "created.lt" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "created.lt", r.URL.Query(), &params.CreatedLt)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "created.lt", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "created.lte" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "created.lte", r.URL.Query(), &params.CreatedLte)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "created.lte", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "created.gt" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "created.gt", r.URL.Query(), &params.CreatedGt)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "created.gt", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "created.gte" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "created.gte", r.URL.Query(), &params.CreatedGte)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "created.gte", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "starting_after" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "starting_after", r.URL.Query(), &params.StartingAfter)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "starting_after", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "ending_before" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "ending_before", r.URL.Query(), &params.EndingBefore)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ending_before", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetOperations(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostOperations operation middleware
+func (siw *ServerInterfaceWrapper) PostOperations(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostOperations(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetOperationsOperationId operation middleware
+func (siw *ServerInterfaceWrapper) GetOperationsOperationId(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -480,7 +650,7 @@ func (siw *ServerInterfaceWrapper) GetOperationStatusOperationId(w http.Response
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetOperationStatusOperationId(w, r, operationId)
+		siw.Handler.GetOperationsOperationId(w, r, operationId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -613,11 +783,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/events", wrapper.GetEvents)
 	m.HandleFunc("POST "+options.BaseURL+"/events", wrapper.PostEvents)
 	m.HandleFunc("GET "+options.BaseURL+"/health-check", wrapper.GetHealthCheck)
-	m.HandleFunc("POST "+options.BaseURL+"/listener", wrapper.PostListener)
-	m.HandleFunc("POST "+options.BaseURL+"/operation/send", wrapper.PostOperationSend)
-	m.HandleFunc("GET "+options.BaseURL+"/operation/status", wrapper.GetOperationStatus)
-	m.HandleFunc("POST "+options.BaseURL+"/operation/status", wrapper.PostOperationStatus)
-	m.HandleFunc("GET "+options.BaseURL+"/operation/status/{operation_id}", wrapper.GetOperationStatusOperationId)
+	m.HandleFunc("GET "+options.BaseURL+"/listeners", wrapper.GetListeners)
+	m.HandleFunc("POST "+options.BaseURL+"/listeners", wrapper.PostListeners)
+	m.HandleFunc("POST "+options.BaseURL+"/operation_status", wrapper.PostOperationStatus)
+	m.HandleFunc("GET "+options.BaseURL+"/operations", wrapper.GetOperations)
+	m.HandleFunc("POST "+options.BaseURL+"/operations", wrapper.PostOperations)
+	m.HandleFunc("GET "+options.BaseURL+"/operations/{operation_id}", wrapper.GetOperationsOperationId)
 
 	return m
 }

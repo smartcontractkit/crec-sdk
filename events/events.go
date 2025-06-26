@@ -113,13 +113,13 @@ func (r *Client) Read(ctx context.Context) (*[]client.Event, error) {
 		return nil, nil
 	}
 
-	var eventList = *resp.JSON200.Data
+	var eventList = resp.JSON200.Data
 	if len(eventList) > 0 {
-		r.lastReadTimestamp = *eventList[len(eventList)-1].CreatedAt
-		r.lastReadEventId = *eventList[len(eventList)-1].EventId
+		r.lastReadTimestamp = eventList[len(eventList)-1].CreatedAt
+		r.lastReadEventId = eventList[len(eventList)-1].EventId
 	}
 
-	return resp.JSON200.Data, nil
+	return &resp.JSON200.Data, nil
 }
 
 func (r *Client) Reset() {
@@ -130,18 +130,18 @@ func (r *Client) Reset() {
 
 func (r *Client) Verify(event *client.Event) (bool, error) {
 	r.logger.Debug().
-		Str("event_service", *event.Service).
-		Str("event_name", *event.Name).
-		Str("ocr_report", *event.OcrReport).
-		Str("ocr_context", *event.OcrContext).
+		Str("event_service", event.Service).
+		Str("event_name", event.Name).
+		Str("ocr_report", event.OcrReport).
+		Str("ocr_context", event.OcrContext).
 		Msg("Verifying event")
 
-	ocrReport, err := common.ParseHexOrString(*event.OcrReport)
+	ocrReport, err := common.ParseHexOrString(event.OcrReport)
 	if err != nil {
 		r.logger.Error().Err(err).Msg("Failed to parse report")
 		return false, err
 	}
-	ocrContext, err := common.ParseHexOrString(*event.OcrContext)
+	ocrContext, err := common.ParseHexOrString(event.OcrContext)
 	if err != nil {
 		r.logger.Error().Err(err).Msg("Failed to parse report context")
 		return false, err
@@ -171,7 +171,7 @@ func (r *Client) Verify(event *client.Event) (bool, error) {
 		availableSigners[common.HexToAddress(signer)] = true
 	}
 
-	for _, sig := range *event.Signatures {
+	for _, sig := range event.Signatures {
 		sigBytes, err := common.ParseHexOrString(sig)
 		if err != nil {
 			r.logger.Error().Err(err).Msg("Failed to parse signature")
@@ -218,7 +218,7 @@ func (r *Client) Decode(event *client.Event, payload any) error {
 }
 
 func (r *Client) ToJson(event *client.Event) ([]byte, error) {
-	decodedStr, err := base64.StdEncoding.DecodeString(*event.VerifiableEvent)
+	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {
 		r.logger.Error().Err(err).Msg("Failed to decode base64 payload")
 		return []byte{}, err
@@ -227,7 +227,7 @@ func (r *Client) ToJson(event *client.Event) ([]byte, error) {
 }
 
 func (r *Client) EventHash(event *client.Event) common.Hash {
-	return crypto.Keccak256Hash([]byte(*event.Service + "." + *event.Name + "." + *event.VerifiableEvent))
+	return crypto.Keccak256Hash([]byte(event.Service + "." + event.Name + "." + event.VerifiableEvent))
 }
 
 func (r *Client) VerifyEventHash(ocrReport []byte, eventHash common.Hash) bool {

@@ -18,6 +18,8 @@ type MockServer struct {
 	eventsFile string
 }
 
+var _ api.ServerInterface = (*MockServer)(nil)
+
 func NewMockServer(t *testing.T) *MockServer {
 	s := &MockServer{
 		eventsFile: "event_list.json",
@@ -46,8 +48,16 @@ func (s *MockServer) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *MockServer) GetListeners(w http.ResponseWriter, r *http.Request, params api.GetListenersParams) {
+
+}
+
+func (s *MockServer) PostListeners(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusCreated)
+}
+
 func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params api.GetEventsParams) {
-	var eventResponse api.EventResponse
+	var eventResponse api.EventList
 	err := mockdata.LoadJson(s.eventsFile, &eventResponse)
 	if err != nil {
 		log.Fatalf("Failed to load event data: %v", err)
@@ -62,25 +72,20 @@ func (s *MockServer) PostEvents(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *MockServer) PostListener(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusCreated)
-}
-
-func (s *MockServer) PostOperationSend(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusCreated)
-}
-
-func (s *MockServer) GetOperationStatus(w http.ResponseWriter, r *http.Request, params api.GetOperationStatusParams) {
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode([]api.Operation{})
-
-}
-
 func (s *MockServer) PostOperationStatus(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *MockServer) GetOperations(w http.ResponseWriter, r *http.Request, params api.GetOperationsParams) {
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode([]api.Operation{})
+}
+
+func (s *MockServer) PostOperations(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (s *MockServer) GetOperationStatusOperationId(
+func (s *MockServer) GetOperationsOperationId(
 	w http.ResponseWriter, r *http.Request, operationId openapi_types.UUID,
 ) {
 	_ = json.NewEncoder(w).Encode(api.Operation{})
