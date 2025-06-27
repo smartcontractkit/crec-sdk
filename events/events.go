@@ -156,7 +156,7 @@ func (r *Client) Verify(event *client.Event) (bool, error) {
 	eventHash := r.EventHash(event)
 
 	// ensure locally computed event hash matches the one in the report
-	eventHashValid := r.VerifyEventHash(ocrReport, eventHash)
+	eventHashValid := r.verifyEventHash(ocrReport, eventHash)
 	if !eventHashValid {
 		r.logger.Error().Err(err).Msg("Failed to verify event hash")
 		return false, err
@@ -230,7 +230,7 @@ func (r *Client) EventHash(event *client.Event) common.Hash {
 	return crypto.Keccak256Hash([]byte(event.Service + "." + event.Name + "." + event.VerifiableEvent))
 }
 
-func (r *Client) VerifyEventHash(ocrReport []byte, eventHash common.Hash) bool {
+func (r *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash) bool {
 
 	// OCR report layout:
 	// version                offset   0, size  1
