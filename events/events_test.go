@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"log"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -32,17 +31,15 @@ func TestReadEvent(t *testing.T) {
 		t.Fatalf("failed to create event reader: %v", err)
 	}
 
-	eventList1, err := r.Read(ctx)
+	eventList, err := r.Read(ctx)
 	if err != nil {
 		t.Fatalf("failed to read event: %v", err)
 	}
-	log.Printf("Events 1 received: %v", eventList1)
+	require.Equal(t, 3, len(*eventList)) // must match the number of events in mockdata
 
-	eventList2, err := r.Read(ctx)
-	if err != nil {
-		t.Fatalf("failed to read event: %v", err)
-	}
-	log.Printf("Events 2 received: %v", eventList2)
+	event := (*eventList)[0]
+	require.Equal(t, "dvp", event.Service)             // must match the service in the first mockdata event
+	require.Equal(t, "SettlementAccepted", event.Name) // must match the name in the first mockdata event
 }
 
 func TestVerifyEvent(t *testing.T) {
