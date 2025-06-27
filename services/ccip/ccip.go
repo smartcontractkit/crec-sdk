@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 
-	transactTypes "github.com/smartcontractkit/cvn-sdk/transactor/types"
+	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 
 	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/erc20"
 	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/routerclient"

@@ -91,11 +91,6 @@ func (op *Operation) TypedData(chainId uint64) (*apitypes.TypedData, error) {
 	}, nil
 }
 
-type VerifiedOperation struct {
-	Operation Operation `json:"operation"`
-	Signature []byte    `json:"signature"`
-}
-
 type EIP712Domain struct {
 	Name              string          `json:"name"`
 	Version           string          `json:"version"`
