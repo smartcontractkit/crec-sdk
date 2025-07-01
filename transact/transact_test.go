@@ -16,7 +16,7 @@ import (
 
 func TestHashOperation(t *testing.T) {
 	// changing these will change the expected hash at the end of this test
-	chainId := uint64(31337)
+	chainId := "31337"
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
@@ -31,7 +31,7 @@ func TestHashOperation(t *testing.T) {
 	transact, err := NewClient(
 		c,
 		&ClientOptions{
-			ChainID: chainId,
+			ChainId: chainId,
 		},
 	)
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestHashOperation(t *testing.T) {
 
 func TestSignOperation(t *testing.T) {
 	// changing these will change the expected hash at the end of this test
-	chainId := uint64(31337)
+	chainId := "31337"
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
@@ -71,7 +71,7 @@ func TestSignOperation(t *testing.T) {
 	transact, err := NewClient(
 		c,
 		&ClientOptions{
-			ChainID: chainId,
+			ChainId: chainId,
 		},
 	)
 	require.NoError(t, err)

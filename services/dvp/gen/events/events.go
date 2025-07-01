@@ -7,12 +7,23 @@ import "fmt"
 import "time"
 
 type Dvp struct {
-	// Emitted as dvp.SettlementAccepted when a DvP settlement is accepted by the
-	// buyer
+	// Emitted when a a settlement has accepted by the buyer.
 	SettlementAccepted *DvpSettlementAccepted `json:"SettlementAccepted,omitempty" yaml:"SettlementAccepted,omitempty" mapstructure:"SettlementAccepted,omitempty"`
 
-	// SettlementOpened corresponds to the JSON schema field "SettlementOpened".
+	// Emitted when a settlement has completely been canceled.
+	SettlementCanceled *DvpSettlementCanceled `json:"SettlementCanceled,omitempty" yaml:"SettlementCanceled,omitempty" mapstructure:"SettlementCanceled,omitempty"`
+
+	// Emitted when a settlement has requested to be canceled by one of the parties.
+	SettlementCanceling *DvpSettlementCanceling `json:"SettlementCanceling,omitempty" yaml:"SettlementCanceling,omitempty" mapstructure:"SettlementCanceling,omitempty"`
+
+	// Emitted when a settlement is in the final phase of closing.
+	SettlementClosing *DvpSettlementClosing `json:"SettlementClosing,omitempty" yaml:"SettlementClosing,omitempty" mapstructure:"SettlementClosing,omitempty"`
+
+	// Emitted when a new settlement has been opened by a seller.
 	SettlementOpened *DvpSettlementOpened `json:"SettlementOpened,omitempty" yaml:"SettlementOpened,omitempty" mapstructure:"SettlementOpened,omitempty"`
+
+	// Emitted when a settlement has completed and is now settled.
+	SettlementSettled *DvpSettlementSettled `json:"SettlementSettled,omitempty" yaml:"SettlementSettled,omitempty" mapstructure:"SettlementSettled,omitempty"`
 }
 
 type DvpEvent struct {
@@ -94,8 +105,53 @@ type DvpSettlement struct {
 	TokenInfo DvpSettlementTokenInfo `json:"tokenInfo" yaml:"tokenInfo" mapstructure:"tokenInfo"`
 }
 
-// Emitted as dvp.SettlementAccepted when a DvP settlement is accepted by the buyer
+// Emitted when a a settlement has accepted by the buyer.
 type DvpSettlementAccepted struct {
+	// The timestamp when the event was created
+	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
+
+	// Event corresponds to the JSON schema field "event".
+	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
+	// Transaction corresponds to the JSON schema field "transaction".
+	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
+}
+
+// Emitted when a settlement has completely been canceled.
+type DvpSettlementCanceled struct {
+	// The timestamp when the event was created
+	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
+
+	// Event corresponds to the JSON schema field "event".
+	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
+	// Transaction corresponds to the JSON schema field "transaction".
+	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
+}
+
+// Emitted when a settlement has requested to be canceled by one of the parties.
+type DvpSettlementCanceling struct {
+	// The timestamp when the event was created
+	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
+
+	// Event corresponds to the JSON schema field "event".
+	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
+	// Transaction corresponds to the JSON schema field "transaction".
+	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
+}
+
+// Emitted when a settlement is in the final phase of closing.
+type DvpSettlementClosing struct {
 	// The timestamp when the event was created
 	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
 
@@ -154,6 +210,7 @@ func (j *DvpSettlementDeliveryInfo) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// Emitted when a new settlement has been opened by a seller.
 type DvpSettlementOpened struct {
 	// The timestamp when the event was created
 	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
@@ -215,6 +272,21 @@ func (j *DvpSettlementPartyInfo) UnmarshalJSON(value []byte) error {
 	}
 	*j = DvpSettlementPartyInfo(plain)
 	return nil
+}
+
+// Emitted when a settlement has completed and is now settled.
+type DvpSettlementSettled struct {
+	// The timestamp when the event was created
+	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
+
+	// Event corresponds to the JSON schema field "event".
+	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
+	// Transaction corresponds to the JSON schema field "transaction".
+	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
 }
 
 type DvpSettlementTokenInfo struct {

@@ -15,6 +15,10 @@ import (
 	"github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
+// ClientOptions defines the options for creating a new CVN transact client used to send operations to the CVN system.
+// It includes a logger for logging messages and a chain ID for the blockchain network.
+//   - Logger: Optional logger instance.
+//   - ChainId: A string representing the chain ID of the blockchain network.
 type ClientOptions struct {
 	Logger  *zerolog.Logger
 	ChainId string
@@ -26,6 +30,10 @@ type Client struct {
 	chainId   string
 }
 
+// NewClient creates a new CVN transact client with the provided CVN client and options.
+// Returns a pointer to the Client and an error if any issues occur during initialization.
+//   - cvnClient: A valid CVN client instance.
+//   - opts: Options for configuring the CVN transact client, see ClientOptions for details.
 func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Client, error) {
 	if cvnClient == nil {
 		return nil, errors.New("a valid CVN client must be provided")
@@ -49,6 +57,8 @@ func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Cli
 	}, nil
 }
 
+// HashOperation computes the EIP-712 digest of the given operation.
+//   - op: The operation to hash.
 func (t *Client) HashOperation(op *types.Operation) ([]byte, error) {
 	chainIdInt, err := strconv.ParseUint(t.chainId, 10, 64)
 	if err != nil {
@@ -64,6 +74,9 @@ func (t *Client) HashOperation(op *types.Operation) ([]byte, error) {
 	return hash, err
 }
 
+// SignOperation signs the given operation using the provided signer, returning the signature.
+//   - op: The operation to sign.
+//   - signer: The signer to use for signing the operation. See signer.Signer for details.
 func (t *Client) SignOperation(
 	op *types.Operation,
 	signer signer.Signer,
@@ -86,6 +99,10 @@ func (t *Client) SignOperation(
 	return sig, nil
 }
 
+// SendSignedOperation sends a signed operation to the CVN system.
+//   - ctx: The context for the request.
+//   - op: The operation to send, which must be signed.
+//   - signature: The signature of the operation, to be verified by the onchain smart account.
 func (t *Client) SendSignedOperation(
 	ctx context.Context,
 	op *types.Operation,
