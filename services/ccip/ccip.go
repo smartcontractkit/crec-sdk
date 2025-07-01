@@ -11,7 +11,7 @@ import (
 
 	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 
-	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/erc20"
+	"github.com/smartcontractkit/cvn-sdk/interfaces/erc20"
 	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/routerclient"
 )
 

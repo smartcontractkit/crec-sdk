@@ -16,8 +16,17 @@ import (
 	"github.com/smartcontractkit/cvn-sdk/client"
 	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 
+	"github.com/smartcontractkit/cvn-sdk/interfaces/erc20"
 	"github.com/smartcontractkit/cvn-sdk/services/dvp/gen/contract"
 	"github.com/smartcontractkit/cvn-sdk/services/dvp/gen/events"
+)
+
+type TokenReservationType int
+
+const (
+	ReservationTypeNone TokenReservationType = iota
+	ReservationTypeAllowance
+	ReservationTypeHold
 )
 
 // DvpServiceOptions defines the options for creating a new CVN DvP service.
@@ -167,15 +176,74 @@ func (s *DvpService) DecodeSettlementCanceled(event *client.Event) (
 	return &dvpEvent, nil
 }
 
-func (s *DvpService) PrepareAcceptSettlementOperation(settlementHash common.Hash) (*transactTypes.Operation, error) {
+// PrepareProposeSettlementOperation prepares a DvP propose settlement operation.
+// It constructs the necessary transactions, including token approvals if required.
+//   - tokenReservationType: The type of token reservation to be used (e.g., allowance, hold).
+//   - settlement: The settlement details to be included in the operation.
+func (s *DvpService) PrepareProposeSettlementOperation(
+	tokenReservationType TokenReservationType, settlement *contract.Settlement,
+) (
+	*transactTypes.Operation, error,
+) {
+	var transactions []*transactTypes.Transaction
 
-	abi, err := contract.ContractMetaData.GetAbi()
+	switch tokenReservationType {
+	case ReservationTypeAllowance:
+		s.logger.Info().Msg("Preparing token approval transaction on asset token for settlement")
+		approveTransaction, err := s.prepareApproveTransaction(settlement)
+		if err != nil {
+			s.logger.Error().Err(err).Msg("failed to prepare approve transaction")
+			return nil, err
+		}
+		transactions = append(transactions, approveTransaction)
+	case ReservationTypeHold:
+		s.logger.Warn().Msg("Hold reservation type is not implemented yet")
+	default:
+		s.logger.Debug().Msg("No token reservation being included in the operation")
+	}
+
+	abiEncoder, err := contract.ContractMetaData.GetAbi()
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
 		return nil, err
 	}
 
-	calldata, err := abi.Pack("acceptSettlement", settlementHash)
+	dvpCoordinator := common.HexToAddress(s.dvpCoordinatorAddress)
+	account := common.HexToAddress(s.accountAddress)
+
+	calldata, err := abiEncoder.Pack("proposeSettlement", settlement)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to pack calldata for proposeSettlement")
+		return nil, err
+	}
+
+	transactions = append(
+		transactions, &transactTypes.Transaction{
+			To:    &dvpCoordinator,
+			Value: big.NewInt(0),
+			Data:  calldata,
+		},
+	)
+
+	return &transactTypes.Operation{
+		ID:           big.NewInt(time.Now().Unix()),
+		Account:      &account,
+		Transactions: transactions,
+	}, nil
+}
+
+// PrepareAcceptSettlementOperation prepares a DvP accept settlement operation.
+// It constructs the necessary transaction to accept a settlement based on its hash.
+//   - settlementHash: The hash of the settlement to be accepted.
+func (s *DvpService) PrepareAcceptSettlementOperation(settlementHash common.Hash) (*transactTypes.Operation, error) {
+
+	abiEncoder, err := contract.ContractMetaData.GetAbi()
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
+		return nil, err
+	}
+
+	calldata, err := abiEncoder.Pack("acceptSettlement", settlementHash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to pack calldata for acceptSettlement")
 		return nil, err
@@ -197,15 +265,18 @@ func (s *DvpService) PrepareAcceptSettlementOperation(settlementHash common.Hash
 	}, nil
 }
 
+// PrepareExecuteSettlementOperation prepares a DvP execute settlement operation.
+// It constructs the necessary transaction to execute a settlement based on its hash.
+//   - settlementHash: The hash of the settlement to be executed.
 func (s *DvpService) PrepareExecuteSettlementOperation(settlementHash common.Hash) (*transactTypes.Operation, error) {
 
-	abi, err := contract.ContractMetaData.GetAbi()
+	abiEncoder, err := contract.ContractMetaData.GetAbi()
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
 		return nil, err
 	}
 
-	calldata, err := abi.Pack("executeSettlement", settlementHash)
+	calldata, err := abiEncoder.Pack("executeSettlement", settlementHash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to pack calldata for executeSettlement")
 		return nil, err
@@ -227,6 +298,8 @@ func (s *DvpService) PrepareExecuteSettlementOperation(settlementHash common.Has
 	}, nil
 }
 
+// HashSettlement computes the hash of a DvP settlement.
+//   - settlement: The settlement to be hashed.
 func (s *DvpService) HashSettlement(settlement *contract.Settlement) (common.Hash, error) {
 	uint256Ty, err := abi.NewType("uint256", "", nil)
 	uint64Ty, err := abi.NewType("uint64", "", nil)
@@ -337,4 +410,24 @@ func (s *DvpService) toJson(event *client.Event) ([]byte, error) {
 		return []byte{}, err
 	}
 	return decodedStr, nil
+}
+
+func (s *DvpService) prepareApproveTransaction(settlement *contract.Settlement) (*transactTypes.Transaction, error) {
+	erc20Abi, err := erc20.Erc20MetaData.GetAbi()
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to get ERC20 ABI")
+		return nil, err
+	}
+
+	calldata, err := erc20Abi.Pack("approve", s.dvpCoordinatorAddress, settlement.TokenInfo.AssetTokenAmount)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to pack calldata for token approve")
+		return nil, err
+	}
+
+	return &transactTypes.Transaction{
+		To:    &settlement.TokenInfo.AssetTokenSourceAddress,
+		Value: big.NewInt(0),
+		Data:  calldata,
+	}, nil
 }
