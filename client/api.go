@@ -17,10 +17,17 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+const (
+	ApiKeyAuthScopes = "ApiKeyAuth.Scopes"
+)
+
 // CreateEvent defines model for CreateEvent.
 type CreateEvent struct {
 	// Address Smart contract address from which the event was emitted
 	Address string `json:"address"`
+
+	// ChainId The id that identifies the chain where the event happened
+	ChainId string `json:"chain_id"`
 
 	// Name Name of the event
 	Name string `json:"name"`
@@ -44,6 +51,9 @@ type CreateListener struct {
 	// Address Smart contract address to listen for events
 	Address string `json:"address"`
 
+	// ChainId The id that identifies the chain where the listener will run
+	ChainId string `json:"chain_id"`
+
 	// Name Name of the event to listen for
 	Name    string             `json:"name"`
 	Options *map[string]string `json:"options,omitempty"`
@@ -61,7 +71,7 @@ type CreateOperation struct {
 	AccountOperationId string `json:"account_operation_id"`
 
 	// ChainId The id that identifies the chain where the account performing the operation lives
-	ChainId int `json:"chain_id"`
+	ChainId string `json:"chain_id"`
 
 	// Signature EIP-712 signature of the operation
 	Signature    string               `json:"signature"`
@@ -70,6 +80,12 @@ type CreateOperation struct {
 
 // Event defines model for Event.
 type Event struct {
+	// Address The address of the smart contract from which the event was emitted
+	Address string `json:"address"`
+
+	// ChainId The id that identifies the chain where the event happened
+	ChainId string `json:"chain_id"`
+
 	// CreatedAt Timestamp of when the event was created
 	CreatedAt int64 `json:"created_at"`
 
@@ -111,6 +127,9 @@ type Listener struct {
 	// Address Smart contract address to listen for events
 	Address string `json:"address"`
 
+	// ChainId The id that identifies the chain where the listener will run
+	ChainId string `json:"chain_id"`
+
 	// CreatedAt Timestamp of when the listener was created
 	CreatedAt int64 `json:"created_at"`
 
@@ -148,7 +167,7 @@ type Operation struct {
 	AccountOperationId string `json:"account_operation_id"`
 
 	// ChainId The id that identifies the chain where the account performing the operation lives
-	ChainId int `json:"chain_id"`
+	ChainId string `json:"chain_id"`
 
 	// ConfirmedAt Timestamp of when the operation was confirmed
 	ConfirmedAt *int64 `json:"confirmed_at,omitempty"`
@@ -211,7 +230,7 @@ type UpdateOperationStatus struct {
 	AccountOperationId string `json:"account_operation_id"`
 
 	// ChainId The id that identifies the chain where the account performing the operation lives
-	ChainId int `json:"chain_id"`
+	ChainId string `json:"chain_id"`
 
 	// TransactionHash Onchain transaction hash which included the operation
 	TransactionHash string `json:"transaction_hash"`
@@ -396,6 +415,12 @@ type ClientInterface interface {
 
 	PostListeners(ctx context.Context, body PostListenersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteListenersListenerId request
+	DeleteListenersListenerId(ctx context.Context, listenerId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetListenersListenerId request
+	GetListenersListenerId(ctx context.Context, listenerId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PostOperationStatusWithBody request with any body
 	PostOperationStatusWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -487,6 +512,30 @@ func (c *Client) PostListenersWithBody(ctx context.Context, contentType string, 
 
 func (c *Client) PostListeners(ctx context.Context, body PostListenersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostListenersRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteListenersListenerId(ctx context.Context, listenerId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteListenersListenerIdRequest(c.Server, listenerId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetListenersListenerId(ctx context.Context, listenerId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetListenersListenerIdRequest(c.Server, listenerId)
 	if err != nil {
 		return nil, err
 	}
@@ -966,6 +1015,74 @@ func NewPostListenersRequestWithBody(server string, contentType string, body io.
 	return req, nil
 }
 
+// NewDeleteListenersListenerIdRequest generates requests for DeleteListenersListenerId
+func NewDeleteListenersListenerIdRequest(server string, listenerId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "listener_id", runtime.ParamLocationPath, listenerId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/listeners/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetListenersListenerIdRequest generates requests for GetListenersListenerId
+func NewGetListenersListenerIdRequest(server string, listenerId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "listener_id", runtime.ParamLocationPath, listenerId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/listeners/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewPostOperationStatusRequest calls the generic PostOperationStatus builder with application/json body
 func NewPostOperationStatusRequest(server string, body PostOperationStatusJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -1287,6 +1404,12 @@ type ClientWithResponsesInterface interface {
 
 	PostListenersWithResponse(ctx context.Context, body PostListenersJSONRequestBody, reqEditors ...RequestEditorFn) (*PostListenersResponse, error)
 
+	// DeleteListenersListenerIdWithResponse request
+	DeleteListenersListenerIdWithResponse(ctx context.Context, listenerId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteListenersListenerIdResponse, error)
+
+	// GetListenersListenerIdWithResponse request
+	GetListenersListenerIdWithResponse(ctx context.Context, listenerId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetListenersListenerIdResponse, error)
+
 	// PostOperationStatusWithBodyWithResponse request with any body
 	PostOperationStatusWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostOperationStatusResponse, error)
 
@@ -1408,6 +1531,49 @@ func (r PostListenersResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostListenersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteListenersListenerIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteListenersListenerIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteListenersListenerIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetListenersListenerIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Listener
+}
+
+// Status returns HTTPResponse.Status
+func (r GetListenersListenerIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetListenersListenerIdResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1560,6 +1726,24 @@ func (c *ClientWithResponses) PostListenersWithResponse(ctx context.Context, bod
 		return nil, err
 	}
 	return ParsePostListenersResponse(rsp)
+}
+
+// DeleteListenersListenerIdWithResponse request returning *DeleteListenersListenerIdResponse
+func (c *ClientWithResponses) DeleteListenersListenerIdWithResponse(ctx context.Context, listenerId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteListenersListenerIdResponse, error) {
+	rsp, err := c.DeleteListenersListenerId(ctx, listenerId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteListenersListenerIdResponse(rsp)
+}
+
+// GetListenersListenerIdWithResponse request returning *GetListenersListenerIdResponse
+func (c *ClientWithResponses) GetListenersListenerIdWithResponse(ctx context.Context, listenerId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetListenersListenerIdResponse, error) {
+	rsp, err := c.GetListenersListenerId(ctx, listenerId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetListenersListenerIdResponse(rsp)
 }
 
 // PostOperationStatusWithBodyWithResponse request with arbitrary body returning *PostOperationStatusResponse
@@ -1738,6 +1922,48 @@ func ParsePostListenersResponse(rsp *http.Response) (*PostListenersResponse, err
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteListenersListenerIdResponse parses an HTTP response from a DeleteListenersListenerIdWithResponse call
+func ParseDeleteListenersListenerIdResponse(rsp *http.Response) (*DeleteListenersListenerIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteListenersListenerIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetListenersListenerIdResponse parses an HTTP response from a GetListenersListenerIdWithResponse call
+func ParseGetListenersListenerIdResponse(rsp *http.Response) (*GetListenersListenerIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetListenersListenerIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Listener
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 

@@ -6,6 +6,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -13,10 +14,17 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+const (
+	ApiKeyAuthScopes = "ApiKeyAuth.Scopes"
+)
+
 // CreateEvent defines model for CreateEvent.
 type CreateEvent struct {
 	// Address Smart contract address from which the event was emitted
 	Address string `json:"address"`
+
+	// ChainId The id that identifies the chain where the event happened
+	ChainId string `json:"chain_id"`
 
 	// Name Name of the event
 	Name string `json:"name"`
@@ -40,6 +48,9 @@ type CreateListener struct {
 	// Address Smart contract address to listen for events
 	Address string `json:"address"`
 
+	// ChainId The id that identifies the chain where the listener will run
+	ChainId string `json:"chain_id"`
+
 	// Name Name of the event to listen for
 	Name    string             `json:"name"`
 	Options *map[string]string `json:"options,omitempty"`
@@ -57,7 +68,7 @@ type CreateOperation struct {
 	AccountOperationId string `json:"account_operation_id"`
 
 	// ChainId The id that identifies the chain where the account performing the operation lives
-	ChainId int `json:"chain_id"`
+	ChainId string `json:"chain_id"`
 
 	// Signature EIP-712 signature of the operation
 	Signature    string               `json:"signature"`
@@ -66,6 +77,12 @@ type CreateOperation struct {
 
 // Event defines model for Event.
 type Event struct {
+	// Address The address of the smart contract from which the event was emitted
+	Address string `json:"address"`
+
+	// ChainId The id that identifies the chain where the event happened
+	ChainId string `json:"chain_id"`
+
 	// CreatedAt Timestamp of when the event was created
 	CreatedAt int64 `json:"created_at"`
 
@@ -107,6 +124,9 @@ type Listener struct {
 	// Address Smart contract address to listen for events
 	Address string `json:"address"`
 
+	// ChainId The id that identifies the chain where the listener will run
+	ChainId string `json:"chain_id"`
+
 	// CreatedAt Timestamp of when the listener was created
 	CreatedAt int64 `json:"created_at"`
 
@@ -144,7 +164,7 @@ type Operation struct {
 	AccountOperationId string `json:"account_operation_id"`
 
 	// ChainId The id that identifies the chain where the account performing the operation lives
-	ChainId int `json:"chain_id"`
+	ChainId string `json:"chain_id"`
 
 	// ConfirmedAt Timestamp of when the operation was confirmed
 	ConfirmedAt *int64 `json:"confirmed_at,omitempty"`
@@ -207,7 +227,7 @@ type UpdateOperationStatus struct {
 	AccountOperationId string `json:"account_operation_id"`
 
 	// ChainId The id that identifies the chain where the account performing the operation lives
-	ChainId int `json:"chain_id"`
+	ChainId string `json:"chain_id"`
 
 	// TransactionHash Onchain transaction hash which included the operation
 	TransactionHash string `json:"transaction_hash"`
@@ -317,6 +337,12 @@ type ServerInterface interface {
 	// Creates a new listener.
 	// (POST /listeners)
 	PostListeners(w http.ResponseWriter, r *http.Request)
+	// Deletes a listener.
+	// (DELETE /listeners/{listener_id})
+	DeleteListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapi_types.UUID)
+	// Retrieves a single listener.
+	// (GET /listeners/{listener_id})
+	GetListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapi_types.UUID)
 	// Updates the status of an operation.
 	// (POST /operation_status)
 	PostOperationStatus(w http.ResponseWriter, r *http.Request)
@@ -344,6 +370,12 @@ type MiddlewareFunc func(http.Handler) http.Handler
 func (siw *ServerInterfaceWrapper) GetEvents(w http.ResponseWriter, r *http.Request) {
 
 	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetEventsParams
@@ -418,6 +450,12 @@ func (siw *ServerInterfaceWrapper) GetEvents(w http.ResponseWriter, r *http.Requ
 // PostEvents operation middleware
 func (siw *ServerInterfaceWrapper) PostEvents(w http.ResponseWriter, r *http.Request) {
 
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostEvents(w, r)
 	}))
@@ -431,6 +469,12 @@ func (siw *ServerInterfaceWrapper) PostEvents(w http.ResponseWriter, r *http.Req
 
 // GetHealthCheck operation middleware
 func (siw *ServerInterfaceWrapper) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealthCheck(w, r)
@@ -447,6 +491,12 @@ func (siw *ServerInterfaceWrapper) GetHealthCheck(w http.ResponseWriter, r *http
 func (siw *ServerInterfaceWrapper) GetListeners(w http.ResponseWriter, r *http.Request) {
 
 	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetListenersParams
@@ -521,6 +571,12 @@ func (siw *ServerInterfaceWrapper) GetListeners(w http.ResponseWriter, r *http.R
 // PostListeners operation middleware
 func (siw *ServerInterfaceWrapper) PostListeners(w http.ResponseWriter, r *http.Request) {
 
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostListeners(w, r)
 	}))
@@ -532,8 +588,76 @@ func (siw *ServerInterfaceWrapper) PostListeners(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteListenersListenerId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteListenersListenerId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "listener_id" -------------
+	var listenerId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listener_id", r.PathValue("listener_id"), &listenerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listener_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteListenersListenerId(w, r, listenerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetListenersListenerId operation middleware
+func (siw *ServerInterfaceWrapper) GetListenersListenerId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "listener_id" -------------
+	var listenerId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listener_id", r.PathValue("listener_id"), &listenerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listener_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetListenersListenerId(w, r, listenerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PostOperationStatus operation middleware
 func (siw *ServerInterfaceWrapper) PostOperationStatus(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostOperationStatus(w, r)
@@ -550,6 +674,12 @@ func (siw *ServerInterfaceWrapper) PostOperationStatus(w http.ResponseWriter, r 
 func (siw *ServerInterfaceWrapper) GetOperations(w http.ResponseWriter, r *http.Request) {
 
 	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetOperationsParams
@@ -624,6 +754,12 @@ func (siw *ServerInterfaceWrapper) GetOperations(w http.ResponseWriter, r *http.
 // PostOperations operation middleware
 func (siw *ServerInterfaceWrapper) PostOperations(w http.ResponseWriter, r *http.Request) {
 
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostOperations(w, r)
 	}))
@@ -648,6 +784,12 @@ func (siw *ServerInterfaceWrapper) GetOperationsOperationId(w http.ResponseWrite
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "operation_id", Err: err})
 		return
 	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetOperationsOperationId(w, r, operationId)
@@ -785,6 +927,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/health-check", wrapper.GetHealthCheck)
 	m.HandleFunc("GET "+options.BaseURL+"/listeners", wrapper.GetListeners)
 	m.HandleFunc("POST "+options.BaseURL+"/listeners", wrapper.PostListeners)
+	m.HandleFunc("DELETE "+options.BaseURL+"/listeners/{listener_id}", wrapper.DeleteListenersListenerId)
+	m.HandleFunc("GET "+options.BaseURL+"/listeners/{listener_id}", wrapper.GetListenersListenerId)
 	m.HandleFunc("POST "+options.BaseURL+"/operation_status", wrapper.PostOperationStatus)
 	m.HandleFunc("GET "+options.BaseURL+"/operations", wrapper.GetOperations)
 	m.HandleFunc("POST "+options.BaseURL+"/operations", wrapper.PostOperations)

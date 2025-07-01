@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -16,21 +17,21 @@ import (
 
 type ClientOptions struct {
 	Logger  *zerolog.Logger
-	ChainID uint64
+	ChainId string
 }
 
 type Client struct {
 	cvnClient *client.ClientWithResponses
 	logger    *zerolog.Logger
-	chainID   uint64
+	chainId   string
 }
 
 func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Client, error) {
 	if cvnClient == nil {
-		return nil, errors.New("Client requires a valid CVN client")
+		return nil, errors.New("a valid CVN client must be provided")
 	}
 	if opts == nil {
-		return nil, errors.New("Client requires a valid options struct")
+		return nil, errors.New("options must be provided")
 	}
 
 	logger := opts.Logger
@@ -39,17 +40,22 @@ func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Cli
 		logger = &lgr
 	}
 
-	logger.Info().Msg("Creating CVN transact")
+	logger.Info().Msg("Creating CVN transact client")
 
 	return &Client{
 		logger:    logger,
 		cvnClient: cvnClient,
-		chainID:   opts.ChainID,
+		chainId:   opts.ChainId,
 	}, nil
 }
 
 func (t *Client) HashOperation(op *types.Operation) ([]byte, error) {
-	typedData, err := op.TypedData(t.chainID)
+	chainIdInt, err := strconv.ParseUint(t.chainId, 10, 64)
+	if err != nil {
+		t.logger.Error().Err(err).Msg("Failed to parse chain ID")
+		return nil, err
+	}
+	typedData, err := op.TypedData(chainIdInt)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to create typed data for operation")
 		return nil, err
@@ -86,6 +92,7 @@ func (t *Client) SendSignedOperation(
 	signature []byte,
 ) error {
 	t.logger.Info().
+		Str("chain_id", t.chainId).
 		Str("operation_id", op.ID.String()).
 		Str("signature", common.Bytes2Hex(signature)).
 		Msg("Sending signed operation")
@@ -103,8 +110,9 @@ func (t *Client) SendSignedOperation(
 
 	var requestData = client.CreateOperation{
 		AccountOperationId: op.ID.String(),
-		Transactions:       transactions,
+		ChainId:            t.chainId,
 		Account:            op.Account.String(),
+		Transactions:       transactions,
 		Signature:          "0x" + common.Bytes2Hex(signature),
 	}
 

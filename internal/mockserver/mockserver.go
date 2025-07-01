@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/smartcontractkit/cvn-sdk/internal/mockdata"
@@ -45,14 +47,75 @@ func (s *MockServer) Close() {
 }
 
 func (s *MockServer) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-}
-
-func (s *MockServer) GetListeners(w http.ResponseWriter, r *http.Request, params api.GetListenersParams) {
-
+	_ = json.NewEncoder(w).Encode(
+		api.HealthCheck{
+			Status: "ok",
+		},
+	)
 }
 
 func (s *MockServer) PostListeners(w http.ResponseWriter, r *http.Request) {
+	var createListenerReq api.CreateListener
+	err := json.NewDecoder(r.Body).Decode(&createListenerReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	listenerId, err := uuid.NewUUID()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	listener := api.Listener{
+		ListenerId: listenerId,
+		Service:    createListenerReq.Service,
+		Name:       createListenerReq.Name,
+		ChainId:    createListenerReq.ChainId,
+		Address:    createListenerReq.Address,
+		CreatedAt:  time.Now().Unix(),
+		Status:     "active",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(listener)
+}
+
+func (s *MockServer) GetListeners(w http.ResponseWriter, r *http.Request, params api.GetListenersParams) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(
+		api.ListenerList{
+			Data:    []api.Listener{},
+			HasMore: false,
+		},
+	)
+}
+
+func (s *MockServer) GetListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapi_types.UUID) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(
+		api.Listener{
+			ListenerId: listenerId,
+			Service:    "dvp",
+			Name:       "SettlementAccepted",
+			ChainId:    "1337",
+			Address:    "0x1234567890abcdef1234567890abcdef12345678",
+			Status:     "active",
+		},
+	)
+}
+
+func (s *MockServer) DeleteListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapi_types.UUID) {
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *MockServer) PostEvents(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -68,25 +131,27 @@ func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params ap
 	_ = json.NewEncoder(w).Encode(eventResponse)
 }
 
-func (s *MockServer) PostEvents(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusCreated)
-}
-
-func (s *MockServer) PostOperationStatus(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
+func (s *MockServer) PostOperations(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (s *MockServer) GetOperations(w http.ResponseWriter, r *http.Request, params api.GetOperationsParams) {
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode([]api.Operation{})
-}
-
-func (s *MockServer) PostOperations(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(
+		api.OperationList{
+			Data:    []api.Operation{},
+			HasMore: false,
+		},
+	)
 }
 
 func (s *MockServer) GetOperationsOperationId(
 	w http.ResponseWriter, r *http.Request, operationId openapi_types.UUID,
 ) {
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(api.Operation{})
+}
+
+func (s *MockServer) PostOperationStatus(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusAccepted)
 }

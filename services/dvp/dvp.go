@@ -73,13 +73,13 @@ func (s *DvpService) PrepareExecuteSettlementOperation(settlementHash common.Has
 
 	abi, err := contract.ContractMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to get DVP ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
 		return nil, err
 	}
 
 	executeSettlementCalldata, err := abi.Pack("executeSettlement", settlementHash)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to pack calldata for executeSettlement")
+		s.logger.Error().Err(err).Msg("Failed to pack calldata for executeSettlement")
 		return nil, err
 	}
 
