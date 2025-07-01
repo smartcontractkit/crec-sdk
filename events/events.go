@@ -20,6 +20,12 @@ const (
 	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
 )
 
+// ClientOptions holds the configuration options for the CVN events client.
+// It includes options for logging, event retrieval, and signature verification.
+//   - Logger: Optional logger instance.
+//   - EventsAfter: Unix timestamp to start retrieving events from. Defaults to current time if not set.
+//   - MinRequiredSignatures: Minimum number of valid signatures required to verify an event.
+//   - ValidSigners: List of signer addresses that are authorized verified event signers.
 type ClientOptions struct {
 	Logger                *zerolog.Logger
 	EventsAfter           int64
@@ -37,6 +43,11 @@ type Client struct {
 	lastReadEventId       uuid.UUID
 }
 
+// NewClient creates a new CVN events client with the provided CVN client and options.
+// Returns a pointer to the Client and an error if any issues occur during initialization.
+// If the CVN client or options are nil, it returns an error.
+//   - cvnClient: A valid CVN client instance.
+//   - opts: Options for configuring the CVN events client, see ClientOptions for details.
 func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Client, error) {
 	if cvnClient == nil {
 		return nil, errors.New("a valid CVN client must be provided")
@@ -70,6 +81,10 @@ func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Cli
 	}, nil
 }
 
+// GetEvents retrieves events from the CVN service.
+// It returns a slice of events that were created after the last read timestamp or the configured eventsAfter timestamp.
+// If no events are found, it returns an empty slice.
+//   - ctx: Context for the request, used for cancellation and timeouts.
 func (c *Client) GetEvents(ctx context.Context) (*[]client.Event, error) {
 	c.logger.Debug().Msg("Getting events from CVN")
 
@@ -122,12 +137,17 @@ func (c *Client) GetEvents(ctx context.Context) (*[]client.Event, error) {
 	return &resp.JSON200.Data, nil
 }
 
+// Reset resets the internal state of the CVN events client.
+// It clears the last read timestamp and event ID, allowing the client to start reading events from scratch.
 func (c *Client) Reset() {
 	c.logger.Info().Msg("Resetting event reader state")
 	c.lastReadTimestamp = 0
 	c.lastReadEventId = uuid.Nil
 }
 
+// Verify verifies the authenticity of a given event.
+// It checks whether the event was signed by at least a minimum number of authorized signers.
+//   - event: The event to verify.
 func (c *Client) Verify(event *client.Event) (bool, error) {
 	c.logger.Debug().
 		Str("event_service", event.Service).
@@ -208,6 +228,9 @@ func (c *Client) Verify(event *client.Event) (bool, error) {
 	return validSigCount >= c.minRequiredSignatures, nil
 }
 
+// Decode decodes a verifiable event into a specified payload structure.
+//   - event: The event to decode.
+//   - payload: A pointer to the structure where the decoded event will be stored.
 func (c *Client) Decode(event *client.Event, payload any) error {
 	jsonBytes, err := c.ToJson(event)
 	if err != nil {
@@ -217,6 +240,8 @@ func (c *Client) Decode(event *client.Event, payload any) error {
 	return json.Unmarshal(jsonBytes, payload)
 }
 
+// ToJson converts a verifiable event into its JSON representation.
+//   - event: The event to convert.
 func (c *Client) ToJson(event *client.Event) ([]byte, error) {
 	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {
@@ -226,10 +251,14 @@ func (c *Client) ToJson(event *client.Event) ([]byte, error) {
 	return decodedStr, nil
 }
 
+// EventHash computes the "EventHash" of an event used for verification.
 func (c *Client) EventHash(event *client.Event) common.Hash {
 	return crypto.Keccak256Hash([]byte(event.Service + "." + event.Name + "." + event.VerifiableEvent))
 }
 
+// CreateListener creates a new listener for events in the CVN service.
+//   - ctx: Context for the request, used for cancellation and timeouts.
+//   - listener: The listener to create. See client.CreateListener for details on required fields.
 func (c *Client) CreateListener(ctx context.Context, listener *client.CreateListener) (*client.Listener, error) {
 	c.logger.Debug().
 		Str("listener_name", listener.Name).
@@ -251,6 +280,9 @@ func (c *Client) CreateListener(ctx context.Context, listener *client.CreateList
 	return resp.JSON201, nil
 }
 
+// GetListener retrieves a listener by its ID from the CVN service.
+//   - ctx: Context for the request, used for cancellation and timeouts.
+//   - listenerId: The UUID of the listener to retrieve.
 func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*client.Listener, error) {
 	c.logger.Debug().
 		Str("listener_id", listenerId.String()).
@@ -275,6 +307,9 @@ func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*client
 	return resp.JSON200, nil
 }
 
+// DeleteListener deletes a listener by its ID from the CVN service.
+//   - ctx: Context for the request, used for cancellation and timeouts.
+//   - listenerId: The UUID of the listener to delete.
 func (c *Client) DeleteListener(ctx context.Context, listenerId uuid.UUID) error {
 	c.logger.Debug().
 		Str("listener_id", listenerId.String()).

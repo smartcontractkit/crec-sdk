@@ -5,6 +5,7 @@
   "properties": {
     "SettlementOpened": {
       "type": "object",
+      "description": "Emitted when a new settlement has been opened by a seller.",
       "properties": {
         "createdAt": {
           "type": "string",
@@ -24,7 +25,87 @@
     },
     "SettlementAccepted": {
       "type": "object",
-      "description": "Emitted as dvp.SettlementAccepted when a DvP settlement is accepted by the buyer",
+      "description": "Emitted when a a settlement has accepted by the buyer.",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the event was created"
+        },
+        "event": {
+          "$ref": "#/$defs/dvpEvent"
+        },
+        "transaction": {
+          "$ref": "#/$defs/transaction"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "SettlementClosing": {
+      "type": "object",
+      "description": "Emitted when a settlement is in the final phase of closing.",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the event was created"
+        },
+        "event": {
+          "$ref": "#/$defs/dvpEvent"
+        },
+        "transaction": {
+          "$ref": "#/$defs/transaction"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "SettlementSettled": {
+      "type": "object",
+      "description": "Emitted when a settlement has completed and is now settled.",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the event was created"
+        },
+        "event": {
+          "$ref": "#/$defs/dvpEvent"
+        },
+        "transaction": {
+          "$ref": "#/$defs/transaction"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "SettlementCanceling": {
+      "type": "object",
+      "description": "Emitted when a settlement has requested to be canceled by one of the parties.",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the event was created"
+        },
+        "event": {
+          "$ref": "#/$defs/dvpEvent"
+        },
+        "transaction": {
+          "$ref": "#/$defs/transaction"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "SettlementCanceled": {
+      "type": "object",
+      "description": "Emitted when a settlement has completely been canceled.",
       "properties": {
         "createdAt": {
           "type": "string",
