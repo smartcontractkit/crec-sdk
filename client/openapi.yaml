@@ -83,7 +83,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListenerList"
-
+  /listeners/{listener_id}:
+    get:                                    #  ← NEW
+      summary: Retrieves a single listener.
+      parameters:
+        - in: path
+          required: true
+          name: listener_id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listener"
+        "404":
+          description: Listener not found
+    delete:
+      summary: Deletes a listener.
+      parameters:
+        - in: path
+          required: true
+          name: listener_id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "202":
+          description: Delete request accepted.
   /events:
     post:
       summary: Creates a new event.
@@ -253,7 +283,16 @@ paths:
         "202":
           description: Operation status recorded successfully
 
+security:
+  - ApiKeyAuth: []
+
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey            # <-- this tells Swagger-UI to show an
+      in: header              #      “Authorize” dialog
+      name: Api-Key
+      description:       Public organisation API key.
   schemas:
     HealthCheck:
       type: object
@@ -272,6 +311,9 @@ components:
         name:
           type: string
           description: Name of the event to listen for
+        chain_id:
+          type: string
+          description: The id that identifies the chain where the listener will run
         address:
           type: string
           description: Smart contract address to listen for events
@@ -282,6 +324,7 @@ components:
       required:
         - service
         - name
+        - chain_id
         - address
     Listener:
       type: object
@@ -303,6 +346,9 @@ components:
         name:
           type: string
           description: Name of the event to listen for
+        chain_id:
+          type: string
+          description: The id that identifies the chain where the listener will run
         address:
           type: string
           description: Smart contract address to listen for events
@@ -316,6 +362,7 @@ components:
         - status
         - service
         - name
+        - chain_id
         - address
         - options
     ListenerList:
@@ -340,6 +387,12 @@ components:
         name:
           type: string
           description: Name of the event
+        chain_id:
+          type: string
+          description: The id that identifies the chain where the event happened
+        address:
+          type: string
+          description: Smart contract address from which the event was emitted
         ocr_report:
           type: string
           description:  OCR report for the event
@@ -354,17 +407,15 @@ components:
           items:
             type: string
             description: Signature of the event
-        address:
-          type: string
-          description: Smart contract address from which the event was emitted
       required:
         - service
         - name
+        - chain_id
+        - address
         - ocr_report
         - ocr_context
         - verifiable_event
         - signatures
-        - address
     Event:
       type: object
       properties:
@@ -382,6 +433,12 @@ components:
         name:
           type: string
           description: Name of the event
+        chain_id:
+          type: string
+          description: The id that identifies the chain where the event happened
+        address:
+          type: string
+          description: The address of the smart contract from which the event was emitted
         ocr_report:
           type: string
           description: OCR report for the event
@@ -401,11 +458,12 @@ components:
         - created_at
         - service
         - name
+        - chain_id
+        - address
         - ocr_report
         - ocr_context
         - verifiable_event
         - signatures
-        - address
     EventList:
       type: object
       properties:
@@ -425,12 +483,12 @@ components:
         account_operation_id:
           type: string
           description: Unique account operation identifier
+        chain_id:
+          type: string
+          description: The id that identifies the chain where the account performing the operation lives
         account:
           type: string
           description: Onchain account address performing the operation
-        chain_id:
-          type: integer
-          description: The id that identifies the chain where the account performing the operation lives
         transactions:
           type: array
           items:
@@ -440,8 +498,8 @@ components:
           description: EIP-712 signature of the operation
       required:
         - account_operation_id
-        - account
         - chain_id
+        - account
         - transactions
         - signature
     Operation:
@@ -476,7 +534,7 @@ components:
           type: string
           description: Onchain account address performing the operation
         chain_id:
-          type: integer
+          type: string
           description: The id that identifies the chain where the account performing the operation lives
         transactions:
           type: array
@@ -518,7 +576,7 @@ components:
           type: string
           description: Onchain account address performing the operation
         chain_id:
-          type: integer
+          type: string
           description: The id that identifies the chain where the account performing the operation lives
         transaction_hash:
           type: string

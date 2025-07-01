@@ -31,7 +31,7 @@ func TestReadEvent(t *testing.T) {
 		t.Fatalf("failed to create event reader: %v", err)
 	}
 
-	eventList, err := r.Read(ctx)
+	eventList, err := r.GetEvents(ctx)
 	if err != nil {
 		t.Fatalf("failed to read event: %v", err)
 	}
@@ -68,4 +68,40 @@ func TestVerifyEvent(t *testing.T) {
 	verified, err := v.Verify(event)
 	require.NoError(t, err)
 	require.True(t, verified)
+}
+
+func TestCreateListener(t *testing.T) {
+	ctx := context.Background()
+
+	mockServer := mockserver.NewMockServer(t)
+	defer mockServer.Close()
+
+	c, err := client.NewCVNClient(mockServer.TestServer.URL)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	r, err := NewClient(
+		c, &ClientOptions{},
+	)
+	if err != nil {
+		t.Fatalf("failed to create event reader: %v", err)
+	}
+
+	listener, err := r.CreateListener(
+		ctx, &client.CreateListener{
+			Service: "dvp",
+			Name:    "SettlementAccepted",
+			ChainId: "1337",
+			Address: "0x1234567890abcdef1234567890abcdef12345678",
+		},
+	)
+
+	if err != nil {
+		t.Fatalf("failed to create event listener: %v", err)
+	}
+
+	require.NotNil(t, listener)
+	require.Equal(t, "dvp", listener.Service)             // must match the service in the first mockdata event
+	require.Equal(t, "SettlementAccepted", listener.Name) // must match the name in the first mockdata event
 }
