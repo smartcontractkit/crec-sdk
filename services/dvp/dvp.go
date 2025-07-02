@@ -177,7 +177,6 @@ func (s *Service) DecodeSettlementCanceled(event *client.Event) (
 
 // PrepareProposeSettlementOperation prepares a DvP propose settlement operation. It assumes a token approval
 // has already been issued for the asset token.
-//   - tokenReservationType: The type of token reservation to be used (e.g., allowance, hold).
 //   - settlement: The settlement details to be included in the operation.
 func (s *Service) PrepareProposeSettlementOperation(settlement *contract.Settlement) (
 	*transactTypes.Operation, error,
@@ -209,7 +208,6 @@ func (s *Service) PrepareProposeSettlementOperation(settlement *contract.Settlem
 
 // PrepareProposeSettlementWithTokenApprovalOperation prepares a DvP propose settlement operation, including
 // a token approval.
-//   - tokenReservationType: The type of token reservation to be used (e.g., allowance, hold).
 //   - settlement: The settlement details to be included in the operation.
 func (s *Service) PrepareProposeSettlementWithTokenApprovalOperation(settlement *contract.Settlement) (
 	*transactTypes.Operation, error,
@@ -251,8 +249,8 @@ func (s *Service) PrepareProposeSettlementWithTokenApprovalOperation(settlement 
 
 // PrepareProposeSettlementWithTokenHoldOperation prepares a DvP propose settlement operation, including
 // a issuing a token hold for the asset token.
-//   - tokenReservationType: The type of token reservation to be used (e.g., allowance, hold).
 //   - settlement: The settlement details to be included in the operation.
+//   - holdManagerAddress: The address of the hold manager contract to be used for the token hold.
 func (s *Service) PrepareProposeSettlementWithTokenHoldOperation(
 	settlement *contract.Settlement, holdManagerAddress *common.Address,
 ) (
