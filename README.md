@@ -57,9 +57,9 @@ and the payment has been made.
 
 The CRELib DVP helper service supports the following features:
 
-- Proposing a settlement as the seller of an asset token.
-- Accepting of a settlement as the buyer of an asset token.
-- Execution of a settlement as a designated 3rd party such as the offchain payment network.
+- Proposing a settlement as the seller of an asset token
+- Accepting of a settlement as the buyer of an asset token
+- Execution of a settlement as a designated 3rd party such as the offchain payment network
 
 The DvP service can optionally include the token approval/hold transaction in the settlement operations.
 
