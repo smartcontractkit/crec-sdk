@@ -35,7 +35,7 @@ to make the payment offchain. At this point, the settlement can be excuted in on
 
 # The Settlement Object
 
-The settlement is represented by a `Settlement` object, which includes the following:
+The settlement is represented by a `Settlement` object, which contains the following fields:
 
 - `settlementId`: A unique identifier for the settlement, which is used to track the settlement process.
 - `partyInfo` - A struct contains the address of the various actors involved in the settlement:
@@ -77,4 +77,83 @@ The settlement is hashed using the `SettlementHash` function, which combines all
 into a single hash. This hash is used to uniquely identify the settlement. Other than the initial `proposeSettlement`
 call, all other calls accept a `settlementHash` parameter to identify the settlement being acted upon.
 
+# Token Types
 
+The DvP service supports two types of tokens:
+- **ERC-20**: Standard fungible tokens that follow the ERC20 token standard.
+- **ERC-3643**: A permissioned token that is expected to have a "Hold Manager" attached, facilitating the hold and 
+  release of tokens during the settlement process. This is particularly useful for ensuring that the asset token is 
+  remains in the seller's wallet until the payment is settled.
+
+# Example Usage
+
+## Executing a Settlement as a Payment Network
+
+In this example, we will demonstrate how to execute a settlement as a payment network using the DvP service. The
+address of the payment network smart account must have been specified as the `executorAddress` in the settlement
+when it was proposed by the seller. The payment network will observe the offchain payment and execute the settlement.
+
+```go
+import (
+    "github.com/smartcontractkit/cvn-sdk/client"
+	"github.com/smartcontractkit/cvn-sdk/event"
+	"github.com/smartcontractkit/cvn-sdk/transact"
+    "github.com/smartcontractkit/cvn-sdk/transact/signer"
+    "github.com/smartcontractkit/cvn-sdk/services/dvp"
+)
+
+cvnClient, _ := client.NewCVNClient(cvnURL)
+
+// Create DVP service instance
+dvpService, _ = dvp.NewService(
+	&dvp.ServiceOptions{
+        DvpCoordinatorAddress: dvpCoordinatorAddress, // address of the DvP coordinator contract
+        AccountAddress:        accountAddress, // the executor smart account performing the settlement execution
+	},
+)
+
+// Create CVN events client
+cvnEventsClient, _ := events.NewClient(
+    cvnClient,
+    &events.ClientOptions{
+        MinRequiredSignatures: 3,
+        ValidSigners: []string{
+            "0x5db070ceabcf97e45d96b4f951a1df050ddb5559",
+            "0xadebb9657c04692275973230b06adfabacc899bc",
+            "0xc868bbb5d93e97b9d780fc93811a00ca7c016751",
+            "0x1804f720c6c42b8075d03f3ddda8bd3cf49960de",
+            "0xf191da826a7757ea2e3a8a5e147ddb378d6d0efe",
+        },
+    },
+)
+
+// Create CVN transact client
+cvnTransactClient, _ := transact.NewClient(
+    cvnClient,
+    &transact.ClientOptions{
+        ChainId: "1337", // specify the chain ID for the CVN
+    },
+)
+
+// Decode the CVN verifiable event into a DvP event. It is assumed that the event has been verified before this point.
+dvpEvent, _ := dvpService.DecodeSettlementAccepted(event)
+
+// Check if the event is a dvp SettlementAccepted event
+if event.Service == "dvp" && event.Name == "SettlementAccepted" {
+	
+	// *** Perform Offchain Payment ***
+	
+    // Prepare an "executeSettlement" operation
+	operation, _ := dvpService.PrepareExecuteSettlementOperation(dvpEvent.Event.SettlementHash)
+
+	// Sign as a valid signer on the executor smart account
+    signature, _ := cvnTransactClient.SignOperation(operation, operationSigner)
+
+    // Create a local signer with the private key of an address authorized to sign the operation in the smart account
+    operationSigner = signer.NewLocalSigner(privateKey)
+
+	// Send the signed operation to the CVN for relaying onchain using the CVN transact client from the CRELib 
+	// transact package
+    cvnTransactClient.SendSignedOperation(context.Background(), operation, signature)
+}
+```
