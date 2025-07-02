@@ -96,20 +96,21 @@ when it was proposed by the seller. The payment network will observe the offchai
 ```go
 import (
     "github.com/smartcontractkit/cvn-sdk/client"
-	"github.com/smartcontractkit/cvn-sdk/event"
-	"github.com/smartcontractkit/cvn-sdk/transact"
+    "github.com/smartcontractkit/cvn-sdk/event"
+    "github.com/smartcontractkit/cvn-sdk/transact"
     "github.com/smartcontractkit/cvn-sdk/transact/signer"
     "github.com/smartcontractkit/cvn-sdk/services/dvp"
 )
 
+// create a CVN client pointed to the Chainlink Verifiable Network URL
 cvnClient, _ := client.NewCVNClient(cvnURL)
 
 // Create DVP service instance
 dvpService, _ = dvp.NewService(
-	&dvp.ServiceOptions{
+    &dvp.ServiceOptions{
         DvpCoordinatorAddress: dvpCoordinatorAddress, // address of the DvP coordinator contract
-        AccountAddress:        accountAddress, // the executor smart account performing the settlement execution
-	},
+        AccountAddress: accountAddress, // the executor smart account performing the settlement execution
+    },
 )
 
 // Create CVN events client
@@ -140,20 +141,20 @@ dvpEvent, _ := dvpService.DecodeSettlementAccepted(event)
 
 // Check if the event is a dvp SettlementAccepted event
 if event.Service == "dvp" && event.Name == "SettlementAccepted" {
-	
+    
 	// *** Perform Offchain Payment ***
 	
     // Prepare an "executeSettlement" operation
-	operation, _ := dvpService.PrepareExecuteSettlementOperation(dvpEvent.Event.SettlementHash)
+    operation, _ := dvpService.PrepareExecuteSettlementOperation(dvpEvent.Event.SettlementHash)
 
-	// Sign as a valid signer on the executor smart account
+    // Sign as a valid signer on the executor smart account
     signature, _ := cvnTransactClient.SignOperation(operation, operationSigner)
 
     // Create a local signer with the private key of an address authorized to sign the operation in the smart account
     operationSigner = signer.NewLocalSigner(privateKey)
 
-	// Send the signed operation to the CVN for relaying onchain using the CVN transact client from the CRELib 
-	// transact package
+    // Send the signed operation to the CVN for relaying onchain using the CVN transact client from the CRELib 
+    // transact package
     cvnTransactClient.SendSignedOperation(context.Background(), operation, signature)
 }
 ```
