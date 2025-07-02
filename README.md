@@ -24,6 +24,36 @@ number of Chainlink onchain systems, such as the DvP (Delivery vs Payment) servi
 An example application using the CRELib can be found in
 the [cvn-example-payment-processor](https://github.com/smartcontractkit/cvn-example-payment-processor) repository.
 
+## Packages
+
+The following packages are available in the CRELib:
+* `client`: The main client package for interacting with the Chainlink Verifiable Network.
+* `events`: Provides functionality for receiving and decoding verifiable events from the Chainlink Verifiable Network.
+* `transact`: Provides functionality for sending onchain operations using the account abstraction model.
+* `services/dvp`: Provides the DvP (Delivery vs Payment) service for asset and payment exchange.
+* `services/ccip`: Provides the CCIP (Cross Chain Interoperability Protocol) service for cross-chain token transfers and messaging.
+
+### Documentation
+
+The recommended way to explore the code documentation is to use `godoc`.
+
+Ensure godoc is installed:
+```bash
+go install golang.org/x/tools/cmd/godoc@latest
+```
+
+Run the godoc server
+```bash
+godoc -http :8080
+```
+
+And you can view the documentation in your browser:
+* client: [http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/client/](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/client/)
+* events: [http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/events/](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/events/)
+* transact: [http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/transact/](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/transact/)
+* dvp service: [http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/services/dvp/](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/services/dvp/)
+* ccip service: [http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/services/ccip/](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/services/ccip/)
+
 ## Verifiable Events
 
 Receiving events consists of several phases:
@@ -31,9 +61,9 @@ Receiving events consists of several phases:
 - Verifying the event's authenticity and integrity using digital signatures
 - Decoding the verified event into a structured format that can be used by the application
 
-## Operations
+## Transacting
 
-Sending operations allows interacting with onchain smart contracts using a flexible account abstraction model.
+Sending onchain operations allows interacting with onchain smart contracts using a flexible account abstraction model.
 Operations can contain multiple transactions which will be executed atomically by an onchain smart account. Various
 smart accounts are available to support a number of signature algorithms, such as ECDSA and RSA.
 
