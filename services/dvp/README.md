@@ -152,7 +152,7 @@ if !verified {
     return
 }
 
-// Decode the CVN verifiable event into a DvP event. It is assumed that the event has been verified before this point.
+// Decode the verified event into a DvP event.
 dvpEvent, _ := dvpService.DecodeSettlementAccepted(event)
 
 // Check if the event is a dvp SettlementAccepted event
