@@ -15,29 +15,29 @@ import (
 	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/routerclient"
 )
 
-// CcipServiceOptions defines the options for creating a new CVN CCIP service.
+// ServiceOptions defines the options for creating a new CVN CCIP service.
 //   - Logger: Optional logger instance.
 //   - CcipRouterAddress: A string representing the address of the CCIP router contract.
 //   - AccountAddress: A string representing the address of the account performing the CCIP operations.
 //   - IncludeTokenApprovals: A boolean indicating whether to include token approvals prior to the CCIP send operation.
-type CcipServiceOptions struct {
+type ServiceOptions struct {
 	Logger                *zerolog.Logger
 	CcipRouterAddress     string
 	AccountAddress        string
 	IncludeTokenApprovals bool
 }
 
-type CcipService struct {
+type Service struct {
 	logger                *zerolog.Logger
 	ccipRouterAddress     string
 	accountAddress        string
 	includeTokenApprovals bool
 }
 
-// NewCcipService creates a new CVN CCIP service with the provided options.
-// Returns a pointer to the CcipService and an error if any issues occur during initialization.
-//   - opts: Options for configuring the CVN CCIP service, see CcipServiceOptions for details.
-func NewCcipService(opts *CcipServiceOptions) (*CcipService, error) {
+// NewService creates a new CVN CCIP service with the provided options.
+// Returns a pointer to the Service and an error if any issues occur during initialization.
+//   - opts: Options for configuring the CVN CCIP service, see ServiceOptions for details.
+func NewService(opts *ServiceOptions) (*Service, error) {
 	if opts == nil {
 		return nil, errors.New("options must be provided")
 	}
@@ -50,7 +50,7 @@ func NewCcipService(opts *CcipServiceOptions) (*CcipService, error) {
 
 	logger.Info().Msg("Creating CVN CCIP service")
 
-	return &CcipService{
+	return &Service{
 		logger:                logger,
 		ccipRouterAddress:     opts.CcipRouterAddress,
 		accountAddress:        opts.AccountAddress,
@@ -62,7 +62,7 @@ func NewCcipService(opts *CcipServiceOptions) (*CcipService, error) {
 // It constructs the necessary transactions, including token approvals if required.
 //   - destinationChainSelector: The selector for the destination chain.
 //   - message: The message to be sent via CCIP, containing token amounts and other data.
-func (s *CcipService) PrepareCcipSendOperation(
+func (s *Service) PrepareCcipSendOperation(
 	destinationChainSelector uint64, message routerclient.ClientEVM2AnyMessage,
 ) (*transactTypes.Operation, error) {
 

@@ -12,8 +12,8 @@ import (
 
 func TestHashSettlement(t *testing.T) {
 
-	dvpService, err := NewDvpService(
-		&DvpServiceOptions{
+	dvpService, err := NewService(
+		&ServiceOptions{
 			DvpCoordinatorAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
 			AccountAddress:        "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
 		},
