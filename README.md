@@ -26,17 +26,19 @@ the [cvn-example-payment-processor](https://github.com/smartcontractkit/cvn-exam
 
 ## Verifiable Events
 
-Receiving events consists of several phases: the first phase reads the event from the Chainlink Verifiable Network,
-the second phase verifies the event's authenticity and integrity using digital signatures, and the third phase decodes
-the verified event into a structured format that can be used by the application.
+Receiving events consists of several phases:
+- Reading the event from the Chainlink Verifiable Network
+- Verifying the event's authenticity and integrity using digital signatures
+- Decoding the verified event into a structured format that can be used by the application
 
 ## Operations
 
 Sending operations allows interacting with onchain smart contracts using a flexible account abstraction model.
 Operations can contain multiple transactions which will be executed atomically by an onchain smart account. Various
-smart accounts are available to support a number of signature algorithms, such as ECDSA and RSA. Using the helper
-services allows for the easy formation of the onchain transaction payload, but it is also possible to create custom
-transactions with the application performing its own contract calldata encoding.
+smart accounts are available to support a number of signature algorithms, such as ECDSA and RSA.
+
+Using the helper services allows for the easy formation of the onchain transaction payloads, but it is also possible
+to create custom transactions with the application performing its own contract calldata encoding.
 
 ### Signing
 
