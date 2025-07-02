@@ -136,6 +136,22 @@ cvnTransactClient, _ := transact.NewClient(
     },
 )
 
+// Get events from CVN
+eventList, _ := cvnEventsClient.GetEvents(context.Background())
+if len(eventList) == 0 {
+    // Handle no events found
+	return
+}
+
+event := eventList[0] // Assume we are processing the first event
+
+// Verify the event's authenticity and integrity
+verified, _ := cvnEventsClient.Verify(event)
+if !verified {
+    // Handle event verification failure
+    return
+}
+
 // Decode the CVN verifiable event into a DvP event. It is assumed that the event has been verified before this point.
 dvpEvent, _ := dvpService.DecodeSettlementAccepted(event)
 
