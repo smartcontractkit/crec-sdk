@@ -181,6 +181,8 @@ The CRELib DVP helper service supports the following features:
 
 The DvP service can optionally include the token approval/hold transaction in the settlement operations.
 
+For more details on the DvP service, see the [DVP Service README](services/dvp/README.md).
+
 ### CCIP Service
 
 The CCIP (Cross Chain Interoperability Protocol) service allows for the transfer of tokens and sending of messages
