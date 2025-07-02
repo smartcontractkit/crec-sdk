@@ -1,7 +1,7 @@
 # Chainlink Runtime Environment Client Library (CRELib)
 
 CRELib is a client library for the Chainlink Runtime Environment (CRE), designed to facilitate the
-development of services that interact with onchain data and services.
+development of applications that interact with onchain data and services.
 
 ## Overview
 
@@ -61,6 +61,50 @@ Receiving events consists of several phases:
 - Verifying the event's authenticity and integrity using digital signatures
 - Decoding the verified event into a structured format that can be used by the application
 
+### Example Usage
+
+```go
+import (
+    "github.com/smartcontractkit/cvn-sdk/client"
+    "github.com/smartcontractkit/cvn-sdk/events"
+)
+
+// create a CVN client pointed to the Chainlink Verifiable Network URL
+cvnClient, _ := client.NewCVNClient(cvnURL)
+
+// Create CVN events client
+cvnEventsClient, _ := events.NewClient(
+    cvnClient, 
+    &events.ClientOptions{
+        MinRequiredSignatures: 3,
+        ValidSigners: []string{
+            "0x5db070ceabcf97e45d96b4f951a1df050ddb5559",
+            "0xadebb9657c04692275973230b06adfabacc899bc",
+            "0xc868bbb5d93e97b9d780fc93811a00ca7c016751",
+            "0x1804f720c6c42b8075d03f3ddda8bd3cf49960de",
+            "0xf191da826a7757ea2e3a8a5e147ddb378d6d0efe",
+        },
+    },
+)
+
+// Get events from CVN
+eventList, _ := cvnEventsClient.GetEvents(context.Background())
+
+for _, event := range *eventList {
+    // Verify the event's authenticity and integrity
+    verified, _ := cvnEventsClient.Verify(event)
+    if verified {
+        // Decode the event into a structured format
+        var decodedEvent map[string]interface{}
+        cvnEventsClient.Decode(event, &decodedEvent)
+
+        handle(decodedEvent) // Handle the decoded event
+    } else {
+        fmt.Println("Event verification failed")
+    }
+}
+```
+
 ## Transacting
 
 Sending onchain operations allows interacting with onchain smart contracts using a flexible account abstraction model.
@@ -74,6 +118,50 @@ to create custom transactions with the application performing its own contract c
 
 The signing of operations is performed by various implementations of the `Signer` interface. Currently, the library
 supports signing using a local ECDSA private key, but additional signing methods will be added in the future.
+
+### Example Usage
+
+
+```go
+import (
+    "github.com/smartcontractkit/cvn-sdk/client"
+    "github.com/smartcontractkit/cvn-sdk/transact"
+    "github.com/smartcontractkit/cvn-sdk/transact/signer"
+)
+
+// create a CVN client pointed to the Chainlink Verifiable Network URL
+cvnClient, _ := client.NewCVNClient(cvnURL)
+
+// Create CVN transact client
+cvnTransactClient, _ = transact.NewClient(
+    cvnClient,
+    &transact.ClientOptions{
+        ChainId: "1337",
+    },
+)
+
+// Create a transaction to call a smart contract function
+operation := &transactTypes.Operation{
+    ID: big.NewInt(time.Now().Unix()), // unique ID for the operation to prevent replay attacks
+    Account: accountAddress, // address of the smart account that will perform the operation
+    Transactions: []*transactTypes.Transaction { // list of transactions to be executed atomically by the smart account
+        {
+            To:    target, // address of the contract to call
+            Value: big.NewInt(0),
+            Data:  calldata, // encoded calldata for the contract call
+        },
+    },
+}
+
+// Create a local signer with the private key of an address authorized to sign the operation in the smart account
+operationSigner = signer.NewLocalSigner(privateKey)
+
+// Sign the operation using the local signer
+signature, _ := cvnTransactClient.SignOperation(operation, operationSigner)
+
+// Send the signed operation to the Chainlink Verifiable Network for relaying onchain
+cvnTransactClient.SendSignedOperation(context.Background(), operation, signature)
+```
 
 ## Services
 
