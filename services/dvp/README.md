@@ -4,17 +4,17 @@ The DvP (Delivery vs Payment) service allows for the secure and trustless transf
 ensuring that the transfer of assets is only completed when both parties have agreed to the settlement terms
 and the payment has been made.
 
-# Actors
+## 🎭 Actors
 
 The DvP service involves three main actors:
 
-- **Seller**: The party proposing the settlement, typically the owner of the asset token.
-- **Buyer**: The party accepting the settlement, typically the buyer of the asset token.
-- **Executor**: An optional party executing the settlement, typically a representative of the offchain payment network.
-  This party observes the offchain payment and is authorized to execute the settlement onchain once the payment is 
-  confirmed.
+| Actor | Role | Responsibilities |
+|-------|------|------------------|
+| **🏪 Seller** | Asset Provider | Proposes settlement, owns the asset token, receives payment |
+| **🛒 Buyer** | Asset Purchaser | Accepts settlement, provides payment, receives asset token |
+| **⚖️ Executor** | Settlement Facilitator | *Optional* - Observes/manages off-chain payments and executes settlements once the payment is confirmed |
 
-# Multi-Chain Support
+## 🔄 Multi-Chain Support
 
 The DvP service supports multi-chain operations utilizing Chainlink CCIP, allowing the settlement to be proposed, 
 accepted, and executed across different blockchains. This is particularly useful for scenarios where the asset token
@@ -22,18 +22,29 @@ and payment token are on different chains. A seller must propose a settlement on
 token. Similarly, a buyer must accept the settlement on the chain that contains the payment token. The executor can be
 on either chain, but it is most commonly on the chain where the asset token is located.
 
-# Payments
+## 💰 Payments
 
-The DvP service supports both onchain and offchain payments. In the case of onchain payments, the payment token is
-specified as part of the settlement. For offchain payments, the payment token can be set to `None`, and the
-`paymentCurrency` field can be used to specify the currency of the payment. In this case, the buyer is expected
-to make the payment offchain. At this point, the settlement can be excuted in one of three ways:
+The DvP service supports both on-chain and off-chain payment methods:
 
-- The seller can directly execute the settlement.
-- The buyer can execute the settlement themselves using the secret provided by the seller.
-- The executor can execute the settlement, typically after observing the offchain payment.
+### 🔗 On-Chain Payments
+- Payment token specified as part of settlement
+- Automatic atomic execution when payment confirmed
 
-# The Settlement Object
+### 🏦 Off-Chain Payments  
+- Payment token set to `None`
+- Use `paymentCurrency` field (e.g., "USD", "EUR")
+- Buyer makes payment outside blockchain (bank transfers, digital services, etc.)
+
+### Settlement Execution Options
+The settlement can be excuted in one of three ways:
+
+| Method | Who Executes | When to Use |
+|--------|-------------|-------------|
+| **🏪 Seller Direct** | Seller | Simple peer-to-peer trades |
+| **🛒 Buyer with Secret** | Buyer | When seller provides unlock secret |
+| **⚖️ Executor Service** | Third-party | When integrating payment networks | 
+
+## 📄 The Settlement Object
 
 The settlement is represented by a `Settlement` object, which contains the following fields:
 
@@ -71,13 +82,13 @@ The settlement is represented by a `Settlement` object, which contains the follo
 - `data`: Additional data that can be included in the settlement, such as metadata or instructions for the
   settlement process.
 
-# The Settlement Hash
+### The Settlement Hash
 
 The settlement is hashed using the `SettlementHash` function, which combines all the relevant fields of the settlement
 into a single hash. This hash is used to uniquely identify the settlement. Other than the initial `proposeSettlement`
 call, all other calls accept a `settlementHash` parameter to identify the settlement being acted upon.
 
-# Token Types
+## 🪙 Token Types
 
 The DvP service supports two types of tokens:
 - **ERC-20**: Standard fungible tokens that follow the ERC20 token standard.
@@ -85,9 +96,9 @@ The DvP service supports two types of tokens:
   release of tokens during the settlement process. This is particularly useful for ensuring that the asset token is 
   remains in the seller's wallet until the payment is settled.
 
-# Example Usage
+## 🛠️ Example Usage
 
-## Executing a Settlement as a Payment Network
+### 💸 Executing a Settlement as a Payment Network
 
 In this example, we will demonstrate how to execute a settlement as a payment network using the DvP service. The
 address of the payment network smart account must have been specified as the `executorAddress` in the settlement
@@ -95,8 +106,11 @@ when it was proposed by the seller. The payment network will observe the offchai
 
 ```go
 import (
+    "context"
+    "log"
+    
     "github.com/smartcontractkit/cvn-sdk/client"
-    "github.com/smartcontractkit/cvn-sdk/event"
+    "github.com/smartcontractkit/cvn-sdk/events"
     "github.com/smartcontractkit/cvn-sdk/transact"
     "github.com/smartcontractkit/cvn-sdk/transact/signer"
     "github.com/smartcontractkit/cvn-sdk/services/dvp"
