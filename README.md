@@ -116,7 +116,7 @@ graph LR
 
 ### Workflow 2: Sending signed operations (gas-less)
 
-This workflow allows your application to execute onchain actions on behalf of your users, without requiring them to hold tokens for gas fees. It uses an account abstraction model where the user signs an _intent_ (the operation), and the network takes care of the execution and gas costs.
+This workflow allows your application to execute onchain actions without requiring the signer to hold tokens for gas fees. It uses an account abstraction model where an authorized signer signs an _intent_ (the operation), and the network takes care of the execution and gas costs.
 
 **Here's how gasless transaction execution works:**
 
@@ -141,7 +141,7 @@ graph LR
     A --> B --> C --> D --> E --> F --> G
 ```
 
-1. **Build & Sign:** Your application constructs an `Operation`, which is a list of one or more transactions to be executed atomically. You then use the `transact` client to sign this operation with a user's private key.
+1. **Build & Sign:** Your application constructs an `Operation`, which is a list of one or more transactions to be executed atomically. You then use the `transact` client to sign this operation with an authorized private key.
 2. **Send to CVN:** The library sends the signed operation to the CVN API.
 3. **Relay & Execute:** The Chainlink network takes the operation, pays the necessary gas fees, and relays it to a designated onchain smart account for execution.
 4. **Operation Executed:** The smart account verifies the signature on the operation and executes the bundled transactions.
