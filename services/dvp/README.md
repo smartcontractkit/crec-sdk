@@ -96,24 +96,24 @@ sequenceDiagram
     participant Buyer
     participant Payment Chain (DvP Contract)
 
-    Seller->>+Asset Chain (DvP Contract): 1. Propose Settlement
+    Seller->>+Asset Chain (DvP Contract): 1a. Propose Settlement
     Note over Seller, Asset Chain (DvP Contract): Seller's asset is<br/>escrowed in DvP contract.
 
-    Buyer->>+Payment Chain (DvP Contract): 2. Accept Settlement
+    Asset Chain (DvP Contract)->>Payment Chain (DvP Contract): 1b. Send CCIP Message
+    Note over Asset Chain (DvP Contract),Payment Chain (DvP Contract): "Settlement Opened"
+
+    Buyer->>+Payment Chain (DvP Contract): 2a. Execute Settlement
     Note over Buyer, Payment Chain (DvP Contract): Buyer's payment tokens<br/>are escrowed in DvP contract.
 
-    Payment Chain (DvP Contract)->>+Asset Chain (DvP Contract): 3. Send CCIP Message
-    Note over Payment Chain (DvP Contract), Asset Chain (DvP Contract): "Settlement Accepted and Funded"
+    Payment Chain (DvP Contract)->>Asset Chain (DvP Contract): 2b. Send CCIP Message
+    Note over Payment Chain (DvP Contract), Asset Chain (DvP Contract): "Settlement Executed w/Payment"
 
-    Asset Chain (DvP Contract)-->>-Payment Chain (DvP Contract): CCIP message confirmed
+    Asset Chain (DvP Contract)->>Seller: 3a. Deliver Payment to Seller
+    Asset Chain (DvP Contract)->>Payment Chain (DvP Contract): 3b. Send CCIP Message
+    
+    Note over Payment Chain (DvP Contract), Asset Chain (DvP Contract): "Settlement Closed w/Asset"
 
-    Seller->>+Asset Chain (DvP Contract): 4. Execute Settlement
-    Note over Seller: Seller observes contract state<br/>and triggers final execution.
-
-    Asset Chain (DvP Contract)->>Payment Chain (DvP Contract): 5. Send CCIP Message (Release Payment)
-    Payment Chain (DvP Contract)->>Seller: Payment released to Seller
-
-    Asset Chain (DvP Contract)->>Buyer: 6. Asset released to Buyer
+    Payment Chain (DvP Contract)->>Buyer: 4. Asset released to Buyer
 ```
 
 ## Technical deep dive
