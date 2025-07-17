@@ -29,59 +29,30 @@ Every DvP settlement involves the following key roles:
 
 ### The lifecycle of a settlement
 
-A typical DvP trade follows a clear, multi-step lifecycle:
+A DvP settlement begins with a **Proposal** from the Seller and ends with a final **Execution**. However, the steps in between can vary depending on the payment method, creating two primary lifecycle paths:
 
-1. **Proposal:** The **Seller** initiates the trade by proposing a settlement. This proposal acts as a digital term sheet, defining the asset, the price, and the rules of the exchange.
-2. **Acceptance:** The **Buyer** reviews the proposal. If they agree to the terms, they accept the settlement, locking in the conditions of the trade.
-3. **Execution:** Once the settlement is accepted, it can be executed. Execution is the final, atomic step where the asset and payment are swapped. Depending on the setup, execution can be triggered by the **Seller**, the **Buyer**, or an **Executor**.
+1. **Proposal:** The **Seller** initiates the trade by proposing a settlement. This acts as a digital term sheet, defining the asset, the price, and the rules of the exchange.
 
-The diagram below illustrates a common use case involving an **offchain payment** (like a bank wire) that is monitored by a third-party **Executor**. In this flow, the "Asset Chain" and "Payment Chain" represent the onchain environments where the DvP smart contracts are deployed. These contracts act as the escrow agent for the digital asset.
+2. **Buyer's Action:**
 
-Here is a diagram illustrating a typical cross-chain settlement flow involving an Executor:
+   - **For Onchain Payments:** The **Buyer** can directly trigger the **Execution** in a single step. Their action of providing the onchain payment also serves as their acceptance of the terms, leading to an immediate atomic swap. There is no separate "Acceptance" phase.
+   - **For Offchain Payments:** The lifecycle involves a distinct **Acceptance** step. The **Buyer** first calls `acceptSettlement` onchain to signal their commitment. This action doesn't move the asset but creates a verifiable event that a third-party **Executor** can use to confirm the offchain payment (e.g., a wire transfer).
 
-```mermaid
-sequenceDiagram
-    participant Seller
-    participant Asset Chain (DvP Contract)
-    participant Buyer
-    participant Payment Chain (DvP Contract)
-    participant Executor
-
-    Seller->>+Asset Chain (DvP Contract): 1. Propose Settlement
-    activate Seller
-    Note over Seller, Asset Chain (DvP Contract): Seller's asset is<br/>escrowed in DvP contract.
-    Asset Chain (DvP Contract)-->>-Seller: Settlement Proposed
-
-    activate Executor
-    Executor->>Asset Chain (DvP Contract): 2. Listen for 'SettlementOpened' event
-    deactivate Executor
-
-    Buyer->>+Payment Chain (DvP Contract): 3. Accept Settlement
-    activate Buyer
-    Note over Buyer, Payment Chain (DvP Contract): Buyer signals intent onchain.
-    Payment Chain (DvP Contract)-->>-Buyer: Settlement Accepted
-
-    activate Executor
-    Executor->>Payment Chain (DvP Contract): 4. Listen for 'SettlementAccepted' event
-    Note over Executor: *** Offchain Payment Confirmation ***<br/>Executor verifies external payment (e.g., via bank API)
-
-    Executor->>+Asset Chain (DvP Contract): 5. Execute Settlement
-    Note over Asset Chain (DvP Contract): DvP contract releases<br/>escrowed asset to Buyer.
-    Asset Chain (DvP Contract)-->>Buyer: Asset Transferred
-
-    Asset Chain (DvP Contract)-->>-Executor: Settlement Executed
-    deactivate Executor
-```
+3. **Execution:** This is the final, atomic step where the asset and payment are swapped.
+   - In an **onchain** flow, this is triggered directly by the Buyer as a single action (see 2. above).
+   - In an **offchain** flow, this is typically triggered by the **Executor** after it has verified the external payment.
 
 ### Multi-chain support via CCIP
 
 Assets and payments don't always live on the same blockchain. The DvP service leverages the [**Chainlink Cross-Chain Interoperability Protocol (CCIP)**](https://docs.chain.link/ccip) to facilitate trades across different networks.
 
-- The **Seller** proposes the settlement on the chain where their **asset** is located.
-- The **Buyer** accepts the settlement on the chain where their **payment** is located.
-- If the payment is offchain, the **Executor** can trigger the final settlement from either chain, but it is most commonly on the chain where the asset token is located.
+- The **Seller** initiates the settlement by calling `proposeSettlement` on the **Seller Chain** (the chain where their asset originates).
+- The **Buyer** performs their part of the settlement on the **Buyer Chain** (the chain where their payment originates). This action might be `acceptSettlement` (for offchain flows) or `executeSettlement` (for onchain flows).
+- If the payment is offchain, an **Executor** triggers the final `executeSettlement` call on the **Buyer Chain** after confirming the external payment.
 
 This feature enables seamless cross-chain settlements.
+
+### Settlement flow examples
 
 #### Onchain cross-chain settlement
 
@@ -92,28 +63,65 @@ The flow is as follows:
 ```mermaid
 sequenceDiagram
     participant Seller
-    participant Asset Chain (DvP Contract)
+    participant DvP Contract (Seller Chain)
     participant Buyer
-    participant Payment Chain (DvP Contract)
+    participant DvP Contract (Buyer Chain)
 
-    Seller->>+Asset Chain (DvP Contract): 1a. Propose Settlement
-    Note over Seller, Asset Chain (DvP Contract): Seller's asset is<br/>escrowed in DvP contract.
+    Seller->>+DvP Contract (Seller Chain): 1a. Propose Settlement
+    Note over Seller, DvP Contract (Seller Chain): Seller's asset is<br/>escrowed in DvP contract.
 
-    Asset Chain (DvP Contract)->>Payment Chain (DvP Contract): 1b. Send CCIP Message
-    Note over Asset Chain (DvP Contract),Payment Chain (DvP Contract): "Settlement Opened"
+    DvP Contract (Seller Chain)->>DvP Contract (Buyer Chain): 1b. Send CCIP Message
+    Note over DvP Contract (Seller Chain),DvP Contract (Buyer Chain): "Settlement Opened"
 
-    Buyer->>+Payment Chain (DvP Contract): 2a. Execute Settlement
-    Note over Buyer, Payment Chain (DvP Contract): Buyer's payment tokens<br/>are escrowed in DvP contract.
+    Buyer->>+DvP Contract (Buyer Chain): 2a. Execute Settlement
+    Note over Buyer, DvP Contract (Buyer Chain): Buyer's payment tokens<br/>are escrowed in DvP contract.
 
-    Payment Chain (DvP Contract)->>Asset Chain (DvP Contract): 2b. Send CCIP Message
-    Note over Payment Chain (DvP Contract), Asset Chain (DvP Contract): "Settlement Executed w/Payment"
+    DvP Contract (Buyer Chain)->>DvP Contract (Seller Chain): 2b. Send CCIP Message
+    Note over DvP Contract (Buyer Chain), DvP Contract (Seller Chain): "Settlement Executed w/Payment"
 
-    Asset Chain (DvP Contract)->>Seller: 3a. Deliver Payment to Seller
-    Asset Chain (DvP Contract)->>Payment Chain (DvP Contract): 3b. Send CCIP Message
-    
-    Note over Payment Chain (DvP Contract), Asset Chain (DvP Contract): "Settlement Closed w/Asset"
+    DvP Contract (Seller Chain)->>Seller: 3a. Deliver Payment to Seller
+    DvP Contract (Seller Chain)->>DvP Contract (Buyer Chain): 3b. Send CCIP Message
 
-    Payment Chain (DvP Contract)->>Buyer: 4. Asset released to Buyer
+    Note over DvP Contract (Buyer Chain), DvP Contract (Seller Chain): "Settlement Closed w/Asset"
+
+    DvP Contract (Buyer Chain)->>Buyer: 4. Asset released to Buyer
+```
+
+#### Cross-chain settlement with an offchain payment and an Executor
+
+The diagram below illustrates the complete, end-to-end flow for a common use case involving an **offchain payment** (like a bank wire) that is monitored by a third-party **Executor**.
+
+Here is a diagram illustrating a typical cross-chain settlement flow involving an Executor:
+
+```mermaid
+sequenceDiagram
+    participant Seller
+    participant DvP Contract (Seller Chain)
+    participant Buyer
+    participant DvP Contract (Buyer Chain)
+    participant Executor
+
+    Seller->>+DvP Contract (Seller Chain): 1a. Propose Settlement
+    Note over Seller, DvP Contract (Seller Chain): Seller's asset is<br/>escrowed in DvP contract.
+
+    DvP Contract (Seller Chain)->>+DvP Contract (Buyer Chain): 1b. Send CCIP Message
+    Note over DvP Contract (Seller Chain), DvP Contract (Buyer Chain): "Settlement Opened"
+
+    Buyer->>+DvP Contract (Buyer Chain): 2. Accept Settlement
+
+    activate Executor
+    Executor->>DvP Contract (Buyer Chain): Listens for 'SettlementAccepted' event
+    Note over Executor: *** Offchain Payment Confirmation ***<br/>Executor verifies external payment (e.g., via bank API)
+    Executor->>+DvP Contract (Buyer Chain): 3. Execute Settlement (after offchain payment confirmed)
+
+    DvP Contract (Buyer Chain)->>+DvP Contract (Seller Chain): 4. Send CCIP Message
+    Note over DvP Contract (Buyer Chain), DvP Contract (Seller Chain): "Settlement Close Requested (Asset Requested)"
+
+    DvP Contract (Seller Chain)->>+DvP Contract (Buyer Chain): 5. Send CCIP Message
+    Note over DvP Contract (Seller Chain), DvP Contract (Buyer Chain): "Settlement Closed w/Asset"
+
+    DvP Contract (Buyer Chain)->>+Buyer: 6. Deliver Asset to Buyer
+    deactivate Executor
 ```
 
 ## Technical deep dive
