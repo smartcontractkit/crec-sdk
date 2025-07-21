@@ -8,42 +8,68 @@ import "time"
 
 type Dvp struct {
 	// Emitted when a a settlement has accepted by the buyer.
-	SettlementAccepted *DvpSettlementAccepted `json:"SettlementAccepted,omitempty" yaml:"SettlementAccepted,omitempty" mapstructure:"SettlementAccepted,omitempty"`
+	SettlementAccepted *DvpEvent `json:"SettlementAccepted,omitempty" yaml:"SettlementAccepted,omitempty" mapstructure:"SettlementAccepted,omitempty"`
 
 	// Emitted when a settlement has completely been canceled.
-	SettlementCanceled *DvpSettlementCanceled `json:"SettlementCanceled,omitempty" yaml:"SettlementCanceled,omitempty" mapstructure:"SettlementCanceled,omitempty"`
+	SettlementCanceled *DvpEvent `json:"SettlementCanceled,omitempty" yaml:"SettlementCanceled,omitempty" mapstructure:"SettlementCanceled,omitempty"`
 
 	// Emitted when a settlement has requested to be canceled by one of the parties.
-	SettlementCanceling *DvpSettlementCanceling `json:"SettlementCanceling,omitempty" yaml:"SettlementCanceling,omitempty" mapstructure:"SettlementCanceling,omitempty"`
+	SettlementCanceling *DvpEvent `json:"SettlementCanceling,omitempty" yaml:"SettlementCanceling,omitempty" mapstructure:"SettlementCanceling,omitempty"`
 
 	// Emitted when a settlement is in the final phase of closing.
-	SettlementClosing *DvpSettlementClosing `json:"SettlementClosing,omitempty" yaml:"SettlementClosing,omitempty" mapstructure:"SettlementClosing,omitempty"`
+	SettlementClosing *DvpEvent `json:"SettlementClosing,omitempty" yaml:"SettlementClosing,omitempty" mapstructure:"SettlementClosing,omitempty"`
 
 	// Emitted when a new settlement has been opened by a seller.
-	SettlementOpened *DvpSettlementOpened `json:"SettlementOpened,omitempty" yaml:"SettlementOpened,omitempty" mapstructure:"SettlementOpened,omitempty"`
+	SettlementOpened *DvpEvent `json:"SettlementOpened,omitempty" yaml:"SettlementOpened,omitempty" mapstructure:"SettlementOpened,omitempty"`
 
 	// Emitted when a settlement has completed and is now settled.
-	SettlementSettled *DvpSettlementSettled `json:"SettlementSettled,omitempty" yaml:"SettlementSettled,omitempty" mapstructure:"SettlementSettled,omitempty"`
+	SettlementSettled *DvpEvent `json:"SettlementSettled,omitempty" yaml:"SettlementSettled,omitempty" mapstructure:"SettlementSettled,omitempty"`
 }
 
 type DvpEvent struct {
-	// The address of the contract that emitted the event
-	Address string `json:"address" yaml:"address" mapstructure:"address"`
+	// The timestamp when the event was created
+	CreatedAt time.Time `json:"created_at" yaml:"created_at" mapstructure:"created_at"`
 
-	// The name of the event
-	Name string `json:"name" yaml:"name" mapstructure:"name"`
+	// Event corresponds to the JSON schema field "event".
+	Event EvmEvent `json:"event" yaml:"event" mapstructure:"event"`
 
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata Metadata `json:"metadata" yaml:"metadata" mapstructure:"metadata"`
+
+	// Parameters corresponds to the JSON schema field "parameters".
+	Parameters DvpEventParameters `json:"parameters" yaml:"parameters" mapstructure:"parameters"`
+
+	// Transaction corresponds to the JSON schema field "transaction".
+	Transaction Transaction `json:"transaction" yaml:"transaction" mapstructure:"transaction"`
+}
+
+type DvpEventParameters struct {
 	// The hash of the settlement
-	SettlementHash string `json:"settlementHash" yaml:"settlementHash" mapstructure:"settlementHash"`
+	SettlementHash string `json:"settlement_hash" yaml:"settlement_hash" mapstructure:"settlement_hash"`
 
 	// Unique settlement ID, represented as a big integer in string format
-	SettlementId string `json:"settlementId" yaml:"settlementId" mapstructure:"settlementId"`
+	SettlementId string `json:"settlement_id" yaml:"settlement_id" mapstructure:"settlement_id"`
+}
 
-	// The topic hash of the event
-	TopicHash string `json:"topicHash" yaml:"topicHash" mapstructure:"topicHash"`
-
-	// The type of the event
-	Type string `json:"type" yaml:"type" mapstructure:"type"`
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *DvpEventParameters) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["settlement_hash"]; raw != nil && !ok {
+		return fmt.Errorf("field settlement_hash in DvpEventParameters: required")
+	}
+	if _, ok := raw["settlement_id"]; raw != nil && !ok {
+		return fmt.Errorf("field settlement_id in DvpEventParameters: required")
+	}
+	type Plain DvpEventParameters
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = DvpEventParameters(plain)
+	return nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -52,23 +78,20 @@ func (j *DvpEvent) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["address"]; raw != nil && !ok {
-		return fmt.Errorf("field address in DvpEvent: required")
+	if _, ok := raw["created_at"]; raw != nil && !ok {
+		return fmt.Errorf("field created_at in DvpEvent: required")
 	}
-	if _, ok := raw["name"]; raw != nil && !ok {
-		return fmt.Errorf("field name in DvpEvent: required")
+	if _, ok := raw["event"]; raw != nil && !ok {
+		return fmt.Errorf("field event in DvpEvent: required")
 	}
-	if _, ok := raw["settlementHash"]; raw != nil && !ok {
-		return fmt.Errorf("field settlementHash in DvpEvent: required")
+	if _, ok := raw["metadata"]; raw != nil && !ok {
+		return fmt.Errorf("field metadata in DvpEvent: required")
 	}
-	if _, ok := raw["settlementId"]; raw != nil && !ok {
-		return fmt.Errorf("field settlementId in DvpEvent: required")
+	if _, ok := raw["parameters"]; raw != nil && !ok {
+		return fmt.Errorf("field parameters in DvpEvent: required")
 	}
-	if _, ok := raw["topicHash"]; raw != nil && !ok {
-		return fmt.Errorf("field topicHash in DvpEvent: required")
-	}
-	if _, ok := raw["type"]; raw != nil && !ok {
-		return fmt.Errorf("field type in DvpEvent: required")
+	if _, ok := raw["transaction"]; raw != nil && !ok {
+		return fmt.Errorf("field transaction in DvpEvent: required")
 	}
 	type Plain DvpEvent
 	var plain Plain
@@ -81,106 +104,46 @@ func (j *DvpEvent) UnmarshalJSON(value []byte) error {
 
 type DvpSettlement struct {
 	// The gas limit for the CCIP callback
-	CcipCallbackGasLimit int `json:"ccipCallbackGasLimit" yaml:"ccipCallbackGasLimit" mapstructure:"ccipCallbackGasLimit"`
+	CcipCallbackGasLimit int `json:"ccip_callback_gas_limit" yaml:"ccip_callback_gas_limit" mapstructure:"ccip_callback_gas_limit"`
 
 	// Attached DvP data
 	Data string `json:"data" yaml:"data" mapstructure:"data"`
 
-	// DeliveryInfo corresponds to the JSON schema field "deliveryInfo".
-	DeliveryInfo DvpSettlementDeliveryInfo `json:"deliveryInfo" yaml:"deliveryInfo" mapstructure:"deliveryInfo"`
+	// DeliveryInfo corresponds to the JSON schema field "delivery_info".
+	DeliveryInfo DvpSettlementDeliveryInfo `json:"delivery_info" yaml:"delivery_info" mapstructure:"delivery_info"`
 
 	// The unix timestamp after which the settlement can be executed
-	ExecuteAfter int `json:"executeAfter" yaml:"executeAfter" mapstructure:"executeAfter"`
+	ExecuteAfter int `json:"execute_after" yaml:"execute_after" mapstructure:"execute_after"`
 
 	// The unix timestamp after which the settlement expires
 	Expiration int `json:"expiration" yaml:"expiration" mapstructure:"expiration"`
 
-	// PartyInfo corresponds to the JSON schema field "partyInfo".
-	PartyInfo DvpSettlementPartyInfo `json:"partyInfo" yaml:"partyInfo" mapstructure:"partyInfo"`
+	// PartyInfo corresponds to the JSON schema field "party_info".
+	PartyInfo DvpSettlementPartyInfo `json:"party_info" yaml:"party_info" mapstructure:"party_info"`
 
 	// 32-byte hex string
-	SecretHash string `json:"secretHash" yaml:"secretHash" mapstructure:"secretHash"`
+	SecretHash string `json:"secret_hash" yaml:"secret_hash" mapstructure:"secret_hash"`
 
-	// TokenInfo corresponds to the JSON schema field "tokenInfo".
-	TokenInfo DvpSettlementTokenInfo `json:"tokenInfo" yaml:"tokenInfo" mapstructure:"tokenInfo"`
-}
-
-// Emitted when a a settlement has accepted by the buyer.
-type DvpSettlementAccepted struct {
-	// The timestamp when the event was created
-	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
-
-	// Event corresponds to the JSON schema field "event".
-	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
-
-	// Metadata corresponds to the JSON schema field "metadata".
-	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
-
-	// Transaction corresponds to the JSON schema field "transaction".
-	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
-}
-
-// Emitted when a settlement has completely been canceled.
-type DvpSettlementCanceled struct {
-	// The timestamp when the event was created
-	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
-
-	// Event corresponds to the JSON schema field "event".
-	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
-
-	// Metadata corresponds to the JSON schema field "metadata".
-	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
-
-	// Transaction corresponds to the JSON schema field "transaction".
-	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
-}
-
-// Emitted when a settlement has requested to be canceled by one of the parties.
-type DvpSettlementCanceling struct {
-	// The timestamp when the event was created
-	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
-
-	// Event corresponds to the JSON schema field "event".
-	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
-
-	// Metadata corresponds to the JSON schema field "metadata".
-	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
-
-	// Transaction corresponds to the JSON schema field "transaction".
-	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
-}
-
-// Emitted when a settlement is in the final phase of closing.
-type DvpSettlementClosing struct {
-	// The timestamp when the event was created
-	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
-
-	// Event corresponds to the JSON schema field "event".
-	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
-
-	// Metadata corresponds to the JSON schema field "metadata".
-	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
-
-	// Transaction corresponds to the JSON schema field "transaction".
-	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
+	// TokenInfo corresponds to the JSON schema field "token_info".
+	TokenInfo DvpSettlementTokenInfo `json:"token_info" yaml:"token_info" mapstructure:"token_info"`
 }
 
 type DvpSettlementDeliveryInfo struct {
 	// AssetDestinationChainSelector corresponds to the JSON schema field
-	// "assetDestinationChainSelector".
-	AssetDestinationChainSelector string `json:"assetDestinationChainSelector" yaml:"assetDestinationChainSelector" mapstructure:"assetDestinationChainSelector"`
+	// "asset_destination_chain_selector".
+	AssetDestinationChainSelector string `json:"asset_destination_chain_selector" yaml:"asset_destination_chain_selector" mapstructure:"asset_destination_chain_selector"`
 
 	// AssetSourceChainSelector corresponds to the JSON schema field
-	// "assetSourceChainSelector".
-	AssetSourceChainSelector string `json:"assetSourceChainSelector" yaml:"assetSourceChainSelector" mapstructure:"assetSourceChainSelector"`
+	// "asset_source_chain_selector".
+	AssetSourceChainSelector string `json:"asset_source_chain_selector" yaml:"asset_source_chain_selector" mapstructure:"asset_source_chain_selector"`
 
 	// PaymentDestinationChainSelector corresponds to the JSON schema field
-	// "paymentDestinationChainSelector".
-	PaymentDestinationChainSelector string `json:"paymentDestinationChainSelector" yaml:"paymentDestinationChainSelector" mapstructure:"paymentDestinationChainSelector"`
+	// "payment_destination_chain_selector".
+	PaymentDestinationChainSelector string `json:"payment_destination_chain_selector" yaml:"payment_destination_chain_selector" mapstructure:"payment_destination_chain_selector"`
 
 	// PaymentSourceChainSelector corresponds to the JSON schema field
-	// "paymentSourceChainSelector".
-	PaymentSourceChainSelector string `json:"paymentSourceChainSelector" yaml:"paymentSourceChainSelector" mapstructure:"paymentSourceChainSelector"`
+	// "payment_source_chain_selector".
+	PaymentSourceChainSelector string `json:"payment_source_chain_selector" yaml:"payment_source_chain_selector" mapstructure:"payment_source_chain_selector"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -189,17 +152,17 @@ func (j *DvpSettlementDeliveryInfo) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["assetDestinationChainSelector"]; raw != nil && !ok {
-		return fmt.Errorf("field assetDestinationChainSelector in DvpSettlementDeliveryInfo: required")
+	if _, ok := raw["asset_destination_chain_selector"]; raw != nil && !ok {
+		return fmt.Errorf("field asset_destination_chain_selector in DvpSettlementDeliveryInfo: required")
 	}
-	if _, ok := raw["assetSourceChainSelector"]; raw != nil && !ok {
-		return fmt.Errorf("field assetSourceChainSelector in DvpSettlementDeliveryInfo: required")
+	if _, ok := raw["asset_source_chain_selector"]; raw != nil && !ok {
+		return fmt.Errorf("field asset_source_chain_selector in DvpSettlementDeliveryInfo: required")
 	}
-	if _, ok := raw["paymentDestinationChainSelector"]; raw != nil && !ok {
-		return fmt.Errorf("field paymentDestinationChainSelector in DvpSettlementDeliveryInfo: required")
+	if _, ok := raw["payment_destination_chain_selector"]; raw != nil && !ok {
+		return fmt.Errorf("field payment_destination_chain_selector in DvpSettlementDeliveryInfo: required")
 	}
-	if _, ok := raw["paymentSourceChainSelector"]; raw != nil && !ok {
-		return fmt.Errorf("field paymentSourceChainSelector in DvpSettlementDeliveryInfo: required")
+	if _, ok := raw["payment_source_chain_selector"]; raw != nil && !ok {
+		return fmt.Errorf("field payment_source_chain_selector in DvpSettlementDeliveryInfo: required")
 	}
 	type Plain DvpSettlementDeliveryInfo
 	var plain Plain
@@ -210,38 +173,24 @@ func (j *DvpSettlementDeliveryInfo) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// Emitted when a new settlement has been opened by a seller.
-type DvpSettlementOpened struct {
-	// The timestamp when the event was created
-	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
-
-	// Event corresponds to the JSON schema field "event".
-	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
-
-	// Metadata corresponds to the JSON schema field "metadata".
-	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
-
-	// Transaction corresponds to the JSON schema field "transaction".
-	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
-}
-
 type DvpSettlementPartyInfo struct {
 	// BuyerDestinationAddress corresponds to the JSON schema field
-	// "buyerDestinationAddress".
-	BuyerDestinationAddress string `json:"buyerDestinationAddress" yaml:"buyerDestinationAddress" mapstructure:"buyerDestinationAddress"`
+	// "buyer_destination_address".
+	BuyerDestinationAddress string `json:"buyer_destination_address" yaml:"buyer_destination_address" mapstructure:"buyer_destination_address"`
 
-	// BuyerSourceAddress corresponds to the JSON schema field "buyerSourceAddress".
-	BuyerSourceAddress string `json:"buyerSourceAddress" yaml:"buyerSourceAddress" mapstructure:"buyerSourceAddress"`
+	// BuyerSourceAddress corresponds to the JSON schema field "buyer_source_address".
+	BuyerSourceAddress string `json:"buyer_source_address" yaml:"buyer_source_address" mapstructure:"buyer_source_address"`
 
-	// ExecutorAddress corresponds to the JSON schema field "executorAddress".
-	ExecutorAddress string `json:"executorAddress" yaml:"executorAddress" mapstructure:"executorAddress"`
+	// ExecutorAddress corresponds to the JSON schema field "executor_address".
+	ExecutorAddress string `json:"executor_address" yaml:"executor_address" mapstructure:"executor_address"`
 
 	// SellerDestinationAddress corresponds to the JSON schema field
-	// "sellerDestinationAddress".
-	SellerDestinationAddress string `json:"sellerDestinationAddress" yaml:"sellerDestinationAddress" mapstructure:"sellerDestinationAddress"`
+	// "seller_destination_address".
+	SellerDestinationAddress string `json:"seller_destination_address" yaml:"seller_destination_address" mapstructure:"seller_destination_address"`
 
-	// SellerSourceAddress corresponds to the JSON schema field "sellerSourceAddress".
-	SellerSourceAddress string `json:"sellerSourceAddress" yaml:"sellerSourceAddress" mapstructure:"sellerSourceAddress"`
+	// SellerSourceAddress corresponds to the JSON schema field
+	// "seller_source_address".
+	SellerSourceAddress string `json:"seller_source_address" yaml:"seller_source_address" mapstructure:"seller_source_address"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -250,20 +199,20 @@ func (j *DvpSettlementPartyInfo) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["buyerDestinationAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field buyerDestinationAddress in DvpSettlementPartyInfo: required")
+	if _, ok := raw["buyer_destination_address"]; raw != nil && !ok {
+		return fmt.Errorf("field buyer_destination_address in DvpSettlementPartyInfo: required")
 	}
-	if _, ok := raw["buyerSourceAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field buyerSourceAddress in DvpSettlementPartyInfo: required")
+	if _, ok := raw["buyer_source_address"]; raw != nil && !ok {
+		return fmt.Errorf("field buyer_source_address in DvpSettlementPartyInfo: required")
 	}
-	if _, ok := raw["executorAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field executorAddress in DvpSettlementPartyInfo: required")
+	if _, ok := raw["executor_address"]; raw != nil && !ok {
+		return fmt.Errorf("field executor_address in DvpSettlementPartyInfo: required")
 	}
-	if _, ok := raw["sellerDestinationAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field sellerDestinationAddress in DvpSettlementPartyInfo: required")
+	if _, ok := raw["seller_destination_address"]; raw != nil && !ok {
+		return fmt.Errorf("field seller_destination_address in DvpSettlementPartyInfo: required")
 	}
-	if _, ok := raw["sellerSourceAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field sellerSourceAddress in DvpSettlementPartyInfo: required")
+	if _, ok := raw["seller_source_address"]; raw != nil && !ok {
+		return fmt.Errorf("field seller_source_address in DvpSettlementPartyInfo: required")
 	}
 	type Plain DvpSettlementPartyInfo
 	var plain Plain
@@ -274,52 +223,37 @@ func (j *DvpSettlementPartyInfo) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// Emitted when a settlement has completed and is now settled.
-type DvpSettlementSettled struct {
-	// The timestamp when the event was created
-	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
-
-	// Event corresponds to the JSON schema field "event".
-	Event *DvpEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
-
-	// Metadata corresponds to the JSON schema field "metadata".
-	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
-
-	// Transaction corresponds to the JSON schema field "transaction".
-	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
-}
-
 type DvpSettlementTokenInfo struct {
-	// AssetTokenAmount corresponds to the JSON schema field "assetTokenAmount".
-	AssetTokenAmount string `json:"assetTokenAmount" yaml:"assetTokenAmount" mapstructure:"assetTokenAmount"`
+	// AssetTokenAmount corresponds to the JSON schema field "asset_token_amount".
+	AssetTokenAmount string `json:"asset_token_amount" yaml:"asset_token_amount" mapstructure:"asset_token_amount"`
 
 	// AssetTokenDestinationAddress corresponds to the JSON schema field
-	// "assetTokenDestinationAddress".
-	AssetTokenDestinationAddress string `json:"assetTokenDestinationAddress" yaml:"assetTokenDestinationAddress" mapstructure:"assetTokenDestinationAddress"`
+	// "asset_token_destination_address".
+	AssetTokenDestinationAddress string `json:"asset_token_destination_address" yaml:"asset_token_destination_address" mapstructure:"asset_token_destination_address"`
 
 	// AssetTokenSourceAddress corresponds to the JSON schema field
-	// "assetTokenSourceAddress".
-	AssetTokenSourceAddress string `json:"assetTokenSourceAddress" yaml:"assetTokenSourceAddress" mapstructure:"assetTokenSourceAddress"`
+	// "asset_token_source_address".
+	AssetTokenSourceAddress string `json:"asset_token_source_address" yaml:"asset_token_source_address" mapstructure:"asset_token_source_address"`
 
-	// AssetTokenType corresponds to the JSON schema field "assetTokenType".
-	AssetTokenType int `json:"assetTokenType" yaml:"assetTokenType" mapstructure:"assetTokenType"`
+	// AssetTokenType corresponds to the JSON schema field "asset_token_type".
+	AssetTokenType int `json:"asset_token_type" yaml:"asset_token_type" mapstructure:"asset_token_type"`
 
-	// PaymentCurrency corresponds to the JSON schema field "paymentCurrency".
-	PaymentCurrency int `json:"paymentCurrency" yaml:"paymentCurrency" mapstructure:"paymentCurrency"`
+	// PaymentCurrency corresponds to the JSON schema field "payment_currency".
+	PaymentCurrency int `json:"payment_currency" yaml:"payment_currency" mapstructure:"payment_currency"`
 
-	// PaymentTokenAmount corresponds to the JSON schema field "paymentTokenAmount".
-	PaymentTokenAmount string `json:"paymentTokenAmount" yaml:"paymentTokenAmount" mapstructure:"paymentTokenAmount"`
+	// PaymentTokenAmount corresponds to the JSON schema field "payment_token_amount".
+	PaymentTokenAmount string `json:"payment_token_amount" yaml:"payment_token_amount" mapstructure:"payment_token_amount"`
 
 	// PaymentTokenDestinationAddress corresponds to the JSON schema field
-	// "paymentTokenDestinationAddress".
-	PaymentTokenDestinationAddress string `json:"paymentTokenDestinationAddress" yaml:"paymentTokenDestinationAddress" mapstructure:"paymentTokenDestinationAddress"`
+	// "payment_token_destination_address".
+	PaymentTokenDestinationAddress string `json:"payment_token_destination_address" yaml:"payment_token_destination_address" mapstructure:"payment_token_destination_address"`
 
 	// PaymentTokenSourceAddress corresponds to the JSON schema field
-	// "paymentTokenSourceAddress".
-	PaymentTokenSourceAddress string `json:"paymentTokenSourceAddress" yaml:"paymentTokenSourceAddress" mapstructure:"paymentTokenSourceAddress"`
+	// "payment_token_source_address".
+	PaymentTokenSourceAddress string `json:"payment_token_source_address" yaml:"payment_token_source_address" mapstructure:"payment_token_source_address"`
 
-	// PaymentTokenType corresponds to the JSON schema field "paymentTokenType".
-	PaymentTokenType int `json:"paymentTokenType" yaml:"paymentTokenType" mapstructure:"paymentTokenType"`
+	// PaymentTokenType corresponds to the JSON schema field "payment_token_type".
+	PaymentTokenType int `json:"payment_token_type" yaml:"payment_token_type" mapstructure:"payment_token_type"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -328,32 +262,32 @@ func (j *DvpSettlementTokenInfo) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["assetTokenAmount"]; raw != nil && !ok {
-		return fmt.Errorf("field assetTokenAmount in DvpSettlementTokenInfo: required")
+	if _, ok := raw["asset_token_amount"]; raw != nil && !ok {
+		return fmt.Errorf("field asset_token_amount in DvpSettlementTokenInfo: required")
 	}
-	if _, ok := raw["assetTokenDestinationAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field assetTokenDestinationAddress in DvpSettlementTokenInfo: required")
+	if _, ok := raw["asset_token_destination_address"]; raw != nil && !ok {
+		return fmt.Errorf("field asset_token_destination_address in DvpSettlementTokenInfo: required")
 	}
-	if _, ok := raw["assetTokenSourceAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field assetTokenSourceAddress in DvpSettlementTokenInfo: required")
+	if _, ok := raw["asset_token_source_address"]; raw != nil && !ok {
+		return fmt.Errorf("field asset_token_source_address in DvpSettlementTokenInfo: required")
 	}
-	if _, ok := raw["assetTokenType"]; raw != nil && !ok {
-		return fmt.Errorf("field assetTokenType in DvpSettlementTokenInfo: required")
+	if _, ok := raw["asset_token_type"]; raw != nil && !ok {
+		return fmt.Errorf("field asset_token_type in DvpSettlementTokenInfo: required")
 	}
-	if _, ok := raw["paymentCurrency"]; raw != nil && !ok {
-		return fmt.Errorf("field paymentCurrency in DvpSettlementTokenInfo: required")
+	if _, ok := raw["payment_currency"]; raw != nil && !ok {
+		return fmt.Errorf("field payment_currency in DvpSettlementTokenInfo: required")
 	}
-	if _, ok := raw["paymentTokenAmount"]; raw != nil && !ok {
-		return fmt.Errorf("field paymentTokenAmount in DvpSettlementTokenInfo: required")
+	if _, ok := raw["payment_token_amount"]; raw != nil && !ok {
+		return fmt.Errorf("field payment_token_amount in DvpSettlementTokenInfo: required")
 	}
-	if _, ok := raw["paymentTokenDestinationAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field paymentTokenDestinationAddress in DvpSettlementTokenInfo: required")
+	if _, ok := raw["payment_token_destination_address"]; raw != nil && !ok {
+		return fmt.Errorf("field payment_token_destination_address in DvpSettlementTokenInfo: required")
 	}
-	if _, ok := raw["paymentTokenSourceAddress"]; raw != nil && !ok {
-		return fmt.Errorf("field paymentTokenSourceAddress in DvpSettlementTokenInfo: required")
+	if _, ok := raw["payment_token_source_address"]; raw != nil && !ok {
+		return fmt.Errorf("field payment_token_source_address in DvpSettlementTokenInfo: required")
 	}
-	if _, ok := raw["paymentTokenType"]; raw != nil && !ok {
-		return fmt.Errorf("field paymentTokenType in DvpSettlementTokenInfo: required")
+	if _, ok := raw["payment_token_type"]; raw != nil && !ok {
+		return fmt.Errorf("field payment_token_type in DvpSettlementTokenInfo: required")
 	}
 	type Plain DvpSettlementTokenInfo
 	var plain Plain
@@ -370,29 +304,29 @@ func (j *DvpSettlement) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["ccipCallbackGasLimit"]; raw != nil && !ok {
-		return fmt.Errorf("field ccipCallbackGasLimit in DvpSettlement: required")
+	if _, ok := raw["ccip_callback_gas_limit"]; raw != nil && !ok {
+		return fmt.Errorf("field ccip_callback_gas_limit in DvpSettlement: required")
 	}
 	if _, ok := raw["data"]; raw != nil && !ok {
 		return fmt.Errorf("field data in DvpSettlement: required")
 	}
-	if _, ok := raw["deliveryInfo"]; raw != nil && !ok {
-		return fmt.Errorf("field deliveryInfo in DvpSettlement: required")
+	if _, ok := raw["delivery_info"]; raw != nil && !ok {
+		return fmt.Errorf("field delivery_info in DvpSettlement: required")
 	}
-	if _, ok := raw["executeAfter"]; raw != nil && !ok {
-		return fmt.Errorf("field executeAfter in DvpSettlement: required")
+	if _, ok := raw["execute_after"]; raw != nil && !ok {
+		return fmt.Errorf("field execute_after in DvpSettlement: required")
 	}
 	if _, ok := raw["expiration"]; raw != nil && !ok {
 		return fmt.Errorf("field expiration in DvpSettlement: required")
 	}
-	if _, ok := raw["partyInfo"]; raw != nil && !ok {
-		return fmt.Errorf("field partyInfo in DvpSettlement: required")
+	if _, ok := raw["party_info"]; raw != nil && !ok {
+		return fmt.Errorf("field party_info in DvpSettlement: required")
 	}
-	if _, ok := raw["secretHash"]; raw != nil && !ok {
-		return fmt.Errorf("field secretHash in DvpSettlement: required")
+	if _, ok := raw["secret_hash"]; raw != nil && !ok {
+		return fmt.Errorf("field secret_hash in DvpSettlement: required")
 	}
-	if _, ok := raw["tokenInfo"]; raw != nil && !ok {
-		return fmt.Errorf("field tokenInfo in DvpSettlement: required")
+	if _, ok := raw["token_info"]; raw != nil && !ok {
+		return fmt.Errorf("field token_info in DvpSettlement: required")
 	}
 	type Plain DvpSettlement
 	var plain Plain
@@ -403,6 +337,53 @@ func (j *DvpSettlement) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+type EvmEvent struct {
+	// The address of the contract that emitted the event
+	Address string `json:"address" yaml:"address" mapstructure:"address"`
+
+	// The log index of the event
+	LogIndex int `json:"log_index" yaml:"log_index" mapstructure:"log_index"`
+
+	// The name of the event
+	Name string `json:"name" yaml:"name" mapstructure:"name"`
+
+	// The service type of the event
+	Service string `json:"service" yaml:"service" mapstructure:"service"`
+
+	// The topic hash of the event
+	TopicHash string `json:"topic_hash" yaml:"topic_hash" mapstructure:"topic_hash"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *EvmEvent) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["address"]; raw != nil && !ok {
+		return fmt.Errorf("field address in EvmEvent: required")
+	}
+	if _, ok := raw["log_index"]; raw != nil && !ok {
+		return fmt.Errorf("field log_index in EvmEvent: required")
+	}
+	if _, ok := raw["name"]; raw != nil && !ok {
+		return fmt.Errorf("field name in EvmEvent: required")
+	}
+	if _, ok := raw["service"]; raw != nil && !ok {
+		return fmt.Errorf("field service in EvmEvent: required")
+	}
+	if _, ok := raw["topic_hash"]; raw != nil && !ok {
+		return fmt.Errorf("field topic_hash in EvmEvent: required")
+	}
+	type Plain EvmEvent
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = EvmEvent(plain)
+	return nil
+}
+
 type Metadata struct {
 	// Dvp corresponds to the JSON schema field "dvp".
 	Dvp *DvpSettlement `json:"dvp,omitempty" yaml:"dvp,omitempty" mapstructure:"dvp,omitempty"`
@@ -410,7 +391,7 @@ type Metadata struct {
 
 type Transaction struct {
 	// The chain ID for the transaction
-	ChainId string `json:"chainId" yaml:"chainId" mapstructure:"chainId"`
+	ChainId string `json:"chain_id" yaml:"chain_id" mapstructure:"chain_id"`
 
 	// The hash of the transaction
 	Hash string `json:"hash" yaml:"hash" mapstructure:"hash"`
@@ -425,8 +406,8 @@ func (j *Transaction) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["chainId"]; raw != nil && !ok {
-		return fmt.Errorf("field chainId in Transaction: required")
+	if _, ok := raw["chain_id"]; raw != nil && !ok {
+		return fmt.Errorf("field chain_id in Transaction: required")
 	}
 	if _, ok := raw["hash"]; raw != nil && !ok {
 		return fmt.Errorf("field hash in Transaction: required")

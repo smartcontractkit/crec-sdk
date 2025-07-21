@@ -10,7 +10,7 @@ type LocalSigner struct {
 	privateKey *ecdsa.PrivateKey
 }
 
-func NewLocalSigner(privateKey *ecdsa.PrivateKey) *LocalSigner {
+func NewLocalSigner(privateKey *ecdsa.PrivateKey) Signer {
 	return &LocalSigner{
 		privateKey: privateKey,
 	}

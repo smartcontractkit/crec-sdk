@@ -29,9 +29,9 @@ func TestHashOperation(t *testing.T) {
 	}
 
 	transact, err := NewClient(
-		c,
 		&ClientOptions{
-			ChainId: chainId,
+			CVNClient: c,
+			ChainId:   chainId,
 		},
 	)
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestHashOperation(t *testing.T) {
 	}
 
 	// check for pre-computed hash for the operation based on the above to/account
-	require.Equal(t, "cd4308149652087bf9621b30e3d7781c475abb327b12b4e257966e88fa4a1ada", common.Bytes2Hex(hash))
+	require.Equal(t, "cd4308149652087bf9621b30e3d7781c475abb327b12b4e257966e88fa4a1ada", hash.Hex())
 }
 
 func TestSignOperation(t *testing.T) {
@@ -69,9 +69,9 @@ func TestSignOperation(t *testing.T) {
 	}
 
 	transact, err := NewClient(
-		c,
 		&ClientOptions{
-			ChainId: chainId,
+			CVNClient: c,
+			ChainId:   chainId,
 		},
 	)
 	require.NoError(t, err)

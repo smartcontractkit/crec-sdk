@@ -18,26 +18,24 @@ import (
 // ClientOptions defines the options for creating a new CVN transact client used to send operations to the CVN system.
 // It includes a logger for logging messages and a chain ID for the blockchain network.
 //   - Logger: Optional logger instance.
+//   - CVNClient: A client instance for interacting with the CVN system, nil for no direct CVN interaction.
 //   - ChainId: A string representing the chain ID of the blockchain network.
 type ClientOptions struct {
-	Logger  *zerolog.Logger
-	ChainId string
+	Logger    *zerolog.Logger
+	CVNClient *client.ClientWithResponses
+	ChainId   string
 }
 
 type Client struct {
-	cvnClient *client.ClientWithResponses
 	logger    *zerolog.Logger
+	cvnClient *client.ClientWithResponses
 	chainId   string
 }
 
 // NewClient creates a new CVN transact client with the provided CVN client and options.
 // Returns a pointer to the Client and an error if any issues occur during initialization.
-//   - cvnClient: A valid CVN client instance.
 //   - opts: Options for configuring the CVN transact client, see ClientOptions for details.
-func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Client, error) {
-	if cvnClient == nil {
-		return nil, errors.New("a valid CVN client must be provided")
-	}
+func NewClient(opts *ClientOptions) (*Client, error) {
 	if opts == nil {
 		return nil, errors.New("options must be provided")
 	}
@@ -52,14 +50,14 @@ func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Cli
 
 	return &Client{
 		logger:    logger,
-		cvnClient: cvnClient,
+		cvnClient: opts.CVNClient,
 		chainId:   opts.ChainId,
 	}, nil
 }
 
 // HashOperation computes the EIP-712 digest of the given operation.
 //   - op: The operation to hash.
-func (t *Client) HashOperation(op *types.Operation) ([]byte, error) {
+func (t *Client) HashOperation(op *types.Operation) (*common.Hash, error) {
 	chainIdInt, err := strconv.ParseUint(t.chainId, 10, 64)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to parse chain ID")
@@ -70,8 +68,13 @@ func (t *Client) HashOperation(op *types.Operation) ([]byte, error) {
 		t.logger.Error().Err(err).Msg("Failed to create typed data for operation")
 		return nil, err
 	}
-	hash, _, err := apitypes.TypedDataAndHash(*typedData)
-	return hash, err
+	hashBytes, _, err := apitypes.TypedDataAndHash(*typedData)
+	if err != nil {
+		t.logger.Error().Err(err).Msg("Failed to compute operation hash")
+		return nil, err
+	}
+	hash := common.BytesToHash(hashBytes)
+	return &hash, err
 }
 
 // SignOperation signs the given operation using the provided signer, returning the signature.
@@ -80,22 +83,41 @@ func (t *Client) HashOperation(op *types.Operation) ([]byte, error) {
 func (t *Client) SignOperation(
 	op *types.Operation,
 	signer signer.Signer,
-) ([]byte, error) {
+) (*[]byte, error) {
 	hash, err := t.HashOperation(op)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to hash operation for signing")
 		return nil, err
 	}
-	sig, err := signer.Sign(hash)
+	sig, err := signer.Sign(hash.Bytes())
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to sign operation")
 		return nil, err
 	}
 	t.logger.Debug().
 		Str("operation_id", op.ID.String()).
-		Str("hash", common.Bytes2Hex(hash)).
+		Str("hash", hash.Hex()).
 		Str("signature", common.Bytes2Hex(sig)).
 		Msg("Signed Operation")
+	return &sig, nil
+}
+
+// SignOperationHash signs the given operation hash using the provided signer, returning the signature.
+//   - opHash: The operation hash to sign.
+//   - signer: The signer to use for signing the operation. See signer.Signer for details.
+func (t *Client) SignOperationHash(
+	opHash *common.Hash,
+	signer signer.Signer,
+) ([]byte, error) {
+	sig, err := signer.Sign(opHash.Bytes())
+	if err != nil {
+		t.logger.Error().Err(err).Msg("Failed to sign operation")
+		return nil, err
+	}
+	t.logger.Debug().
+		Str("hash", opHash.Hex()).
+		Str("signature", common.Bytes2Hex(sig)).
+		Msg("Signed Operation hash")
 	return sig, nil
 }
 
@@ -106,12 +128,16 @@ func (t *Client) SignOperation(
 func (t *Client) SendSignedOperation(
 	ctx context.Context,
 	op *types.Operation,
-	signature []byte,
+	signature *[]byte,
 ) error {
+	if t.cvnClient == nil {
+		return errors.New("no CVNClient provided, cannot send signed operations")
+	}
+
 	t.logger.Info().
 		Str("chain_id", t.chainId).
 		Str("operation_id", op.ID.String()).
-		Str("signature", common.Bytes2Hex(signature)).
+		Str("signature", common.Bytes2Hex(*signature)).
 		Msg("Sending signed operation")
 
 	var transactions []client.TransactionRequest
@@ -130,7 +156,7 @@ func (t *Client) SendSignedOperation(
 		ChainId:            t.chainId,
 		Account:            op.Account.String(),
 		Transactions:       transactions,
-		Signature:          "0x" + common.Bytes2Hex(signature),
+		Signature:          "0x" + common.Bytes2Hex(*signature),
 	}
 
 	resp, err := t.cvnClient.PostOperationsWithResponse(ctx, requestData)
