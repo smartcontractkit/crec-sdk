@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -122,7 +123,7 @@ func (c *Client) GetEvents(ctx context.Context) (*[]client.Event, error) {
 
 	if resp.StatusCode() != 200 {
 		c.logger.Error().Int("status", resp.StatusCode()).Msg("Failed to get events from CVN, unexpected status code")
-		return nil, nil
+		return nil, fmt.Errorf("failed to get events from CVN, unexpected status code: %d", resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil || resp.JSON200.Data == nil {
