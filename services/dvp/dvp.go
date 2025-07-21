@@ -2,7 +2,6 @@ package dvp
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"math/big"
 	"os"
@@ -76,7 +75,7 @@ func (s *Service) DecodeDvpEvent(event *client.Event) (
 	}
 
 	var dvpEvent events.DvpEvent
-	err = json.Unmarshal(jsonBytes, &event)
+	err = dvpEvent.UnmarshalJSON(jsonBytes)
 	if err != nil {
 		return nil, err
 	}
