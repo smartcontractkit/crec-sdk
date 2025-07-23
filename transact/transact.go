@@ -2,6 +2,7 @@ package transact
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"strconv"
@@ -131,6 +132,16 @@ func (t *Client) SendSignedOperation(
 		Account:            op.Account.String(),
 		Transactions:       transactions,
 		Signature:          "0x" + common.Bytes2Hex(signature),
+	}
+
+	if t.logger.GetLevel() <= zerolog.DebugLevel {
+		data, err := json.MarshalIndent(requestData, "", "  ")
+		if err != nil {
+			t.logger.Err(err).Msg("Failed to marshal request data to JSON")
+		}
+		t.logger.Debug().
+			Str("request_data", string(data)).
+			Msg("Request data for SendSignedOperation")
 	}
 
 	resp, err := t.cvnClient.PostOperationsWithResponse(ctx, requestData)
