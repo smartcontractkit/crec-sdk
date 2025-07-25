@@ -26,6 +26,16 @@ const (
 	TokenTypeERC3643
 )
 
+const (
+	ServiceName         = "dvp"
+	SettlementOpened    = "SettlementOpened"
+	SettlementAccepted  = "SettlementAccepted"
+	SettlementCanceling = "SettlementCanceling"
+	SettlementCanceled  = "SettlementCanceled"
+	SettlementClosing   = "SettlementClosing"
+	SettlementSettled   = "SettlementSettled"
+)
+
 // ServiceOptions defines the options for creating a new CVN DvP service.
 //   - Logger: Optional logger instance.
 //   - DvpCoordinatorAddress: A string representing the address of the DvP coordinator contract.
