@@ -131,19 +131,19 @@ type DvpSettlement struct {
 type DvpSettlementDeliveryInfo struct {
 	// AssetDestinationChainSelector corresponds to the JSON schema field
 	// "asset_destination_chain_selector".
-	AssetDestinationChainSelector int `json:"asset_destination_chain_selector" yaml:"asset_destination_chain_selector" mapstructure:"asset_destination_chain_selector"`
+	AssetDestinationChainSelector string `json:"asset_destination_chain_selector" yaml:"asset_destination_chain_selector" mapstructure:"asset_destination_chain_selector"`
 
 	// AssetSourceChainSelector corresponds to the JSON schema field
 	// "asset_source_chain_selector".
-	AssetSourceChainSelector int `json:"asset_source_chain_selector" yaml:"asset_source_chain_selector" mapstructure:"asset_source_chain_selector"`
+	AssetSourceChainSelector string `json:"asset_source_chain_selector" yaml:"asset_source_chain_selector" mapstructure:"asset_source_chain_selector"`
 
 	// PaymentDestinationChainSelector corresponds to the JSON schema field
 	// "payment_destination_chain_selector".
-	PaymentDestinationChainSelector int `json:"payment_destination_chain_selector" yaml:"payment_destination_chain_selector" mapstructure:"payment_destination_chain_selector"`
+	PaymentDestinationChainSelector string `json:"payment_destination_chain_selector" yaml:"payment_destination_chain_selector" mapstructure:"payment_destination_chain_selector"`
 
 	// PaymentSourceChainSelector corresponds to the JSON schema field
 	// "payment_source_chain_selector".
-	PaymentSourceChainSelector int `json:"payment_source_chain_selector" yaml:"payment_source_chain_selector" mapstructure:"payment_source_chain_selector"`
+	PaymentSourceChainSelector string `json:"payment_source_chain_selector" yaml:"payment_source_chain_selector" mapstructure:"payment_source_chain_selector"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.

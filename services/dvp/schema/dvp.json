@@ -255,16 +255,16 @@
       "type": "object",
       "properties": {
         "payment_source_chain_selector": {
-          "type": "integer"
+          "type": "string"
         },
         "payment_destination_chain_selector": {
-          "type": "integer"
+          "type": "string"
         },
         "asset_source_chain_selector": {
-          "type": "integer"
+          "type": "string"
         },
         "asset_destination_chain_selector": {
-          "type": "integer"
+          "type": "string"
         }
       },
       "required": [
