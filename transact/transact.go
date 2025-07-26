@@ -78,9 +78,11 @@ func (t *Client) HashOperation(op *types.Operation) (*common.Hash, error) {
 }
 
 // SignOperation signs the given operation using the provided signer, returning the signature.
+//   - ctx: The context for the request.
 //   - op: The operation to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
 func (t *Client) SignOperation(
+	ctx context.Context,
 	op *types.Operation,
 	signer signer.Signer,
 ) (*[]byte, error) {
@@ -89,7 +91,7 @@ func (t *Client) SignOperation(
 		t.logger.Error().Err(err).Msg("Failed to hash operation for signing")
 		return nil, err
 	}
-	sig, err := signer.Sign(hash.Bytes())
+	sig, err := signer.Sign(ctx, hash.Bytes())
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to sign operation")
 		return nil, err
@@ -103,13 +105,15 @@ func (t *Client) SignOperation(
 }
 
 // SignOperationHash signs the given operation hash using the provided signer, returning the signature.
+//   - ctx: The context for the request.
 //   - opHash: The operation hash to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
 func (t *Client) SignOperationHash(
+	ctx context.Context,
 	opHash *common.Hash,
 	signer signer.Signer,
 ) ([]byte, error) {
-	sig, err := signer.Sign(opHash.Bytes())
+	sig, err := signer.Sign(ctx, opHash.Bytes())
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to sign operation")
 		return nil, err
