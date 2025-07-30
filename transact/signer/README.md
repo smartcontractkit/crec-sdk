@@ -63,7 +63,7 @@ type Signer interface {
 
 This allows you to swap between different signing implementations without changing your application code.
 
-**Note**: The `TransitSigner` also provides additional methods for key management:
+**Note**: The Vault `Signer` also provides additional methods for key management:
 
 ```go
 // Additional methods available on TransitSigner
@@ -99,7 +99,7 @@ func main() {
     }
     
     // Create the local signer
-    localSigner := signer.NewLocalSigner(privateKey)
+    localSigner := local.NewSigner(privateKey)
     
     // Sign some data
     hash := crypto.Keccak256([]byte("hello world"))
@@ -120,12 +120,12 @@ package main
 import (
     "fmt"
     "crypto/sha256"
-    "github.com/smartcontractkit/cvn-sdk/transact/signer"
+    "github.com/smartcontractkit/cvn-sdk/transact/signer/vault"
 )
 
 func main() {
-    // Create the transit signer
-    transitSigner, err := signer.NewTransitSigner(
+    // Create the vault signer
+    vaultSigner, err := vault.NewSigner(
         "https://vault.example.com:8200", // Vault URL
         "your-vault-token",               // Vault token
         "transit",                        // Mount path
@@ -138,7 +138,7 @@ func main() {
     // Sign some data
     data := []byte("hello world")
     hash := sha256.Sum256(data)
-    signature, err := transitSigner.Sign(hash[:])
+    signature, err := vaultSigner.Sign(hash[:])
     if err != nil {
         panic(err)
     }
@@ -146,7 +146,7 @@ func main() {
     fmt.Printf("Signature: %x\n", signature)
     
     // Optionally get the public key for verification
-    pubKey, err := transitSigner.Public()
+    pubKey, err := vaultSigner.Public()
     if err != nil {
         panic(err)
     }
@@ -193,15 +193,15 @@ func main() {
         panic(err)
     }
     
-    // Choose your signer (Local or Transit)
+    // Choose your signer (Local or Vault)
     var s signer.Signer
     
     // Option 1: Local signer
     privateKey, _ := crypto.GenerateKey()
-    s = signer.NewLocalSigner(privateKey)
+    s = local.NewSigner(privateKey)
     
-    // Option 2: Transit signer
-    // s, err = signer.NewTransitSigner("vault-url", "token", "transit", "key-name")
+    // Option 2: Vault signer
+    // s, err = vault.NewSigner("vault-url", "token", "transit", "key-name")
     
     // Create an operation
     operation := &types.Operation{
@@ -242,7 +242,7 @@ import (
 
 func main() {
     // Create a signer connected to Vault
-    transitSigner, err := signer.NewTransitSigner(
+    vaultSigner, err := vault.NewSigner(
         "https://vault.example.com:8200",
         "your-vault-token",
         "transit",
@@ -253,7 +253,7 @@ func main() {
     }
     
     // Create an RSA-2048 key
-    result, err := transitSigner.CreateKey("my-rsa-key", signer.KeyTypeRSA2048)
+    result, err := vaultSigner.CreateKey("my-rsa-key", vault.KeyTypeRSA2048)
     if err != nil {
         panic(err)
     }
@@ -282,12 +282,12 @@ import (
 
 func main() {
     // Create a key without needing to create a signer first
-    result, err := signer.CreateKeyInVault(
+    result, err := vault.CreateKeyInVault(
         "https://vault.example.com:8200",
         "your-vault-token",
         "transit",
         "my-new-key",
-        signer.KeyTypeRSA4096,
+        vault.KeyTypeRSA4096,
     )
     if err != nil {
         panic(err)
@@ -395,7 +395,7 @@ import (
 
 func main() {
     // Create a signer for an existing RSA key
-    transitSigner, err := signer.NewTransitSigner(
+    vaultSigner, err := vault.NewSigner(
         "https://vault.example.com:8200",
         "your-vault-token",
         "transit",
@@ -406,7 +406,7 @@ func main() {
     }
     
     // Extract the RSA modulus
-    modulus, err := transitSigner.GetRSAModulus()
+    modulus, err := vaultSigner.GetRSAModulus()
     if err != nil {
         panic(err)
     }
@@ -432,13 +432,13 @@ import (
 )
 
 func main() {
-    transitSigner, err := signer.NewTransitSigner("vault-url", "token", "transit", "rsa-key")
+    vaultSigner, err := vault.NewSigner("vault-url", "token", "transit", "rsa-key")
     if err != nil {
         panic(err)
     }
     
     // Get modulus as hex string
-    modulusHex, err := transitSigner.GetRSAModulus()
+    modulusHex, err := vaultSigner.GetRSAModulus()
     if err != nil {
         panic(err)
     }
@@ -485,19 +485,19 @@ go get github.com/testcontainers/testcontainers-go/modules/vault@latest
 
 **Run Individual Test Suites:**
 ```bash
-# Standalone Transit signer tests
-go test ./transact/signer -v -run TestTransitSigner -timeout=60s
+# Standalone Vault signer tests
+go test ./transact/signer/vault -v -run TestSigner -timeout=60s
 
 # Test specific functionality
-go test ./transact/signer -v -run TestTransitSigner_CreateKey -timeout=60s
-go test ./transact/signer -v -run TestTransitSigner_GetRSAModulus -timeout=60s
-go test ./transact/signer -v -run TestCreateKeyInVault -timeout=60s
+go test ./transact/signer/vault -v -run TestSigner_CreateKey -timeout=60s
+go test ./transact/signer/vault -v -run TestSigner_GetRSAModulus -timeout=60s
+go test ./transact/signer/vault -v -run TestCreateKeyInVault -timeout=60s
 
 # Integration tests with transact client
 go test ./transact -v -run TestSignOperationWithVaultTransit -timeout=60s
 
-# Local signer tests (if any)
-go test ./transact/signer -v -run TestLocalSigner
+# Local signer tests
+go test ./transact/signer/local -v -run TestSigner
 ```
 
 ### Test Coverage
@@ -615,7 +615,7 @@ func NewProductionTransitSigner() (*signer.TransitSigner, error) {
         TLSConfig: tlsConfig,
     })
     
-    return signer.NewTransitSigner(
+    return vault.NewSigner(
         vaultConfig.Address,
         os.Getenv("VAULT_TOKEN"),
         "transit",

@@ -14,11 +14,12 @@ import (
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/vault"
+	vaultcontainer "github.com/testcontainers/testcontainers-go/modules/vault"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
 	"github.com/smartcontractkit/cvn-sdk/internal/mockserver"
-	"github.com/smartcontractkit/cvn-sdk/transact/signer"
+	"github.com/smartcontractkit/cvn-sdk/transact/signer/local"
+	"github.com/smartcontractkit/cvn-sdk/transact/signer/vault"
 	"github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
@@ -99,7 +100,7 @@ func TestSignOperation(t *testing.T) {
 	privateKey, err := ethcrypto.HexToECDSA("165fdaa699776c9bfdc194817c479d0775b1ee9718bfcddb0ccca352ece86066")
 	require.NoError(t, err)
 
-	localSigner := signer.NewLocalSigner(privateKey)
+	localSigner := local.NewSigner(privateKey)
 	sig, err := transact.SignOperation(operation, localSigner)
 	require.NoError(t, err)
 
@@ -115,9 +116,9 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vaultcontainer.Run(ctx,
 		"hashicorp/vault:1.13.3",
-		vault.WithToken("myroot"),
+		vaultcontainer.WithToken("myroot"),
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -185,8 +186,8 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 		},
 	}
 
-	// Create our TransitSigner
-	vaultSigner, err := signer.NewTransitSigner(
+	// Create our Vault Signer
+	vaultSigner, err := vault.NewSigner(
 		vaultURL,
 		"myroot",
 		"transit",

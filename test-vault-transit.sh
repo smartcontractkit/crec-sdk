@@ -4,8 +4,8 @@ echo "Running Vault Transit Signer Tests..."
 echo "======================================"
 
 echo ""
-echo "1. Running standalone Transit Signer unit tests..."
-go test ./transact/signer -v -run TestTransitSigner -timeout=60s
+echo "1. Running standalone Vault Signer unit tests..."
+go test ./transact/signer/vault -v -run TestSigner -timeout=60s
 
 echo ""
 echo "2. Running integration test with transact client..."

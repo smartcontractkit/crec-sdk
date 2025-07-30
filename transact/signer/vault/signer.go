@@ -1,4 +1,4 @@
-package signer
+package vault
 
 import (
 	"crypto/ecdsa"
@@ -13,28 +13,44 @@ import (
 	vault "github.com/hashicorp/vault/api"
 )
 
-type TransitSigner struct {
+// KeyType represents the type of cryptographic key to create
+type KeyType string
+
+const (
+	KeyTypeRSA2048   KeyType = "rsa-2048"
+	KeyTypeRSA4096   KeyType = "rsa-4096"
+	KeyTypeECDSAP256 KeyType = "ecdsa-p256"
+	KeyTypeECDSAP384 KeyType = "ecdsa-p384"
+	KeyTypeECDSAP521 KeyType = "ecdsa-p521"
+)
+
+type Signer struct {
 	client  *vault.Client
 	keyName string
 	mount   string
 }
 
-func NewTransitSigner(vaultUrl, token, mountPath, key string) (*TransitSigner, error) {
+func NewSigner(vaultUrl, token, mountPath, key string) (*Signer, error) {
 	client, err := vault.NewClient(vault.DefaultConfig())
 	if err != nil {
 		return nil, err
 	}
+
+	if vaultUrl == "" || token == "" || mountPath == "" || key == "" {
+		return nil, fmt.Errorf("vaultUrl, token, mountPath, and key must be set")
+	}
+
 	client.SetAddress(vaultUrl)
 	client.SetToken(token)
 
-	return &TransitSigner{
+	return &Signer{
 		client:  client,
 		keyName: key,
 		mount:   mountPath, // usually "transit"
 	}, nil
 }
 
-func (s *TransitSigner) Sign(hash []byte) ([]byte, error) {
+func (s *Signer) Sign(hash []byte) ([]byte, error) {
 	// base64 encore the payload to sign
 	b64 := base64.StdEncoding.EncodeToString(hash)
 
@@ -69,7 +85,7 @@ func (s *TransitSigner) Sign(hash []byte) ([]byte, error) {
 }
 
 // Public retrieves the public key from Vault for this signing key
-func (s *TransitSigner) Public() (interface{}, error) {
+func (s *Signer) Public() (interface{}, error) {
 	// Get key information from Vault
 	resp, err := s.client.Logical().Read(fmt.Sprintf("%s/keys/%s", s.mount, s.keyName))
 	if err != nil {
@@ -146,7 +162,7 @@ func (s *TransitSigner) Public() (interface{}, error) {
 }
 
 // GetRSAModulus returns the hex-encoded modulus of the RSA public key
-func (s *TransitSigner) GetRSAModulus() (string, error) {
+func (s *Signer) GetRSAModulus() (string, error) {
 	pubKey, err := s.Public()
 	if err != nil {
 		return "", fmt.Errorf("failed to get public key: %w", err)
@@ -160,17 +176,6 @@ func (s *TransitSigner) GetRSAModulus() (string, error) {
 	return hex.EncodeToString(rsaPubKey.N.Bytes()), nil
 }
 
-// KeyType represents the type of cryptographic key to create
-type KeyType string
-
-const (
-	KeyTypeRSA2048   KeyType = "rsa-2048"
-	KeyTypeRSA4096   KeyType = "rsa-4096"
-	KeyTypeECDSAP256 KeyType = "ecdsa-p256"
-	KeyTypeECDSAP384 KeyType = "ecdsa-p384"
-	KeyTypeECDSAP521 KeyType = "ecdsa-p521"
-)
-
 // KeyCreationResult contains information about a newly created key
 type KeyCreationResult struct {
 	KeyName   string
@@ -180,7 +185,7 @@ type KeyCreationResult struct {
 }
 
 // CreateKey creates a new cryptographic key in Vault Transit secrets engine
-func (s *TransitSigner) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult, error) {
+func (s *Signer) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult, error) {
 	// Create the key in Vault
 	_, err := s.client.Logical().Write(fmt.Sprintf("%s/keys/%s", s.mount, keyName), map[string]interface{}{
 		"type": string(keyType),
@@ -190,7 +195,7 @@ func (s *TransitSigner) CreateKey(keyName string, keyType KeyType) (*KeyCreation
 	}
 
 	// Create a temporary signer to get the public key
-	tempSigner := &TransitSigner{
+	tempSigner := &Signer{
 		client:  s.client,
 		keyName: keyName,
 		mount:   s.mount,
@@ -219,7 +224,7 @@ func (s *TransitSigner) CreateKey(keyName string, keyType KeyType) (*KeyCreation
 // CreateKeyInVault is a convenience function to create a key without needing an existing signer instance
 func CreateKeyInVault(vaultUrl, token, mountPath, keyName string, keyType KeyType) (*KeyCreationResult, error) {
 	// Create a temporary signer for key creation
-	tempSigner, err := NewTransitSigner(vaultUrl, token, mountPath, "dummy")
+	tempSigner, err := NewSigner(vaultUrl, token, mountPath, "dummy")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create vault client: %w", err)
 	}

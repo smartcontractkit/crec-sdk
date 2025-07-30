@@ -1,4 +1,4 @@
-package signer
+package vault
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/vault"
 )
 
-func TestTransitSigner_Sign_Integration(t *testing.T) {
+func TestSigner_Sign_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
@@ -60,7 +60,7 @@ func TestTransitSigner_Sign_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create our TransitSigner
-	signer, err := NewTransitSigner(
+	signer, err := NewSigner(
 		vaultURL,
 		"myroot",
 		"transit",
@@ -108,7 +108,7 @@ func TestTransitSigner_Sign_Integration(t *testing.T) {
 	t.Logf("Second signature length: %d", len(signature2))
 }
 
-func TestTransitSigner_Sign_WithECDSA(t *testing.T) {
+func TestSigner_Sign_WithECDSA(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
@@ -149,8 +149,8 @@ func TestTransitSigner_Sign_WithECDSA(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Create our TransitSigner
-	signer, err := NewTransitSigner(
+	// Create our Signer
+	signer, err := NewSigner(
 		vaultURL,
 		"myroot",
 		"transit",
@@ -188,7 +188,7 @@ func TestTransitSigner_Sign_WithECDSA(t *testing.T) {
 	t.Logf("ECDSA signature length: %d", len(signature))
 }
 
-func TestTransitSigner_Public(t *testing.T) {
+func TestSigner_Public(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
@@ -230,7 +230,7 @@ func TestTransitSigner_Public(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create signer for RSA key
-	rsaSigner, err := NewTransitSigner(vaultURL, "myroot", "transit", rsaKeyName)
+	rsaSigner, err := NewSigner(vaultURL, "myroot", "transit", rsaKeyName)
 	require.NoError(t, err)
 
 	// Test getting RSA public key
@@ -252,7 +252,7 @@ func TestTransitSigner_Public(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create signer for ECDSA key
-	ecdsaSigner, err := NewTransitSigner(vaultURL, "myroot", "transit", ecdsaKeyName)
+	ecdsaSigner, err := NewSigner(vaultURL, "myroot", "transit", ecdsaKeyName)
 	require.NoError(t, err)
 
 	// Test getting ECDSA public key
@@ -270,7 +270,7 @@ func TestTransitSigner_Public(t *testing.T) {
 	t.Logf("ECDSA curve: %s", ecdsaPubKey.Curve.Params().Name)
 }
 
-func TestTransitSigner_CreateKey(t *testing.T) {
+func TestSigner_CreateKey(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
@@ -305,7 +305,7 @@ func TestTransitSigner_CreateKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a signer (we need this to create keys)
-	signer, err := NewTransitSigner(vaultURL, "myroot", "transit", "dummy")
+	signer, err := NewSigner(vaultURL, "myroot", "transit", "dummy")
 	require.NoError(t, err)
 
 	// Test creating RSA-2048 key
@@ -364,7 +364,7 @@ func TestTransitSigner_CreateKey(t *testing.T) {
 	t.Logf("RSA-4096 modulus length: %d chars", len(rsa4096Result.Modulus))
 }
 
-func TestTransitSigner_GetRSAModulus(t *testing.T) {
+func TestSigner_GetRSAModulus(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
@@ -406,7 +406,7 @@ func TestTransitSigner_GetRSAModulus(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create signer for the RSA key
-	rsaSigner, err := NewTransitSigner(vaultURL, "myroot", "transit", rsaKeyName)
+	rsaSigner, err := NewSigner(vaultURL, "myroot", "transit", rsaKeyName)
 	require.NoError(t, err)
 
 	// Test getting RSA modulus
@@ -435,7 +435,7 @@ func TestTransitSigner_GetRSAModulus(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ecdsaSigner, err := NewTransitSigner(vaultURL, "myroot", "transit", ecdsaKeyName)
+	ecdsaSigner, err := NewSigner(vaultURL, "myroot", "transit", ecdsaKeyName)
 	require.NoError(t, err)
 
 	// Should fail to get modulus from ECDSA key
@@ -496,7 +496,7 @@ func TestCreateKeyInVault(t *testing.T) {
 	t.Logf("Convenience function created key: %s", keyName)
 }
 
-func TestTransitSigner_CreateKey_ErrorCases(t *testing.T) {
+func TestSigner_CreateKey_ErrorCases(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
@@ -531,7 +531,7 @@ func TestTransitSigner_CreateKey_ErrorCases(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create signer
-	signer, err := NewTransitSigner(vaultURL, "myroot", "transit", "dummy")
+	signer, err := NewSigner(vaultURL, "myroot", "transit", "dummy")
 	require.NoError(t, err)
 
 	// Test creating key with duplicate name
@@ -547,7 +547,7 @@ func TestTransitSigner_CreateKey_ErrorCases(t *testing.T) {
 	require.Equal(t, KeyTypeECDSAP256, result2.KeyType) // Should be the new type
 
 	// Test with invalid Vault token
-	invalidSigner, err := NewTransitSigner(vaultURL, "invalid-token", "transit", "dummy")
+	invalidSigner, err := NewSigner(vaultURL, "invalid-token", "transit", "dummy")
 	require.NoError(t, err)
 
 	_, err = invalidSigner.CreateKey("test-invalid", KeyTypeRSA2048)
@@ -555,7 +555,7 @@ func TestTransitSigner_CreateKey_ErrorCases(t *testing.T) {
 	require.Contains(t, strings.ToLower(err.Error()), "vault")
 }
 
-func TestTransitSigner_InvalidKey(t *testing.T) {
+func TestSigner_InvalidKey(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
@@ -590,7 +590,7 @@ func TestTransitSigner_InvalidKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create our TransitSigner with a non-existent key
-	signer, err := NewTransitSigner(
+	signer, err := NewSigner(
 		vaultURL,
 		"myroot",
 		"transit",
@@ -609,7 +609,7 @@ func TestTransitSigner_InvalidKey(t *testing.T) {
 	require.Contains(t, err.Error(), "vault sign failed")
 }
 
-func TestTransitSigner_InvalidToken(t *testing.T) {
+func TestSigner_InvalidToken(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
@@ -632,7 +632,7 @@ func TestTransitSigner_InvalidToken(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Create our TransitSigner with invalid token
-	signer, err := NewTransitSigner(
+	signer, err := NewSigner(
 		vaultURL,
 		"invalid-token",
 		"transit",
