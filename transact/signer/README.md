@@ -9,7 +9,9 @@ This package provides signing interfaces for the CVN SDK, allowing you to sign o
   - [TransitSigner](#transitsigner)
 - [Signer Interface](#signer-interface)
 - [Usage Examples](#usage-examples)
+- [Key Creation](#key-creation)
 - [Key Type Options](#key-type-options)
+- [RSA Modulus Extraction](#rsa-modulus-extraction)
 - [Testing](#testing)
 - [Production Considerations](#production-considerations)
 
@@ -61,14 +63,19 @@ type Signer interface {
 
 This allows you to swap between different signing implementations without changing your application code.
 
-**Note**: The `TransitSigner` also provides a `Public()` method to retrieve the public key from Vault:
+**Note**: The `TransitSigner` also provides additional methods for key management:
 
 ```go
-// Additional method available on TransitSigner
-func (s *TransitSigner) Public() (interface{}, error)
+// Additional methods available on TransitSigner
+func (s *TransitSigner) Public() (interface{}, error)                          // Get public key
+func (s *TransitSigner) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult, error) // Create new key
+func (s *TransitSigner) GetRSAModulus() (string, error)                        // Get RSA modulus as hex string
+
+// Convenience function for creating keys without existing signer
+func CreateKeyInVault(vaultUrl, token, mountPath, keyName string, keyType KeyType) (*KeyCreationResult, error)
 ```
 
-This method returns either an `*rsa.PublicKey` or `*ecdsa.PublicKey` depending on the key type configured in Vault.
+The `Public()` method returns either an `*rsa.PublicKey` or `*ecdsa.PublicKey` depending on the key type configured in Vault.
 
 ## Usage Examples
 
@@ -219,6 +226,105 @@ func main() {
 }
 ```
 
+## Key Creation
+
+The CVN SDK provides functionality to create cryptographic keys directly in Vault Transit secrets engine, with automatic extraction of RSA public key modulus.
+
+### Creating Keys with TransitSigner
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/smartcontractkit/cvn-sdk/transact/signer"
+)
+
+func main() {
+    // Create a signer connected to Vault
+    transitSigner, err := signer.NewTransitSigner(
+        "https://vault.example.com:8200",
+        "your-vault-token",
+        "transit",
+        "dummy", // Dummy key name for client creation
+    )
+    if err != nil {
+        panic(err)
+    }
+    
+    // Create an RSA-2048 key
+    result, err := transitSigner.CreateKey("my-rsa-key", signer.KeyTypeRSA2048)
+    if err != nil {
+        panic(err)
+    }
+    
+    fmt.Printf("Created key: %s\n", result.KeyName)
+    fmt.Printf("Key type: %s\n", result.KeyType)
+    fmt.Printf("RSA Modulus: %s\n", result.Modulus)
+    
+    // The result also contains the full public key
+    rsaPubKey, ok := result.PublicKey.(*rsa.PublicKey)
+    if ok {
+        fmt.Printf("RSA key size: %d bits\n", rsaPubKey.Size()*8)
+    }
+}
+```
+
+### Convenience Function for One-off Key Creation
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/smartcontractkit/cvn-sdk/transact/signer"
+)
+
+func main() {
+    // Create a key without needing to create a signer first
+    result, err := signer.CreateKeyInVault(
+        "https://vault.example.com:8200",
+        "your-vault-token",
+        "transit",
+        "my-new-key",
+        signer.KeyTypeRSA4096,
+    )
+    if err != nil {
+        panic(err)
+    }
+    
+    fmt.Printf("Created %s key: %s\n", result.KeyType, result.KeyName)
+    fmt.Printf("RSA Modulus: %s\n", result.Modulus)
+}
+```
+
+### Available Key Types
+
+The SDK supports the following key types for creation:
+
+```go
+const (
+    KeyTypeRSA2048   KeyType = "rsa-2048"   // RSA 2048-bit key
+    KeyTypeRSA4096   KeyType = "rsa-4096"   // RSA 4096-bit key  
+    KeyTypeECDSAP256 KeyType = "ecdsa-p256" // ECDSA P-256 curve
+    KeyTypeECDSAP384 KeyType = "ecdsa-p384" // ECDSA P-384 curve
+    KeyTypeECDSAP521 KeyType = "ecdsa-p521" // ECDSA P-521 curve
+)
+```
+
+### KeyCreationResult Structure
+
+When creating keys, you receive a `KeyCreationResult`:
+
+```go
+type KeyCreationResult struct {
+    KeyName   string      // Name of the created key
+    KeyType   KeyType     // Type of key created
+    PublicKey interface{} // The actual public key (*rsa.PublicKey or *ecdsa.PublicKey)
+    Modulus   string      // For RSA keys only: hex-encoded modulus
+}
+```
+
 ## Key Type Options
 
 ### RSA Keys
@@ -273,6 +379,87 @@ privateKey, err := crypto.HexToECDSA("your-private-key-hex")
 localSigner := signer.NewLocalSigner(privateKey)
 ```
 
+## RSA Modulus Extraction
+
+For RSA keys, you can extract the modulus (the public component) at any time:
+
+### Getting RSA Modulus from Existing Keys
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/smartcontractkit/cvn-sdk/transact/signer"
+)
+
+func main() {
+    // Create a signer for an existing RSA key
+    transitSigner, err := signer.NewTransitSigner(
+        "https://vault.example.com:8200",
+        "your-vault-token",
+        "transit",
+        "existing-rsa-key",
+    )
+    if err != nil {
+        panic(err)
+    }
+    
+    // Extract the RSA modulus
+    modulus, err := transitSigner.GetRSAModulus()
+    if err != nil {
+        panic(err)
+    }
+    
+    fmt.Printf("RSA Modulus (hex): %s\n", modulus)
+    fmt.Printf("Modulus length: %d characters\n", len(modulus))
+    
+    // For RSA-2048, modulus will be 512 hex characters (256 bytes)
+    // For RSA-4096, modulus will be 1024 hex characters (512 bytes)
+}
+```
+
+### Working with RSA Modulus
+
+```go
+package main
+
+import (
+    "encoding/hex"
+    "fmt"
+    "math/big"
+    "github.com/smartcontractkit/cvn-sdk/transact/signer"
+)
+
+func main() {
+    transitSigner, err := signer.NewTransitSigner("vault-url", "token", "transit", "rsa-key")
+    if err != nil {
+        panic(err)
+    }
+    
+    // Get modulus as hex string
+    modulusHex, err := transitSigner.GetRSAModulus()
+    if err != nil {
+        panic(err)
+    }
+    
+    // Convert to bytes
+    modulusBytes, err := hex.DecodeString(modulusHex)
+    if err != nil {
+        panic(err)
+    }
+    
+    // Convert to big integer for mathematical operations
+    modulus := new(big.Int).SetBytes(modulusBytes)
+    
+    fmt.Printf("Modulus as hex: %s\n", modulusHex)
+    fmt.Printf("Modulus as big int: %s\n", modulus.String())
+    fmt.Printf("Modulus bit length: %d\n", modulus.BitLen())
+}
+```
+
+**Note**: The `GetRSAModulus()` method will return an error if called on a non-RSA key (such as ECDSA keys).
+
 ## Testing
 
 ### Test Setup
@@ -300,6 +487,11 @@ go get github.com/testcontainers/testcontainers-go/modules/vault@latest
 ```bash
 # Standalone Transit signer tests
 go test ./transact/signer -v -run TestTransitSigner -timeout=60s
+
+# Test specific functionality
+go test ./transact/signer -v -run TestTransitSigner_CreateKey -timeout=60s
+go test ./transact/signer -v -run TestTransitSigner_GetRSAModulus -timeout=60s
+go test ./transact/signer -v -run TestCreateKeyInVault -timeout=60s
 
 # Integration tests with transact client
 go test ./transact -v -run TestSignOperationWithVaultTransit -timeout=60s
@@ -332,7 +524,26 @@ The test suite includes:
    - Validates correct key types and properties
    - Verifies key size and curve parameters
 
-5. **Integration Test** (`TestSignOperationWithVaultTransit`)
+5. **Key Creation Tests** (`TestTransitSigner_CreateKey`)
+   - Tests creating RSA-2048, RSA-4096, and ECDSA keys
+   - Validates automatic modulus extraction for RSA keys
+   - Verifies key properties and types
+
+6. **RSA Modulus Tests** (`TestTransitSigner_GetRSAModulus`)
+   - Tests modulus extraction from existing RSA keys
+   - Validates hex encoding and consistency
+   - Tests error handling for non-RSA keys
+
+7. **Convenience Function Test** (`TestCreateKeyInVault`)
+   - Tests standalone key creation without existing signer
+   - Validates key creation and Vault storage
+
+8. **Error Handling Tests**
+   - Key creation with invalid credentials
+   - Duplicate key handling
+   - Invalid key type scenarios
+
+9. **Integration Test** (`TestSignOperationWithVaultTransit`)
    - Full end-to-end workflow
    - CVN client + Transact client + Vault signer
    - Real operation signing and cryptographic verification

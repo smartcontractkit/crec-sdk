@@ -6,7 +6,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -266,6 +268,291 @@ func TestTransitSigner_Public(t *testing.T) {
 
 	t.Logf("RSA public key size: %d bits", rsaPubKey.Size()*8)
 	t.Logf("ECDSA curve: %s", ecdsaPubKey.Curve.Params().Name)
+}
+
+func TestTransitSigner_CreateKey(t *testing.T) {
+	ctx := context.Background()
+
+	// Start Vault container
+	vaultContainer, err := vault.Run(ctx,
+		"hashicorp/vault:1.13.3",
+		vault.WithToken("myroot"),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	})
+
+	// Get container connection info
+	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
+	require.NoError(t, err)
+
+	// Wait for Vault to be ready
+	time.Sleep(2 * time.Second)
+
+	// Create Vault client for setup
+	client, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err)
+	client.SetAddress(vaultURL)
+	client.SetToken("myroot")
+
+	// Enable transit secrets engine
+	err = client.Sys().Mount("transit", &api.MountInput{
+		Type: "transit",
+	})
+	require.NoError(t, err)
+
+	// Create a signer (we need this to create keys)
+	signer, err := NewTransitSigner(vaultURL, "myroot", "transit", "dummy")
+	require.NoError(t, err)
+
+	// Test creating RSA-2048 key
+	rsaKeyName := "test-created-rsa-key"
+	rsaResult, err := signer.CreateKey(rsaKeyName, KeyTypeRSA2048)
+	require.NoError(t, err)
+	require.NotNil(t, rsaResult)
+	require.Equal(t, rsaKeyName, rsaResult.KeyName)
+	require.Equal(t, KeyTypeRSA2048, rsaResult.KeyType)
+	require.NotNil(t, rsaResult.PublicKey)
+	require.NotEmpty(t, rsaResult.Modulus)
+
+	// Verify it's an RSA public key
+	rsaPubKey, ok := rsaResult.PublicKey.(*rsa.PublicKey)
+	require.True(t, ok, "Should be RSA public key")
+	require.Equal(t, 2048, rsaPubKey.Size()*8, "Should be RSA-2048")
+
+	// Verify the modulus matches
+	expectedModulus := hex.EncodeToString(rsaPubKey.N.Bytes())
+	require.Equal(t, expectedModulus, rsaResult.Modulus)
+
+	t.Logf("Created RSA key: %s", rsaKeyName)
+	t.Logf("RSA modulus: %s", rsaResult.Modulus[:32]+"...") // Show first 32 chars
+
+	// Test creating ECDSA P-256 key
+	ecdsaKeyName := "test-created-ecdsa-key"
+	ecdsaResult, err := signer.CreateKey(ecdsaKeyName, KeyTypeECDSAP256)
+	require.NoError(t, err)
+	require.NotNil(t, ecdsaResult)
+	require.Equal(t, ecdsaKeyName, ecdsaResult.KeyName)
+	require.Equal(t, KeyTypeECDSAP256, ecdsaResult.KeyType)
+	require.NotNil(t, ecdsaResult.PublicKey)
+	require.Empty(t, ecdsaResult.Modulus) // ECDSA keys don't have modulus
+
+	// Verify it's an ECDSA public key
+	ecdsaPubKey, ok := ecdsaResult.PublicKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "Should be ECDSA public key")
+	require.Equal(t, "P-256", ecdsaPubKey.Curve.Params().Name)
+
+	t.Logf("Created ECDSA key: %s", ecdsaKeyName)
+
+	// Test creating RSA-4096 key
+	rsa4096KeyName := "test-created-rsa4096-key"
+	rsa4096Result, err := signer.CreateKey(rsa4096KeyName, KeyTypeRSA4096)
+	require.NoError(t, err)
+	require.NotNil(t, rsa4096Result)
+	require.Equal(t, KeyTypeRSA4096, rsa4096Result.KeyType)
+	require.NotEmpty(t, rsa4096Result.Modulus)
+
+	// Verify it's RSA-4096
+	rsa4096PubKey, ok := rsa4096Result.PublicKey.(*rsa.PublicKey)
+	require.True(t, ok, "Should be RSA public key")
+	require.Equal(t, 4096, rsa4096PubKey.Size()*8, "Should be RSA-4096")
+
+	t.Logf("Created RSA-4096 key: %s", rsa4096KeyName)
+	t.Logf("RSA-4096 modulus length: %d chars", len(rsa4096Result.Modulus))
+}
+
+func TestTransitSigner_GetRSAModulus(t *testing.T) {
+	ctx := context.Background()
+
+	// Start Vault container
+	vaultContainer, err := vault.Run(ctx,
+		"hashicorp/vault:1.13.3",
+		vault.WithToken("myroot"),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	})
+
+	// Get container connection info
+	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
+	require.NoError(t, err)
+
+	// Wait for Vault to be ready
+	time.Sleep(2 * time.Second)
+
+	// Create Vault client for setup
+	client, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err)
+	client.SetAddress(vaultURL)
+	client.SetToken("myroot")
+
+	// Enable transit secrets engine
+	err = client.Sys().Mount("transit", &api.MountInput{
+		Type: "transit",
+	})
+	require.NoError(t, err)
+
+	// Create RSA key manually
+	rsaKeyName := "test-modulus-rsa-key"
+	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", rsaKeyName), map[string]interface{}{
+		"type": "rsa-2048",
+	})
+	require.NoError(t, err)
+
+	// Create signer for the RSA key
+	rsaSigner, err := NewTransitSigner(vaultURL, "myroot", "transit", rsaKeyName)
+	require.NoError(t, err)
+
+	// Test getting RSA modulus
+	modulus, err := rsaSigner.GetRSAModulus()
+	require.NoError(t, err)
+	require.NotEmpty(t, modulus)
+
+	// Verify it's a valid hex string
+	_, err = hex.DecodeString(modulus)
+	require.NoError(t, err, "Modulus should be valid hex")
+
+	// Verify the modulus matches what we get from Public()
+	pubKey, err := rsaSigner.Public()
+	require.NoError(t, err)
+	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
+	require.True(t, ok)
+	expectedModulus := hex.EncodeToString(rsaPubKey.N.Bytes())
+	require.Equal(t, expectedModulus, modulus)
+
+	t.Logf("RSA modulus: %s", modulus[:32]+"...")
+
+	// Test with ECDSA key (should fail)
+	ecdsaKeyName := "test-modulus-ecdsa-key"
+	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", ecdsaKeyName), map[string]interface{}{
+		"type": "ecdsa-p256",
+	})
+	require.NoError(t, err)
+
+	ecdsaSigner, err := NewTransitSigner(vaultURL, "myroot", "transit", ecdsaKeyName)
+	require.NoError(t, err)
+
+	// Should fail to get modulus from ECDSA key
+	_, err = ecdsaSigner.GetRSAModulus()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "key is not an RSA key")
+}
+
+func TestCreateKeyInVault(t *testing.T) {
+	ctx := context.Background()
+
+	// Start Vault container
+	vaultContainer, err := vault.Run(ctx,
+		"hashicorp/vault:1.13.3",
+		vault.WithToken("myroot"),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	})
+
+	// Get container connection info
+	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
+	require.NoError(t, err)
+
+	// Wait for Vault to be ready
+	time.Sleep(2 * time.Second)
+
+	// Create Vault client for setup
+	client, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err)
+	client.SetAddress(vaultURL)
+	client.SetToken("myroot")
+
+	// Enable transit secrets engine
+	err = client.Sys().Mount("transit", &api.MountInput{
+		Type: "transit",
+	})
+	require.NoError(t, err)
+
+	// Test the convenience function
+	keyName := "test-convenience-key"
+	result, err := CreateKeyInVault(vaultURL, "myroot", "transit", keyName, KeyTypeRSA2048)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, keyName, result.KeyName)
+	require.Equal(t, KeyTypeRSA2048, result.KeyType)
+	require.NotEmpty(t, result.Modulus)
+
+	// Verify the key was actually created in Vault
+	resp, err := client.Logical().Read(fmt.Sprintf("transit/keys/%s", keyName))
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, "rsa-2048", resp.Data["type"])
+
+	t.Logf("Convenience function created key: %s", keyName)
+}
+
+func TestTransitSigner_CreateKey_ErrorCases(t *testing.T) {
+	ctx := context.Background()
+
+	// Start Vault container
+	vaultContainer, err := vault.Run(ctx,
+		"hashicorp/vault:1.13.3",
+		vault.WithToken("myroot"),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	})
+
+	// Get container connection info
+	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
+	require.NoError(t, err)
+
+	// Wait for Vault to be ready
+	time.Sleep(2 * time.Second)
+
+	// Create Vault client for setup
+	client, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err)
+	client.SetAddress(vaultURL)
+	client.SetToken("myroot")
+
+	// Enable transit secrets engine
+	err = client.Sys().Mount("transit", &api.MountInput{
+		Type: "transit",
+	})
+	require.NoError(t, err)
+
+	// Create signer
+	signer, err := NewTransitSigner(vaultURL, "myroot", "transit", "dummy")
+	require.NoError(t, err)
+
+	// Test creating key with duplicate name
+	keyName := "duplicate-key"
+	result1, err := signer.CreateKey(keyName, KeyTypeRSA2048)
+	require.NoError(t, err)
+	require.NotNil(t, result1)
+
+	// Try to create key with same name (should still work in Vault, but key will be overwritten)
+	result2, err := signer.CreateKey(keyName, KeyTypeECDSAP256)
+	require.NoError(t, err)
+	require.NotNil(t, result2)
+	require.Equal(t, KeyTypeECDSAP256, result2.KeyType) // Should be the new type
+
+	// Test with invalid Vault token
+	invalidSigner, err := NewTransitSigner(vaultURL, "invalid-token", "transit", "dummy")
+	require.NoError(t, err)
+
+	_, err = invalidSigner.CreateKey("test-invalid", KeyTypeRSA2048)
+	require.Error(t, err)
+	require.Contains(t, strings.ToLower(err.Error()), "vault")
 }
 
 func TestTransitSigner_InvalidKey(t *testing.T) {
