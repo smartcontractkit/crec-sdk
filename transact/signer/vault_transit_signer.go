@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"strings"
@@ -142,4 +143,86 @@ func (s *TransitSigner) Public() (interface{}, error) {
 	default:
 		return nil, fmt.Errorf("unsupported key type: %s", keyType)
 	}
+}
+
+// GetRSAModulus returns the hex-encoded modulus of the RSA public key
+func (s *TransitSigner) GetRSAModulus() (string, error) {
+	pubKey, err := s.Public()
+	if err != nil {
+		return "", fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
+	if !ok {
+		return "", fmt.Errorf("key is not an RSA key, got %T", pubKey)
+	}
+
+	return hex.EncodeToString(rsaPubKey.N.Bytes()), nil
+}
+
+// KeyType represents the type of cryptographic key to create
+type KeyType string
+
+const (
+	KeyTypeRSA2048   KeyType = "rsa-2048"
+	KeyTypeRSA4096   KeyType = "rsa-4096"
+	KeyTypeECDSAP256 KeyType = "ecdsa-p256"
+	KeyTypeECDSAP384 KeyType = "ecdsa-p384"
+	KeyTypeECDSAP521 KeyType = "ecdsa-p521"
+)
+
+// KeyCreationResult contains information about a newly created key
+type KeyCreationResult struct {
+	KeyName   string
+	KeyType   KeyType
+	PublicKey interface{}
+	Modulus   string // For RSA keys only, hex-encoded modulus
+}
+
+// CreateKey creates a new cryptographic key in Vault Transit secrets engine
+func (s *TransitSigner) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult, error) {
+	// Create the key in Vault
+	_, err := s.client.Logical().Write(fmt.Sprintf("%s/keys/%s", s.mount, keyName), map[string]interface{}{
+		"type": string(keyType),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create key in vault: %w", err)
+	}
+
+	// Create a temporary signer to get the public key
+	tempSigner := &TransitSigner{
+		client:  s.client,
+		keyName: keyName,
+		mount:   s.mount,
+	}
+
+	// Get the public key
+	pubKey, err := tempSigner.Public()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve created public key: %w", err)
+	}
+
+	result := &KeyCreationResult{
+		KeyName:   keyName,
+		KeyType:   keyType,
+		PublicKey: pubKey,
+	}
+
+	// Extract modulus for RSA keys
+	if rsaPubKey, ok := pubKey.(*rsa.PublicKey); ok {
+		result.Modulus = hex.EncodeToString(rsaPubKey.N.Bytes())
+	}
+
+	return result, nil
+}
+
+// CreateKeyInVault is a convenience function to create a key without needing an existing signer instance
+func CreateKeyInVault(vaultUrl, token, mountPath, keyName string, keyType KeyType) (*KeyCreationResult, error) {
+	// Create a temporary signer for key creation
+	tempSigner, err := NewTransitSigner(vaultUrl, token, mountPath, "dummy")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create vault client: %w", err)
+	}
+
+	return tempSigner.CreateKey(keyName, keyType)
 }
