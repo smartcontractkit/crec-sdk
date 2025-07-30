@@ -493,11 +493,6 @@ go test ./transact/signer/vault -v -run TestSigner_CreateKey -timeout=60s
 go test ./transact/signer/vault -v -run TestSigner_GetRSAModulus -timeout=60s
 go test ./transact/signer/vault -v -run TestCreateKeyInVault -timeout=60s
 
-# Test specific functionality
-go test ./transact/signer -v -run TestTransitSigner_CreateKey -timeout=60s
-go test ./transact/signer -v -run TestTransitSigner_GetRSAModulus -timeout=60s
-go test ./transact/signer -v -run TestCreateKeyInVault -timeout=60s
-
 # Integration tests with transact client
 go test ./transact -v -run TestSignOperationWithVaultTransit -timeout=60s
 
