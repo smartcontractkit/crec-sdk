@@ -1,6 +1,6 @@
 # DTA Service
 
-The DTA (Decentralized Token Administration) Service provides a comprehensive Go SDK for interacting with the DTA smart contracts. This service enables fund administrators, distributors, and users to manage fund tokens, process subscription/redemption requests, and handle DTA-related operations through the CVN (Chainlink Verifiable Network) infrastructure.
+The DTA (Digital Transfer Agent) Service provides a comprehensive Go SDK for interacting with the DTA smart contracts. This service enables distributors to manage fund token requests and fund administrators to administer their marketplace and process subscription/redemption requests.
 
 ## Table of Contents
 
@@ -19,13 +19,13 @@ The DTA (Decentralized Token Administration) Service provides a comprehensive Go
 ## Overview
 
 The DTA Service integrates with two main smart contracts:
-- **DTA OpenMarketplace**: Handles fund token registration, distributor management, and subscription/redemption requests
-- **DTA Wallet**: Manages settlement operations and token transfers
+- **DTAOpenMarketplaceU**: Handles fund token registration, distributor management, and subscription/redemption requests
+- **DTAWalletU**: Manages settlement operations and token transfers
 
 This service provides:
 - ✅ **20 Event Decoders** for all contract events
 - ✅ **18 Operation Builders** for all major contract functions
-- ✅ **Token Approval Integration** for seamless ERC20 token handling
+- ✅ **Token Approval Integration** for seamless ERC20 payment token handling
 - ✅ **Comprehensive Testing** with full coverage
 - ✅ **Type-Safe Operations** with proper error handling
 
@@ -58,13 +58,13 @@ DTA Service
 │       ├── TokenWithdrawn
 │       └── UnauthorizedSenderDTA
 └── Operation Preparation (18 operations)
-    ├── User Operations (3)
+    ├── Distributor Operations (4)
     │   ├── PrepareRequestSubscriptionOperation
     │   ├── PrepareRequestRedemptionOperation
     │   └── PrepareRequestSubscriptionWithTokenApprovalOperation
-    ├── Request Management (2)
-    │   ├── PrepareProcessDistributorRequestOperation
     │   └── PrepareCancelDistributorRequestOperation
+    ├── Request Management (1)
+    │   ├── PrepareProcessDistributorRequestOperation
     ├── OpenMarketplace Admin Operations (7)
     │   ├── PrepareRegisterDistributorOperation
     │   ├── PrepareRegisterFundAdminOperation
