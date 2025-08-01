@@ -2,6 +2,7 @@ package transact
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"strconv"
@@ -163,15 +164,36 @@ func (t *Client) SendSignedOperation(
 		Signature:          "0x" + common.Bytes2Hex(*signature),
 	}
 
+	if t.logger.GetLevel() <= zerolog.DebugLevel {
+		data, err := json.MarshalIndent(requestData, "", "  ")
+		if err != nil {
+			t.logger.Err(err).Msg("Failed to marshal request data to JSON")
+		} else {
+			t.logger.Debug().
+				Str("request_data", string(data)).
+				Msg("Request data for SendSignedOperation")
+		}
+	}
+
 	resp, err := t.cvnClient.PostOperationsWithResponse(ctx, requestData)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to send signed operation")
 		return err
 	}
 
+	responseState := resp.HTTPResponse.StatusCode
 	t.logger.Info().
-		Int("status", resp.StatusCode()).
+		Int("status", responseState).
 		Msg("SendSignedOperation result")
 
+	if responseState != 201 {
+		bodyBytes := resp.Body
+		t.logger.Error().
+			Int("status", responseState).
+			Str("body", string(bodyBytes)).
+			Msg("Failed to send signed operation, non-201 response")
+
+		return errors.New("failed to send signed operation, non-201 response")
+	}
 	return nil
 }
