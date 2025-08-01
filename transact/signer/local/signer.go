@@ -1,4 +1,4 @@
-package signer
+package local
 
 import (
 	"crypto/ecdsa"
@@ -6,17 +6,17 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-type LocalSigner struct {
+type Signer struct {
 	privateKey *ecdsa.PrivateKey
 }
 
-func NewLocalSigner(privateKey *ecdsa.PrivateKey) *LocalSigner {
-	return &LocalSigner{
+func NewSigner(privateKey *ecdsa.PrivateKey) *Signer {
+	return &Signer{
 		privateKey: privateKey,
 	}
 }
 
-func (s *LocalSigner) Sign(hash []byte) ([]byte, error) {
+func (s *Signer) Sign(hash []byte) ([]byte, error) {
 	sig, err := crypto.Sign(hash, s.privateKey)
 	if err != nil {
 		return nil, err
