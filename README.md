@@ -176,7 +176,7 @@ This guide shows you how to use the `events` client to fetch, verify, and decode
 
 #### Step 1: Initialize the `events` client
 
-First, you need an `events.Client`. This requires an existing `client.CVNClient` and a set of `ClientOptions`. The options are critical for defining your security parameters.
+First, you need an `events.Client`. This requires an existing `client.CVNClient` to be supplied with a set of `ClientOptions`. The options are critical for defining your security parameters.
 
 ```go
 import (
@@ -187,13 +187,13 @@ import (
     "github.com/smartcontractkit/cvn-sdk/events"
 )
 
-// create a CVN client pointed to the Chainlink Verifiable Network URL
-cvnClient, _ := client.NewCVNClient(cvnURL)
+// create a CVN client pointed to the Chainlink Verifiable Network URL and with your API key
+cvnClient, _ := client.NewCVNClient(cvnURL, cvnApiKey)
 
 // Create CVN events client with trusted signers
 cvnEventsClient, _ := events.NewClient(
-    cvnClient,
     &events.ClientOptions{
+		CVNClient: cvnClient,
         MinRequiredSignatures: 3,
 
         // A list of the public addresses of the trusted DON members
@@ -247,7 +247,7 @@ This guide shows you how to use the `transact` client to build an operation, sig
 
 #### Step 1: Initialize the `transact` client
 
-First, create a `transact.Client`. It needs a `client.CVNClient` and the `ChainId` for the network where the operation will be executed.
+First, create a `transact.Client`. It needs a `client.CVNClient` and the `ChainId` to be supplied with a set of `ClientOptions` for the network where the operation will be executed.
 
 ```go
 import (
@@ -258,16 +258,17 @@ import (
     "github.com/smartcontractkit/cvn-sdk/client"
     "github.com/smartcontractkit/cvn-sdk/transact"
     "github.com/smartcontractkit/cvn-sdk/transact/signer"
+    "github.com/smartcontractkit/cvn-sdk/transact/signer/local"
     transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
-// create a CVN client pointed to the Chainlink Verifiable Network URL
-cvnClient, _ := client.NewCVNClient(cvnURL)
+// create a CVN client pointed to the Chainlink Verifiable Network URL and with your API key
+cvnClient, _ := client.NewCVNClient(cvnURL, cvnApiKey)
 
 // Create CVN transact client
 cvnTransactClient, _ = transact.NewClient(
-    cvnClient,
     &transact.ClientOptions{
+		CVNClient: cvnClient,
         ChainId: "1337", // The ID of the target blockchain
     },
 )
@@ -286,7 +287,7 @@ An `Operation` is a wrapper around one or more transactions that you want to exe
 operation := &transactTypes.Operation{
     ID: big.NewInt(time.Now().Unix()), // unique ID for the operation to prevent replay attacks
     Account: accountAddress, // address of the smart account that will perform the operation
-    Transactions: []*transactTypes.Transaction { // list of transactions to be executed atomically by the smart account
+    Transactions: []transactTypes.Transaction { // list of transactions to be executed atomically by the smart account
         {
             To:    target, // address of the contract to call
             Value: big.NewInt(0),
@@ -298,14 +299,14 @@ operation := &transactTypes.Operation{
 
 #### Step 3: Create a signer and sign the `operation`
 
-The library uses a `Signer` interface to sign operations. The `NewLocalSigner` implementation handles signing with a standard ECDSA private key. The `SignOperation` method computes the EIP-712 hash of the operation and signs it.
+The library uses a `Signer` interface to sign operations. The `local.NewSigner` implementation (from the `transact/signer/local` package) handles signing with a standard ECDSA private key. The `SignOperation` method computes the EIP-712 hash of the operation and signs it.
 
 ```go
 // Create a local signer with the private key of an address authorized to sign the operation in the smart account
-operationSigner = signer.NewLocalSigner(privateKey)
+operationSigner = local.NewSigner(privateKey)
 
 // Sign the operation using the local signer
-signature, _ := cvnTransactClient.SignOperation(operation, operationSigner)
+opHash, signature, _ := cvnTransactClient.SignOperation(context.Background(), operation, operationSigner)
 ```
 
 #### Step 4: Send the signed `operation`
@@ -321,7 +322,7 @@ cvnTransactClient.SendSignedOperation(context.Background(), operation, signature
 
 The signing of operations is performed by various implementations of the `Signer` interface. Currently, the library supports signing using a local ECDSA private key, but additional signing methods will be added in the future.
 
-The `NewLocalSigner` implementation handles signing with a standard ECDSA private key, and the `SignOperation` method computes the EIP-712 hash of the operation and signs it with cryptographic precision.
+The `local.NewSigner` implementation handles signing with a standard ECDSA private key, and the `SignOperation` method computes the EIP-712 hash of the operation and signs it with cryptographic precision.
 
 ## Library reference
 
