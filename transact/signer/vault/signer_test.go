@@ -22,16 +22,19 @@ func TestSigner_Sign_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vault.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vault.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -47,16 +50,20 @@ func TestSigner_Sign_Integration(t *testing.T) {
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
-	err = client.Sys().Mount("transit", &api.MountInput{
-		Type: "transit",
-	})
+	err = client.Sys().Mount(
+		"transit", &api.MountInput{
+			Type: "transit",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create RSA key for signing
 	keyName := "test-rsa-key"
-	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", keyName), map[string]interface{}{
-		"type": "rsa-2048",
-	})
+	_, err = client.Logical().Write(
+		fmt.Sprintf("transit/keys/%s", keyName), map[string]interface{}{
+			"type": "rsa-2048",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create our TransitSigner
@@ -73,7 +80,7 @@ func TestSigner_Sign_Integration(t *testing.T) {
 	hash := sha256.Sum256(testData)
 
 	// Test signing
-	signature, err := signer.Sign(hash[:])
+	signature, err := signer.Sign(context.Background(), hash[:])
 	require.NoError(t, err)
 	require.NotEmpty(t, signature)
 
@@ -96,7 +103,7 @@ func TestSigner_Sign_Integration(t *testing.T) {
 
 	// Test that we can sign the same data multiple times and get different signatures
 	// (RSA with PKCS#1 v1.5 padding should produce deterministic signatures, but JWS might add randomness)
-	signature2, err := signer.Sign(hash[:])
+	signature2, err := signer.Sign(context.Background(), hash[:])
 	require.NoError(t, err)
 	require.NotEmpty(t, signature2)
 
@@ -112,16 +119,19 @@ func TestSigner_Sign_WithECDSA(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vault.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vault.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -137,16 +147,20 @@ func TestSigner_Sign_WithECDSA(t *testing.T) {
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
-	err = client.Sys().Mount("transit", &api.MountInput{
-		Type: "transit",
-	})
+	err = client.Sys().Mount(
+		"transit", &api.MountInput{
+			Type: "transit",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create ECDSA key for signing (more similar to Ethereum usage, but still not secp256k1)
 	keyName := "test-ecdsa-key"
-	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", keyName), map[string]interface{}{
-		"type": "ecdsa-p256",
-	})
+	_, err = client.Logical().Write(
+		fmt.Sprintf("transit/keys/%s", keyName), map[string]interface{}{
+			"type": "ecdsa-p256",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create our Signer
@@ -163,7 +177,7 @@ func TestSigner_Sign_WithECDSA(t *testing.T) {
 	hash := sha256.Sum256(testData)
 
 	// Test signing
-	signature, err := signer.Sign(hash[:])
+	signature, err := signer.Sign(context.Background(), hash[:])
 	require.NoError(t, err)
 	require.NotEmpty(t, signature)
 
@@ -192,16 +206,19 @@ func TestSigner_Public(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vault.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vault.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -217,16 +234,20 @@ func TestSigner_Public(t *testing.T) {
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
-	err = client.Sys().Mount("transit", &api.MountInput{
-		Type: "transit",
-	})
+	err = client.Sys().Mount(
+		"transit", &api.MountInput{
+			Type: "transit",
+		},
+	)
 	require.NoError(t, err)
 
 	// Test with RSA key
 	rsaKeyName := "test-rsa-public-key"
-	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", rsaKeyName), map[string]interface{}{
-		"type": "rsa-2048",
-	})
+	_, err = client.Logical().Write(
+		fmt.Sprintf("transit/keys/%s", rsaKeyName), map[string]interface{}{
+			"type": "rsa-2048",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create signer for RSA key
@@ -246,9 +267,11 @@ func TestSigner_Public(t *testing.T) {
 
 	// Test with ECDSA key
 	ecdsaKeyName := "test-ecdsa-public-key"
-	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", ecdsaKeyName), map[string]interface{}{
-		"type": "ecdsa-p256",
-	})
+	_, err = client.Logical().Write(
+		fmt.Sprintf("transit/keys/%s", ecdsaKeyName), map[string]interface{}{
+			"type": "ecdsa-p256",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create signer for ECDSA key
@@ -274,16 +297,19 @@ func TestSigner_CreateKey(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vault.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vault.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -299,9 +325,11 @@ func TestSigner_CreateKey(t *testing.T) {
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
-	err = client.Sys().Mount("transit", &api.MountInput{
-		Type: "transit",
-	})
+	err = client.Sys().Mount(
+		"transit", &api.MountInput{
+			Type: "transit",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create a signer (we need this to create keys)
@@ -368,16 +396,19 @@ func TestSigner_GetRSAModulus(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vault.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vault.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -393,16 +424,20 @@ func TestSigner_GetRSAModulus(t *testing.T) {
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
-	err = client.Sys().Mount("transit", &api.MountInput{
-		Type: "transit",
-	})
+	err = client.Sys().Mount(
+		"transit", &api.MountInput{
+			Type: "transit",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create RSA key manually
 	rsaKeyName := "test-modulus-rsa-key"
-	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", rsaKeyName), map[string]interface{}{
-		"type": "rsa-2048",
-	})
+	_, err = client.Logical().Write(
+		fmt.Sprintf("transit/keys/%s", rsaKeyName), map[string]interface{}{
+			"type": "rsa-2048",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create signer for the RSA key
@@ -430,9 +465,11 @@ func TestSigner_GetRSAModulus(t *testing.T) {
 
 	// Test with ECDSA key (should fail)
 	ecdsaKeyName := "test-modulus-ecdsa-key"
-	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", ecdsaKeyName), map[string]interface{}{
-		"type": "ecdsa-p256",
-	})
+	_, err = client.Logical().Write(
+		fmt.Sprintf("transit/keys/%s", ecdsaKeyName), map[string]interface{}{
+			"type": "ecdsa-p256",
+		},
+	)
 	require.NoError(t, err)
 
 	ecdsaSigner, err := NewSigner(vaultURL, "myroot", "transit", ecdsaKeyName)
@@ -448,16 +485,19 @@ func TestCreateKeyInVault(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vault.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vault.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -473,9 +513,11 @@ func TestCreateKeyInVault(t *testing.T) {
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
-	err = client.Sys().Mount("transit", &api.MountInput{
-		Type: "transit",
-	})
+	err = client.Sys().Mount(
+		"transit", &api.MountInput{
+			Type: "transit",
+		},
+	)
 	require.NoError(t, err)
 
 	// Test the convenience function
@@ -500,16 +542,19 @@ func TestSigner_CreateKey_ErrorCases(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vault.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vault.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -525,9 +570,11 @@ func TestSigner_CreateKey_ErrorCases(t *testing.T) {
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
-	err = client.Sys().Mount("transit", &api.MountInput{
-		Type: "transit",
-	})
+	err = client.Sys().Mount(
+		"transit", &api.MountInput{
+			Type: "transit",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create signer
@@ -559,16 +606,19 @@ func TestSigner_InvalidKey(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vault.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vault.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -584,9 +634,11 @@ func TestSigner_InvalidKey(t *testing.T) {
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
-	err = client.Sys().Mount("transit", &api.MountInput{
-		Type: "transit",
-	})
+	err = client.Sys().Mount(
+		"transit", &api.MountInput{
+			Type: "transit",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create our TransitSigner with a non-existent key
@@ -603,7 +655,7 @@ func TestSigner_InvalidKey(t *testing.T) {
 	hash := sha256.Sum256(testData)
 
 	// Test signing should fail
-	signature, err := signer.Sign(hash[:])
+	signature, err := signer.Sign(context.Background(), hash[:])
 	require.Error(t, err)
 	require.Empty(t, signature)
 	require.Contains(t, err.Error(), "vault sign failed")
@@ -613,16 +665,19 @@ func TestSigner_InvalidToken(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vault.Run(ctx,
+	vaultContainer, err := vault.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vault.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -645,7 +700,7 @@ func TestSigner_InvalidToken(t *testing.T) {
 	hash := sha256.Sum256(testData)
 
 	// Test signing should fail due to auth
-	signature, err := signer.Sign(hash[:])
+	signature, err := signer.Sign(context.Background(), hash[:])
 	require.Error(t, err)
 	require.Empty(t, signature)
 	require.Contains(t, err.Error(), "vault sign failed")

@@ -63,7 +63,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 //   - destinationChainSelector: The selector for the destination chain.
 //   - message: The message to be sent via CCIP, containing token amounts and other data.
 func (s *Service) PrepareCcipSendOperation(
-	destinationChainSelector uint64, message routerclient.ClientEVM2AnyMessage,
+	destinationChainSelector uint64, message *routerclient.ClientEVM2AnyMessage,
 ) (*transactTypes.Operation, error) {
 
 	erc20Abi, err := erc20.Erc20MetaData.GetAbi()
@@ -87,7 +87,7 @@ func (s *Service) PrepareCcipSendOperation(
 	ccipRouter := common.HexToAddress(s.ccipRouterAddress)
 	account := common.HexToAddress(s.accountAddress)
 
-	var transactions []*transactTypes.Transaction
+	var transactions []transactTypes.Transaction
 
 	if s.includeTokenApprovals && len(message.TokenAmounts) > 0 {
 		// If the message contains token amounts, we need to approve tokens to the CCIP router
@@ -99,8 +99,8 @@ func (s *Service) PrepareCcipSendOperation(
 			}
 
 			transactions = append(
-				transactions, &transactTypes.Transaction{
-					To:    &destTokenAmount.Token,
+				transactions, transactTypes.Transaction{
+					To:    destTokenAmount.Token,
 					Value: big.NewInt(0),
 					Data:  approveCalldata,
 				},
@@ -109,8 +109,8 @@ func (s *Service) PrepareCcipSendOperation(
 	}
 
 	transactions = append(
-		transactions, &transactTypes.Transaction{
-			To:    &ccipRouter,
+		transactions, transactTypes.Transaction{
+			To:    ccipRouter,
 			Value: big.NewInt(0),
 			Data:  ccipSendCalldata,
 		},
@@ -118,7 +118,7 @@ func (s *Service) PrepareCcipSendOperation(
 
 	return &transactTypes.Operation{
 		ID:           big.NewInt(time.Now().Unix()),
-		Account:      &account,
+		Account:      account,
 		Transactions: transactions,
 	}, nil
 }

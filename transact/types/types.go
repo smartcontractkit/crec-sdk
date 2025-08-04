@@ -16,9 +16,9 @@ const (
 )
 
 type Transaction struct {
-	To    *common.Address `json:"to"`
-	Value *big.Int        `json:"value,string"`
-	Data  hexutil.Bytes   `json:"data"`
+	To    common.Address `json:"to"`
+	Value *big.Int       `json:"value,string"`
+	Data  hexutil.Bytes  `json:"data"`
 }
 
 func (tx *Transaction) EIP712Type() string {
@@ -42,9 +42,9 @@ func (tx *Transaction) EIP712Message() apitypes.TypedDataMessage {
 }
 
 type Operation struct {
-	ID           *big.Int        `json:"id"`
-	Account      *common.Address `json:"account"`
-	Transactions []*Transaction  `json:"transactions"`
+	ID           *big.Int       `json:"id"`
+	Account      common.Address `json:"account"`
+	Transactions []Transaction  `json:"transactions"`
 }
 
 func (op *Operation) EIP712Type() string {
@@ -92,10 +92,10 @@ func (op *Operation) TypedData(chainId uint64) (*apitypes.TypedData, error) {
 }
 
 type EIP712Domain struct {
-	Name              string          `json:"name"`
-	Version           string          `json:"version"`
-	ChainId           *big.Int        `json:"chainId"`
-	VerifyingContract *common.Address `json:"verifyingContract"`
+	Name              string         `json:"name"`
+	Version           string         `json:"version"`
+	ChainId           *big.Int       `json:"chainId"`
+	VerifyingContract common.Address `json:"verifyingContract"`
 }
 
 func (d *EIP712Domain) Type() string {
@@ -122,7 +122,7 @@ func (d *EIP712Domain) TypedData() apitypes.TypedDataDomain {
 	return domain
 }
 
-func SignatureVerifyingAccountEIP712Domain(chainId uint64, account *common.Address) *EIP712Domain {
+func SignatureVerifyingAccountEIP712Domain(chainId uint64, account common.Address) *EIP712Domain {
 	return &EIP712Domain{
 		Name:              EIP712DomainName,
 		Version:           EIP712DomainVersion,
