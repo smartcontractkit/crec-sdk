@@ -1,26 +1,17 @@
-name: Go Unit Test
-
-on:
-  - push
-  - pull_request
+name: Go
+on: [push]
 
 jobs:
-  ci-test-go:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-      actions: read
+
     steps:
-      - name: ci-test-go
-        uses: smartcontractkit/.github/actions/ci-test-go@ci-test-go/1.0.0
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          # aws inputs
-          aws-region: ${{ secrets.AWS_REGION }}
-          # gati inputs
-          use-gati: true
-          aws-role-arn-gati: ${{ secrets.AWS_ROLE_ARN_GATI }}
-          aws-lambda-url-gati: ${{ secrets.AWS_LAMBDA_URL_GATI }}
-          # go inputs
-          go-test-cmd: go test ./...
-          use-go-cache: true
+          go-version: '1.24'
+      - name: Install dependencies
+        run: go get .
+      - name: Test with the Go CLI
+        run: go test ./...
