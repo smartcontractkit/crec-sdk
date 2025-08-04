@@ -24,11 +24,13 @@ const (
 // ClientOptions holds the configuration options for the CVN events client.
 // It includes options for logging, event retrieval, and signature verification.
 //   - Logger: Optional logger instance.
+//   - CVNClient: A client instance for interacting with the CVN system.
 //   - EventsAfter: Unix timestamp to start retrieving events from. Defaults to current time if not set.
 //   - MinRequiredSignatures: Minimum number of valid signatures required to verify an event.
 //   - ValidSigners: List of signer addresses that are authorized verified event signers.
 type ClientOptions struct {
 	Logger                *zerolog.Logger
+	CVNClient             *client.ClientWithResponses
 	EventsAfter           int64
 	MinRequiredSignatures int
 	ValidSigners          []string
@@ -49,12 +51,12 @@ type Client struct {
 // If the CVN client or options are nil, it returns an error.
 //   - cvnClient: A valid CVN client instance.
 //   - opts: Options for configuring the CVN events client, see ClientOptions for details.
-func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Client, error) {
-	if cvnClient == nil {
-		return nil, errors.New("a valid CVN client must be provided")
-	}
+func NewClient(opts *ClientOptions) (*Client, error) {
 	if opts == nil {
 		return nil, errors.New("options must be provided")
+	}
+	if opts.CVNClient == nil {
+		return nil, errors.New("a valid CVNClient must be provided")
 	}
 
 	logger := opts.Logger
@@ -71,7 +73,7 @@ func NewClient(cvnClient *client.ClientWithResponses, opts *ClientOptions) (*Cli
 	}
 
 	return &Client{
-		cvnClient:             cvnClient,
+		cvnClient:             opts.CVNClient,
 		logger:                logger,
 		eventsAfter:           eventsAfter,
 		minRequiredSignatures: opts.MinRequiredSignatures,

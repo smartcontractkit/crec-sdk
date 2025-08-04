@@ -4,133 +4,66 @@
   "type": "object",
   "properties": {
     "SettlementOpened": {
-      "type": "object",
-      "description": "Emitted when a new settlement has been opened by a seller.",
-      "properties": {
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the event was created"
-        },
-        "event": {
-          "$ref": "#/$defs/dvpEvent"
-        },
-        "transaction": {
-          "$ref": "#/$defs/transaction"
-        },
-        "metadata": {
-          "$ref": "#/$defs/metadata"
-        }
-      }
+      "$ref": "#/$defs/dvpEvent",
+      "description": "Emitted when a new settlement has been opened by a seller."
     },
     "SettlementAccepted": {
-      "type": "object",
-      "description": "Emitted when a a settlement has accepted by the buyer.",
-      "properties": {
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the event was created"
-        },
-        "event": {
-          "$ref": "#/$defs/dvpEvent"
-        },
-        "transaction": {
-          "$ref": "#/$defs/transaction"
-        },
-        "metadata": {
-          "$ref": "#/$defs/metadata"
-        }
-      }
+      "$ref": "#/$defs/dvpEvent",
+      "description": "Emitted when a a settlement has accepted by the buyer."
     },
     "SettlementClosing": {
-      "type": "object",
-      "description": "Emitted when a settlement is in the final phase of closing.",
-      "properties": {
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the event was created"
-        },
-        "event": {
-          "$ref": "#/$defs/dvpEvent"
-        },
-        "transaction": {
-          "$ref": "#/$defs/transaction"
-        },
-        "metadata": {
-          "$ref": "#/$defs/metadata"
-        }
-      }
+      "$ref": "#/$defs/dvpEvent",
+      "description": "Emitted when a settlement is in the final phase of closing."
     },
     "SettlementSettled": {
-      "type": "object",
-      "description": "Emitted when a settlement has completed and is now settled.",
-      "properties": {
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the event was created"
-        },
-        "event": {
-          "$ref": "#/$defs/dvpEvent"
-        },
-        "transaction": {
-          "$ref": "#/$defs/transaction"
-        },
-        "metadata": {
-          "$ref": "#/$defs/metadata"
-        }
-      }
+      "$ref": "#/$defs/dvpEvent",
+      "description": "Emitted when a settlement has completed and is now settled."
     },
     "SettlementCanceling": {
-      "type": "object",
-      "description": "Emitted when a settlement has requested to be canceled by one of the parties.",
-      "properties": {
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the event was created"
-        },
-        "event": {
-          "$ref": "#/$defs/dvpEvent"
-        },
-        "transaction": {
-          "$ref": "#/$defs/transaction"
-        },
-        "metadata": {
-          "$ref": "#/$defs/metadata"
-        }
-      }
+      "$ref": "#/$defs/dvpEvent",
+      "description": "Emitted when a settlement has requested to be canceled by one of the parties."
     },
     "SettlementCanceled": {
-      "type": "object",
-      "description": "Emitted when a settlement has completely been canceled.",
-      "properties": {
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the event was created"
-        },
-        "event": {
-          "$ref": "#/$defs/dvpEvent"
-        },
-        "transaction": {
-          "$ref": "#/$defs/transaction"
-        },
-        "metadata": {
-          "$ref": "#/$defs/metadata"
-        }
-      }
+      "$ref": "#/$defs/dvpEvent",
+      "description": "Emitted when a settlement has completely been canceled."
     }
   },
   "$defs": {
     "dvpEvent": {
       "type": "object",
       "properties": {
-        "type": {
+        "created_at": {
           "type": "string",
-          "description": "The type of the event"
+          "format": "date-time",
+          "description": "The timestamp when the event was created"
+        },
+        "event": {
+          "$ref": "#/$defs/evmEvent"
+        },
+        "parameters": {
+          "$ref": "#/$defs/dvpEventParameters"
+        },
+        "transaction": {
+          "$ref": "#/$defs/transaction"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      },
+      "required": [
+        "created_at",
+        "event",
+        "parameters",
+        "transaction",
+        "metadata"
+      ]
+    },
+    "evmEvent": {
+      "type": "object",
+      "properties": {
+        "service": {
+          "type": "string",
+          "description": "The service type of the event"
         },
         "name": {
           "type": "string",
@@ -140,26 +73,38 @@
           "type": "string",
           "description": "The address of the contract that emitted the event"
         },
-        "settlementId": {
-          "type": "string",
-          "description": "Unique settlement ID, represented as a big integer in string format"
-        },
-        "settlementHash": {
-          "type": "string",
-          "description": "The hash of the settlement"
-        },
-        "topicHash": {
+        "topic_hash": {
           "type": "string",
           "description": "The topic hash of the event"
+        },
+        "log_index": {
+          "type": "integer",
+          "description": "The log index of the event"
         }
       },
       "required": [
-        "type",
+        "service",
         "name",
         "address",
-        "settlementId",
-        "settlementHash",
-        "topicHash"
+        "topic_hash",
+        "log_index"
+      ]
+    },
+    "dvpEventParameters": {
+      "type": "object",
+      "properties": {
+        "settlement_id": {
+          "type": "string",
+          "description": "Unique settlement ID, represented as a big integer in string format"
+        },
+        "settlement_hash": {
+          "type": "string",
+          "description": "The hash of the settlement"
+        }
+      },
+      "required": [
+        "settlement_id",
+        "settlement_hash"
       ]
     },
     "transaction": {
@@ -169,7 +114,7 @@
           "type": "integer",
           "description": "The unix timestamp of the transaction"
         },
-        "chainId": {
+        "chain_id": {
           "type": "string",
           "description": "The chain ID for the transaction"
         },
@@ -180,7 +125,7 @@
       },
       "required": [
         "timestamp",
-        "chainId",
+        "chain_id",
         "hash"
       ]
     },
@@ -195,20 +140,20 @@
     "dvpSettlement": {
       "type": "object",
       "properties": {
-        "partyInfo": {
+        "party_info": {
           "$ref": "#/$defs/dvpSettlementPartyInfo"
         },
-        "tokenInfo": {
+        "token_info": {
           "$ref": "#/$defs/dvpSettlementTokenInfo"
         },
-        "deliveryInfo": {
+        "delivery_info": {
           "$ref": "#/$defs/dvpSettlementDeliveryInfo"
         },
-        "secretHash": {
+        "secret_hash": {
           "type": "string",
           "description": "32-byte hex string"
         },
-        "executeAfter": {
+        "execute_after": {
           "type": "integer",
           "description": "The unix timestamp after which the settlement can be executed"
         },
@@ -216,7 +161,7 @@
           "type": "integer",
           "description": "The unix timestamp after which the settlement expires"
         },
-        "ccipCallbackGasLimit": {
+        "ccip_callback_gas_limit": {
           "type": "integer",
           "description": "The gas limit for the CCIP callback"
         },
@@ -226,107 +171,107 @@
         }
       },
       "required": [
-        "partyInfo",
-        "tokenInfo",
-        "deliveryInfo",
-        "secretHash",
-        "executeAfter",
+        "party_info",
+        "token_info",
+        "delivery_info",
+        "secret_hash",
+        "execute_after",
         "expiration",
-        "ccipCallbackGasLimit",
+        "ccip_callback_gas_limit",
         "data"
       ]
     },
     "dvpSettlementPartyInfo": {
       "type": "object",
       "properties": {
-        "buyerSourceAddress": {
+        "buyer_source_address": {
           "type": "string"
         },
-        "buyerDestinationAddress": {
+        "buyer_destination_address": {
           "type": "string"
         },
-        "sellerSourceAddress": {
+        "seller_source_address": {
           "type": "string"
         },
-        "sellerDestinationAddress": {
+        "seller_destination_address": {
           "type": "string"
         },
-        "executorAddress": {
+        "executor_address": {
           "type": "string"
         }
       },
       "required": [
-        "buyerSourceAddress",
-        "buyerDestinationAddress",
-        "sellerSourceAddress",
-        "sellerDestinationAddress",
-        "executorAddress"
+        "buyer_source_address",
+        "buyer_destination_address",
+        "seller_source_address",
+        "seller_destination_address",
+        "executor_address"
       ]
     },
     "dvpSettlementTokenInfo": {
       "type": "object",
       "properties": {
-        "paymentTokenSourceAddress": {
+        "payment_token_source_address": {
           "type": "string"
         },
-        "paymentTokenDestinationAddress": {
+        "payment_token_destination_address": {
           "type": "string"
         },
-        "assetTokenSourceAddress": {
+        "asset_token_source_address": {
           "type": "string"
         },
-        "assetTokenDestinationAddress": {
+        "asset_token_destination_address": {
           "type": "string"
         },
-        "paymentCurrency": {
+        "payment_currency": {
           "type": "integer"
         },
-        "paymentTokenAmount": {
+        "payment_token_amount": {
           "type": "string"
         },
-        "assetTokenAmount": {
+        "asset_token_amount": {
           "type": "string"
         },
-        "paymentTokenType": {
+        "payment_token_type": {
           "type": "integer"
         },
-        "assetTokenType": {
+        "asset_token_type": {
           "type": "integer"
         }
       },
       "required": [
-        "paymentTokenSourceAddress",
-        "paymentTokenDestinationAddress",
-        "assetTokenSourceAddress",
-        "assetTokenDestinationAddress",
-        "paymentCurrency",
-        "paymentTokenAmount",
-        "assetTokenAmount",
-        "paymentTokenType",
-        "assetTokenType"
+        "payment_token_source_address",
+        "payment_token_destination_address",
+        "asset_token_source_address",
+        "asset_token_destination_address",
+        "payment_currency",
+        "payment_token_amount",
+        "asset_token_amount",
+        "payment_token_type",
+        "asset_token_type"
       ]
     },
     "dvpSettlementDeliveryInfo": {
       "type": "object",
       "properties": {
-        "paymentSourceChainSelector": {
+        "payment_source_chain_selector": {
           "type": "string"
         },
-        "paymentDestinationChainSelector": {
+        "payment_destination_chain_selector": {
           "type": "string"
         },
-        "assetSourceChainSelector": {
+        "asset_source_chain_selector": {
           "type": "string"
         },
-        "assetDestinationChainSelector": {
+        "asset_destination_chain_selector": {
           "type": "string"
         }
       },
       "required": [
-        "paymentSourceChainSelector",
-        "paymentDestinationChainSelector",
-        "assetSourceChainSelector",
-        "assetDestinationChainSelector"
+        "payment_source_chain_selector",
+        "payment_destination_chain_selector",
+        "asset_source_chain_selector",
+        "asset_destination_chain_selector"
       ]
     }
   }

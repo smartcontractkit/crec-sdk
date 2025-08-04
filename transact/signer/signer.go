@@ -1,5 +1,7 @@
 package signer
 
+import "context"
+
 type Signer interface {
-	Sign(hash []byte) ([]byte, error)
+	Sign(ctx context.Context, hash []byte) ([]byte, error)
 }
