@@ -88,7 +88,7 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 // It returns a slice of events that were created after the last read timestamp or the configured eventsAfter timestamp.
 // If no events are found, it returns an empty slice.
 //   - ctx: Context for the request, used for cancellation and timeouts.
-func (c *Client) GetEvents(ctx context.Context) (*[]client.Event, error) {
+func (c *Client) GetEvents(ctx context.Context) ([]client.Event, error) {
 	c.logger.Debug().Msg("Getting events from CVN")
 
 	eventsAfter := c.lastReadTimestamp
@@ -137,7 +137,7 @@ func (c *Client) GetEvents(ctx context.Context) (*[]client.Event, error) {
 		c.lastReadEventId = eventList[len(eventList)-1].EventId
 	}
 
-	return &resp.JSON200.Data, nil
+	return resp.JSON200.Data, nil
 }
 
 // Reset resets the internal state of the CVN events client.
