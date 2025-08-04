@@ -47,10 +47,10 @@ func TestHashOperation(t *testing.T) {
 
 	operation := &types.Operation{
 		ID:      big.NewInt(1),
-		Account: &account,
-		Transactions: []*types.Transaction{
+		Account: account,
+		Transactions: []types.Transaction{
 			{
-				To:    &to,
+				To:    to,
 				Value: big.NewInt(0),
 				Data:  []byte(""),
 			},
@@ -63,7 +63,7 @@ func TestHashOperation(t *testing.T) {
 	}
 
 	// check for pre-computed hash for the operation based on the above to/account
-	require.Equal(t, "cd4308149652087bf9621b30e3d7781c475abb327b12b4e257966e88fa4a1ada", hash.Hex())
+	require.Equal(t, "0xcd4308149652087bf9621b30e3d7781c475abb327b12b4e257966e88fa4a1ada", hash.Hex())
 }
 
 func TestSignOperation(t *testing.T) {
@@ -87,10 +87,10 @@ func TestSignOperation(t *testing.T) {
 
 	operation := &types.Operation{
 		ID:      big.NewInt(1),
-		Account: &account,
-		Transactions: []*types.Transaction{
+		Account: account,
+		Transactions: []types.Transaction{
 			{
-				To:    &to,
+				To:    to,
 				Value: big.NewInt(0),
 				Data:  []byte(""),
 			},
@@ -101,8 +101,13 @@ func TestSignOperation(t *testing.T) {
 	require.NoError(t, err)
 
 	localSigner := local.NewSigner(privateKey)
-	sig, err := transact.SignOperation(operation, localSigner)
+	opHash, sig, err := transact.SignOperation(context.Background(), operation, localSigner)
 	require.NoError(t, err)
+
+	// check for pre-computed signature for the operation based on the above to/account and private key
+	require.Equal(
+		t, "0xcd4308149652087bf9621b30e3d7781c475abb327b12b4e257966e88fa4a1ada", opHash.Hex(),
+	)
 
 	// check for pre-computed signature for the operation based on the above to/account and private key
 	require.Equal(
@@ -116,16 +121,19 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Vault container
-	vaultContainer, err := vaultcontainer.Run(ctx,
+	vaultContainer, err := vaultcontainer.Run(
+		ctx,
 		"hashicorp/vault:1.13.3",
 		vaultcontainer.WithToken("myroot"),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	})
+	t.Cleanup(
+		func() {
+			if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+				t.Logf("failed to terminate container: %s", err)
+			}
+		},
+	)
 
 	// Get container connection info
 	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
@@ -141,16 +149,20 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	vaultClient.SetToken("myroot")
 
 	// Enable transit secrets engine
-	err = vaultClient.Sys().Mount("transit", &api.MountInput{
-		Type: "transit",
-	})
+	err = vaultClient.Sys().Mount(
+		"transit", &api.MountInput{
+			Type: "transit",
+		},
+	)
 	require.NoError(t, err)
 
 	// Create RSA key for signing
 	keyName := "test-bank-rsa-key"
-	_, err = vaultClient.Logical().Write(fmt.Sprintf("transit/keys/%s", keyName), map[string]interface{}{
-		"type": "rsa-2048",
-	})
+	_, err = vaultClient.Logical().Write(
+		fmt.Sprintf("transit/keys/%s", keyName), map[string]interface{}{
+			"type": "rsa-2048",
+		},
+	)
 	require.NoError(t, err)
 
 	// Set up the same test scenario as TestSignOperation
@@ -167,19 +179,19 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	}
 
 	transact, err := NewClient(
-		c,
 		&ClientOptions{
-			ChainId: chainId,
+			CVNClient: c,
+			ChainId:   chainId,
 		},
 	)
 	require.NoError(t, err)
 
 	operation := &types.Operation{
 		ID:      big.NewInt(1),
-		Account: &account,
-		Transactions: []*types.Transaction{
+		Account: account,
+		Transactions: []types.Transaction{
 			{
-				To:    &to,
+				To:    to,
 				Value: big.NewInt(0),
 				Data:  []byte(""),
 			},
@@ -196,7 +208,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test signing the operation
-	sig, err := transact.SignOperation(operation, vaultSigner)
+	_, sig, err := transact.SignOperation(context.Background(), operation, vaultSigner)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig)
 
@@ -221,16 +233,16 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the signature using the public key
-	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, operationHash, sig, nil)
+	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, operationHash.Bytes(), sig, nil)
 	require.NoError(t, err, "Vault signature should be valid")
 
 	// Test that we can sign the same operation multiple times
-	sig2, err := transact.SignOperation(operation, vaultSigner)
+	opHash, sig2, err := transact.SignOperation(context.Background(), operation, vaultSigner)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig2)
 
 	// Verify the second signature as well
-	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, operationHash, sig2, nil)
+	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, opHash.Bytes(), sig2, nil)
 	require.NoError(t, err, "Second Vault signature should also be valid")
 
 	// Signatures might be different due to RSA-PSS randomness
