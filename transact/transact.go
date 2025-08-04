@@ -58,27 +58,28 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 
 // HashOperation computes the EIP-712 digest of the given operation.
 //   - op: The operation to hash.
-func (t *Client) HashOperation(op *types.Operation) (*common.Hash, error) {
+func (t *Client) HashOperation(op *types.Operation) (common.Hash, error) {
 	chainIdInt, err := strconv.ParseUint(t.chainId, 10, 64)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to parse chain ID")
-		return nil, err
+		return common.Hash{}, err
 	}
 	typedData, err := op.TypedData(chainIdInt)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to create typed data for operation")
-		return nil, err
+		return common.Hash{}, err
 	}
 	hashBytes, _, err := apitypes.TypedDataAndHash(*typedData)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to compute operation hash")
-		return nil, err
+		return common.Hash{}, err
 	}
 	hash := common.BytesToHash(hashBytes)
-	return &hash, err
+	return hash, err
 }
 
-// SignOperation signs the given operation using the provided signer, returning the signature.
+// SignOperation signs the given operation using the provided signer, returning the operation hash and the signature
+// over the hash.
 //   - ctx: The context for the request.
 //   - op: The operation to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
@@ -86,23 +87,23 @@ func (t *Client) SignOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signer signer.Signer,
-) (*[]byte, error) {
+) (common.Hash, []byte, error) {
 	hash, err := t.HashOperation(op)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to hash operation for signing")
-		return nil, err
+		return common.Hash{}, nil, err
 	}
 	sig, err := signer.Sign(ctx, hash.Bytes())
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to sign operation")
-		return nil, err
+		return common.Hash{}, nil, err
 	}
 	t.logger.Debug().
 		Str("operation_id", op.ID.String()).
 		Str("hash", hash.Hex()).
 		Str("signature", common.Bytes2Hex(sig)).
 		Msg("Signed Operation")
-	return &sig, nil
+	return hash, sig, nil
 }
 
 // SignOperationHash signs the given operation hash using the provided signer, returning the signature.
@@ -111,7 +112,7 @@ func (t *Client) SignOperation(
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
 func (t *Client) SignOperationHash(
 	ctx context.Context,
-	opHash *common.Hash,
+	opHash common.Hash,
 	signer signer.Signer,
 ) ([]byte, error) {
 	sig, err := signer.Sign(ctx, opHash.Bytes())
@@ -133,7 +134,7 @@ func (t *Client) SignOperationHash(
 func (t *Client) SendSignedOperation(
 	ctx context.Context,
 	op *types.Operation,
-	signature *[]byte,
+	signature []byte,
 ) error {
 	if t.cvnClient == nil {
 		return errors.New("no CVNClient provided, cannot send signed operations")
@@ -142,7 +143,7 @@ func (t *Client) SendSignedOperation(
 	t.logger.Info().
 		Str("chain_id", t.chainId).
 		Str("operation_id", op.ID.String()).
-		Str("signature", common.Bytes2Hex(*signature)).
+		Str("signature", common.Bytes2Hex(signature)).
 		Msg("Sending signed operation")
 
 	var transactions []client.TransactionRequest
@@ -161,7 +162,7 @@ func (t *Client) SendSignedOperation(
 		ChainId:            t.chainId,
 		Account:            op.Account.String(),
 		Transactions:       transactions,
-		Signature:          "0x" + common.Bytes2Hex(*signature),
+		Signature:          "0x" + common.Bytes2Hex(signature),
 	}
 
 	if t.logger.GetLevel() <= zerolog.DebugLevel {
