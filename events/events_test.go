@@ -36,9 +36,9 @@ func TestReadEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read event: %v", err)
 	}
-	require.Equal(t, 3, len(*eventList)) // must match the number of events in mockdata
+	require.Equal(t, 3, len(eventList)) // must match the number of events in mockdata
 
-	event := (*eventList)[0]
+	event := (eventList)[0]
 	require.Equal(t, "dvp", event.Service)             // must match the service in the first mockdata event
 	require.Equal(t, "SettlementAccepted", event.Name) // must match the name in the first mockdata event
 }

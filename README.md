@@ -226,7 +226,7 @@ For each event in the list, you must perform two crucial actions:
 2.  **Decode():** Once verified, this method unpacks the event's data into a Go struct you define, making it easy to work with.
 
 ```go
-for _, event := range *eventList {
+for _, event := range eventList {
     // Verify the event's authenticity and integrity
     verified, _ := cvnEventsClient.Verify(event)
     if verified {
