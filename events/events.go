@@ -85,34 +85,10 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 }
 
 // GetEvents retrieves events from the CVN service.
-// It returns a slice of events that were created after the last read timestamp or the configured eventsAfter timestamp.
-// If no events are found, it returns an empty slice.
 //   - ctx: Context for the request, used for cancellation and timeouts.
-func (c *Client) GetEvents(ctx context.Context) ([]client.Event, error) {
+//   - params: parameters for filtering events, see client.GetEventsParams for details.
+func (c *Client) GetEvents(ctx context.Context, params *client.GetEventsParams) ([]client.Event, error) {
 	c.logger.Debug().Msg("Getting events from CVN")
-
-	eventsAfter := c.lastReadTimestamp
-	if eventsAfter == 0 {
-		eventsAfter = c.eventsAfter
-	}
-
-	params := &client.GetEventsParams{
-		CreatedGt: &eventsAfter,
-	}
-	if c.lastReadEventId != uuid.Nil {
-		params.StartingAfter = &c.lastReadEventId
-	}
-
-	if c.logger.GetLevel() <= zerolog.DebugLevel {
-		reqParams, err := json.Marshal(params)
-		if err != nil {
-			c.logger.Error().Err(err).Msg("Failed to marshal request parameters")
-			return nil, err
-		}
-		c.logger.Debug().
-			RawJSON("params", reqParams).
-			Msg("Getting events from CVN")
-	}
 
 	resp, err := c.cvnClient.GetEventsWithResponse(ctx, params)
 
@@ -129,12 +105,6 @@ func (c *Client) GetEvents(ctx context.Context) ([]client.Event, error) {
 	if resp.JSON200 == nil || resp.JSON200.Data == nil {
 		c.logger.Warn().Msg("No events found in response from CVN")
 		return nil, nil
-	}
-
-	var eventList = resp.JSON200.Data
-	if len(eventList) > 0 {
-		c.lastReadTimestamp = eventList[len(eventList)-1].CreatedAt
-		c.lastReadEventId = eventList[len(eventList)-1].EventId
 	}
 
 	return resp.JSON200.Data, nil
@@ -263,11 +233,7 @@ func (c *Client) EventHash(event *client.Event) common.Hash {
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listener: The listener to create. See client.CreateListener for details on required fields.
 func (c *Client) CreateListener(ctx context.Context, listener *client.CreateListener) (*client.Listener, error) {
-	c.logger.Debug().
-		Str("listener_name", listener.Name).
-		Str("listener_service", listener.Service).
-		Str("listener_chain_id", listener.ChainId).
-		Msg("Creating listener")
+	c.logger.Debug().Msg("Creating listener on CVN")
 
 	resp, err := c.cvnClient.PostListenersWithResponse(ctx, *listener)
 	if err != nil {
@@ -287,9 +253,7 @@ func (c *Client) CreateListener(ctx context.Context, listener *client.CreateList
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listenerId: The UUID of the listener to retrieve.
 func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*client.Listener, error) {
-	c.logger.Debug().
-		Str("listener_id", listenerId.String()).
-		Msg("Getting listener")
+	c.logger.Debug().Msg("Getting listener")
 
 	resp, err := c.cvnClient.GetListenersListenerIdWithResponse(ctx, listenerId)
 	if err != nil {
@@ -308,6 +272,32 @@ func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*client
 	}
 
 	return resp.JSON200, nil
+}
+
+// GetListeners retrieves a list of listeners from the CVN service.
+//   - ctx: Context for the request, used for cancellation and timeouts.
+func (c *Client) GetListeners(ctx context.Context, params *client.GetListenersParams) ([]client.Listener, error) {
+	c.logger.Debug().Msg("Getting listeners from CVN")
+
+	resp, err := c.cvnClient.GetListenersWithResponse(ctx, params)
+	if err != nil {
+		c.logger.Error().Err(err).Msg("Failed to get listeners from CVN")
+		return nil, err
+	}
+
+	if resp.StatusCode() != 200 {
+		c.logger.Error().Int(
+			"status", resp.StatusCode(),
+		).Msg("Failed to get listeners from CVN, unexpected status code")
+		return nil, fmt.Errorf("failed to get listeners from CVN, unexpected status code: %d", resp.StatusCode())
+	}
+
+	if resp.JSON200 == nil || resp.JSON200.Data == nil {
+		c.logger.Warn().Msg("No listeners found in response from CVN")
+		return nil, nil
+	}
+
+	return resp.JSON200.Data, nil
 }
 
 // DeleteListener deletes a listener by its ID from the CVN service.
