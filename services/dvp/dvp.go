@@ -36,6 +36,15 @@ const (
 	SettlementSettled   = "SettlementSettled"
 )
 
+const (
+	SettlementStatusNew = iota
+	SettlementStatusOpen
+	SettlementStatusAccepted
+	SettlementStatusClosing
+	SettlementStatusSettled
+	SettlementStatusCanceled
+)
+
 // ServiceOptions defines the options for creating a new CVN DvP service.
 //   - Logger: Optional logger instance.
 //   - DvpCoordinatorAddress: A string representing the address of the DvP coordinator contract.

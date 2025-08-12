@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
@@ -197,4 +199,55 @@ func (t *Client) SendSignedOperation(
 		return errors.New("failed to send signed operation, non-201 response")
 	}
 	return nil
+}
+
+// GetOperation retrieves an operation by its ID from the CVN service.
+//   - ctx: Context for the request, used for cancellation and timeouts.
+//   - operationId: The UUID of the operation to retrieve.
+func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*client.Operation, error) {
+	t.logger.Debug().Msg("Getting operation")
+
+	resp, err := t.cvnClient.GetOperationsOperationIdWithResponse(ctx, operationId)
+	if err != nil {
+		t.logger.Error().Err(err).Msg("Failed to get operation")
+		return nil, err
+	}
+
+	if resp.StatusCode() == 404 {
+		t.logger.Debug().
+			Str("operation_id", operationId.String()).
+			Msg("Operation not found")
+		return nil, nil
+	} else if resp.StatusCode() != 200 {
+		t.logger.Error().Err(err).Msg("Failed to get operation")
+		return nil, errors.New("failed to get operation, unexpected status code: " + resp.Status())
+	}
+
+	return resp.JSON200, nil
+}
+
+// GetOperations retrieves a list of operations from the CVN service.
+//   - ctx: Context for the request, used for cancellation and timeouts.
+func (t *Client) GetOperations(ctx context.Context, params *client.GetOperationsParams) ([]client.Operation, error) {
+	t.logger.Debug().Msg("Getting operations from CVN")
+
+	resp, err := t.cvnClient.GetOperationsWithResponse(ctx, params)
+	if err != nil {
+		t.logger.Error().Err(err).Msg("Failed to get operations from CVN")
+		return nil, err
+	}
+
+	if resp.StatusCode() != 200 {
+		t.logger.Error().Int(
+			"status", resp.StatusCode(),
+		).Msg("Failed to get operations from CVN, unexpected status code")
+		return nil, fmt.Errorf("failed to get operations from CVN, unexpected status code: %d", resp.StatusCode())
+	}
+
+	if resp.JSON200 == nil || resp.JSON200.Data == nil {
+		t.logger.Warn().Msg("No operations found in response from CVN")
+		return nil, nil
+	}
+
+	return resp.JSON200.Data, nil
 }

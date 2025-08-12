@@ -32,7 +32,7 @@ func TestReadEvent(t *testing.T) {
 		t.Fatalf("failed to create event reader: %v", err)
 	}
 
-	eventList, err := r.GetEvents(ctx)
+	eventList, err := r.GetEvents(ctx, nil)
 	if err != nil {
 		t.Fatalf("failed to read event: %v", err)
 	}
