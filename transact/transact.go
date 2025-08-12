@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -250,4 +252,42 @@ func (t *Client) GetOperations(ctx context.Context, params *client.GetOperations
 	}
 
 	return resp.JSON200.Data, nil
+}
+
+func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer.Signer, executorAccount common.Address, txs []types.Transaction) error {
+	operation := &types.Operation{
+		ID:           big.NewInt(time.Now().Unix()),
+		Account:      executorAccount,
+		Transactions: txs,
+	}
+
+	return t.ExecuteOperation(ctx, operationSigner, operation)
+}
+
+func (t *Client) ExecuteOperation(ctx context.Context, operationSigner signer.Signer, operation *types.Operation) error {
+	_, sig, err := t.SignOperation(ctx, operation, operationSigner)
+	if err != nil {
+		t.logger.Error().
+			Err(err).
+			Str("operationID", operation.ID.String()).
+			Str("account", operation.Account.Hex()).
+			Msg("ExecuteOperation: failed to sign operation")
+		return fmt.Errorf("signing operation %s for account %s failed: %w", operation.ID.String(), operation.Account.Hex(), err)
+	}
+
+	err = t.SendSignedOperation(ctx, operation, sig)
+	if err != nil {
+		t.logger.Error().
+			Err(err).
+			Str("operationID", operation.ID.String()).
+			Str("account", operation.Account.Hex()).
+			Msg("ExecuteOperation: failed to send signed operation")
+		return fmt.Errorf("sending signed operation %s for account %s failed: %w", operation.ID.String(), operation.Account.Hex(), err)
+	}
+
+	t.logger.Info().
+		Str("operationID", operation.ID.String()).
+		Str("account", operation.Account.Hex()).
+		Msg("ExecuteOperation: operation sent successfully")
+	return nil
 }
