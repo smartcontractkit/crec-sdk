@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
-	"github.com/smartcontractkit/cvn-sdk/internal/mockdata"
-	"github.com/smartcontractkit/cvn-sdk/internal/mockserver"
+	"github.com/smartcontractkit/cvn-sdk/testmocks/mockdata"
+	"github.com/smartcontractkit/cvn-sdk/testmocks/mockserver"
 )
 
 func TestReadEvent(t *testing.T) {

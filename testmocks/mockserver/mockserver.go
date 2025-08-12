@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"github.com/smartcontractkit/cvn-sdk/internal/mockdata"
-	"github.com/smartcontractkit/cvn-sdk/internal/mockserver/api"
+	"github.com/smartcontractkit/cvn-sdk/testmocks/mockdata"
+	"github.com/smartcontractkit/cvn-sdk/testmocks/mockserver/api"
 )
 
 type MockServer struct {
@@ -132,7 +132,7 @@ func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params ap
 }
 
 func (s *MockServer) PostOperations(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (s *MockServer) GetOperations(w http.ResponseWriter, r *http.Request, params api.GetOperationsParams) {

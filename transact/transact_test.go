@@ -17,7 +17,7 @@ import (
 	vaultcontainer "github.com/testcontainers/testcontainers-go/modules/vault"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
-	"github.com/smartcontractkit/cvn-sdk/internal/mockserver"
+	"github.com/smartcontractkit/cvn-sdk/testmocks/mockserver"
 	"github.com/smartcontractkit/cvn-sdk/transact/signer/local"
 	"github.com/smartcontractkit/cvn-sdk/transact/signer/vault"
 	"github.com/smartcontractkit/cvn-sdk/transact/types"
