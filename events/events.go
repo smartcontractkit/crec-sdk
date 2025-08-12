@@ -229,7 +229,7 @@ func (c *Client) CreateListener(ctx context.Context, listener *client.CreateList
 	}
 
 	if resp.StatusCode() != 201 {
-		return nil, fmt.Errorf("failed to create listener, unexpected status code: " + resp.Status())
+		return nil, fmt.Errorf("failed to create listener, unexpected status code: %s", resp.Status())
 	}
 
 	return resp.JSON201, nil
@@ -250,7 +250,7 @@ func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*client
 	if resp.StatusCode() == 404 {
 		return nil, nil
 	} else if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get listener, unexpected status code: " + resp.Status())
+		return nil, fmt.Errorf("failed to get listener, unexpected status code: %s", resp.Status())
 	}
 
 	return resp.JSON200, nil
@@ -291,7 +291,7 @@ func (c *Client) DeleteListener(ctx context.Context, listenerId uuid.UUID) error
 	}
 
 	if resp.StatusCode() != 202 {
-		return fmt.Errorf("failed to delete listener, unexpected status code: " + resp.Status())
+		return fmt.Errorf("failed to delete listener, unexpected status code: %s", resp.Status())
 	}
 
 	return nil

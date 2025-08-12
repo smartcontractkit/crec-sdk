@@ -182,7 +182,7 @@ func (t *Client) SendSignedOperation(
 		Msg("SendSignedOperation result")
 
 	if responseState != 201 {
-		return fmt.Errorf("failed to send signed operation, non-201 response received: " + resp.HTTPResponse.Status)
+		return fmt.Errorf("failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status)
 	}
 	return nil
 }
@@ -201,7 +201,7 @@ func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*clie
 	if resp.StatusCode() == 404 {
 		return nil, nil
 	} else if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get operation, unexpected status code: " + resp.Status())
+		return nil, fmt.Errorf("failed to get operation, unexpected status code: %s", resp.Status())
 	}
 
 	return resp.JSON200, nil
