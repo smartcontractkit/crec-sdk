@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"testing"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +21,7 @@ type MockServer struct {
 
 var _ api.ServerInterface = (*MockServer)(nil)
 
-func NewMockServer(t *testing.T) *MockServer {
+func NewMockServer() *MockServer {
 	s := &MockServer{
 		eventsFile: "event_list.json",
 	}
@@ -30,9 +29,6 @@ func NewMockServer(t *testing.T) *MockServer {
 	h := api.HandlerFromMux(s, r)
 
 	s.TestServer = httptest.NewServer(h)
-
-	t.Logf("Mock server started at URL: %s", s.TestServer.URL)
-
 	return s
 }
 

@@ -14,7 +14,8 @@ import (
 func TestReadEvent(t *testing.T) {
 	ctx := context.Background()
 
-	mockServer := mockserver.NewMockServer(t)
+	mockServer := mockserver.NewMockServer()
+	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
 	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")
@@ -47,7 +48,8 @@ func TestVerifyEvent(t *testing.T) {
 	event, err := mockdata.LoadMockEvent("valid_event.json")
 	require.NoError(t, err)
 
-	mockServer := mockserver.NewMockServer(t)
+	mockServer := mockserver.NewMockServer()
+	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
 	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")
@@ -75,7 +77,8 @@ func TestVerifyEvent(t *testing.T) {
 func TestCreateListener(t *testing.T) {
 	ctx := context.Background()
 
-	mockServer := mockserver.NewMockServer(t)
+	mockServer := mockserver.NewMockServer()
+	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
 	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")

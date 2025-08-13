@@ -29,7 +29,8 @@ func TestHashOperation(t *testing.T) {
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
-	mockServer := mockserver.NewMockServer(t)
+	mockServer := mockserver.NewMockServer()
+	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
 	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")
@@ -170,7 +171,8 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
-	mockServer := mockserver.NewMockServer(t)
+	mockServer := mockserver.NewMockServer()
+	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
 	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")
