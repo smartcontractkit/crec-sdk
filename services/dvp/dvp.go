@@ -2,7 +2,7 @@ package dvp
 
 import (
 	"encoding/base64"
-	"errors"
+	"fmt"
 	"math/big"
 	"os"
 
@@ -66,7 +66,7 @@ type Service struct {
 //   - opts: Options for configuring the CVN DvP service, see ServiceOptions for details.
 func NewService(opts *ServiceOptions) (*Service, error) {
 	if opts == nil {
-		return nil, errors.New("options must be provided")
+		return nil, fmt.Errorf("ServiceOptions is required")
 	}
 
 	logger := opts.Logger
@@ -75,7 +75,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 		logger = &lgr
 	}
 
-	logger.Info().Msg("Creating CVN DvP service")
+	logger.Debug().Msg("Creating CVN DvP service")
 
 	return &Service{
 		logger:                logger,
@@ -90,13 +90,13 @@ func (s *Service) DecodeDvpEvent(event *client.Event) (
 ) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode event: %w", err)
 	}
 
 	var dvpEvent events.DvpEvent
 	err = dvpEvent.UnmarshalJSON(jsonBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal event json: %w", err)
 	}
 
 	return &dvpEvent, nil
@@ -110,20 +110,21 @@ func (s *Service) PrepareProposeSettlementOperation(settlement *contract.Settlem
 ) {
 	settlementHash, err := s.HashSettlement(settlement)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to hash settlement")
-		return nil, err
+		return nil, fmt.Errorf("failed to hash settlement: %w", err)
 	}
+
+	s.logger.Trace().
+		Str("settlementHash", settlementHash.Hex()).
+		Msg("Preparing proposeSettlement operation")
 
 	abiEncoder, err := contract.ContractMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
-		return nil, err
+		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
 	}
 
 	calldata, err := abiEncoder.Pack("proposeSettlement", settlement)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to pack calldata for proposeSettlement")
-		return nil, err
+		return nil, fmt.Errorf("failed to pack calldata for proposeSettlement: %w", err)
 	}
 
 	return &transactTypes.Operation{
@@ -147,28 +148,28 @@ func (s *Service) PrepareProposeSettlementWithTokenApprovalOperation(settlement 
 ) {
 	settlementHash, err := s.HashSettlement(settlement)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to hash settlement")
-		return nil, err
+		return nil, fmt.Errorf("failed to hash settlement: %w", err)
 	}
+
+	s.logger.Trace().
+		Str("settlementHash", settlementHash.Hex()).
+		Msg("Preparing proposeSettlement with token approval operation")
 
 	approveTransaction, err := s.prepareTokenApproveTransaction(
 		settlement.TokenInfo.AssetTokenSourceAddress, settlement.TokenInfo.AssetTokenAmount,
 	)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to prepare approve transaction")
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare approve transaction: %w", err)
 	}
 
 	abiEncoder, err := contract.ContractMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
-		return nil, err
+		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
 	}
 
 	calldata, err := abiEncoder.Pack("proposeSettlement", settlement)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to pack calldata for proposeSettlement")
-		return nil, err
+		return nil, fmt.Errorf("failed to pack calldata for proposeSettlement: %w", err)
 	}
 
 	return &transactTypes.Operation{
@@ -195,15 +196,17 @@ func (s *Service) PrepareProposeSettlementWithTokenHoldOperation(
 	*transactTypes.Operation, error,
 ) {
 	if settlement.TokenInfo.AssetTokenType != TokenTypeERC3643 {
-		s.logger.Error().Msg("Token hold is only supported for ERC3643 asset tokens")
-		return nil, errors.New("token hold is only supported for ERC3643 asset tokens")
+		return nil, fmt.Errorf("token hold is only supported for ERC3643 asset tokens")
 	}
 
 	settlementHash, err := s.HashSettlement(settlement)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to hash settlement")
-		return nil, err
+		return nil, fmt.Errorf("failed to hash settlement: %w", err)
 	}
+
+	s.logger.Trace().
+		Str("settlementHash", settlementHash.Hex()).
+		Msg("Preparing proposeSettlement with token hold operation")
 
 	holdTransaction, err := s.prepareTokenHoldTransaction(
 		holdManagerAddress,
@@ -214,20 +217,17 @@ func (s *Service) PrepareProposeSettlementWithTokenHoldOperation(
 		settlement.TokenInfo.AssetTokenAmount,
 	)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to prepare hold transaction")
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare hold transaction: %w", err)
 	}
 
 	abiEncoder, err := contract.ContractMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
-		return nil, err
+		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
 	}
 
 	calldata, err := abiEncoder.Pack("proposeSettlement", settlement)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to pack calldata for proposeSettlement")
-		return nil, err
+		return nil, fmt.Errorf("failed to pack calldata for proposeSettlement: %w", err)
 	}
 
 	return &transactTypes.Operation{
@@ -248,17 +248,18 @@ func (s *Service) PrepareProposeSettlementWithTokenHoldOperation(
 // It constructs the necessary transaction to accept a settlement based on its hash.
 //   - settlementHash: The hash of the settlement to be accepted.
 func (s *Service) PrepareAcceptSettlementOperation(settlementHash common.Hash) (*transactTypes.Operation, error) {
+	s.logger.Trace().
+		Str("settlementHash", settlementHash.Hex()).
+		Msg("Preparing acceptSettlement operation")
 
 	abiEncoder, err := contract.ContractMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
-		return nil, err
+		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
 	}
 
 	calldata, err := abiEncoder.Pack("acceptSettlement", settlementHash)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to pack calldata for acceptSettlement")
-		return nil, err
+		return nil, fmt.Errorf("failed to pack calldata for acceptSettlement: %w", err)
 	}
 
 	return &transactTypes.Operation{
@@ -278,17 +279,18 @@ func (s *Service) PrepareAcceptSettlementOperation(settlementHash common.Hash) (
 // It constructs the necessary transaction to execute a settlement based on its hash.
 //   - settlementHash: The hash of the settlement to be executed.
 func (s *Service) PrepareExecuteSettlementOperation(settlementHash common.Hash) (*transactTypes.Operation, error) {
+	s.logger.Trace().
+		Str("settlementHash", settlementHash.Hex()).
+		Msg("Preparing executeSettlement operation")
 
 	abiEncoder, err := contract.ContractMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
-		return nil, err
+		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
 	}
 
 	calldata, err := abiEncoder.Pack("executeSettlement", settlementHash)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to pack calldata for executeSettlement")
-		return nil, err
+		return nil, fmt.Errorf("failed to pack calldata for executeSettlement: %w", err)
 	}
 
 	return &transactTypes.Operation{
@@ -330,8 +332,7 @@ func (s *Service) HashSettlement(settlement *contract.Settlement) (common.Hash, 
 		settlement.PartyInfo.ExecutorAddress,
 	)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to pack party info data")
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("failed to pack party info data: %w", err)
 	}
 
 	tokenInfoArgs := abi.Arguments{
@@ -355,8 +356,7 @@ func (s *Service) HashSettlement(settlement *contract.Settlement) (common.Hash, 
 		settlement.TokenInfo.AssetTokenType,
 	)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to pack token info data")
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("failed to pack token info data: %w", err)
 	}
 
 	deliveryInfoArgs := abi.Arguments{
@@ -372,8 +372,7 @@ func (s *Service) HashSettlement(settlement *contract.Settlement) (common.Hash, 
 		settlement.DeliveryInfo.AssetDestinationChainSelector,
 	)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to pack delivery info data")
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("failed to pack delivery info data: %w", err)
 	}
 
 	partyInfoHash := crypto.Keccak256Hash(partyInfoData)
@@ -401,8 +400,7 @@ func (s *Service) HashSettlement(settlement *contract.Settlement) (common.Hash, 
 		settlement.Data,
 	)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to pack settlement info data")
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("failed to pack settlement info data: %w", err)
 	}
 
 	return crypto.Keccak256Hash(settlementInfoData), nil
@@ -412,8 +410,7 @@ func (s *Service) HashSettlement(settlement *contract.Settlement) (common.Hash, 
 func (s *Service) toJson(event *client.Event) ([]byte, error) {
 	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to decode base64 payload")
-		return []byte{}, err
+		return []byte{}, fmt.Errorf("failed to decode base64 payload: %w", err)
 	}
 	return decodedStr, nil
 }
@@ -423,14 +420,12 @@ func (s *Service) prepareTokenApproveTransaction(
 ) (*transactTypes.Transaction, error) {
 	erc20Abi, err := erc20.Erc20MetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to get ERC20 ABI")
-		return nil, err
+		return nil, fmt.Errorf("failed to get ERC20 ABI: %w", err)
 	}
 
 	calldata, err := erc20Abi.Pack("approve", s.dvpCoordinatorAddress, tokenAmount)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to pack calldata for token approve")
-		return nil, err
+		return nil, fmt.Errorf("failed to pack calldata for token approve: %w", err)
 	}
 
 	return &transactTypes.Transaction{
@@ -446,8 +441,7 @@ func (s *Service) prepareTokenHoldTransaction(
 ) (*transactTypes.Transaction, error) {
 	holdmanagerAbi, err := holdmanager.HoldmanagerMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to get HoldManager ABI")
-		return nil, err
+		return nil, fmt.Errorf("failed to get HoldManager ABI: %w", err)
 	}
 
 	hold := holdmanager.IHoldManagerHold{
@@ -461,8 +455,7 @@ func (s *Service) prepareTokenHoldTransaction(
 
 	calldata, err := holdmanagerAbi.Pack("createHold", holdId, hold)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to pack calldata for token hold")
-		return nil, err
+		return nil, fmt.Errorf("failed to pack calldata for token hold: %w", err)
 	}
 
 	return &transactTypes.Transaction{

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -53,10 +52,10 @@ type Client struct {
 //   - opts: Options for configuring the CVN events client, see ClientOptions for details.
 func NewClient(opts *ClientOptions) (*Client, error) {
 	if opts == nil {
-		return nil, errors.New("options must be provided")
+		return nil, fmt.Errorf("ClientOptions is required")
 	}
 	if opts.CVNClient == nil {
-		return nil, errors.New("a valid CVNClient must be provided")
+		return nil, fmt.Errorf("a valid CVNClient must be provided")
 	}
 
 	logger := opts.Logger
@@ -65,7 +64,7 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 		logger = &lgr
 	}
 
-	logger.Info().Msg("Creating CVN events client")
+	logger.Debug().Msg("Creating CVN events client")
 
 	eventsAfter := opts.EventsAfter
 	if eventsAfter == 0 {
@@ -88,23 +87,20 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - params: parameters for filtering events, see client.GetEventsParams for details.
 func (c *Client) GetEvents(ctx context.Context, params *client.GetEventsParams) ([]client.Event, error) {
-	c.logger.Debug().Msg("Getting events from CVN")
+	c.logger.Trace().Msg("Getting events from CVN")
 
 	resp, err := c.cvnClient.GetEventsWithResponse(ctx, params)
 
 	if err != nil {
-		c.logger.Error().Err(err).Msg("Failed to get events from CVN")
-		return nil, err
+		return nil, fmt.Errorf("failed to get events from CVN: %w", err)
 	}
 
 	if resp.StatusCode() != 200 {
-		c.logger.Error().Int("status", resp.StatusCode()).Msg("Failed to get events from CVN, unexpected status code")
 		return nil, fmt.Errorf("failed to get events from CVN, unexpected status code: %d", resp.StatusCode())
 	}
 
-	if resp.JSON200 == nil || resp.JSON200.Data == nil {
-		c.logger.Warn().Msg("No events found in response from CVN")
-		return nil, nil
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("invalid events response from CVN")
 	}
 
 	return resp.JSON200.Data, nil
@@ -113,7 +109,7 @@ func (c *Client) GetEvents(ctx context.Context, params *client.GetEventsParams) 
 // Reset resets the internal state of the CVN events client.
 // It clears the last read timestamp and event ID, allowing the client to start reading events from scratch.
 func (c *Client) Reset() {
-	c.logger.Info().Msg("Resetting event reader state")
+	c.logger.Debug().Msg("Resetting event reader state")
 	c.lastReadTimestamp = 0
 	c.lastReadEventId = uuid.Nil
 }
@@ -122,7 +118,7 @@ func (c *Client) Reset() {
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
 func (c *Client) Verify(event *client.Event) (bool, error) {
-	c.logger.Debug().
+	c.logger.Trace().
 		Str("event_service", event.Service).
 		Str("event_name", event.Name).
 		Str("ocr_report", event.OcrReport).
@@ -131,18 +127,15 @@ func (c *Client) Verify(event *client.Event) (bool, error) {
 
 	ocrReport, err := common.ParseHexOrString(event.OcrReport)
 	if err != nil {
-		c.logger.Error().Err(err).Msg("Failed to parse OCR report")
-		return false, err
+		return false, fmt.Errorf("failed to parse OCR report: %w", err)
 	}
 	ocrContext, err := common.ParseHexOrString(event.OcrContext)
 	if err != nil {
-		c.logger.Error().Err(err).Msg("Failed to parse OCR context")
-		return false, err
+		return false, fmt.Errorf("failed to parse OCR context: %w", err)
 	}
 
 	if len(ocrReport) < ocrReportPayloadOffset+32 { // 32 bytes for event hash
-		c.logger.Error().Msg("OCR report is too short")
-		return false, err
+		return false, fmt.Errorf("OCR report is too short")
 	}
 
 	// compute the event hash from the event data
@@ -151,8 +144,7 @@ func (c *Client) Verify(event *client.Event) (bool, error) {
 	// ensure locally computed event hash matches the one in the report
 	eventHashValid := c.verifyEventHash(ocrReport, eventHash)
 	if !eventHashValid {
-		c.logger.Error().Err(err).Msg("Failed to verify event hash")
-		return false, err
+		return false, fmt.Errorf("failed to verify event hash")
 	}
 
 	// generate the report hash matching the DON signing format
@@ -167,26 +159,24 @@ func (c *Client) Verify(event *client.Event) (bool, error) {
 	for _, sig := range event.Signatures {
 		sigBytes, err := common.ParseHexOrString(sig)
 		if err != nil {
-			c.logger.Error().Err(err).Msg("Failed to parse signature")
-			return false, err
+			return false, fmt.Errorf("failed to parse signature: %w", err)
 		}
 		if sigBytes[64] == 27 || sigBytes[64] == 28 {
 			sigBytes[64] -= 27 // Adjust signature for Ethereum signatures
 		}
 		pubKey, err := crypto.SigToPub(reportHash.Bytes(), sigBytes)
 		if err != nil {
-			c.logger.Error().Err(err).Msg("Failed to recover public key from signature")
-			return false, err
+			return false, fmt.Errorf("failed to recover public key from signature")
 		}
 
 		signer := crypto.PubkeyToAddress(*pubKey)
-		c.logger.Debug().
+		c.logger.Trace().
 			Str("signer", signer.Hex()).
 			Str("signature", sig).
 			Msg("Recovered signer from signature")
 
 		if availableSigners[signer] {
-			c.logger.Info().Str("signer", signer.Hex()).Msg("Signature verified successfully")
+			c.logger.Debug().Str("signer", signer.Hex()).Msg("Signature verified successfully")
 			validSigCount++
 			availableSigners[signer] = false // Mark this signer as used
 		}
@@ -207,8 +197,7 @@ func (c *Client) Verify(event *client.Event) (bool, error) {
 func (c *Client) Decode(event *client.Event, payload any) error {
 	jsonBytes, err := c.ToJson(event)
 	if err != nil {
-		c.logger.Error().Err(err).Msg("Failed to convert verifiable event to JSON")
-		return err
+		return fmt.Errorf("failed to convert verifiable event to JSON: %w", err)
 	}
 	return json.Unmarshal(jsonBytes, payload)
 }
@@ -218,8 +207,7 @@ func (c *Client) Decode(event *client.Event, payload any) error {
 func (c *Client) ToJson(event *client.Event) ([]byte, error) {
 	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {
-		c.logger.Error().Err(err).Msg("Failed to decode base64 payload")
-		return []byte{}, err
+		return []byte{}, fmt.Errorf("failed to decode base64 payload: %w", err)
 	}
 	return decodedStr, nil
 }
@@ -237,13 +225,11 @@ func (c *Client) CreateListener(ctx context.Context, listener *client.CreateList
 
 	resp, err := c.cvnClient.PostListenersWithResponse(ctx, *listener)
 	if err != nil {
-		c.logger.Error().Err(err).Msg("Failed to create listener")
-		return nil, err
+		return nil, fmt.Errorf("failed to create listener: %w", err)
 	}
 
 	if resp.StatusCode() != 201 {
-		c.logger.Error().Err(err).Msg("Failed to create listener")
-		return nil, errors.New("failed to create listener, unexpected status code: " + resp.Status())
+		return nil, fmt.Errorf("failed to create listener, unexpected status code: %s", resp.Status())
 	}
 
 	return resp.JSON201, nil
@@ -253,7 +239,7 @@ func (c *Client) CreateListener(ctx context.Context, listener *client.CreateList
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listenerId: The UUID of the listener to retrieve.
 func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*client.Listener, error) {
-	c.logger.Debug().Msg("Getting listener")
+	c.logger.Trace().Msg("Getting listener")
 
 	resp, err := c.cvnClient.GetListenersListenerIdWithResponse(ctx, listenerId)
 	if err != nil {
@@ -262,13 +248,9 @@ func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*client
 	}
 
 	if resp.StatusCode() == 404 {
-		c.logger.Debug().
-			Str("listener_id", listenerId.String()).
-			Msg("Listener not found")
 		return nil, nil
 	} else if resp.StatusCode() != 200 {
-		c.logger.Error().Err(err).Msg("Failed to get listener")
-		return nil, errors.New("failed to get listener, unexpected status code: " + resp.Status())
+		return nil, fmt.Errorf("failed to get listener, unexpected status code: %s", resp.Status())
 	}
 
 	return resp.JSON200, nil
@@ -281,20 +263,15 @@ func (c *Client) GetListeners(ctx context.Context, params *client.GetListenersPa
 
 	resp, err := c.cvnClient.GetListenersWithResponse(ctx, params)
 	if err != nil {
-		c.logger.Error().Err(err).Msg("Failed to get listeners from CVN")
-		return nil, err
+		return nil, fmt.Errorf("failed to get listeners from CVN: %w", err)
 	}
 
 	if resp.StatusCode() != 200 {
-		c.logger.Error().Int(
-			"status", resp.StatusCode(),
-		).Msg("Failed to get listeners from CVN, unexpected status code")
 		return nil, fmt.Errorf("failed to get listeners from CVN, unexpected status code: %d", resp.StatusCode())
 	}
 
-	if resp.JSON200 == nil || resp.JSON200.Data == nil {
-		c.logger.Warn().Msg("No listeners found in response from CVN")
-		return nil, nil
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("invalid listeners response from CVN")
 	}
 
 	return resp.JSON200.Data, nil
@@ -310,13 +287,11 @@ func (c *Client) DeleteListener(ctx context.Context, listenerId uuid.UUID) error
 
 	resp, err := c.cvnClient.DeleteListenersListenerIdWithResponse(ctx, listenerId)
 	if err != nil {
-		c.logger.Error().Err(err).Msg("Failed to delete listener")
-		return err
+		return fmt.Errorf("failed to delete listener: %w", err)
 	}
 
 	if resp.StatusCode() != 202 {
-		c.logger.Error().Err(err).Msg("Failed to delete listener")
-		return errors.New("failed to delete listener, unexpected status code: " + resp.Status())
+		return fmt.Errorf("failed to delete listener, unexpected status code: %s", resp.Status())
 	}
 
 	return nil
@@ -337,7 +312,7 @@ func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash) bool {
 	// payload			      offset 109, size  ... <- event hash
 
 	reportEventHash := common.BytesToHash(ocrReport[ocrReportPayloadOffset:])
-	c.logger.Debug().
+	c.logger.Trace().
 		Str("local_event_hash", eventHash.String()).
 		Str("report_event_hash", reportEventHash.String()).
 		Msg("Comparing event hashes")
