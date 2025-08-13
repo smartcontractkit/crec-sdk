@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -165,7 +164,7 @@ func (t *Client) SendSignedOperation(
 	var requestData = client.CreateOperation{
 		AccountOperationId: op.ID.String(),
 		ChainId:            t.chainId,
-		Account:            strings.ToLower(op.Account.String()),
+		Account:            op.Account.String(),
 		Transactions:       transactions,
 		Signature:          "0x" + common.Bytes2Hex(signature),
 	}
