@@ -1,8 +1,12 @@
 package types
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -80,6 +84,47 @@ type OperationResponse struct {
 	// TransactionHash Onchain transaction hash which included the operation
 	TransactionHash *string       `json:"transaction_hash,omitempty"`
 	Transactions    []Transaction `json:"transactions"`
+}
+
+func UnmarshalOperationResponse(respBody []byte) (*OperationResponse, error) {
+	var rawData map[string]interface{}
+	if err := json.Unmarshal(respBody, &rawData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal raw data: %w", err)
+	}
+
+	// Process transactions to handle the value field
+	if transactions, ok := rawData["transactions"].([]interface{}); ok {
+		for _, txInterface := range transactions {
+			if tx, ok := txInterface.(map[string]interface{}); ok {
+				if valueStr, ok := tx["value"].(string); ok {
+					// Convert string to number for big.Int
+					if valueStr == "0" {
+						tx["value"] = 0
+					} else {
+						if strings.HasPrefix(valueStr, "0x") {
+							if val, err := strconv.ParseInt(valueStr, 0, 64); err == nil {
+								tx["value"] = val
+							}
+						} else if val, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
+							tx["value"] = val
+						}
+					}
+				}
+			}
+		}
+	}
+
+	modifiedJSON, err := json.Marshal(rawData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal modified data: %w", err)
+	}
+
+	var opResp OperationResponse
+	if err := json.Unmarshal(modifiedJSON, &opResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal to OperationResponse: %w", err)
+	}
+
+	return &opResp, nil
 }
 
 func (op *Operation) EIP712Type() string {
