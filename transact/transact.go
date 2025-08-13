@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -139,9 +140,9 @@ func (t *Client) SendSignedOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signature []byte,
-) error {
+) (*types.OperationResponse, error) {
 	if t.cvnClient == nil {
-		return errors.New("no CVNClient provided, cannot send signed operations")
+		return nil, errors.New("no CVNClient provided, cannot send signed operations")
 	}
 
 	t.logger.Info().
@@ -164,7 +165,7 @@ func (t *Client) SendSignedOperation(
 	var requestData = client.CreateOperation{
 		AccountOperationId: op.ID.String(),
 		ChainId:            t.chainId,
-		Account:            op.Account.String(),
+		Account:            strings.ToLower(op.Account.String()),
 		Transactions:       transactions,
 		Signature:          "0x" + common.Bytes2Hex(signature),
 	}
@@ -183,7 +184,7 @@ func (t *Client) SendSignedOperation(
 	resp, err := t.cvnClient.PostOperationsWithResponse(ctx, requestData)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to send signed operation")
-		return err
+		return nil, err
 	}
 
 	responseState := resp.HTTPResponse.StatusCode
@@ -198,9 +199,59 @@ func (t *Client) SendSignedOperation(
 			Str("body", string(bodyBytes)).
 			Msg("Failed to send signed operation, non-201 response")
 
-		return errors.New("failed to send signed operation, non-201 response")
+		return nil, errors.New("failed to send signed operation, non-201 response")
 	}
-	return nil
+
+	t.logger.Debug().Str("raw_response", string(resp.Body)).Msg("OperationResponse JSON")
+
+	opResp, err := parseOperationResponse(resp.Body)
+	if err != nil {
+		t.logger.Error().Err(err).Msg("Failed to parse OperationResponse")
+		return nil, err
+	}
+
+	return opResp, nil
+}
+
+func parseOperationResponse(respBody []byte) (*types.OperationResponse, error) {
+	var rawData map[string]interface{}
+	if err := json.Unmarshal(respBody, &rawData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal raw data: %w", err)
+	}
+
+	// Process transactions to handle the value field
+	if transactions, ok := rawData["transactions"].([]interface{}); ok {
+		for _, txInterface := range transactions {
+			if tx, ok := txInterface.(map[string]interface{}); ok {
+				if valueStr, ok := tx["value"].(string); ok {
+					// Convert string to number for big.Int
+					if valueStr == "0" {
+						tx["value"] = 0
+					} else {
+						if strings.HasPrefix(valueStr, "0x") {
+							if val, err := strconv.ParseInt(valueStr, 0, 64); err == nil {
+								tx["value"] = val
+							}
+						} else if val, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
+							tx["value"] = val
+						}
+					}
+				}
+			}
+		}
+	}
+
+	modifiedJSON, err := json.Marshal(rawData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal modified data: %w", err)
+	}
+
+	var opResp types.OperationResponse
+	if err := json.Unmarshal(modifiedJSON, &opResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal to OperationResponse: %w", err)
+	}
+
+	return &opResp, nil
 }
 
 // GetOperation retrieves an operation by its ID from the CVN service.
@@ -254,7 +305,7 @@ func (t *Client) GetOperations(ctx context.Context, params *client.GetOperations
 	return resp.JSON200.Data, nil
 }
 
-func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer.Signer, executorAccount common.Address, txs []types.Transaction) error {
+func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer.Signer, executorAccount common.Address, txs []types.Transaction) (*types.OperationResponse, error) {
 	operation := &types.Operation{
 		ID:           big.NewInt(time.Now().Unix()),
 		Account:      executorAccount,
@@ -264,7 +315,7 @@ func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer
 	return t.ExecuteOperation(ctx, operationSigner, operation)
 }
 
-func (t *Client) ExecuteOperation(ctx context.Context, operationSigner signer.Signer, operation *types.Operation) error {
+func (t *Client) ExecuteOperation(ctx context.Context, operationSigner signer.Signer, operation *types.Operation) (*types.OperationResponse, error) {
 	_, sig, err := t.SignOperation(ctx, operation, operationSigner)
 	if err != nil {
 		t.logger.Error().
@@ -272,22 +323,22 @@ func (t *Client) ExecuteOperation(ctx context.Context, operationSigner signer.Si
 			Str("operationID", operation.ID.String()).
 			Str("account", operation.Account.Hex()).
 			Msg("ExecuteOperation: failed to sign operation")
-		return fmt.Errorf("signing operation %s for account %s failed: %w", operation.ID.String(), operation.Account.Hex(), err)
+		return nil, fmt.Errorf("signing operation %s for account %s failed: %w", operation.ID.String(), operation.Account.Hex(), err)
 	}
 
-	err = t.SendSignedOperation(ctx, operation, sig)
+	opr, err := t.SendSignedOperation(ctx, operation, sig)
 	if err != nil {
 		t.logger.Error().
 			Err(err).
 			Str("operationID", operation.ID.String()).
 			Str("account", operation.Account.Hex()).
 			Msg("ExecuteOperation: failed to send signed operation")
-		return fmt.Errorf("sending signed operation %s for account %s failed: %w", operation.ID.String(), operation.Account.Hex(), err)
+		return nil, fmt.Errorf("sending signed operation %s for account %s failed: %w", operation.ID.String(), operation.Account.Hex(), err)
 	}
 
 	t.logger.Info().
 		Str("operationID", operation.ID.String()).
 		Str("account", operation.Account.Hex()).
 		Msg("ExecuteOperation: operation sent successfully")
-	return nil
+	return opr, nil
 }

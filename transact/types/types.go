@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+	"github.com/google/uuid"
 )
 
 const (
@@ -45,6 +46,40 @@ type Operation struct {
 	ID           *big.Int       `json:"id"`
 	Account      common.Address `json:"account"`
 	Transactions []Transaction  `json:"transactions"`
+}
+
+// Operation defines model for Operation.
+type OperationResponse struct {
+	// Account Onchain account address performing the operation
+	Account string `json:"account"`
+
+	// AccountId Identifier of the account performing the operation
+	AccountId uuid.UUID `json:"account_id"`
+
+	// AccountOperationId Unique account operation identifier
+	AccountOperationId string `json:"account_operation_id"`
+
+	// ChainId The id that identifies the chain where the account performing the operation lives
+	ChainId string `json:"chain_id"`
+
+	// ConfirmedAt Timestamp of when the operation was confirmed
+	ConfirmedAt *int64 `json:"confirmed_at,omitempty"`
+
+	// CreatedAt Timestamp of when the operation was created
+	CreatedAt int64 `json:"created_at"`
+
+	// OperationId Unique identifier for the operation
+	OperationId uuid.UUID `json:"operation_id"`
+
+	// Signature EIP-712 signature of the operation
+	Signature string `json:"signature"`
+
+	// Status Current status of the operation
+	Status string `json:"status"`
+
+	// TransactionHash Onchain transaction hash which included the operation
+	TransactionHash *string       `json:"transaction_hash,omitempty"`
+	Transactions    []Transaction `json:"transactions"`
 }
 
 func (op *Operation) EIP712Type() string {
