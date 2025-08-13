@@ -128,7 +128,28 @@ func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params ap
 }
 
 func (s *MockServer) PostOperations(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+
+	response := `{
+	"account": "",
+	"account_id": "df72db52-fa74-4dd8-8c53-a9742be70caa",
+	"account_operation_id": "1755036418",
+	"chain_id": "",
+	"created_at": 1755036421,
+	"operation_id": "a47760fc-6eae-456f-84b9-e6e349d13281",
+	"signature": "0xe227e4533ea6198d58d167971f13733239447b0a298416355a226acb07cc2e5c3efff04c41b32a1a2fefdbf5aba4f15312c527be249d19756850e61b269fcecd1c",
+	"status": "pending",
+	"transactions": [
+		{
+			"data": "0x40c10f19000000000000000000000000f32efccd3087563c226ef51c7e659888de78c59c0000000000000000000000000000000000000000000000000000000000087a23",
+			"to": "0x79009066202906e3d1644029d0B6e441370fD865",
+			"value": "0"
+		}
+	]
+}`
+
+	w.Write([]byte(response))
 }
 
 func (s *MockServer) GetOperations(w http.ResponseWriter, r *http.Request, params api.GetOperationsParams) {
