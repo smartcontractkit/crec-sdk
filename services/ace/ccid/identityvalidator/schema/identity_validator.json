@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Identity Validator Events",
+  "description": "Event schemas for the ACE CCID Identity Validator contract",
+  "type": "object",
+  "definitions": {
+    "CredentialRequirementAddedEvent": {
+      "type": "object",
+      "properties": {
+        "requirementId": {
+          "type": "string",
+          "description": "The requirement ID (bytes32)"
+        },
+        "credentialTypeIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of credential type IDs (bytes32[])"
+        },
+        "minValidations": {
+          "type": "string",
+          "description": "Minimum number of validations required (uint256)"
+        }
+      },
+      "required": ["requirementId", "credentialTypeIds", "minValidations"],
+      "additionalProperties": false
+    },
+    "CredentialRequirementRemovedEvent": {
+      "type": "object",
+      "properties": {
+        "requirementId": {
+          "type": "string",
+          "description": "The requirement ID (bytes32)"
+        },
+        "credentialTypeIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of credential type IDs (bytes32[])"
+        },
+        "minValidations": {
+          "type": "string",
+          "description": "Minimum number of validations required (uint256)"
+        }
+      },
+      "required": ["requirementId", "credentialTypeIds", "minValidations"],
+      "additionalProperties": false
+    },
+    "CredentialSourceAddedEvent": {
+      "type": "object",
+      "properties": {
+        "credentialTypeId": {
+          "type": "string",
+          "description": "The credential type ID (bytes32)"
+        },
+        "identityRegistry": {
+          "type": "string",
+          "description": "The identity registry address"
+        },
+        "credentialRegistry": {
+          "type": "string",
+          "description": "The credential registry address"
+        },
+        "dataValidator": {
+          "type": "string",
+          "description": "The data validator address"
+        }
+      },
+      "required": ["credentialTypeId", "identityRegistry", "credentialRegistry", "dataValidator"],
+      "additionalProperties": false
+    },
+    "CredentialSourceRemovedEvent": {
+      "type": "object",
+      "properties": {
+        "credentialTypeId": {
+          "type": "string",
+          "description": "The credential type ID (bytes32)"
+        },
+        "identityRegistry": {
+          "type": "string",
+          "description": "The identity registry address"
+        },
+        "credentialRegistry": {
+          "type": "string",
+          "description": "The credential registry address"
+        },
+        "dataValidator": {
+          "type": "string",
+          "description": "The data validator address"
+        }
+      },
+      "required": ["credentialTypeId", "identityRegistry", "credentialRegistry", "dataValidator"],
+      "additionalProperties": false
+    },
+    "InitializedEvent": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "The version number of the initialization"
+        }
+      },
+      "required": ["version"],
+      "additionalProperties": false
+    },
+    "OwnershipTransferredEvent": {
+      "type": "object",
+      "properties": {
+        "previousOwner": {
+          "type": "string",
+          "description": "The address of the previous owner"
+        },
+        "newOwner": {
+          "type": "string",
+          "description": "The address of the new owner"
+        }
+      },
+      "required": ["previousOwner", "newOwner"],
+      "additionalProperties": false
+    },
+    "IdentityValidatorEvent": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "oneOf": [
+            { "$ref": "#/definitions/CredentialRequirementAddedEvent" },
+            { "$ref": "#/definitions/CredentialRequirementRemovedEvent" },
+            { "$ref": "#/definitions/CredentialSourceAddedEvent" },
+            { "$ref": "#/definitions/CredentialSourceRemovedEvent" },
+            { "$ref": "#/definitions/InitializedEvent" },
+            { "$ref": "#/definitions/OwnershipTransferredEvent" }
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the event was created"
+        }
+      },
+      "required": ["event"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "credentialRequirementAdded": { "$ref": "#/definitions/IdentityValidatorEvent" },
+    "credentialRequirementRemoved": { "$ref": "#/definitions/IdentityValidatorEvent" },
+    "credentialSourceAdded": { "$ref": "#/definitions/IdentityValidatorEvent" },
+    "credentialSourceRemoved": { "$ref": "#/definitions/IdentityValidatorEvent" },
+    "initialized": { "$ref": "#/definitions/IdentityValidatorEvent" },
+    "ownershipTransferred": { "$ref": "#/definitions/IdentityValidatorEvent" }
+  },
+  "additionalProperties": false
+}
