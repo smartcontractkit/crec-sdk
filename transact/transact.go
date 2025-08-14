@@ -139,7 +139,7 @@ func (t *Client) SendSignedOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signature []byte,
-) (*types.OperationResponse, error) {
+) (*client.Operation, error) {
 	if t.cvnClient == nil {
 		return nil, errors.New("no CVNClient provided, cannot send signed operations")
 	}
@@ -203,13 +203,7 @@ func (t *Client) SendSignedOperation(
 
 	t.logger.Debug().Str("raw_response", string(resp.Body)).Msg("OperationResponse JSON")
 
-	opResp, err := types.UnmarshalOperationResponse(resp.Body)
-	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to parse OperationResponse")
-		return nil, err
-	}
-
-	return opResp, nil
+	return resp.JSON201, nil
 }
 
 // GetOperation retrieves an operation by its ID from the CVN service.
@@ -263,7 +257,7 @@ func (t *Client) GetOperations(ctx context.Context, params *client.GetOperations
 	return resp.JSON200.Data, nil
 }
 
-func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer.Signer, executorAccount common.Address, txs []types.Transaction) (*types.OperationResponse, error) {
+func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer.Signer, executorAccount common.Address, txs []types.Transaction) (*client.Operation, error) {
 	operation := &types.Operation{
 		ID:           big.NewInt(time.Now().Unix()),
 		Account:      executorAccount,
@@ -273,25 +267,15 @@ func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer
 	return t.ExecuteOperation(ctx, operationSigner, operation)
 }
 
-func (t *Client) ExecuteOperation(ctx context.Context, operationSigner signer.Signer, operation *types.Operation) (*types.OperationResponse, error) {
+func (t *Client) ExecuteOperation(ctx context.Context, operationSigner signer.Signer, operation *types.Operation) (*client.Operation, error) {
 	_, sig, err := t.SignOperation(ctx, operation, operationSigner)
 	if err != nil {
-		t.logger.Error().
-			Err(err).
-			Str("operationID", operation.ID.String()).
-			Str("account", operation.Account.Hex()).
-			Msg("ExecuteOperation: failed to sign operation")
-		return nil, fmt.Errorf("signing operation %s for account %s failed: %w", operation.ID.String(), operation.Account.Hex(), err)
+		return nil, err
 	}
 
 	opr, err := t.SendSignedOperation(ctx, operation, sig)
 	if err != nil {
-		t.logger.Error().
-			Err(err).
-			Str("operationID", operation.ID.String()).
-			Str("account", operation.Account.Hex()).
-			Msg("ExecuteOperation: failed to send signed operation")
-		return nil, fmt.Errorf("sending signed operation %s for account %s failed: %w", operation.ID.String(), operation.Account.Hex(), err)
+		return nil, err
 	}
 
 	t.logger.Info().
