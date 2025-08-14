@@ -424,10 +424,10 @@ func (s *Service) PrepareRequestSubscriptionOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -459,10 +459,10 @@ func (s *Service) PrepareRequestRedemptionOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -503,17 +503,17 @@ func (s *Service) PrepareRequestSubscriptionWithTokenApprovalOperation(
 	}
 
 	subscriptionTransaction := &transactTypes.Transaction{
-		To:    &s.dtaOpenMarketplaceAddress,
+		To:    s.dtaOpenMarketplaceAddress,
 		Value: big.NewInt(0),
 		Data:  calldata,
 	}
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
-			approveTransaction,
-			subscriptionTransaction,
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
+			*approveTransaction,
+			*subscriptionTransaction,
 		},
 	}, nil
 }
@@ -536,10 +536,10 @@ func (s *Service) PrepareProcessDistributorRequestOperation(requestId [32]byte) 
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -565,10 +565,10 @@ func (s *Service) PrepareCancelDistributorRequestOperation(requestId [32]byte) (
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -598,10 +598,10 @@ func (s *Service) PrepareRegisterDistributorOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -627,10 +627,10 @@ func (s *Service) PrepareRegisterFundAdminOperation(fundAdminAddr common.Address
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -720,10 +720,10 @@ func (s *Service) PrepareRegisterFundTokenOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -753,10 +753,10 @@ func (s *Service) PrepareAllowDistributorForTokenOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -786,10 +786,10 @@ func (s *Service) PrepareDisallowDistributorForTokenOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -815,10 +815,10 @@ func (s *Service) PrepareEnableFundTokenOperation(fundTokenId [32]byte) (*transa
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -844,10 +844,10 @@ func (s *Service) PrepareDisableFundTokenOperation(fundTokenId [32]byte) (*trans
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaOpenMarketplaceAddress,
+				To:    s.dtaOpenMarketplaceAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -885,7 +885,7 @@ func (s *Service) prepareTokenApproveTransaction(
 	}
 
 	return &transactTypes.Transaction{
-		To:    tokenAddress,
+		To:    *tokenAddress,
 		Value: big.NewInt(0),
 		Data:  calldata,
 	}, nil
@@ -930,10 +930,10 @@ func (s *Service) PrepareAllowDTAOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaWalletAddress,
+				To:    s.dtaWalletAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -965,10 +965,10 @@ func (s *Service) PrepareDisallowDTAOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaWalletAddress,
+				To:    s.dtaWalletAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -1000,10 +1000,10 @@ func (s *Service) PrepareWithdrawTokensOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaWalletAddress,
+				To:    s.dtaWalletAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -1029,10 +1029,10 @@ func (s *Service) PrepareTransferWalletOwnershipOperation(newOwner common.Addres
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaWalletAddress,
+				To:    s.dtaWalletAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -1057,10 +1057,10 @@ func (s *Service) PrepareRenounceWalletOwnershipOperation() (*transactTypes.Oper
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaWalletAddress,
+				To:    s.dtaWalletAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -1092,10 +1092,10 @@ func (s *Service) PrepareCompleteRequestProcessingOperation(
 
 	return &transactTypes.Operation{
 		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dtaWalletAddress,
+				To:    s.dtaWalletAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},

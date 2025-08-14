@@ -23,7 +23,8 @@ func TestReadEvent(t *testing.T) {
 	}
 
 	r, err := NewClient(
-		c, &ClientOptions{
+		&ClientOptions{
+			CVNClient:   c,
 			EventsAfter: 0,
 		},
 	)
@@ -35,9 +36,9 @@ func TestReadEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read event: %v", err)
 	}
-	require.Equal(t, 3, len(*eventList)) // must match the number of events in mockdata
+	require.Equal(t, 3, len(eventList)) // must match the number of events in mockdata
 
-	event := (*eventList)[0]
+	event := (eventList)[0]
 	require.Equal(t, "dvp", event.Service)             // must match the service in the first mockdata event
 	require.Equal(t, "SettlementAccepted", event.Name) // must match the name in the first mockdata event
 }
@@ -55,7 +56,8 @@ func TestVerifyEvent(t *testing.T) {
 	}
 
 	v, err := NewClient(
-		c, &ClientOptions{
+		&ClientOptions{
+			CVNClient: c,
 			ValidSigners: []string{
 				"0xFD528f7bd7a6eB8d6605BF944d122da7665C69A1",
 				"0x4f4ddd274635D014C4584118a0fdD6cf89B25d3b",
@@ -82,7 +84,9 @@ func TestCreateListener(t *testing.T) {
 	}
 
 	r, err := NewClient(
-		c, &ClientOptions{},
+		&ClientOptions{
+			CVNClient: c,
+		},
 	)
 	if err != nil {
 		t.Fatalf("failed to create event reader: %v", err)

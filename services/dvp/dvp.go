@@ -2,11 +2,9 @@ package dvp
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"math/big"
 	"os"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,6 +24,16 @@ const (
 	TokenTypeNone = iota
 	TokenTypeERC20
 	TokenTypeERC3643
+)
+
+const (
+	ServiceName         = "dvp"
+	SettlementOpened    = "SettlementOpened"
+	SettlementAccepted  = "SettlementAccepted"
+	SettlementCanceling = "SettlementCanceling"
+	SettlementCanceled  = "SettlementCanceled"
+	SettlementClosing   = "SettlementClosing"
+	SettlementSettled   = "SettlementSettled"
 )
 
 // ServiceOptions defines the options for creating a new CVN DvP service.
@@ -67,107 +75,17 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 	}, nil
 }
 
-// DecodeSettlementOpened decodes a DvP settlement opened event from the provided CVN event.
-func (s *Service) DecodeSettlementOpened(event *client.Event) (
-	*events.DvpSettlementOpened, error,
+// DecodeDvpEvent decodes a DvP settlement event from the provided CVN event.
+func (s *Service) DecodeDvpEvent(event *client.Event) (
+	*events.DvpEvent, error,
 ) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
 	}
 
-	var dvpEvent events.DvpSettlementOpened
-	err = json.Unmarshal(jsonBytes, &event)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dvpEvent, nil
-}
-
-// DecodeSettlementAccepted decodes a DvP settlement accepted event from the provided CVN event.
-func (s *Service) DecodeSettlementAccepted(event *client.Event) (
-	*events.DvpSettlementAccepted, error,
-) {
-	jsonBytes, err := s.toJson(event)
-	if err != nil {
-		return nil, err
-	}
-
-	var dvpEvent events.DvpSettlementAccepted
-	err = json.Unmarshal(jsonBytes, &event)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dvpEvent, nil
-}
-
-// DecodeSettlementClosing decodes a DvP settlement closing event from the provided CVN event.
-func (s *Service) DecodeSettlementClosing(event *client.Event) (
-	*events.DvpSettlementClosing, error,
-) {
-	jsonBytes, err := s.toJson(event)
-	if err != nil {
-		return nil, err
-	}
-
-	var dvpEvent events.DvpSettlementClosing
-	err = json.Unmarshal(jsonBytes, &event)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dvpEvent, nil
-}
-
-// DecodeSettlementSettled decodes a DvP settlement settled event from the provided CVN event.
-func (s *Service) DecodeSettlementSettled(event *client.Event) (
-	*events.DvpSettlementSettled, error,
-) {
-	jsonBytes, err := s.toJson(event)
-	if err != nil {
-		return nil, err
-	}
-
-	var dvpEvent events.DvpSettlementSettled
-	err = json.Unmarshal(jsonBytes, &event)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dvpEvent, nil
-}
-
-// DecodeSettlementCanceling decodes a DvP settlement canceling event from the provided CVN event.
-func (s *Service) DecodeSettlementCanceling(event *client.Event) (
-	*events.DvpSettlementCanceling, error,
-) {
-	jsonBytes, err := s.toJson(event)
-	if err != nil {
-		return nil, err
-	}
-
-	var dvpEvent events.DvpSettlementCanceling
-	err = json.Unmarshal(jsonBytes, &event)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dvpEvent, nil
-}
-
-// DecodeSettlementCanceled decodes a DvP settlement canceled event from the provided CVN event.
-func (s *Service) DecodeSettlementCanceled(event *client.Event) (
-	*events.DvpSettlementCanceled, error,
-) {
-	jsonBytes, err := s.toJson(event)
-	if err != nil {
-		return nil, err
-	}
-
-	var dvpEvent events.DvpSettlementCanceled
-	err = json.Unmarshal(jsonBytes, &event)
+	var dvpEvent events.DvpEvent
+	err = dvpEvent.UnmarshalJSON(jsonBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +99,12 @@ func (s *Service) DecodeSettlementCanceled(event *client.Event) (
 func (s *Service) PrepareProposeSettlementOperation(settlement *contract.Settlement) (
 	*transactTypes.Operation, error,
 ) {
+	settlementHash, err := s.HashSettlement(settlement)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to hash settlement")
+		return nil, err
+	}
+
 	abiEncoder, err := contract.ContractMetaData.GetAbi()
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to get DVP ABI")
@@ -194,11 +118,11 @@ func (s *Service) PrepareProposeSettlementOperation(settlement *contract.Settlem
 	}
 
 	return &transactTypes.Operation{
-		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		ID:      settlementHash.Big(),
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dvpCoordinatorAddress,
+				To:    s.dvpCoordinatorAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -212,9 +136,14 @@ func (s *Service) PrepareProposeSettlementOperation(settlement *contract.Settlem
 func (s *Service) PrepareProposeSettlementWithTokenApprovalOperation(settlement *contract.Settlement) (
 	*transactTypes.Operation, error,
 ) {
+	settlementHash, err := s.HashSettlement(settlement)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to hash settlement")
+		return nil, err
+	}
 
 	approveTransaction, err := s.prepareTokenApproveTransaction(
-		&settlement.TokenInfo.AssetTokenSourceAddress, settlement.TokenInfo.AssetTokenAmount,
+		settlement.TokenInfo.AssetTokenSourceAddress, settlement.TokenInfo.AssetTokenAmount,
 	)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("failed to prepare approve transaction")
@@ -234,12 +163,12 @@ func (s *Service) PrepareProposeSettlementWithTokenApprovalOperation(settlement 
 	}
 
 	return &transactTypes.Operation{
-		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
-			approveTransaction,
+		ID:      settlementHash.Big(),
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
+			*approveTransaction,
 			{
-				To:    &s.dvpCoordinatorAddress,
+				To:    s.dvpCoordinatorAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -252,7 +181,7 @@ func (s *Service) PrepareProposeSettlementWithTokenApprovalOperation(settlement 
 //   - settlement: The settlement details to be included in the operation.
 //   - holdManagerAddress: The address of the hold manager contract to be used for the token hold.
 func (s *Service) PrepareProposeSettlementWithTokenHoldOperation(
-	settlement *contract.Settlement, holdManagerAddress *common.Address,
+	settlement *contract.Settlement, holdManagerAddress common.Address,
 ) (
 	*transactTypes.Operation, error,
 ) {
@@ -261,16 +190,17 @@ func (s *Service) PrepareProposeSettlementWithTokenHoldOperation(
 		return nil, errors.New("token hold is only supported for ERC3643 asset tokens")
 	}
 
-	holdId, err := s.HashSettlement(settlement)
+	settlementHash, err := s.HashSettlement(settlement)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to hash settlement for hold ID")
+		s.logger.Error().Err(err).Msg("failed to hash settlement")
 		return nil, err
 	}
+
 	holdTransaction, err := s.prepareTokenHoldTransaction(
 		holdManagerAddress,
-		holdId,
-		&settlement.TokenInfo.AssetTokenSourceAddress,
-		&settlement.PartyInfo.SellerSourceAddress,
+		settlementHash,
+		settlement.TokenInfo.AssetTokenSourceAddress,
+		settlement.PartyInfo.SellerSourceAddress,
 		settlement.Expiration,
 		settlement.TokenInfo.AssetTokenAmount,
 	)
@@ -292,12 +222,12 @@ func (s *Service) PrepareProposeSettlementWithTokenHoldOperation(
 	}
 
 	return &transactTypes.Operation{
-		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
-			holdTransaction,
+		ID:      settlementHash.Big(),
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
+			*holdTransaction,
 			{
-				To:    &s.dvpCoordinatorAddress,
+				To:    s.dvpCoordinatorAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -323,11 +253,11 @@ func (s *Service) PrepareAcceptSettlementOperation(settlementHash common.Hash) (
 	}
 
 	return &transactTypes.Operation{
-		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		ID:      settlementHash.Big(),
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dvpCoordinatorAddress,
+				To:    s.dvpCoordinatorAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -335,7 +265,7 @@ func (s *Service) PrepareAcceptSettlementOperation(settlementHash common.Hash) (
 	}, nil
 }
 
-// PrepareExecuteSettlementOperation prepares a DvP execute settlement operation.
+// PrepareExecuteSettlementOperation prepares a DvP executeSettlement operation.
 // It constructs the necessary transaction to execute a settlement based on its hash.
 //   - settlementHash: The hash of the settlement to be executed.
 func (s *Service) PrepareExecuteSettlementOperation(settlementHash common.Hash) (*transactTypes.Operation, error) {
@@ -353,11 +283,11 @@ func (s *Service) PrepareExecuteSettlementOperation(settlementHash common.Hash) 
 	}
 
 	return &transactTypes.Operation{
-		ID:      big.NewInt(time.Now().Unix()),
-		Account: &s.accountAddress,
-		Transactions: []*transactTypes.Transaction{
+		ID:      settlementHash.Big(),
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
 			{
-				To:    &s.dvpCoordinatorAddress,
+				To:    s.dvpCoordinatorAddress,
 				Value: big.NewInt(0),
 				Data:  calldata,
 			},
@@ -480,7 +410,7 @@ func (s *Service) toJson(event *client.Event) ([]byte, error) {
 }
 
 func (s *Service) prepareTokenApproveTransaction(
-	tokenAddress *common.Address, tokenAmount *big.Int,
+	tokenAddress common.Address, tokenAmount *big.Int,
 ) (*transactTypes.Transaction, error) {
 	erc20Abi, err := erc20.Erc20MetaData.GetAbi()
 	if err != nil {
@@ -502,7 +432,7 @@ func (s *Service) prepareTokenApproveTransaction(
 }
 
 func (s *Service) prepareTokenHoldTransaction(
-	holdManagerAddress *common.Address, holdId common.Hash, tokenAddress *common.Address, sender *common.Address,
+	holdManagerAddress common.Address, holdId common.Hash, tokenAddress common.Address, sender common.Address,
 	expiresAt *big.Int, tokenAmount *big.Int,
 ) (*transactTypes.Transaction, error) {
 	holdmanagerAbi, err := holdmanager.HoldmanagerMetaData.GetAbi()
@@ -512,8 +442,8 @@ func (s *Service) prepareTokenHoldTransaction(
 	}
 
 	hold := holdmanager.IHoldManagerHold{
-		Token:     *tokenAddress,
-		Sender:    *sender,
+		Token:     tokenAddress,
+		Sender:    sender,
 		Recipient: s.dvpCoordinatorAddress,
 		Executor:  s.dvpCoordinatorAddress,
 		ExpiresAt: expiresAt,

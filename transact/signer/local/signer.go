@@ -1,6 +1,7 @@
 package local
 
 import (
+	"context"
 	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -16,7 +17,7 @@ func NewSigner(privateKey *ecdsa.PrivateKey) *Signer {
 	}
 }
 
-func (s *Signer) Sign(hash []byte) ([]byte, error) {
+func (s *Signer) Sign(_ context.Context, hash []byte) ([]byte, error) {
 	sig, err := crypto.Sign(hash, s.privateKey)
 	if err != nil {
 		return nil, err

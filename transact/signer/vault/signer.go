@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
@@ -50,16 +51,19 @@ func NewSigner(vaultUrl, token, mountPath, key string) (*Signer, error) {
 	}, nil
 }
 
-func (s *Signer) Sign(hash []byte) ([]byte, error) {
+func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	// base64 encore the payload to sign
 	b64 := base64.StdEncoding.EncodeToString(hash)
 
 	// call vault client to sign payload
-	resp, err := s.client.Logical().Write(fmt.Sprintf("%s/sign/%s", s.mount, s.keyName), map[string]any{
-		"input":                b64,
-		"prehashed":            true,
-		"marshaling_algorithm": "asn1",
-	})
+	resp, err := s.client.Logical().WriteWithContext(
+		ctx,
+		fmt.Sprintf("%s/sign/%s", s.mount, s.keyName), map[string]any{
+			"input":                b64,
+			"prehashed":            true,
+			"marshaling_algorithm": "asn1",
+		},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("vault sign failed: %w", err)
 	}
@@ -187,9 +191,11 @@ type KeyCreationResult struct {
 // CreateKey creates a new cryptographic key in Vault Transit secrets engine
 func (s *Signer) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult, error) {
 	// Create the key in Vault
-	_, err := s.client.Logical().Write(fmt.Sprintf("%s/keys/%s", s.mount, keyName), map[string]interface{}{
-		"type": string(keyType),
-	})
+	_, err := s.client.Logical().Write(
+		fmt.Sprintf("%s/keys/%s", s.mount, keyName), map[string]interface{}{
+			"type": string(keyType),
+		},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create key in vault: %w", err)
 	}

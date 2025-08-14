@@ -36,11 +36,11 @@ func TestHashSettlement(t *testing.T) {
 			PaymentTokenDestinationAddress: common.HexToAddress("0x0000000000000000000000000000000000000000"),
 			AssetTokenSourceAddress:        common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B86"),
 			AssetTokenDestinationAddress:   common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B86"),
-			PaymentCurrency:                147,
+			PaymentCurrency:                CurrencyMap["USD"],
 			PaymentTokenAmount:             big.NewInt(1000000),
 			AssetTokenAmount:               big.NewInt(1000000000000000000),
-			PaymentTokenType:               0,
-			AssetTokenType:                 1,
+			PaymentTokenType:               TokenTypeNone,
+			AssetTokenType:                 TokenTypeERC20,
 		},
 		DeliveryInfo: contract.DeliveryInfo{
 			PaymentSourceChainSelector:      uint64(1234567890),
@@ -52,7 +52,7 @@ func TestHashSettlement(t *testing.T) {
 		ExecuteAfter:         big.NewInt(0),
 		Expiration:           big.NewInt(1751490699),
 		CcipCallbackGasLimit: 0,
-		Data:                 []byte(""),
+		Data:                 []byte{},
 	}
 
 	hash, err := dvpService.HashSettlement(settlement)

@@ -74,12 +74,12 @@ func TestPrepareRequestSubscriptionOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaOpenMarketplaceAddress, *tx.To)
+	require.Equal(t, service.dtaOpenMarketplaceAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
@@ -102,12 +102,12 @@ func TestPrepareRequestRedemptionOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaOpenMarketplaceAddress, *tx.To)
+	require.Equal(t, service.dtaOpenMarketplaceAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
@@ -133,18 +133,18 @@ func TestPrepareRequestSubscriptionWithTokenApprovalOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 2) // Should have approve + subscription transactions
 
 	// Verify first transaction (approve)
 	approveTx := operation.Transactions[0]
-	require.Equal(t, paymentTokenAddr, *approveTx.To)
+	require.Equal(t, paymentTokenAddr, approveTx.To)
 	require.Equal(t, big.NewInt(0), approveTx.Value)
 	require.NotEmpty(t, approveTx.Data)
 
 	// Verify second transaction (subscription)
 	subscriptionTx := operation.Transactions[1]
-	require.Equal(t, service.dtaOpenMarketplaceAddress, *subscriptionTx.To)
+	require.Equal(t, service.dtaOpenMarketplaceAddress, subscriptionTx.To)
 	require.Equal(t, big.NewInt(0), subscriptionTx.Value)
 	require.NotEmpty(t, subscriptionTx.Data)
 }
@@ -166,12 +166,12 @@ func TestPrepareRegisterDistributorOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaOpenMarketplaceAddress, *tx.To)
+	require.Equal(t, service.dtaOpenMarketplaceAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
@@ -208,12 +208,12 @@ func TestPrepareRegisterFundTokenOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaOpenMarketplaceAddress, *tx.To)
+	require.Equal(t, service.dtaOpenMarketplaceAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
@@ -234,14 +234,14 @@ func TestPrepareAllowDisallowDistributorForTokenOperations(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, allowOp)
 	require.Len(t, allowOp.Transactions, 1)
-	require.Equal(t, service.dtaOpenMarketplaceAddress, *allowOp.Transactions[0].To)
+	require.Equal(t, service.dtaOpenMarketplaceAddress, allowOp.Transactions[0].To)
 
 	// Test disallow operation
 	disallowOp, err := service.PrepareDisallowDistributorForTokenOperation(fundTokenId, distributorAddr)
 	require.NoError(t, err)
 	require.NotNil(t, disallowOp)
 	require.Len(t, disallowOp.Transactions, 1)
-	require.Equal(t, service.dtaOpenMarketplaceAddress, *disallowOp.Transactions[0].To)
+	require.Equal(t, service.dtaOpenMarketplaceAddress, disallowOp.Transactions[0].To)
 }
 
 func TestPrepareEnableDisableFundTokenOperations(t *testing.T) {
@@ -259,14 +259,14 @@ func TestPrepareEnableDisableFundTokenOperations(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, enableOp)
 	require.Len(t, enableOp.Transactions, 1)
-	require.Equal(t, service.dtaOpenMarketplaceAddress, *enableOp.Transactions[0].To)
+	require.Equal(t, service.dtaOpenMarketplaceAddress, enableOp.Transactions[0].To)
 
 	// Test disable operation
 	disableOp, err := service.PrepareDisableFundTokenOperation(fundTokenId)
 	require.NoError(t, err)
 	require.NotNil(t, disableOp)
 	require.Len(t, disableOp.Transactions, 1)
-	require.Equal(t, service.dtaOpenMarketplaceAddress, *disableOp.Transactions[0].To)
+	require.Equal(t, service.dtaOpenMarketplaceAddress, disableOp.Transactions[0].To)
 }
 
 func TestDecodeDistributorRegistered(t *testing.T) {
@@ -418,12 +418,12 @@ func TestPrepareAllowDTAOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaWalletAddress, *tx.To)
+	require.Equal(t, service.dtaWalletAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
@@ -446,12 +446,12 @@ func TestPrepareDisallowDTAOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaWalletAddress, *tx.To)
+	require.Equal(t, service.dtaWalletAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
@@ -474,12 +474,12 @@ func TestPrepareWithdrawTokensOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaWalletAddress, *tx.To)
+	require.Equal(t, service.dtaWalletAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
@@ -500,12 +500,12 @@ func TestPrepareTransferWalletOwnershipOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaWalletAddress, *tx.To)
+	require.Equal(t, service.dtaWalletAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
@@ -524,12 +524,12 @@ func TestPrepareRenounceWalletOwnershipOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaWalletAddress, *tx.To)
+	require.Equal(t, service.dtaWalletAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
@@ -552,12 +552,12 @@ func TestPrepareCompleteRequestProcessingOperation(t *testing.T) {
 
 	// Verify operation structure
 	require.NotNil(t, operation.ID)
-	require.Equal(t, service.accountAddress, *operation.Account)
+	require.Equal(t, service.accountAddress, operation.Account)
 	require.Len(t, operation.Transactions, 1)
 
 	// Verify transaction structure
 	tx := operation.Transactions[0]
-	require.Equal(t, service.dtaWalletAddress, *tx.To)
+	require.Equal(t, service.dtaWalletAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
 }
