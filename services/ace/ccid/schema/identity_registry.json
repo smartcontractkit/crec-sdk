@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Identity Registry Events",
+  "description": "Event schemas for the ACE CCID Identity Registry contract",
+  "type": "object",
+  "definitions": {
+    "IdentityRegisteredEvent": {
+      "type": "object",
+      "properties": {
+        "ccid": {
+          "type": "string",
+          "description": "The CCID (bytes32) of the registered identity"
+        },
+        "account": {
+          "type": "string",
+          "description": "The account address associated with the identity"
+        }
+      },
+      "required": ["ccid", "account"],
+      "additionalProperties": false
+    },
+    "IdentityRemovedEvent": {
+      "type": "object",
+      "properties": {
+        "ccid": {
+          "type": "string",
+          "description": "The CCID (bytes32) of the removed identity"
+        },
+        "account": {
+          "type": "string",
+          "description": "The account address that was removed from the identity"
+        }
+      },
+      "required": ["ccid", "account"],
+      "additionalProperties": false
+    },
+    "InitializedEvent": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "The version number of the initialization"
+        }
+      },
+      "required": ["version"],
+      "additionalProperties": false
+    },
+    "OwnershipTransferredEvent": {
+      "type": "object",
+      "properties": {
+        "previousOwner": {
+          "type": "string",
+          "description": "The address of the previous owner"
+        },
+        "newOwner": {
+          "type": "string",
+          "description": "The address of the new owner"
+        }
+      },
+      "required": ["previousOwner", "newOwner"],
+      "additionalProperties": false
+    },
+    "PolicyEngineAttachedEvent": {
+      "type": "object",
+      "properties": {
+        "policyEngine": {
+          "type": "string",
+          "description": "The address of the attached policy engine"
+        }
+      },
+      "required": ["policyEngine"],
+      "additionalProperties": false
+    },
+    "IdentityRegistryEvent": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "oneOf": [
+            { "$ref": "#/definitions/IdentityRegisteredEvent" },
+            { "$ref": "#/definitions/IdentityRemovedEvent" },
+            { "$ref": "#/definitions/InitializedEvent" },
+            { "$ref": "#/definitions/OwnershipTransferredEvent" },
+            { "$ref": "#/definitions/PolicyEngineAttachedEvent" }
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the event was created"
+        }
+      },
+      "required": ["event"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "identityRegistered": { "$ref": "#/definitions/IdentityRegistryEvent" },
+    "identityRemoved": { "$ref": "#/definitions/IdentityRegistryEvent" },
+    "initialized": { "$ref": "#/definitions/IdentityRegistryEvent" },
+    "ownershipTransferred": { "$ref": "#/definitions/IdentityRegistryEvent" },
+    "policyEngineAttached": { "$ref": "#/definitions/IdentityRegistryEvent" }
+  },
+  "additionalProperties": false
+}
