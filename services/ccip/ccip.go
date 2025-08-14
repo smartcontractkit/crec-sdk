@@ -1,7 +1,7 @@
 package ccip
 
 import (
-	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"time"
@@ -39,7 +39,7 @@ type Service struct {
 //   - opts: Options for configuring the CVN CCIP service, see ServiceOptions for details.
 func NewService(opts *ServiceOptions) (*Service, error) {
 	if opts == nil {
-		return nil, errors.New("options must be provided")
+		return nil, fmt.Errorf("ServiceOptions is required")
 	}
 
 	logger := opts.Logger
@@ -48,7 +48,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 		logger = &lgr
 	}
 
-	logger.Info().Msg("Creating CVN CCIP service")
+	logger.Debug().Msg("Creating CVN CCIP service")
 
 	return &Service{
 		logger:                logger,
@@ -65,23 +65,22 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 func (s *Service) PrepareCcipSendOperation(
 	destinationChainSelector uint64, message *routerclient.ClientEVM2AnyMessage,
 ) (*transactTypes.Operation, error) {
+	s.logger.Trace().
+		Msg("Preparing ccipSend operation")
 
 	erc20Abi, err := erc20.Erc20MetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to get ERC20 ABI")
-		return nil, err
+		return nil, fmt.Errorf("failed to get ERC20 ABI: %w", err)
 	}
 
 	routerClientAbi, err := routerclient.RouterclientMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to get RouterClient ABI")
-		return nil, err
+		return nil, fmt.Errorf("failed to get RouterClient ABI: %w", err)
 	}
 
 	ccipSendCalldata, err := routerClientAbi.Pack("ccipSend", destinationChainSelector, message)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to pack calldata for ccipSend")
-		return nil, err
+		return nil, fmt.Errorf("failed to pack calldata for ccipSend: %w", err)
 	}
 
 	ccipRouter := common.HexToAddress(s.ccipRouterAddress)
@@ -94,8 +93,7 @@ func (s *Service) PrepareCcipSendOperation(
 		for _, destTokenAmount := range message.TokenAmounts {
 			approveCalldata, err := erc20Abi.Pack("approve", ccipRouter, destTokenAmount.Amount)
 			if err != nil {
-				s.logger.Error().Err(err).Msg("failed to pack calldata for token approve")
-				return nil, err
+				return nil, fmt.Errorf("failed to pack calldata for token approve: %w", err)
 			}
 
 			transactions = append(

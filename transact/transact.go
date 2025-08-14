@@ -3,12 +3,13 @@ package transact
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"os"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
@@ -38,7 +39,7 @@ type Client struct {
 //   - opts: Options for configuring the CVN transact client, see ClientOptions for details.
 func NewClient(opts *ClientOptions) (*Client, error) {
 	if opts == nil {
-		return nil, errors.New("options must be provided")
+		return nil, fmt.Errorf("ClientOptions is required")
 	}
 
 	logger := opts.Logger
@@ -47,7 +48,7 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 		logger = &lgr
 	}
 
-	logger.Info().Msg("Creating CVN transact client")
+	logger.Debug().Msg("Creating CVN transact client")
 
 	return &Client{
 		logger:    logger,
@@ -61,18 +62,15 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 func (t *Client) HashOperation(op *types.Operation) (common.Hash, error) {
 	chainIdInt, err := strconv.ParseUint(t.chainId, 10, 64)
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to parse chain ID")
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("failed to parse chain ID: %w", err)
 	}
 	typedData, err := op.TypedData(chainIdInt)
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to create typed data for operation")
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("failed to create typed data for operation: %w", err)
 	}
 	hashBytes, _, err := apitypes.TypedDataAndHash(*typedData)
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to compute operation hash")
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("failed to compute operation hash: %w", err)
 	}
 	hash := common.BytesToHash(hashBytes)
 	return hash, err
@@ -90,13 +88,11 @@ func (t *Client) SignOperation(
 ) (common.Hash, []byte, error) {
 	hash, err := t.HashOperation(op)
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to hash operation for signing")
-		return common.Hash{}, nil, err
+		return common.Hash{}, nil, fmt.Errorf("failed to hash operation: %w", err)
 	}
 	sig, err := signer.Sign(ctx, hash.Bytes())
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to sign operation")
-		return common.Hash{}, nil, err
+		return common.Hash{}, nil, fmt.Errorf("failed to sign operation: %w", err)
 	}
 	t.logger.Debug().
 		Str("operation_id", op.ID.String()).
@@ -117,8 +113,7 @@ func (t *Client) SignOperationHash(
 ) ([]byte, error) {
 	sig, err := signer.Sign(ctx, opHash.Bytes())
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to sign operation")
-		return nil, err
+		return nil, fmt.Errorf("failed to sign operation: %w", err)
 	}
 	t.logger.Debug().
 		Str("hash", opHash.Hex()).
@@ -137,10 +132,10 @@ func (t *Client) SendSignedOperation(
 	signature []byte,
 ) error {
 	if t.cvnClient == nil {
-		return errors.New("no CVNClient provided, cannot send signed operations")
+		return fmt.Errorf("no CVNClient provided, cannot send signed operations")
 	}
 
-	t.logger.Info().
+	t.logger.Debug().
 		Str("chain_id", t.chainId).
 		Str("operation_id", op.ID.String()).
 		Str("signature", common.Bytes2Hex(signature)).
@@ -165,12 +160,12 @@ func (t *Client) SendSignedOperation(
 		Signature:          "0x" + common.Bytes2Hex(signature),
 	}
 
-	if t.logger.GetLevel() <= zerolog.DebugLevel {
+	if t.logger.GetLevel() <= zerolog.TraceLevel {
 		data, err := json.MarshalIndent(requestData, "", "  ")
 		if err != nil {
 			t.logger.Err(err).Msg("Failed to marshal request data to JSON")
 		} else {
-			t.logger.Debug().
+			t.logger.Trace().
 				Str("request_data", string(data)).
 				Msg("Request data for SendSignedOperation")
 		}
@@ -178,23 +173,57 @@ func (t *Client) SendSignedOperation(
 
 	resp, err := t.cvnClient.PostOperationsWithResponse(ctx, requestData)
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to send signed operation")
-		return err
+		return fmt.Errorf("failed to send signed operation: %w", err)
 	}
 
 	responseState := resp.HTTPResponse.StatusCode
-	t.logger.Info().
+	t.logger.Debug().
 		Int("status", responseState).
 		Msg("SendSignedOperation result")
 
 	if responseState != 201 {
-		bodyBytes := resp.Body
-		t.logger.Error().
-			Int("status", responseState).
-			Str("body", string(bodyBytes)).
-			Msg("Failed to send signed operation, non-201 response")
-
-		return errors.New("failed to send signed operation, non-201 response")
+		return fmt.Errorf("failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status)
 	}
 	return nil
+}
+
+// GetOperation retrieves an operation by its ID from the CVN service.
+//   - ctx: Context for the request, used for cancellation and timeouts.
+//   - operationId: The UUID of the operation to retrieve.
+func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*client.Operation, error) {
+	t.logger.Trace().Msg("Getting operation")
+
+	resp, err := t.cvnClient.GetOperationsOperationIdWithResponse(ctx, operationId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get operation id %v: %w", operationId, err)
+	}
+
+	if resp.StatusCode() == 404 {
+		return nil, nil
+	} else if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("failed to get operation, unexpected status code: %s", resp.Status())
+	}
+
+	return resp.JSON200, nil
+}
+
+// GetOperations retrieves a list of operations from the CVN service.
+//   - ctx: Context for the request, used for cancellation and timeouts.
+func (t *Client) GetOperations(ctx context.Context, params *client.GetOperationsParams) ([]client.Operation, error) {
+	t.logger.Trace().Msg("Getting operations from CVN")
+
+	resp, err := t.cvnClient.GetOperationsWithResponse(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get operations from CVN: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("failed to get operations from CVN, unexpected status code: %d", resp.StatusCode())
+	}
+
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("invalid operations response from CVN")
+	}
+
+	return resp.JSON200.Data, nil
 }
