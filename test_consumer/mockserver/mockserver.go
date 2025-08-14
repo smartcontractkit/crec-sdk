@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"github.com/smartcontractkit/cvn-sdk/testmocks/mockdata"
-	"github.com/smartcontractkit/cvn-sdk/testmocks/mockserver/api"
+	"github.com/smartcontractkit/cvn-sdk/test_consumer/mockdata"
+	"github.com/smartcontractkit/cvn-sdk/test_consumer/mockserver/api"
 )
 
 type MockServer struct {
