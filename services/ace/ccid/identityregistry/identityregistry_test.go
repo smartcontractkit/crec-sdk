@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
-	"github.com/smartcontractkit/cvn-sdk/services/ace/ccid/gen/events"
+	"github.com/smartcontractkit/cvn-sdk/services/ace/ccid/identityregistry/gen/events"
 )
 
 func TestNewService(t *testing.T) {

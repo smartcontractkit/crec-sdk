@@ -11,8 +11,8 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
-	"github.com/smartcontractkit/cvn-sdk/services/ace/ccid/gen/events"
-	"github.com/smartcontractkit/cvn-sdk/services/ace/ccid/gen/identityregistry"
+	"github.com/smartcontractkit/cvn-sdk/services/ace/ccid/identityregistry/gen/events"
+	"github.com/smartcontractkit/cvn-sdk/services/ace/ccid/identityregistry/gen/identityregistry"
 	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
