@@ -1,18 +1,13 @@
 package types
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"math/big"
-	"strconv"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
-	"github.com/google/uuid"
 )
 
 const (
@@ -50,81 +45,6 @@ type Operation struct {
 	ID           *big.Int       `json:"id"`
 	Account      common.Address `json:"account"`
 	Transactions []Transaction  `json:"transactions"`
-}
-
-// Operation defines model for Operation.
-type OperationResponse struct {
-	// Account Onchain account address performing the operation
-	Account string `json:"account"`
-
-	// AccountId Identifier of the account performing the operation
-	AccountId uuid.UUID `json:"account_id"`
-
-	// AccountOperationId Unique account operation identifier
-	AccountOperationId string `json:"account_operation_id"`
-
-	// ChainId The id that identifies the chain where the account performing the operation lives
-	ChainId string `json:"chain_id"`
-
-	// ConfirmedAt Timestamp of when the operation was confirmed
-	ConfirmedAt *int64 `json:"confirmed_at,omitempty"`
-
-	// CreatedAt Timestamp of when the operation was created
-	CreatedAt int64 `json:"created_at"`
-
-	// OperationId Unique identifier for the operation
-	OperationId uuid.UUID `json:"operation_id"`
-
-	// Signature EIP-712 signature of the operation
-	Signature string `json:"signature"`
-
-	// Status Current status of the operation
-	Status string `json:"status"`
-
-	// TransactionHash Onchain transaction hash which included the operation
-	TransactionHash *string       `json:"transaction_hash,omitempty"`
-	Transactions    []Transaction `json:"transactions"`
-}
-
-func UnmarshalOperationResponse(respBody []byte) (*OperationResponse, error) {
-	var rawData map[string]interface{}
-	if err := json.Unmarshal(respBody, &rawData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal raw data: %w", err)
-	}
-
-	// Process transactions to handle the value field
-	if transactions, ok := rawData["transactions"].([]interface{}); ok {
-		for _, txInterface := range transactions {
-			if tx, ok := txInterface.(map[string]interface{}); ok {
-				if valueStr, ok := tx["value"].(string); ok {
-					// Convert string to number for big.Int
-					if valueStr == "0" {
-						tx["value"] = 0
-					} else {
-						if strings.HasPrefix(valueStr, "0x") {
-							if val, err := strconv.ParseInt(valueStr, 0, 64); err == nil {
-								tx["value"] = val
-							}
-						} else if val, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
-							tx["value"] = val
-						}
-					}
-				}
-			}
-		}
-	}
-
-	modifiedJSON, err := json.Marshal(rawData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal modified data: %w", err)
-	}
-
-	var opResp OperationResponse
-	if err := json.Unmarshal(modifiedJSON, &opResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal to OperationResponse: %w", err)
-	}
-
-	return &opResp, nil
 }
 
 func (op *Operation) EIP712Type() string {
