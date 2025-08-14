@@ -1,18 +1,17 @@
-package mockserver
+package server
 
 import (
 	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"github.com/smartcontractkit/cvn-sdk/internal/mockdata"
-	"github.com/smartcontractkit/cvn-sdk/internal/mockserver/api"
+	"github.com/smartcontractkit/cvn-sdk/mocks/events"
+	"github.com/smartcontractkit/cvn-sdk/mocks/server/api"
 )
 
 type MockServer struct {
@@ -22,7 +21,7 @@ type MockServer struct {
 
 var _ api.ServerInterface = (*MockServer)(nil)
 
-func NewMockServer(t *testing.T) *MockServer {
+func NewMockServer() *MockServer {
 	s := &MockServer{
 		eventsFile: "event_list.json",
 	}
@@ -30,9 +29,6 @@ func NewMockServer(t *testing.T) *MockServer {
 	h := api.HandlerFromMux(s, r)
 
 	s.TestServer = httptest.NewServer(h)
-
-	t.Logf("Mock server started at URL: %s", s.TestServer.URL)
-
 	return s
 }
 
@@ -121,7 +117,7 @@ func (s *MockServer) PostEvents(w http.ResponseWriter, r *http.Request) {
 
 func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params api.GetEventsParams) {
 	var eventResponse api.EventList
-	err := mockdata.LoadJson(s.eventsFile, &eventResponse)
+	err := events.LoadJson(s.eventsFile, &eventResponse)
 	if err != nil {
 		log.Fatalf("Failed to load event data: %v", err)
 	}
@@ -132,7 +128,28 @@ func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params ap
 }
 
 func (s *MockServer) PostOperations(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusAccepted)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	response := `{
+	"account": "",
+	"account_id": "df72db52-fa74-4dd8-8c53-a9742be70caa",
+	"account_operation_id": "1755036418",
+	"chain_id": "",
+	"created_at": 1755036421,
+	"operation_id": "a47760fc-6eae-456f-84b9-e6e349d13281",
+	"signature": "0xe227e4533ea6198d58d167971f13733239447b0a298416355a226acb07cc2e5c3efff04c41b32a1a2fefdbf5aba4f15312c527be249d19756850e61b269fcecd1c",
+	"status": "pending",
+	"transactions": [
+		{
+			"data": "0x40c10f19000000000000000000000000f32efccd3087563c226ef51c7e659888de78c59c0000000000000000000000000000000000000000000000000000000000087a23",
+			"to": "0x79009066202906e3d1644029d0B6e441370fD865",
+			"value": "0"
+		}
+	]
+}`
+
+	w.Write([]byte(response))
 }
 
 func (s *MockServer) GetOperations(w http.ResponseWriter, r *http.Request, params api.GetOperationsParams) {

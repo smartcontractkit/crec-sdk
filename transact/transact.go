@@ -3,9 +3,12 @@ package transact
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -130,9 +133,9 @@ func (t *Client) SendSignedOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signature []byte,
-) error {
+) (*client.Operation, error) {
 	if t.cvnClient == nil {
-		return fmt.Errorf("no CVNClient provided, cannot send signed operations")
+		return nil, errors.New("no CVNClient provided, cannot send signed operations")
 	}
 
 	t.logger.Debug().
@@ -173,7 +176,7 @@ func (t *Client) SendSignedOperation(
 
 	resp, err := t.cvnClient.PostOperationsWithResponse(ctx, requestData)
 	if err != nil {
-		return fmt.Errorf("failed to send signed operation: %w", err)
+		return nil, fmt.Errorf("failed to send signed operation: %w", err)
 	}
 
 	responseState := resp.HTTPResponse.StatusCode
@@ -182,9 +185,12 @@ func (t *Client) SendSignedOperation(
 		Msg("SendSignedOperation result")
 
 	if responseState != 201 {
-		return fmt.Errorf("failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status)
+		return nil, fmt.Errorf("failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status)
 	}
-	return nil
+
+	t.logger.Trace().Str("raw_response", string(resp.Body)).Msg("OperationResponse JSON")
+
+	return resp.JSON201, nil
 }
 
 // GetOperation retrieves an operation by its ID from the CVN service.
@@ -226,4 +232,32 @@ func (t *Client) GetOperations(ctx context.Context, params *client.GetOperations
 	}
 
 	return resp.JSON200.Data, nil
+}
+
+func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer.Signer, executorAccount common.Address, txs []types.Transaction) (*client.Operation, error) {
+	operation := &types.Operation{
+		ID:           big.NewInt(time.Now().Unix()),
+		Account:      executorAccount,
+		Transactions: txs,
+	}
+
+	return t.ExecuteOperation(ctx, operationSigner, operation)
+}
+
+func (t *Client) ExecuteOperation(ctx context.Context, operationSigner signer.Signer, operation *types.Operation) (*client.Operation, error) {
+	_, sig, err := t.SignOperation(ctx, operation, operationSigner)
+	if err != nil {
+		return nil, err
+	}
+
+	opr, err := t.SendSignedOperation(ctx, operation, sig)
+	if err != nil {
+		return nil, err
+	}
+
+	t.logger.Debug().
+		Str("operationID", operation.ID.String()).
+		Str("account", operation.Account.Hex()).
+		Msg("ExecuteOperation: operation sent successfully")
+	return opr, nil
 }

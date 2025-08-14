@@ -1,4 +1,4 @@
-package mockdata
+package events
 
 import (
 	"encoding/json"
@@ -29,7 +29,7 @@ func LoadJson(filename string, target any) error {
 	}
 	currentFileDir := filepath.Dir(b)
 
-	file, err := os.Open(fmt.Sprintf("%s/testdata/%s", currentFileDir, filename))
+	file, err := os.Open(fmt.Sprintf("%s/data/%s", currentFileDir, filename))
 	if err != nil {
 		log.Fatal(err)
 	}
