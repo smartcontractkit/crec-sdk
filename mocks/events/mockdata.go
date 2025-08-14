@@ -1,4 +1,4 @@
-package mockdata
+package events
 
 import (
 	"encoding/json"

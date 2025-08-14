@@ -1,4 +1,4 @@
-package mockserver
+package server
 
 import (
 	"encoding/json"
@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"github.com/smartcontractkit/cvn-sdk/test_consumer/mockdata"
-	"github.com/smartcontractkit/cvn-sdk/test_consumer/mockserver/api"
+	"github.com/smartcontractkit/cvn-sdk/mocks/events"
+	"github.com/smartcontractkit/cvn-sdk/mocks/server/api"
 )
 
 type MockServer struct {
@@ -117,7 +117,7 @@ func (s *MockServer) PostEvents(w http.ResponseWriter, r *http.Request) {
 
 func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params api.GetEventsParams) {
 	var eventResponse api.EventList
-	err := mockdata.LoadJson(s.eventsFile, &eventResponse)
+	err := events.LoadJson(s.eventsFile, &eventResponse)
 	if err != nil {
 		log.Fatalf("Failed to load event data: %v", err)
 	}
