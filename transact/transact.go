@@ -188,7 +188,7 @@ func (t *Client) SendSignedOperation(
 		return nil, fmt.Errorf("failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status)
 	}
 
-	t.logger.Debug().Str("raw_response", string(resp.Body)).Msg("OperationResponse JSON")
+	t.logger.Trace().Str("raw_response", string(resp.Body)).Msg("OperationResponse JSON")
 
 	return resp.JSON201, nil
 }
@@ -255,7 +255,7 @@ func (t *Client) ExecuteOperation(ctx context.Context, operationSigner signer.Si
 		return nil, err
 	}
 
-	t.logger.Info().
+	t.logger.Debug().
 		Str("operationID", operation.ID.String()).
 		Str("account", operation.Account.Hex()).
 		Msg("ExecuteOperation: operation sent successfully")
