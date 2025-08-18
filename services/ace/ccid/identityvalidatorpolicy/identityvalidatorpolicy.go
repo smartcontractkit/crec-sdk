@@ -21,9 +21,9 @@ import (
 //   - IdentityValidatorPolicyAddress: A string representing the address of the Identity Validator Policy contract.
 //   - AccountAddress: A string representing the account address for operations.
 type ServiceOptions struct {
-	Logger                          *zerolog.Logger
-	IdentityValidatorPolicyAddress  string
-	AccountAddress                  string
+	Logger                         *zerolog.Logger
+	IdentityValidatorPolicyAddress string
+	AccountAddress                 string
 }
 
 // Service represents the ACE CCID Identity Validator Policy service.
@@ -43,10 +43,10 @@ type CredentialRequirementInput struct {
 
 // CredentialSourceInput represents the input structure for credential sources.
 type CredentialSourceInput struct {
-	CredentialTypeId    [32]byte
-	IdentityRegistry    common.Address
-	CredentialRegistry  common.Address
-	DataValidator       common.Address
+	CredentialTypeId   [32]byte
+	IdentityRegistry   common.Address
+	CredentialRegistry common.Address
+	DataValidator      common.Address
 }
 
 // NewService creates a new ACE CCID Identity Validator Policy service instance.
