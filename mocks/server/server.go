@@ -133,7 +133,6 @@ func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params ap
 	_ = json.NewEncoder(w).Encode(eventResponse)
 }
 
-// Added: satisfy ServerInterface with GET /events/{event_id}
 func (s *MockServer) GetEventsEventId(w http.ResponseWriter, r *http.Request, eventId openapi_types.UUID) {
 	// For test purposes, return a minimal event with the requested id.
 	now := time.Now().Unix()
