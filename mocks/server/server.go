@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,9 @@ import (
 type MockServer struct {
 	TestServer *httptest.Server
 	eventsFile string
+
+	// simple in-memory accounts store for the mock
+	accounts []api.Account
 }
 
 var _ api.ServerInterface = (*MockServer)(nil)
@@ -24,6 +28,7 @@ var _ api.ServerInterface = (*MockServer)(nil)
 func NewMockServer() *MockServer {
 	s := &MockServer{
 		eventsFile: "event_list.json",
+		accounts:   make([]api.Account, 0),
 	}
 	r := http.NewServeMux()
 	h := api.HandlerFromMux(s, r)
@@ -83,7 +88,8 @@ func (s *MockServer) PostListeners(w http.ResponseWriter, r *http.Request) {
 
 func (s *MockServer) GetListeners(w http.ResponseWriter, r *http.Request, params api.GetListenersParams) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
+	// spec returns 200 for GET /listeners
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(
 		api.ListenerList{
 			Data:    []api.Listener{},
@@ -127,6 +133,29 @@ func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params ap
 	_ = json.NewEncoder(w).Encode(eventResponse)
 }
 
+// Added: satisfy ServerInterface with GET /events/{event_id}
+func (s *MockServer) GetEventsEventId(w http.ResponseWriter, r *http.Request, eventId openapi_types.UUID) {
+	// For test purposes, return a minimal event with the requested id.
+	now := time.Now().Unix()
+	ev := api.Event{
+		EventId:    eventId,
+		CreatedAt:  now,
+		ListenerId: uuid.New(),
+		Service:    "dvp",
+		Name:       "SettlementAccepted",
+		ChainId:    "1337",
+		Address:    "0x1234567890abcdef1234567890abcdef12345678",
+		OcrReport:  "0x01",
+		OcrContext: "0x01",
+		// Empty but valid shape; unit tests which call this only assert ID equality.
+		VerifiableEvent: "e30=", // "{}" base64
+		Signatures:      []string{},
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(ev)
+}
+
 func (s *MockServer) PostOperations(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -148,7 +177,6 @@ func (s *MockServer) PostOperations(w http.ResponseWriter, r *http.Request) {
 		}
 	]
 }`
-
 	w.Write([]byte(response))
 }
 
@@ -171,4 +199,61 @@ func (s *MockServer) GetOperationsOperationId(
 
 func (s *MockServer) PostOperationStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *MockServer) PostAccounts(w http.ResponseWriter, r *http.Request) {
+	var in api.CreateAccount
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	id := uuid.New()
+	acc := api.Account{
+		AccountId: id,
+		Address:   strings.ToLower(in.Address),
+		ChainId:   in.ChainId,
+	}
+	s.accounts = append(s.accounts, acc)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(acc)
+}
+
+func (s *MockServer) GetAccounts(w http.ResponseWriter, r *http.Request, params api.GetAccountsParams) {
+	// simple pagination on our in-memory slice
+	limit := 50
+	offset := 0
+	if params.Limit != nil && *params.Limit > 0 {
+		limit = *params.Limit
+	}
+	if params.Offset != nil && *params.Offset >= 0 {
+		offset = *params.Offset
+	}
+
+	end := offset + limit
+	if end > len(s.accounts) {
+		end = len(s.accounts)
+	}
+	data := []api.Account{}
+	if offset < len(s.accounts) {
+		data = s.accounts[offset:end]
+	}
+	hasMore := end < len(s.accounts)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(api.AccountList{Data: data, HasMore: hasMore})
+}
+
+func (s *MockServer) GetAccountsAccountId(w http.ResponseWriter, r *http.Request, accountId openapi_types.UUID) {
+	for _, a := range s.accounts {
+		if a.AccountId == accountId {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(a)
+			return
+		}
+	}
+	http.Error(w, "account not found", http.StatusNotFound)
 }

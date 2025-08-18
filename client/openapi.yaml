@@ -84,7 +84,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListenerList"
   /listeners/{listener_id}:
-    get:                                    #  ← NEW
+    get:
       summary: Retrieves a single listener.
       parameters:
         - in: path
@@ -133,6 +133,12 @@ paths:
     get:
       summary: Retrieves events.
       parameters:
+        - in: query
+          name: listener_id
+          description: Return only events emitted by this listener UUID
+          schema:
+            type: string
+            format: uuid
         - in: query
           name: created.lt
           description: Filter events created before this timestamp
@@ -183,6 +189,115 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EventList"
+  /events/{event_id}:
+    get:
+      summary: Retrieves a single event.
+      parameters:
+        - in: path
+          name: event_id
+          required: true
+          description: Unique identifier for the event
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "404":
+          description: Event not found
+
+  /accounts:
+    post:
+      summary: Creates a new account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccount"
+      responses:
+        "201":
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationError"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationError"
+    get:
+      summary: Retrieves accounts for the organization.
+      parameters:
+        - in: query
+          name: limit
+          description: Maximum number of accounts to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - in: query
+          name: offset
+          description: Number of accounts to skip for pagination
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountList"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationError"
+  /accounts/{account_id}:
+    get:
+      summary: Retrieves a specific account by ID.
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Account found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "404":
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationError"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationError"
   /operations:
     post:
       summary: Sends an onchain transaction.
@@ -289,10 +404,10 @@ security:
 components:
   securitySchemes:
     ApiKeyAuth:
-      type: apiKey            # <-- this tells Swagger-UI to show an
-      in: header              #      “Authorize” dialog
+      type: apiKey
+      in: header
       name: Api-Key
-      description:       Public organisation API key.
+      description: Public organisation API key.
   schemas:
     HealthCheck:
       type: object
@@ -302,6 +417,49 @@ components:
           example: "ok"
       required:
         - status
+    CreateAccount:
+      type: object
+      properties:
+        address:
+          type: string
+          description: EVM account address (42-character hex string starting with 0x)
+          pattern: "^0x[a-fA-F0-9]{40}$"
+        chain_id:
+          type: string
+          description: The id that identifies the chain where the account exists
+      required:
+        - address
+        - chain_id
+    Account:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+          description: Unique identifier for the account
+        address:
+          type: string
+          description: EVM account address
+        chain_id:
+          type: string
+          description: The id that identifies the chain where the account exists
+      required:
+        - account_id
+        - address
+        - chain_id
+    AccountList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Account"
+        has_more:
+          type: boolean
+          description: True if there are more accounts to fetch
+      required:
+        - data
+        - has_more
     CreateListener:
       type: object
       properties:
@@ -317,6 +475,10 @@ components:
         address:
           type: string
           description: Smart contract address to listen for events
+        chain_family:
+          type: string
+          default: evm
+          description: (Optional) the network to use.
         options:
           type: object
           additionalProperties:
@@ -395,7 +557,7 @@ components:
           description: Smart contract address from which the event was emitted
         ocr_report:
           type: string
-          description:  OCR report for the event
+          description: OCR report for the event
         ocr_context:
           type: string
           description: OCR context for the event
@@ -427,6 +589,10 @@ components:
           type: integer
           format: int64
           description: Timestamp of when the event was created
+        listener_id:
+          type: string
+          format: uuid
+          description: Listener UUID that emitted the event
         service:
           type: string
           description: Service namespace for the event
@@ -456,6 +622,7 @@ components:
       required:
         - event_id
         - created_at
+        - listener_id
         - service
         - name
         - chain_id
@@ -486,7 +653,7 @@ components:
         chain_id:
           type: string
           description: The id that identifies the chain where the account performing the operation lives
-        account:
+        account_address:
           type: string
           description: Onchain account address performing the operation
         transactions:
@@ -499,7 +666,7 @@ components:
       required:
         - account_operation_id
         - chain_id
-        - account
+        - account_address
         - transactions
         - signature
     Operation:
@@ -530,7 +697,7 @@ components:
         status:
           type: string
           description: Current status of the operation
-        account:
+        account_address:
           type: string
           description: Onchain account address performing the operation
         chain_id:
@@ -549,7 +716,7 @@ components:
         - created_at
         - account_operation_id
         - status
-        - account
+        - account_address
         - chain_id
         - transactions
         - signature
@@ -572,7 +739,7 @@ components:
         account_operation_id:
           type: string
           description: Unique account operation identifier
-        account:
+        account_address:
           type: string
           description: Onchain account address performing the operation
         chain_id:
@@ -586,7 +753,7 @@ components:
           description: Timestamp of onchain transaction which included the operation
       required:
         - account_operation_id
-        - account
+        - account_address
         - chain_id
         - transaction_hash
         - transaction_timestamp
@@ -622,3 +789,20 @@ components:
         - to
         - value
         - data
+    ApplicationError:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Error type
+          enum:
+            - "Already exists"
+            - "Internal error"
+            - "Not found"
+            - "Bad request"
+        message:
+          type: string
+          description: Error message describing the issue
+      required:
+        - type
+        - message
