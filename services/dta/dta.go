@@ -140,6 +140,22 @@ func (s *Service) DecodeFundAdminRegistered(event *client.Event) (*events.DtaFun
 	return &dtaEvent, nil
 }
 
+// DecodeFundTokenAllowlistUpdated decodes a DTA fund token allowlist updated event from the provided CVN event.
+func (s *Service) DecodeFundTokenAllowlistUpdated(event *client.Event) (*events.DtaFundTokenAllowlistUpdated, error) {
+	jsonBytes, err := s.toJson(event)
+	if err != nil {
+		return nil, err
+	}
+
+	var dtaEvent events.DtaFundTokenAllowlistUpdated
+	err = json.Unmarshal(jsonBytes, &dtaEvent)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dtaEvent, nil
+}
+
 // DecodeFundTokenRegistered decodes a DTA fund token registered event from the provided CVN event.
 func (s *Service) DecodeFundTokenRegistered(event *client.Event) (*events.DtaFundTokenRegistered, error) {
 	jsonBytes, err := s.toJson(event)
@@ -609,6 +625,37 @@ func (s *Service) PrepareRegisterDistributorOperation(
 	}, nil
 }
 
+// PrepareUpdateDistributorOperation prepares a DTA update distributor operation.
+// It constructs the necessary transaction to update a distributor.
+//   - distributorWalletAddr: The updated wallet address of the distributor.
+func (s *Service) PrepareUpdateDistributorOperation(
+	distributorWalletAddr common.Address,
+) (*transactTypes.Operation, error) {
+	abiEncoder, err := dtaopenmarketplace.DtaopenmarketplaceMetaData.GetAbi()
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		return nil, err
+	}
+
+	calldata, err := abiEncoder.Pack("updateDistributor", distributorWalletAddr)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to pack calldata for updateDistributor")
+		return nil, err
+	}
+
+	return &transactTypes.Operation{
+		ID:      big.NewInt(time.Now().Unix()),
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
+			{
+				To:    s.dtaOpenMarketplaceAddress,
+				Value: big.NewInt(0),
+				Data:  calldata,
+			},
+		},
+	}, nil
+}
+
 // PrepareRegisterFundAdminOperation prepares a DTA register fund admin operation.
 // It constructs the necessary transaction to register a new fund admin.
 //   - fundAdminAddr: The address of the fund admin to register.
@@ -641,23 +688,26 @@ func (s *Service) PrepareRegisterFundAdminOperation(fundAdminAddr common.Address
 // FundTokenData represents the data structure for fund token registration.
 // This struct mirrors the IFundTokenRegistry.FundTokenData from the contract.
 type FundTokenData struct {
-	FundTokenAddr         common.Address
-	NavAddr               common.Address
-	TokenChainSelector    uint64
-	DtaWalletAddr         common.Address
-	TimezoneOffsetSecs    *big.Int // int24 in contract
-	PurchaseTokenDecimals uint8
-	FundTokenDecimals     uint8
-	RequestsPerDay        uint8
-	PaymentInfo           DTAPaymentInfo
+	FundTokenAddr                 common.Address
+	NavFeedDecimals               uint8
+	PurchaseTokenRoundingDecimals uint8
+	PurchaseTokenDecimals         uint8
+	FundRoundingDecimals          uint8
+	FundTokenDecimals             uint8
+	RequestsPerDay                uint8
+	NavAddr                       common.Address
+	TokenChainSelector            uint64
+	DtaWalletAddr                 common.Address
+	TimezoneOffsetSecs            *big.Int // int24 in contract
+	NavTTL                        *big.Int // uint24 in contract
+	PaymentInfo                   DTAPaymentInfo
 }
 
 // DTAPaymentInfo represents the payment information for DTA operations.
 type DTAPaymentInfo struct {
-	OffChainPaymentCurrency    uint8 // Currency enum
-	PaymentTokenSourceAddr     common.Address
-	PaymentSourceChainSelector uint64
-	PaymentTokenDestAddr       common.Address
+	OffChainPaymentCurrency uint8 // Currency enum
+	PaymentTokenSourceAddr  common.Address
+	PaymentTokenDestAddr    common.Address
 }
 
 // PrepareRegisterFundTokenOperation prepares a DTA register fund token operation.
@@ -676,39 +726,44 @@ func (s *Service) PrepareRegisterFundTokenOperation(
 
 	// Convert our struct to the contract's expected tuple format
 	contractTokenData := struct {
-		FundTokenAddr         common.Address
-		NavAddr               common.Address
-		TokenChainSelector    uint64
-		DtaWalletAddr         common.Address
-		TimezoneOffsetSecs    *big.Int
-		PurchaseTokenDecimals uint8
-		FundTokenDecimals     uint8
-		RequestsPerDay        uint8
-		PaymentInfo           struct {
-			OffChainPaymentCurrency    uint8
-			PaymentTokenSourceAddr     common.Address
-			PaymentSourceChainSelector uint64
-			PaymentTokenDestAddr       common.Address
+		FundTokenAddr                 common.Address
+		NavFeedDecimals               uint8
+		PurchaseTokenRoundingDecimals uint8
+		PurchaseTokenDecimals         uint8
+		FundRoundingDecimals          uint8
+		FundTokenDecimals             uint8
+		RequestsPerDay                uint8
+		NavAddr                       common.Address
+		TokenChainSelector            uint64
+		DtaWalletAddr                 common.Address
+		TimezoneOffsetSecs            *big.Int
+		NavTTL                        *big.Int
+		PaymentInfo                   struct {
+			OffChainPaymentCurrency uint8
+			PaymentTokenSourceAddr  common.Address
+			PaymentTokenDestAddr    common.Address
 		}
 	}{
-		FundTokenAddr:         tokenData.FundTokenAddr,
-		NavAddr:               tokenData.NavAddr,
-		TokenChainSelector:    tokenData.TokenChainSelector,
-		DtaWalletAddr:         tokenData.DtaWalletAddr,
-		TimezoneOffsetSecs:    tokenData.TimezoneOffsetSecs,
-		PurchaseTokenDecimals: tokenData.PurchaseTokenDecimals,
-		FundTokenDecimals:     tokenData.FundTokenDecimals,
-		RequestsPerDay:        tokenData.RequestsPerDay,
+		FundTokenAddr:                 tokenData.FundTokenAddr,
+		NavFeedDecimals:               tokenData.NavFeedDecimals,
+		PurchaseTokenRoundingDecimals: tokenData.PurchaseTokenRoundingDecimals,
+		PurchaseTokenDecimals:         tokenData.PurchaseTokenDecimals,
+		FundRoundingDecimals:          tokenData.FundRoundingDecimals,
+		FundTokenDecimals:             tokenData.FundTokenDecimals,
+		RequestsPerDay:                tokenData.RequestsPerDay,
+		NavAddr:                       tokenData.NavAddr,
+		TokenChainSelector:            tokenData.TokenChainSelector,
+		DtaWalletAddr:                 tokenData.DtaWalletAddr,
+		TimezoneOffsetSecs:            tokenData.TimezoneOffsetSecs,
+		NavTTL:                        tokenData.NavTTL,
 		PaymentInfo: struct {
-			OffChainPaymentCurrency    uint8
-			PaymentTokenSourceAddr     common.Address
-			PaymentSourceChainSelector uint64
-			PaymentTokenDestAddr       common.Address
+			OffChainPaymentCurrency uint8
+			PaymentTokenSourceAddr  common.Address
+			PaymentTokenDestAddr    common.Address
 		}{
-			OffChainPaymentCurrency:    tokenData.PaymentInfo.OffChainPaymentCurrency,
-			PaymentTokenSourceAddr:     tokenData.PaymentInfo.PaymentTokenSourceAddr,
-			PaymentSourceChainSelector: tokenData.PaymentInfo.PaymentSourceChainSelector,
-			PaymentTokenDestAddr:       tokenData.PaymentInfo.PaymentTokenDestAddr,
+			OffChainPaymentCurrency: tokenData.PaymentInfo.OffChainPaymentCurrency,
+			PaymentTokenSourceAddr:  tokenData.PaymentInfo.PaymentTokenSourceAddr,
+			PaymentTokenDestAddr:    tokenData.PaymentInfo.PaymentTokenDestAddr,
 		},
 	}
 

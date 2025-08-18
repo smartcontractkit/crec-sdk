@@ -373,6 +373,36 @@
             "internalType": "address"
           },
           {
+            "name": "navFeedDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "purchaseTokenRoundingDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "purchaseTokenDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "fundRoundingDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "fundTokenDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "requestsPerDay",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
             "name": "navAddr",
             "type": "address",
             "internalType": "address"
@@ -393,19 +423,9 @@
             "internalType": "int24"
           },
           {
-            "name": "purchaseTokenDecimals",
-            "type": "uint8",
-            "internalType": "uint8"
-          },
-          {
-            "name": "fundTokenDecimals",
-            "type": "uint8",
-            "internalType": "uint8"
-          },
-          {
-            "name": "requestsPerDay",
-            "type": "uint8",
-            "internalType": "uint8"
+            "name": "navTTL",
+            "type": "uint24",
+            "internalType": "uint24"
           },
           {
             "name": "paymentInfo",
@@ -421,11 +441,6 @@
                 "name": "paymentTokenSourceAddr",
                 "type": "address",
                 "internalType": "address"
-              },
-              {
-                "name": "paymentSourceChainSelector",
-                "type": "uint64",
-                "internalType": "uint64"
               },
               {
                 "name": "paymentTokenDestAddr",
@@ -531,6 +546,11 @@
         "name": "localChainSelector",
         "type": "uint64",
         "internalType": "uint64"
+      },
+      {
+        "name": "feeManager",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -673,6 +693,36 @@
             "internalType": "address"
           },
           {
+            "name": "navFeedDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "purchaseTokenRoundingDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "purchaseTokenDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "fundRoundingDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "fundTokenDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "requestsPerDay",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
             "name": "navAddr",
             "type": "address",
             "internalType": "address"
@@ -693,19 +743,9 @@
             "internalType": "int24"
           },
           {
-            "name": "purchaseTokenDecimals",
-            "type": "uint8",
-            "internalType": "uint8"
-          },
-          {
-            "name": "fundTokenDecimals",
-            "type": "uint8",
-            "internalType": "uint8"
-          },
-          {
-            "name": "requestsPerDay",
-            "type": "uint8",
-            "internalType": "uint8"
+            "name": "navTTL",
+            "type": "uint24",
+            "internalType": "uint24"
           },
           {
             "name": "paymentInfo",
@@ -721,11 +761,6 @@
                 "name": "paymentTokenSourceAddr",
                 "type": "address",
                 "internalType": "address"
-              },
-              {
-                "name": "paymentSourceChainSelector",
-                "type": "uint64",
-                "internalType": "uint64"
               },
               {
                 "name": "paymentTokenDestAddr",
@@ -830,6 +865,19 @@
     "inputs": [
       {
         "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateDistributor",
+    "inputs": [
+      {
+        "name": "distributorWalletAddr",
         "type": "address",
         "internalType": "address"
       }
@@ -948,10 +996,41 @@
     "name": "FundAdminRegistered",
     "inputs": [
       {
-        "name": "distributorAddr",
+        "name": "fundAdminAddr",
         "type": "address",
         "indexed": false,
         "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FundTokenAllowlistUpdated",
+    "inputs": [
+      {
+        "name": "fundAdminAddr",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "fundTokenId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "distributorAddr",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "allowed",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
       }
     ],
     "anonymous": false
@@ -1368,37 +1447,6 @@
         "name": "requestType",
         "type": "uint8",
         "internalType": "enum IDTAMessage.DistributorRequestType"
-      },
-      {
-        "name": "numPrevRequests",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "RequestAndNavNotSameDay",
-    "inputs": [
-      {
-        "name": "requestId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "requestCreatedAt",
-        "type": "uint40",
-        "internalType": "uint40"
-      },
-      {
-        "name": "navUpdatedAt",
-        "type": "uint40",
-        "internalType": "uint40"
-      },
-      {
-        "name": "fundIssuerTimeZoneOffsetSecs",
-        "type": "int24",
-        "internalType": "int24"
       }
     ]
   },
@@ -1420,6 +1468,32 @@
         "name": "actualStatus",
         "type": "uint8",
         "internalType": "enum IDTAMessage.RequestStatus"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "StaleNAV",
+    "inputs": [
+      {
+        "name": "requestId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "requestCreatedAt",
+        "type": "uint40",
+        "internalType": "uint40"
+      },
+      {
+        "name": "navUpdatedAt",
+        "type": "uint40",
+        "internalType": "uint40"
+      },
+      {
+        "name": "fundIssuerTimeZoneOffsetSecs",
+        "type": "int24",
+        "internalType": "int24"
       }
     ]
   },

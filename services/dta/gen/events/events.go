@@ -40,6 +40,9 @@ type Dta struct {
 	// Emitted when a fund admin has been registered.
 	FundAdminRegistered *DtaFundAdminRegistered `json:"FundAdminRegistered,omitempty" yaml:"FundAdminRegistered,omitempty" mapstructure:"FundAdminRegistered,omitempty"`
 
+	// Emitted when a fund token allowlist has been updated.
+	FundTokenAllowlistUpdated *DtaFundTokenAllowlistUpdated `json:"FundTokenAllowlistUpdated,omitempty" yaml:"FundTokenAllowlistUpdated,omitempty" mapstructure:"FundTokenAllowlistUpdated,omitempty"`
+
 	// Emitted when a fund token has been registered.
 	FundTokenRegistered *DtaFundTokenRegistered `json:"FundTokenRegistered,omitempty" yaml:"FundTokenRegistered,omitempty" mapstructure:"FundTokenRegistered,omitempty"`
 
@@ -295,6 +298,21 @@ func (j *DtaEvent) UnmarshalJSON(value []byte) error {
 
 // Emitted when a fund admin has been registered.
 type DtaFundAdminRegistered struct {
+	// The timestamp when the event was created
+	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
+
+	// Event corresponds to the JSON schema field "event".
+	Event *DtaEvent `json:"event,omitempty" yaml:"event,omitempty" mapstructure:"event,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
+	// Transaction corresponds to the JSON schema field "transaction".
+	Transaction *Transaction `json:"transaction,omitempty" yaml:"transaction,omitempty" mapstructure:"transaction,omitempty"`
+}
+
+// Emitted when a fund token allowlist has been updated.
+type DtaFundTokenAllowlistUpdated struct {
 	// The timestamp when the event was created
 	CreatedAt *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty" mapstructure:"createdAt,omitempty"`
 

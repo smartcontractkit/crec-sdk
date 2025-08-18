@@ -176,6 +176,32 @@ func TestPrepareRegisterDistributorOperation(t *testing.T) {
 	require.NotEmpty(t, tx.Data)
 }
 
+func TestPrepareUpdateDistributorOperation(t *testing.T) {
+	service, err := NewService(&ServiceOptions{
+		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+	})
+	require.NoError(t, err)
+
+	distributorWalletAddr := common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B87")
+
+	operation, err := service.PrepareUpdateDistributorOperation(distributorWalletAddr)
+	require.NoError(t, err)
+	require.NotNil(t, operation)
+
+	// Verify operation structure
+	require.NotNil(t, operation.ID)
+	require.Equal(t, service.accountAddress, operation.Account)
+	require.Len(t, operation.Transactions, 1)
+
+	// Verify transaction structure
+	tx := operation.Transactions[0]
+	require.Equal(t, service.dtaOpenMarketplaceAddress, tx.To)
+	require.Equal(t, big.NewInt(0), tx.Value)
+	require.NotEmpty(t, tx.Data)
+}
+
 func TestPrepareRegisterFundTokenOperation(t *testing.T) {
 	service, err := NewService(&ServiceOptions{
 		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
@@ -186,19 +212,21 @@ func TestPrepareRegisterFundTokenOperation(t *testing.T) {
 
 	fundTokenId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	tokenData := FundTokenData{
-		FundTokenAddr:         common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B86"),
-		NavAddr:               common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621"),
-		TokenChainSelector:    1234567890,
-		DtaWalletAddr:         common.HexToAddress("0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1"),
-		TimezoneOffsetSecs:    big.NewInt(-18000), // -5 hours in seconds
-		PurchaseTokenDecimals: 18,
-		FundTokenDecimals:     18,
-		RequestsPerDay:        10,
+		FundTokenAddr:                 common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B86"),
+		NavAddr:                       common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621"),
+		TokenChainSelector:            1234567890,
+		DtaWalletAddr:                 common.HexToAddress("0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1"),
+		TimezoneOffsetSecs:            big.NewInt(-18000), // -5 hours in seconds
+		NavFeedDecimals:               18,
+		PurchaseTokenRoundingDecimals: 18,
+		PurchaseTokenDecimals:         18,
+		FundRoundingDecimals:          18,
+		FundTokenDecimals:             18,
+		RequestsPerDay:                10,
 		PaymentInfo: DTAPaymentInfo{
-			OffChainPaymentCurrency:    1, // USD
-			PaymentTokenSourceAddr:     common.HexToAddress("0xA0b86a33E6241e2a4C8Ca3a3b4e4F1234567890"),
-			PaymentSourceChainSelector: 1234567890,
-			PaymentTokenDestAddr:       common.HexToAddress("0xB0b86a33E6241e2a4C8Ca3a3b4e4F1234567890"),
+			OffChainPaymentCurrency: 1, // USD
+			PaymentTokenSourceAddr:  common.HexToAddress("0xA0b86a33E6241e2a4C8Ca3a3b4e4F1234567890"),
+			PaymentTokenDestAddr:    common.HexToAddress("0xB0b86a33E6241e2a4C8Ca3a3b4e4F1234567890"),
 		},
 	}
 

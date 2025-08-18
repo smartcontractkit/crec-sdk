@@ -103,6 +103,26 @@
         }
       }
     },
+    "FundTokenAllowlistUpdated": {
+      "type": "object",
+      "description": "Emitted when a fund token allowlist has been updated.",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the event was created"
+        },
+        "event": {
+          "$ref": "#/$defs/dtaEvent"
+        },
+        "transaction": {
+          "$ref": "#/$defs/transaction"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
     "FundTokenRegistered": {
       "type": "object",
       "description": "Emitted when a fund token has been registered.",

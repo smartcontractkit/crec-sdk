@@ -58,10 +58,9 @@ type IDTADistributorDistributorRequest struct {
 
 // IDTAMessageDTAPayment is an auto generated low-level Go binding around an user-defined struct.
 type IDTAMessageDTAPayment struct {
-	OffChainPaymentCurrency    uint8
-	PaymentTokenSourceAddr     common.Address
-	PaymentSourceChainSelector uint64
-	PaymentTokenDestAddr       common.Address
+	OffChainPaymentCurrency uint8
+	PaymentTokenSourceAddr  common.Address
+	PaymentTokenDestAddr    common.Address
 }
 
 // IDTAMessageDtaRequestStatusMessage is an auto generated low-level Go binding around an user-defined struct.
@@ -73,15 +72,19 @@ type IDTAMessageDtaRequestStatusMessage struct {
 
 // IFundTokenRegistryFundTokenData is an auto generated low-level Go binding around an user-defined struct.
 type IFundTokenRegistryFundTokenData struct {
-	FundTokenAddr         common.Address
-	NavAddr               common.Address
-	TokenChainSelector    uint64
-	DtaWalletAddr         common.Address
-	TimezoneOffsetSecs    *big.Int
-	PurchaseTokenDecimals uint8
-	FundTokenDecimals     uint8
-	RequestsPerDay        uint8
-	PaymentInfo           IDTAMessageDTAPayment
+	FundTokenAddr                 common.Address
+	NavFeedDecimals               uint8
+	PurchaseTokenRoundingDecimals uint8
+	PurchaseTokenDecimals         uint8
+	FundRoundingDecimals          uint8
+	FundTokenDecimals             uint8
+	RequestsPerDay                uint8
+	NavAddr                       common.Address
+	TokenChainSelector            uint64
+	DtaWalletAddr                 common.Address
+	TimezoneOffsetSecs            *big.Int
+	NavTTL                        *big.Int
+	PaymentInfo                   IDTAMessageDTAPayment
 }
 
 // IOpenFundDistributorRegistryDistributorData is an auto generated low-level Go binding around an user-defined struct.
@@ -91,7 +94,7 @@ type IOpenFundDistributorRegistryDistributorData struct {
 
 // DtaopenmarketplaceMetaData contains all meta data concerning the Dtaopenmarketplace contract.
 var DtaopenmarketplaceMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"localChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"ccipRouter\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"receive\",\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"allowDistributorForToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelDistributorRequest\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"ccipReceive\",\"inputs\":[{\"name\":\"message\",\"type\":\"tuple\",\"internalType\":\"structClient.Any2EVMMessage\",\"components\":[{\"name\":\"messageId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"sourceChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"sender\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"destTokenAmounts\",\"type\":\"tuple[]\",\"internalType\":\"structClient.EVMTokenAmount[]\",\"components\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"completeDistributorRequest\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sourceChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"dtaMessage\",\"type\":\"tuple\",\"internalType\":\"structIDTAMessage.DtaRequestStatusMessage\",\"components\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"},{\"name\":\"err\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"directCompleteDistributorRequest\",\"inputs\":[{\"name\":\"dtaMessage\",\"type\":\"tuple\",\"internalType\":\"structIDTAMessage.DtaRequestStatusMessage\",\"components\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"},{\"name\":\"err\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"disableFundToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"disallowDistributorForToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"enableFundToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getDistributor\",\"inputs\":[{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIOpenFundDistributorRegistry.DistributorData\",\"components\":[{\"name\":\"distributorWalletAddr\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDistributorRequest\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIDTADistributor.DistributorRequest\",\"components\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint40\",\"internalType\":\"uint40\"},{\"name\":\"requestType\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.DistributorRequestType\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDistributors\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"distributorAddrs\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getFundAdmins\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"fundAdminAddrs\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getFundToken\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIFundTokenRegistry.FundTokenData\",\"components\":[{\"name\":\"fundTokenAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"navAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tokenChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"dtaWalletAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"timezoneOffsetSecs\",\"type\":\"int24\",\"internalType\":\"int24\"},{\"name\":\"purchaseTokenDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"fundTokenDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"requestsPerDay\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"paymentInfo\",\"type\":\"tuple\",\"internalType\":\"structIDTAMessage.DTAPayment\",\"components\":[{\"name\":\"offChainPaymentCurrency\",\"type\":\"uint8\",\"internalType\":\"enumCurrency\"},{\"name\":\"paymentTokenSourceAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"paymentSourceChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"paymentTokenDestAddr\",\"type\":\"address\",\"internalType\":\"address\"}]}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getFundTokens\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getLocalChainSelector\",\"inputs\":[],\"outputs\":[{\"name\":\"localChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRouter\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTokenRequestsByDate\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"date\",\"type\":\"uint40\",\"internalType\":\"uint40\"},{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"localChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isDistributorAllowedForToken\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAllowed\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isTokenEnabled\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isFundAdminRegistered\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"processDistributorRequest\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"recoverFunds\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerDistributor\",\"inputs\":[{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"distributorWalletAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerFundAdmin\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerFundToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"tokenData\",\"type\":\"tuple\",\"internalType\":\"structIFundTokenRegistry.FundTokenData\",\"components\":[{\"name\":\"fundTokenAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"navAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tokenChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"dtaWalletAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"timezoneOffsetSecs\",\"type\":\"int24\",\"internalType\":\"int24\"},{\"name\":\"purchaseTokenDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"fundTokenDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"requestsPerDay\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"paymentInfo\",\"type\":\"tuple\",\"internalType\":\"structIDTAMessage.DTAPayment\",\"components\":[{\"name\":\"offChainPaymentCurrency\",\"type\":\"uint8\",\"internalType\":\"enumCurrency\"},{\"name\":\"paymentTokenSourceAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"paymentSourceChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"paymentTokenDestAddr\",\"type\":\"address\",\"internalType\":\"address\"}]}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"requestRedemption\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"requestSubscription\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"DistributorRegistered\",\"inputs\":[{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DistributorRequestCanceled\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DistributorRequestProcessed\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"status\",\"type\":\"uint8\",\"indexed\":false,\"internalType\":\"enumIDTAMessage.RequestStatus\"},{\"name\":\"error\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DistributorRequestProcessing\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FundAdminRegistered\",\"inputs\":[{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FundTokenRegistered\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"fundTokenAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"navAddr\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"tokenChainSelector\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"InvalidDTAWallet\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"actualChainSelector\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"actualDTAAdminWalletAddr\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MessageFailed\",\"inputs\":[{\"name\":\"messageId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"reason\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"NativeFundsRecovered\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedemptionRequested\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"createdAt\",\"type\":\"uint40\",\"indexed\":false,\"internalType\":\"uint40\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SubscriptionRequested\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"createdAt\",\"type\":\"uint40\",\"indexed\":false,\"internalType\":\"uint40\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AddressDoesNotExist\",\"inputs\":[{\"name\":\"addr\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"AddressExists\",\"inputs\":[{\"name\":\"addr\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"CancelNotAllowed\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"requestStatus\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"}]},{\"type\":\"error\",\"name\":\"DistributorNotAllowed\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"DoesNotExist\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"ErrEscrowPaymentToken\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Exists\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"InvalidFundTokenData\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidNAV\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nav\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"InvalidPaymentInfo\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidRequest\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"InvalidRouter\",\"inputs\":[{\"name\":\"router\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OnlySelf\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"RateLimitExceeded\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"requestType\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.DistributorRequestType\"},{\"name\":\"numPrevRequests\",\"type\":\"uint8\",\"internalType\":\"uint8\"}]},{\"type\":\"error\",\"name\":\"RequestAndNavNotSameDay\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"requestCreatedAt\",\"type\":\"uint40\",\"internalType\":\"uint40\"},{\"name\":\"navUpdatedAt\",\"type\":\"uint40\",\"internalType\":\"uint40\"},{\"name\":\"fundIssuerTimeZoneOffsetSecs\",\"type\":\"int24\",\"internalType\":\"int24\"}]},{\"type\":\"error\",\"name\":\"RequestNotInStatus\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"expectedStatus\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"},{\"name\":\"actualStatus\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"}]},{\"type\":\"error\",\"name\":\"UnauthorizedDistributorNotAllowedForToken\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnauthorizedDistributorNotEnabled\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnauthorizedNotDistributor\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnauthorizedNotOwner\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnauthorizedSender\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnexpectedStatus\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"expectedStatus\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"actualStatus\",\"type\":\"bool\",\"internalType\":\"bool\"}]},{\"type\":\"error\",\"name\":\"UnexpectedTokenStatus\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"actualStatus\",\"type\":\"bool\",\"internalType\":\"bool\"}]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"localChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"ccipRouter\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"receive\",\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"allowDistributorForToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelDistributorRequest\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"ccipReceive\",\"inputs\":[{\"name\":\"message\",\"type\":\"tuple\",\"internalType\":\"structClient.Any2EVMMessage\",\"components\":[{\"name\":\"messageId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"sourceChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"sender\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"destTokenAmounts\",\"type\":\"tuple[]\",\"internalType\":\"structClient.EVMTokenAmount[]\",\"components\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"completeDistributorRequest\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sourceChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"dtaMessage\",\"type\":\"tuple\",\"internalType\":\"structIDTAMessage.DtaRequestStatusMessage\",\"components\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"},{\"name\":\"err\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"directCompleteDistributorRequest\",\"inputs\":[{\"name\":\"dtaMessage\",\"type\":\"tuple\",\"internalType\":\"structIDTAMessage.DtaRequestStatusMessage\",\"components\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"},{\"name\":\"err\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"disableFundToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"disallowDistributorForToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"enableFundToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getDistributor\",\"inputs\":[{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIOpenFundDistributorRegistry.DistributorData\",\"components\":[{\"name\":\"distributorWalletAddr\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDistributorRequest\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIDTADistributor.DistributorRequest\",\"components\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint40\",\"internalType\":\"uint40\"},{\"name\":\"requestType\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.DistributorRequestType\"},{\"name\":\"status\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDistributors\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"distributorAddrs\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getFundAdmins\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"fundAdminAddrs\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getFundToken\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIFundTokenRegistry.FundTokenData\",\"components\":[{\"name\":\"fundTokenAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"navFeedDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"purchaseTokenRoundingDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"purchaseTokenDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"fundRoundingDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"fundTokenDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"requestsPerDay\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"navAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tokenChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"dtaWalletAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"timezoneOffsetSecs\",\"type\":\"int24\",\"internalType\":\"int24\"},{\"name\":\"navTTL\",\"type\":\"uint24\",\"internalType\":\"uint24\"},{\"name\":\"paymentInfo\",\"type\":\"tuple\",\"internalType\":\"structIDTAMessage.DTAPayment\",\"components\":[{\"name\":\"offChainPaymentCurrency\",\"type\":\"uint8\",\"internalType\":\"enumCurrency\"},{\"name\":\"paymentTokenSourceAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"paymentTokenDestAddr\",\"type\":\"address\",\"internalType\":\"address\"}]}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getFundTokens\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getLocalChainSelector\",\"inputs\":[],\"outputs\":[{\"name\":\"localChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRouter\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTokenRequestsByDate\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"date\",\"type\":\"uint40\",\"internalType\":\"uint40\"},{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"localChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"feeManager\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isDistributorAllowedForToken\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAllowed\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isTokenEnabled\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isFundAdminRegistered\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"processDistributorRequest\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"recoverFunds\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerDistributor\",\"inputs\":[{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"distributorWalletAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerFundAdmin\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerFundToken\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"tokenData\",\"type\":\"tuple\",\"internalType\":\"structIFundTokenRegistry.FundTokenData\",\"components\":[{\"name\":\"fundTokenAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"navFeedDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"purchaseTokenRoundingDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"purchaseTokenDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"fundRoundingDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"fundTokenDecimals\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"requestsPerDay\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"navAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tokenChainSelector\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"dtaWalletAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"timezoneOffsetSecs\",\"type\":\"int24\",\"internalType\":\"int24\"},{\"name\":\"navTTL\",\"type\":\"uint24\",\"internalType\":\"uint24\"},{\"name\":\"paymentInfo\",\"type\":\"tuple\",\"internalType\":\"structIDTAMessage.DTAPayment\",\"components\":[{\"name\":\"offChainPaymentCurrency\",\"type\":\"uint8\",\"internalType\":\"enumCurrency\"},{\"name\":\"paymentTokenSourceAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"paymentTokenDestAddr\",\"type\":\"address\",\"internalType\":\"address\"}]}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"requestRedemption\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"requestSubscription\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateDistributor\",\"inputs\":[{\"name\":\"distributorWalletAddr\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"DistributorRegistered\",\"inputs\":[{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DistributorRequestCanceled\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DistributorRequestProcessed\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"status\",\"type\":\"uint8\",\"indexed\":false,\"internalType\":\"enumIDTAMessage.RequestStatus\"},{\"name\":\"error\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DistributorRequestProcessing\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FundAdminRegistered\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FundTokenAllowlistUpdated\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"allowed\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FundTokenRegistered\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"fundTokenAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"navAddr\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"tokenChainSelector\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"InvalidDTAWallet\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"actualChainSelector\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"actualDTAAdminWalletAddr\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MessageFailed\",\"inputs\":[{\"name\":\"messageId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"reason\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"NativeFundsRecovered\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedemptionRequested\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"createdAt\",\"type\":\"uint40\",\"indexed\":false,\"internalType\":\"uint40\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SubscriptionRequested\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"createdAt\",\"type\":\"uint40\",\"indexed\":false,\"internalType\":\"uint40\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AddressDoesNotExist\",\"inputs\":[{\"name\":\"addr\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"AddressExists\",\"inputs\":[{\"name\":\"addr\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"CancelNotAllowed\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"requestStatus\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"}]},{\"type\":\"error\",\"name\":\"DistributorNotAllowed\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"DoesNotExist\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"ErrEscrowPaymentToken\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Exists\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"InvalidFundTokenData\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidNAV\",\"inputs\":[{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nav\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"InvalidPaymentInfo\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidRequest\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"InvalidRouter\",\"inputs\":[{\"name\":\"router\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OnlySelf\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"RateLimitExceeded\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"distributorAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"requestType\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.DistributorRequestType\"}]},{\"type\":\"error\",\"name\":\"RequestNotInStatus\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"expectedStatus\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"},{\"name\":\"actualStatus\",\"type\":\"uint8\",\"internalType\":\"enumIDTAMessage.RequestStatus\"}]},{\"type\":\"error\",\"name\":\"StaleNAV\",\"inputs\":[{\"name\":\"requestId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"requestCreatedAt\",\"type\":\"uint40\",\"internalType\":\"uint40\"},{\"name\":\"navUpdatedAt\",\"type\":\"uint40\",\"internalType\":\"uint40\"},{\"name\":\"fundIssuerTimeZoneOffsetSecs\",\"type\":\"int24\",\"internalType\":\"int24\"}]},{\"type\":\"error\",\"name\":\"UnauthorizedDistributorNotAllowedForToken\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnauthorizedDistributorNotEnabled\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnauthorizedNotDistributor\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnauthorizedNotOwner\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnauthorizedSender\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UnexpectedStatus\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"expectedStatus\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"actualStatus\",\"type\":\"bool\",\"internalType\":\"bool\"}]},{\"type\":\"error\",\"name\":\"UnexpectedTokenStatus\",\"inputs\":[{\"name\":\"fundAdminAddr\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fundTokenId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"actualStatus\",\"type\":\"bool\",\"internalType\":\"bool\"}]}]",
 }
 
 // DtaopenmarketplaceABI is the input ABI used to generate the binding from.
@@ -366,7 +369,7 @@ func (_Dtaopenmarketplace *DtaopenmarketplaceCallerSession) GetFundAdmins(offset
 
 // GetFundToken is a free data retrieval call binding the contract method 0x5f364f07.
 //
-// Solidity: function getFundToken(address fundAdminAddr, bytes32 fundTokenId) view returns(bool enabled, (address,address,uint64,address,int24,uint8,uint8,uint8,(uint8,address,uint64,address)))
+// Solidity: function getFundToken(address fundAdminAddr, bytes32 fundTokenId) view returns(bool enabled, (address,uint8,uint8,uint8,uint8,uint8,uint8,address,uint64,address,int24,uint24,(uint8,address,address)))
 func (_Dtaopenmarketplace *DtaopenmarketplaceCaller) GetFundToken(opts *bind.CallOpts, fundAdminAddr common.Address, fundTokenId [32]byte) (bool, IFundTokenRegistryFundTokenData, error) {
 	var out []interface{}
 	err := _Dtaopenmarketplace.contract.Call(opts, &out, "getFundToken", fundAdminAddr, fundTokenId)
@@ -384,14 +387,14 @@ func (_Dtaopenmarketplace *DtaopenmarketplaceCaller) GetFundToken(opts *bind.Cal
 
 // GetFundToken is a free data retrieval call binding the contract method 0x5f364f07.
 //
-// Solidity: function getFundToken(address fundAdminAddr, bytes32 fundTokenId) view returns(bool enabled, (address,address,uint64,address,int24,uint8,uint8,uint8,(uint8,address,uint64,address)))
+// Solidity: function getFundToken(address fundAdminAddr, bytes32 fundTokenId) view returns(bool enabled, (address,uint8,uint8,uint8,uint8,uint8,uint8,address,uint64,address,int24,uint24,(uint8,address,address)))
 func (_Dtaopenmarketplace *DtaopenmarketplaceSession) GetFundToken(fundAdminAddr common.Address, fundTokenId [32]byte) (bool, IFundTokenRegistryFundTokenData, error) {
 	return _Dtaopenmarketplace.Contract.GetFundToken(&_Dtaopenmarketplace.CallOpts, fundAdminAddr, fundTokenId)
 }
 
 // GetFundToken is a free data retrieval call binding the contract method 0x5f364f07.
 //
-// Solidity: function getFundToken(address fundAdminAddr, bytes32 fundTokenId) view returns(bool enabled, (address,address,uint64,address,int24,uint8,uint8,uint8,(uint8,address,uint64,address)))
+// Solidity: function getFundToken(address fundAdminAddr, bytes32 fundTokenId) view returns(bool enabled, (address,uint8,uint8,uint8,uint8,uint8,uint8,address,uint64,address,int24,uint24,(uint8,address,address)))
 func (_Dtaopenmarketplace *DtaopenmarketplaceCallerSession) GetFundToken(fundAdminAddr common.Address, fundTokenId [32]byte) (bool, IFundTokenRegistryFundTokenData, error) {
 	return _Dtaopenmarketplace.Contract.GetFundToken(&_Dtaopenmarketplace.CallOpts, fundAdminAddr, fundTokenId)
 }
@@ -826,25 +829,25 @@ func (_Dtaopenmarketplace *DtaopenmarketplaceTransactorSession) EnableFundToken(
 	return _Dtaopenmarketplace.Contract.EnableFundToken(&_Dtaopenmarketplace.TransactOpts, fundTokenId)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xeb92db27.
+// Initialize is a paid mutator transaction binding the contract method 0xd7eecc7e.
 //
-// Solidity: function initialize(uint64 localChainSelector) returns()
-func (_Dtaopenmarketplace *DtaopenmarketplaceTransactor) Initialize(opts *bind.TransactOpts, localChainSelector uint64) (*types.Transaction, error) {
-	return _Dtaopenmarketplace.contract.Transact(opts, "initialize", localChainSelector)
+// Solidity: function initialize(uint64 localChainSelector, address feeManager) returns()
+func (_Dtaopenmarketplace *DtaopenmarketplaceTransactor) Initialize(opts *bind.TransactOpts, localChainSelector uint64, feeManager common.Address) (*types.Transaction, error) {
+	return _Dtaopenmarketplace.contract.Transact(opts, "initialize", localChainSelector, feeManager)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xeb92db27.
+// Initialize is a paid mutator transaction binding the contract method 0xd7eecc7e.
 //
-// Solidity: function initialize(uint64 localChainSelector) returns()
-func (_Dtaopenmarketplace *DtaopenmarketplaceSession) Initialize(localChainSelector uint64) (*types.Transaction, error) {
-	return _Dtaopenmarketplace.Contract.Initialize(&_Dtaopenmarketplace.TransactOpts, localChainSelector)
+// Solidity: function initialize(uint64 localChainSelector, address feeManager) returns()
+func (_Dtaopenmarketplace *DtaopenmarketplaceSession) Initialize(localChainSelector uint64, feeManager common.Address) (*types.Transaction, error) {
+	return _Dtaopenmarketplace.Contract.Initialize(&_Dtaopenmarketplace.TransactOpts, localChainSelector, feeManager)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xeb92db27.
+// Initialize is a paid mutator transaction binding the contract method 0xd7eecc7e.
 //
-// Solidity: function initialize(uint64 localChainSelector) returns()
-func (_Dtaopenmarketplace *DtaopenmarketplaceTransactorSession) Initialize(localChainSelector uint64) (*types.Transaction, error) {
-	return _Dtaopenmarketplace.Contract.Initialize(&_Dtaopenmarketplace.TransactOpts, localChainSelector)
+// Solidity: function initialize(uint64 localChainSelector, address feeManager) returns()
+func (_Dtaopenmarketplace *DtaopenmarketplaceTransactorSession) Initialize(localChainSelector uint64, feeManager common.Address) (*types.Transaction, error) {
+	return _Dtaopenmarketplace.Contract.Initialize(&_Dtaopenmarketplace.TransactOpts, localChainSelector, feeManager)
 }
 
 // ProcessDistributorRequest is a paid mutator transaction binding the contract method 0x53a103bc.
@@ -931,23 +934,23 @@ func (_Dtaopenmarketplace *DtaopenmarketplaceTransactorSession) RegisterFundAdmi
 	return _Dtaopenmarketplace.Contract.RegisterFundAdmin(&_Dtaopenmarketplace.TransactOpts, fundAdminAddr)
 }
 
-// RegisterFundToken is a paid mutator transaction binding the contract method 0xc0e8a27f.
+// RegisterFundToken is a paid mutator transaction binding the contract method 0x309f21e9.
 //
-// Solidity: function registerFundToken(bytes32 fundTokenId, (address,address,uint64,address,int24,uint8,uint8,uint8,(uint8,address,uint64,address)) tokenData) returns()
+// Solidity: function registerFundToken(bytes32 fundTokenId, (address,uint8,uint8,uint8,uint8,uint8,uint8,address,uint64,address,int24,uint24,(uint8,address,address)) tokenData) returns()
 func (_Dtaopenmarketplace *DtaopenmarketplaceTransactor) RegisterFundToken(opts *bind.TransactOpts, fundTokenId [32]byte, tokenData IFundTokenRegistryFundTokenData) (*types.Transaction, error) {
 	return _Dtaopenmarketplace.contract.Transact(opts, "registerFundToken", fundTokenId, tokenData)
 }
 
-// RegisterFundToken is a paid mutator transaction binding the contract method 0xc0e8a27f.
+// RegisterFundToken is a paid mutator transaction binding the contract method 0x309f21e9.
 //
-// Solidity: function registerFundToken(bytes32 fundTokenId, (address,address,uint64,address,int24,uint8,uint8,uint8,(uint8,address,uint64,address)) tokenData) returns()
+// Solidity: function registerFundToken(bytes32 fundTokenId, (address,uint8,uint8,uint8,uint8,uint8,uint8,address,uint64,address,int24,uint24,(uint8,address,address)) tokenData) returns()
 func (_Dtaopenmarketplace *DtaopenmarketplaceSession) RegisterFundToken(fundTokenId [32]byte, tokenData IFundTokenRegistryFundTokenData) (*types.Transaction, error) {
 	return _Dtaopenmarketplace.Contract.RegisterFundToken(&_Dtaopenmarketplace.TransactOpts, fundTokenId, tokenData)
 }
 
-// RegisterFundToken is a paid mutator transaction binding the contract method 0xc0e8a27f.
+// RegisterFundToken is a paid mutator transaction binding the contract method 0x309f21e9.
 //
-// Solidity: function registerFundToken(bytes32 fundTokenId, (address,address,uint64,address,int24,uint8,uint8,uint8,(uint8,address,uint64,address)) tokenData) returns()
+// Solidity: function registerFundToken(bytes32 fundTokenId, (address,uint8,uint8,uint8,uint8,uint8,uint8,address,uint64,address,int24,uint24,(uint8,address,address)) tokenData) returns()
 func (_Dtaopenmarketplace *DtaopenmarketplaceTransactorSession) RegisterFundToken(fundTokenId [32]byte, tokenData IFundTokenRegistryFundTokenData) (*types.Transaction, error) {
 	return _Dtaopenmarketplace.Contract.RegisterFundToken(&_Dtaopenmarketplace.TransactOpts, fundTokenId, tokenData)
 }
@@ -1034,6 +1037,27 @@ func (_Dtaopenmarketplace *DtaopenmarketplaceSession) TransferOwnership(newOwner
 // Solidity: function transferOwnership(address newOwner) returns()
 func (_Dtaopenmarketplace *DtaopenmarketplaceTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
 	return _Dtaopenmarketplace.Contract.TransferOwnership(&_Dtaopenmarketplace.TransactOpts, newOwner)
+}
+
+// UpdateDistributor is a paid mutator transaction binding the contract method 0xbc30a618.
+//
+// Solidity: function updateDistributor(address distributorWalletAddr) returns()
+func (_Dtaopenmarketplace *DtaopenmarketplaceTransactor) UpdateDistributor(opts *bind.TransactOpts, distributorWalletAddr common.Address) (*types.Transaction, error) {
+	return _Dtaopenmarketplace.contract.Transact(opts, "updateDistributor", distributorWalletAddr)
+}
+
+// UpdateDistributor is a paid mutator transaction binding the contract method 0xbc30a618.
+//
+// Solidity: function updateDistributor(address distributorWalletAddr) returns()
+func (_Dtaopenmarketplace *DtaopenmarketplaceSession) UpdateDistributor(distributorWalletAddr common.Address) (*types.Transaction, error) {
+	return _Dtaopenmarketplace.Contract.UpdateDistributor(&_Dtaopenmarketplace.TransactOpts, distributorWalletAddr)
+}
+
+// UpdateDistributor is a paid mutator transaction binding the contract method 0xbc30a618.
+//
+// Solidity: function updateDistributor(address distributorWalletAddr) returns()
+func (_Dtaopenmarketplace *DtaopenmarketplaceTransactorSession) UpdateDistributor(distributorWalletAddr common.Address) (*types.Transaction, error) {
+	return _Dtaopenmarketplace.Contract.UpdateDistributor(&_Dtaopenmarketplace.TransactOpts, distributorWalletAddr)
 }
 
 // Receive is a paid mutator transaction binding the contract receive function.
@@ -1707,13 +1731,13 @@ func (it *DtaopenmarketplaceFundAdminRegisteredIterator) Close() error {
 
 // DtaopenmarketplaceFundAdminRegistered represents a FundAdminRegistered event raised by the Dtaopenmarketplace contract.
 type DtaopenmarketplaceFundAdminRegistered struct {
-	DistributorAddr common.Address
-	Raw             types.Log // Blockchain specific contextual infos
+	FundAdminAddr common.Address
+	Raw           types.Log // Blockchain specific contextual infos
 }
 
 // FilterFundAdminRegistered is a free log retrieval operation binding the contract event 0xa5989e8c3c95d94721e03ce0e0d7f247ffe2272bd032bd6d68c91aff5b68b8c1.
 //
-// Solidity: event FundAdminRegistered(address distributorAddr)
+// Solidity: event FundAdminRegistered(address fundAdminAddr)
 func (_Dtaopenmarketplace *DtaopenmarketplaceFilterer) FilterFundAdminRegistered(opts *bind.FilterOpts) (*DtaopenmarketplaceFundAdminRegisteredIterator, error) {
 
 	logs, sub, err := _Dtaopenmarketplace.contract.FilterLogs(opts, "FundAdminRegistered")
@@ -1725,7 +1749,7 @@ func (_Dtaopenmarketplace *DtaopenmarketplaceFilterer) FilterFundAdminRegistered
 
 // WatchFundAdminRegistered is a free log subscription operation binding the contract event 0xa5989e8c3c95d94721e03ce0e0d7f247ffe2272bd032bd6d68c91aff5b68b8c1.
 //
-// Solidity: event FundAdminRegistered(address distributorAddr)
+// Solidity: event FundAdminRegistered(address fundAdminAddr)
 func (_Dtaopenmarketplace *DtaopenmarketplaceFilterer) WatchFundAdminRegistered(opts *bind.WatchOpts, sink chan<- *DtaopenmarketplaceFundAdminRegistered) (event.Subscription, error) {
 
 	logs, sub, err := _Dtaopenmarketplace.contract.WatchLogs(opts, "FundAdminRegistered")
@@ -1762,10 +1786,173 @@ func (_Dtaopenmarketplace *DtaopenmarketplaceFilterer) WatchFundAdminRegistered(
 
 // ParseFundAdminRegistered is a log parse operation binding the contract event 0xa5989e8c3c95d94721e03ce0e0d7f247ffe2272bd032bd6d68c91aff5b68b8c1.
 //
-// Solidity: event FundAdminRegistered(address distributorAddr)
+// Solidity: event FundAdminRegistered(address fundAdminAddr)
 func (_Dtaopenmarketplace *DtaopenmarketplaceFilterer) ParseFundAdminRegistered(log types.Log) (*DtaopenmarketplaceFundAdminRegistered, error) {
 	event := new(DtaopenmarketplaceFundAdminRegistered)
 	if err := _Dtaopenmarketplace.contract.UnpackLog(event, "FundAdminRegistered", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// DtaopenmarketplaceFundTokenAllowlistUpdatedIterator is returned from FilterFundTokenAllowlistUpdated and is used to iterate over the raw logs and unpacked data for FundTokenAllowlistUpdated events raised by the Dtaopenmarketplace contract.
+type DtaopenmarketplaceFundTokenAllowlistUpdatedIterator struct {
+	Event *DtaopenmarketplaceFundTokenAllowlistUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *DtaopenmarketplaceFundTokenAllowlistUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(DtaopenmarketplaceFundTokenAllowlistUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(DtaopenmarketplaceFundTokenAllowlistUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *DtaopenmarketplaceFundTokenAllowlistUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *DtaopenmarketplaceFundTokenAllowlistUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// DtaopenmarketplaceFundTokenAllowlistUpdated represents a FundTokenAllowlistUpdated event raised by the Dtaopenmarketplace contract.
+type DtaopenmarketplaceFundTokenAllowlistUpdated struct {
+	FundAdminAddr   common.Address
+	FundTokenId     [32]byte
+	DistributorAddr common.Address
+	Allowed         bool
+	Raw             types.Log // Blockchain specific contextual infos
+}
+
+// FilterFundTokenAllowlistUpdated is a free log retrieval operation binding the contract event 0x13dc013c86d37e8239ff3de6c79a07b274a5ca98a3d2500738b3f841b39fd286.
+//
+// Solidity: event FundTokenAllowlistUpdated(address indexed fundAdminAddr, bytes32 indexed fundTokenId, address indexed distributorAddr, bool allowed)
+func (_Dtaopenmarketplace *DtaopenmarketplaceFilterer) FilterFundTokenAllowlistUpdated(opts *bind.FilterOpts, fundAdminAddr []common.Address, fundTokenId [][32]byte, distributorAddr []common.Address) (*DtaopenmarketplaceFundTokenAllowlistUpdatedIterator, error) {
+
+	var fundAdminAddrRule []interface{}
+	for _, fundAdminAddrItem := range fundAdminAddr {
+		fundAdminAddrRule = append(fundAdminAddrRule, fundAdminAddrItem)
+	}
+	var fundTokenIdRule []interface{}
+	for _, fundTokenIdItem := range fundTokenId {
+		fundTokenIdRule = append(fundTokenIdRule, fundTokenIdItem)
+	}
+	var distributorAddrRule []interface{}
+	for _, distributorAddrItem := range distributorAddr {
+		distributorAddrRule = append(distributorAddrRule, distributorAddrItem)
+	}
+
+	logs, sub, err := _Dtaopenmarketplace.contract.FilterLogs(opts, "FundTokenAllowlistUpdated", fundAdminAddrRule, fundTokenIdRule, distributorAddrRule)
+	if err != nil {
+		return nil, err
+	}
+	return &DtaopenmarketplaceFundTokenAllowlistUpdatedIterator{contract: _Dtaopenmarketplace.contract, event: "FundTokenAllowlistUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchFundTokenAllowlistUpdated is a free log subscription operation binding the contract event 0x13dc013c86d37e8239ff3de6c79a07b274a5ca98a3d2500738b3f841b39fd286.
+//
+// Solidity: event FundTokenAllowlistUpdated(address indexed fundAdminAddr, bytes32 indexed fundTokenId, address indexed distributorAddr, bool allowed)
+func (_Dtaopenmarketplace *DtaopenmarketplaceFilterer) WatchFundTokenAllowlistUpdated(opts *bind.WatchOpts, sink chan<- *DtaopenmarketplaceFundTokenAllowlistUpdated, fundAdminAddr []common.Address, fundTokenId [][32]byte, distributorAddr []common.Address) (event.Subscription, error) {
+
+	var fundAdminAddrRule []interface{}
+	for _, fundAdminAddrItem := range fundAdminAddr {
+		fundAdminAddrRule = append(fundAdminAddrRule, fundAdminAddrItem)
+	}
+	var fundTokenIdRule []interface{}
+	for _, fundTokenIdItem := range fundTokenId {
+		fundTokenIdRule = append(fundTokenIdRule, fundTokenIdItem)
+	}
+	var distributorAddrRule []interface{}
+	for _, distributorAddrItem := range distributorAddr {
+		distributorAddrRule = append(distributorAddrRule, distributorAddrItem)
+	}
+
+	logs, sub, err := _Dtaopenmarketplace.contract.WatchLogs(opts, "FundTokenAllowlistUpdated", fundAdminAddrRule, fundTokenIdRule, distributorAddrRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(DtaopenmarketplaceFundTokenAllowlistUpdated)
+				if err := _Dtaopenmarketplace.contract.UnpackLog(event, "FundTokenAllowlistUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseFundTokenAllowlistUpdated is a log parse operation binding the contract event 0x13dc013c86d37e8239ff3de6c79a07b274a5ca98a3d2500738b3f841b39fd286.
+//
+// Solidity: event FundTokenAllowlistUpdated(address indexed fundAdminAddr, bytes32 indexed fundTokenId, address indexed distributorAddr, bool allowed)
+func (_Dtaopenmarketplace *DtaopenmarketplaceFilterer) ParseFundTokenAllowlistUpdated(log types.Log) (*DtaopenmarketplaceFundTokenAllowlistUpdated, error) {
+	event := new(DtaopenmarketplaceFundTokenAllowlistUpdated)
+	if err := _Dtaopenmarketplace.contract.UnpackLog(event, "FundTokenAllowlistUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
