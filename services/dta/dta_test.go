@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
 	"github.com/smartcontractkit/cvn-sdk/services/dta/gen/events"
@@ -209,8 +210,11 @@ func TestPrepareRegisterFundTokenOperation(t *testing.T) {
 		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
 	})
 	require.NoError(t, err)
-
-	fundTokenId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	fundTokenIdStr := "Test Token"
+	fundTokenIdBytes := []byte(fundTokenIdStr)
+	fundTokenIdHash := sha3.NewLegacyKeccak256().Sum(fundTokenIdBytes)
+	fundTokenId := [32]byte{}
+	copy(fundTokenId[:], fundTokenIdHash[:])
 	tokenData := FundTokenData{
 		FundTokenAddr:                 common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B86"),
 		NavAddr:                       common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621"),
@@ -223,6 +227,7 @@ func TestPrepareRegisterFundTokenOperation(t *testing.T) {
 		FundRoundingDecimals:          18,
 		FundTokenDecimals:             18,
 		RequestsPerDay:                10,
+		NavTTL:                        big.NewInt(0),
 		PaymentInfo: DTAPaymentInfo{
 			OffChainPaymentCurrency: 1, // USD
 			PaymentTokenSourceAddr:  common.HexToAddress("0xA0b86a33E6241e2a4C8Ca3a3b4e4F1234567890"),

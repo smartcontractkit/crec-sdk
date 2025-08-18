@@ -33,20 +33,21 @@ This service provides:
 
 ```
 DTA Service
-├── Event Decoding (20 events)
-│   ├── OpenMarketplace Events (11)
+├── Event Decoding (22 events)
+│   ├── OpenMarketplace Events (12)
 │   │   ├── DistributorRegistered
 │   │   ├── DistributorRequestCanceled
 │   │   ├── DistributorRequestProcessed
 │   │   ├── DistributorRequestProcessing
 │   │   ├── FundAdminRegistered
+│   │   ├── FundTokenAllowlistUpdated
 │   │   ├── FundTokenRegistered
 │   │   ├── InvalidDTAWallet
 │   │   ├── MessageFailed
 │   │   ├── NativeFundsRecovered
 │   │   ├── RedemptionRequested
 │   │   └── SubscriptionRequested
-│   └── Wallet Events (9)
+│   └── Wallet Events (10)
 │       ├── DTAAdded
 │       ├── DTARemoved
 │       ├── DTASettlementClosed
@@ -57,20 +58,20 @@ DTA Service
 │       ├── SettlementFailed
 │       ├── TokenWithdrawn
 │       └── UnauthorizedSenderDTA
-└── Operation Preparation (18 operations)
-    ├── Distributor Operations (4)
+└── Operation Preparation (19 operations)
+    ├── Distributor Operations (6)
+    │   ├── PrepareRegisterDistributorOperation
+    │   ├── PrepareUpdateDistributorOperation
     │   ├── PrepareRequestSubscriptionOperation
     │   ├── PrepareRequestRedemptionOperation
-    │   └── PrepareRequestSubscriptionWithTokenApprovalOperation
+    │   ├── PrepareRequestSubscriptionWithTokenApprovalOperation
     │   └── PrepareCancelDistributorRequestOperation
-    ├── Request Management (1)
-    │   ├── PrepareProcessDistributorRequestOperation
     ├── OpenMarketplace Admin Operations (7)
-    │   ├── PrepareRegisterDistributorOperation
     │   ├── PrepareRegisterFundAdminOperation
     │   ├── PrepareRegisterFundTokenOperation
     │   ├── PrepareAllowDistributorForTokenOperation
     │   ├── PrepareDisallowDistributorForTokenOperation
+    │   ├── PrepareProcessDistributorRequestOperation
     │   ├── PrepareEnableFundTokenOperation
     │   └── PrepareDisableFundTokenOperation
     └── DTAWallet Operations (6)
@@ -202,6 +203,7 @@ log.Printf("Created At: %s", event.CreatedAt)
 - `DecodeDistributorRequestProcessed()`
 - `DecodeDistributorRequestProcessing()`
 - `DecodeFundAdminRegistered()`
+- `DecodeFundTokenAllowlistUpdated()`
 - `DecodeFundTokenRegistered()`
 - `DecodeInvalidDTAWallet()`
 - `DecodeMessageFailed()`
@@ -285,6 +287,11 @@ operation, err := dtaService.PrepareRegisterDistributorOperation(
     distributorWalletAddr, // Distributor's wallet address
 )
 
+// Update a distributor
+operation, err := dtaService.PrepareUpdateDistributorOperation(
+    distributorWalletAddr, // Distributor's new wallet address
+)
+
 // Register a new fund admin
 operation, err := dtaService.PrepareRegisterFundAdminOperation(
     fundAdminAddr, // Fund admin's address
@@ -292,6 +299,37 @@ operation, err := dtaService.PrepareRegisterFundAdminOperation(
 ```
 
 #### Token Management
+
+```go
+// Register a new fund token with complete metadata
+fundTokenIdStr := "Test Token"
+fundTokenIdBytes := []byte(fundTokenIdStr)
+fundTokenIdHash := sha3.NewLegacyKeccak256().Sum(fundTokenIdBytes)
+fundTokenId := [32]byte{}
+copy(fundTokenId[:], fundTokenIdHash[:])
+tokenData := dta.FundTokenData{
+    FundTokenAddr:                 common.HexToAddress("0xToken..."),
+    NavFeedDecimals:               18,
+    PurchaseTokenRoundingDecimals: 2,
+    PurchaseTokenDecimals:         6,
+    FundRoundingDecimals:          3,
+    FundTokenDecimals:             18,
+    RequestsPerDay:                10,
+    NavAddr:                       common.HexToAddress("0xNAV..."),  
+    TokenChainSelector:            1234567890,
+    DtaWalletAddr:                 common.HexToAddress("0xWallet..."),
+    TimezoneOffsetSecs:            big.NewInt(-18000), // -5 hours in seconds
+    NavTTL:                        0,
+    PaymentInfo: dta.DTAPaymentInfo{
+        OffChainPaymentCurrency:    1, // USD
+        PaymentTokenSourceAddr:     common.HexToAddress("0xPayment..."),
+        PaymentSourceChainSelector: 1234567890,
+        PaymentTokenDestAddr:       common.HexToAddress("0xDest..."),
+    },
+}
+
+operation, err := dtaService.PrepareRegisterFundTokenOperation(fundTokenId, tokenData)
+```
 
 ```go
 // Allow distributor for specific token
@@ -359,30 +397,6 @@ operation, err := dtaService.PrepareTransferWalletOwnershipOperation(
 operation, err := dtaService.PrepareRenounceWalletOwnershipOperation()
 ```
 
-#### Fund Token Registration
-
-```go
-// Register a new fund token with complete metadata
-tokenData := dta.FundTokenData{
-    FundTokenAddr:         common.HexToAddress("0xToken..."),
-    NavAddr:               common.HexToAddress("0xNAV..."),  
-    TokenChainSelector:    1234567890,
-    DtaWalletAddr:         common.HexToAddress("0xWallet..."),
-    TimezoneOffsetSecs:    big.NewInt(-18000), // -5 hours in seconds
-    PurchaseTokenDecimals: 18,
-    FundTokenDecimals:     18,
-    RequestsPerDay:        10,
-    PaymentInfo: dta.DTAPaymentInfo{
-        OffChainPaymentCurrency:    1, // USD
-        PaymentTokenSourceAddr:     common.HexToAddress("0xPayment..."),
-        PaymentSourceChainSelector: 1234567890,
-        PaymentTokenDestAddr:       common.HexToAddress("0xDest..."),
-    },
-}
-
-operation, err := dtaService.PrepareRegisterFundTokenOperation(fundTokenId, tokenData)
-```
-
 ## Data Structures
 
 ### FundTokenData
@@ -391,15 +405,19 @@ Complete metadata structure for fund token registration:
 
 ```go
 type FundTokenData struct {
-    FundTokenAddr         common.Address    // Token contract address
-    NavAddr               common.Address    // NAV oracle address
-    TokenChainSelector    uint64           // Chain selector for token
-    DtaWalletAddr         common.Address    // Associated DTA wallet
-    TimezoneOffsetSecs    *big.Int         // Timezone offset for requests
-    PurchaseTokenDecimals uint8            // Decimals for purchase token
-    FundTokenDecimals     uint8            // Decimals for fund token
-    RequestsPerDay        uint8            // Daily request limit
-    PaymentInfo           DTAPaymentInfo   // Payment configuration
+    FundTokenAddr                 common.Address // Token contract address
+    NavFeedDecimals               uint8          // Decimals for NAV feed
+    PurchaseTokenRoundingDecimals uint8          // Decimals for rounding purchase token
+    PurchaseTokenDecimals         uint8          // Decimals for purchase token
+    FundRoundingDecimals          uint8          // Decimals for rounding fund token
+    FundTokenDecimals             uint8          // Decimals for fund token
+    RequestsPerDay                uint8          // Daily request limit
+    NavAddr                       common.Address // NAV oracle address
+    TokenChainSelector            uint64         // Chain selector for token
+    DtaWalletAddr                 common.Address // Associated DTA wallet
+    TimezoneOffsetSecs            *big.Int       // Timezone offset for requests
+    NavTTL                        *big.Int       // Seconds from time the NAV is set until it expires
+    PaymentInfo                   DTAPaymentInfo // Payment configuration
 }
 ```
 
@@ -411,7 +429,6 @@ Payment configuration for DTA operations:
 type DTAPaymentInfo struct {
     OffChainPaymentCurrency    uint8          // Currency enum (1=USD, etc.)
     PaymentTokenSourceAddr     common.Address // Source payment token
-    PaymentSourceChainSelector uint64         // Source chain selector
     PaymentTokenDestAddr       common.Address // Destination payment token
 }
 ```
@@ -558,18 +575,21 @@ func adminOperationsExample() {
     // Register a new fund token
     fundTokenId := [32]byte{/* unique token ID */}
     tokenData := dta.FundTokenData{
-        FundTokenAddr:         common.HexToAddress("0xTokenContract..."),
-        NavAddr:               common.HexToAddress("0xNAVOracle..."),
-        TokenChainSelector:    1,
-        DtaWalletAddr:         common.HexToAddress("0xDTAWallet..."),
-        TimezoneOffsetSecs:    big.NewInt(0), // UTC
-        PurchaseTokenDecimals: 6,  // USDC
-        FundTokenDecimals:     18,
-        RequestsPerDay:        5,
+        FundTokenAddr:                 common.HexToAddress("0xTokenContract..."),
+        NavFeedDecimals:               18,
+        PurchaseTokenRoundingDecimals: 2,  // USD
+        PurchaseTokenDecimals:         6,  // USDC
+        FundTokenRoundingDecimals:     3,
+        FundTokenDecimals:             18,
+        RequestsPerDay:                1,
+        NavAddr:                       common.HexToAddress("0xNAVOracle..."),
+        TokenChainSelector:            1,
+        DtaWalletAddr:                 common.HexToAddress("0xDTAWallet..."),
+        TimezoneOffsetSecs:            big.NewInt(0), // UTC
+        NavTTL:                        0, // manual processing
         PaymentInfo: dta.DTAPaymentInfo{
-            OffChainPaymentCurrency:    1, // USD
+            OffChainPaymentCurrency:    147, // USD
             PaymentTokenSourceAddr:     common.HexToAddress("0xUSDC..."),
-            PaymentSourceChainSelector: 1,
             PaymentTokenDestAddr:       common.HexToAddress("0xUSDC..."),
         },
     }
@@ -602,6 +622,7 @@ The service integrates with these key OpenMarketplace functions:
 - `processDistributorRequest(bytes32)` → Processes pending request
 - `cancelDistributorRequest(bytes32)` → Cancels pending request
 - `registerDistributor(address,address)` → Registers new distributor
+- `updateDistributor(address)` → Updates distributor
 - `registerFundAdmin(address)` → Registers new fund admin
 - `registerFundToken(bytes32,tuple)` → Registers fund token with metadata
 - `allowDistributorForToken(bytes32,address)` → Allows distributor for token
