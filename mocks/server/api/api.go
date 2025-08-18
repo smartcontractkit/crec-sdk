@@ -18,6 +18,55 @@ const (
 	ApiKeyAuthScopes = "ApiKeyAuth.Scopes"
 )
 
+// Defines values for ApplicationErrorType.
+const (
+	AlreadyExists ApplicationErrorType = "Already exists"
+	BadRequest    ApplicationErrorType = "Bad request"
+	InternalError ApplicationErrorType = "Internal error"
+	NotFound      ApplicationErrorType = "Not found"
+)
+
+// Account defines model for Account.
+type Account struct {
+	// AccountId Unique identifier for the account
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// Address EVM account address
+	Address string `json:"address"`
+
+	// ChainId The id that identifies the chain where the account exists
+	ChainId string `json:"chain_id"`
+}
+
+// AccountList defines model for AccountList.
+type AccountList struct {
+	Data []Account `json:"data"`
+
+	// HasMore True if there are more accounts to fetch
+	HasMore bool `json:"has_more"`
+}
+
+// ApplicationError defines model for ApplicationError.
+type ApplicationError struct {
+	// Message Error message describing the issue
+	Message string `json:"message"`
+
+	// Type Error type
+	Type ApplicationErrorType `json:"type"`
+}
+
+// ApplicationErrorType Error type
+type ApplicationErrorType string
+
+// CreateAccount defines model for CreateAccount.
+type CreateAccount struct {
+	// Address EVM account address (42-character hex string starting with 0x)
+	Address string `json:"address"`
+
+	// ChainId The id that identifies the chain where the account exists
+	ChainId string `json:"chain_id"`
+}
+
 // CreateEvent defines model for CreateEvent.
 type CreateEvent struct {
 	// Address Smart contract address from which the event was emitted
@@ -48,6 +97,9 @@ type CreateListener struct {
 	// Address Smart contract address to listen for events
 	Address string `json:"address"`
 
+	// ChainFamily (Optional) the network to use.
+	ChainFamily *string `json:"chain_family,omitempty"`
+
 	// ChainId The id that identifies the chain where the listener will run
 	ChainId string `json:"chain_id"`
 
@@ -61,8 +113,8 @@ type CreateListener struct {
 
 // CreateOperation defines model for CreateOperation.
 type CreateOperation struct {
-	// Account Onchain account address performing the operation
-	Account string `json:"account"`
+	// AccountAddress Onchain account address performing the operation
+	AccountAddress string `json:"account_address"`
 
 	// AccountOperationId Unique account operation identifier
 	AccountOperationId string `json:"account_operation_id"`
@@ -88,6 +140,9 @@ type Event struct {
 
 	// EventId Unique identifier for the event
 	EventId openapi_types.UUID `json:"event_id"`
+
+	// ListenerId Listener UUID that emitted the event
+	ListenerId openapi_types.UUID `json:"listener_id"`
 
 	// Name Name of the event
 	Name string `json:"name"`
@@ -154,8 +209,8 @@ type ListenerList struct {
 
 // Operation defines model for Operation.
 type Operation struct {
-	// Account Onchain account address performing the operation
-	Account string `json:"account"`
+	// AccountAddress Onchain account address performing the operation
+	AccountAddress string `json:"account_address"`
 
 	// AccountId Identifier of the account performing the operation
 	AccountId openapi_types.UUID `json:"account_id"`
@@ -220,8 +275,8 @@ type TransactionRequest struct {
 
 // UpdateOperationStatus defines model for UpdateOperationStatus.
 type UpdateOperationStatus struct {
-	// Account Onchain account address performing the operation
-	Account string `json:"account"`
+	// AccountAddress Onchain account address performing the operation
+	AccountAddress string `json:"account_address"`
 
 	// AccountOperationId Unique account operation identifier
 	AccountOperationId string `json:"account_operation_id"`
@@ -236,8 +291,20 @@ type UpdateOperationStatus struct {
 	TransactionTimestamp int `json:"transaction_timestamp"`
 }
 
+// GetAccountsParams defines parameters for GetAccounts.
+type GetAccountsParams struct {
+	// Limit Maximum number of accounts to return
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of accounts to skip for pagination
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // GetEventsParams defines parameters for GetEvents.
 type GetEventsParams struct {
+	// ListenerId Return only events emitted by this listener UUID
+	ListenerId *openapi_types.UUID `form:"listener_id,omitempty" json:"listener_id,omitempty"`
+
 	// CreatedLt Filter events created before this timestamp
 	CreatedLt *int64 `form:"created.lt,omitempty" json:"created.lt,omitempty"`
 
@@ -308,6 +375,9 @@ type GetOperationsParams struct {
 	EndingBefore *openapi_types.UUID `form:"ending_before,omitempty" json:"ending_before,omitempty"`
 }
 
+// PostAccountsJSONRequestBody defines body for PostAccounts for application/json ContentType.
+type PostAccountsJSONRequestBody = CreateAccount
+
 // PostEventsJSONRequestBody defines body for PostEvents for application/json ContentType.
 type PostEventsJSONRequestBody = CreateEvent
 
@@ -322,12 +392,24 @@ type PostOperationsJSONRequestBody = CreateOperation
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Retrieves accounts for the organization.
+	// (GET /accounts)
+	GetAccounts(w http.ResponseWriter, r *http.Request, params GetAccountsParams)
+	// Creates a new account.
+	// (POST /accounts)
+	PostAccounts(w http.ResponseWriter, r *http.Request)
+	// Retrieves a specific account by ID.
+	// (GET /accounts/{account_id})
+	GetAccountsAccountId(w http.ResponseWriter, r *http.Request, accountId openapi_types.UUID)
 	// Retrieves events.
 	// (GET /events)
 	GetEvents(w http.ResponseWriter, r *http.Request, params GetEventsParams)
 	// Creates a new event.
 	// (POST /events)
 	PostEvents(w http.ResponseWriter, r *http.Request)
+	// Retrieves a single event.
+	// (GET /events/{event_id})
+	GetEventsEventId(w http.ResponseWriter, r *http.Request, eventId openapi_types.UUID)
 	// Health check endpoint
 	// (GET /health-check)
 	GetHealthCheck(w http.ResponseWriter, r *http.Request)
@@ -366,6 +448,98 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
+// GetAccounts operation middleware
+func (siw *ServerInterfaceWrapper) GetAccounts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAccountsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAccounts(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAccounts operation middleware
+func (siw *ServerInterfaceWrapper) PostAccounts(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAccounts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAccountsAccountId operation middleware
+func (siw *ServerInterfaceWrapper) GetAccountsAccountId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "account_id" -------------
+	var accountId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "account_id", r.PathValue("account_id"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "account_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAccountsAccountId(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetEvents operation middleware
 func (siw *ServerInterfaceWrapper) GetEvents(w http.ResponseWriter, r *http.Request) {
 
@@ -379,6 +553,14 @@ func (siw *ServerInterfaceWrapper) GetEvents(w http.ResponseWriter, r *http.Requ
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetEventsParams
+
+	// ------------- Optional query parameter "listener_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "listener_id", r.URL.Query(), &params.ListenerId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listener_id", Err: err})
+		return
+	}
 
 	// ------------- Optional query parameter "created.lt" -------------
 
@@ -458,6 +640,37 @@ func (siw *ServerInterfaceWrapper) PostEvents(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostEvents(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEventsEventId operation middleware
+func (siw *ServerInterfaceWrapper) GetEventsEventId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "event_id" -------------
+	var eventId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "event_id", r.PathValue("event_id"), &eventId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "event_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ApiKeyAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEventsEventId(w, r, eventId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -922,8 +1135,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("GET "+options.BaseURL+"/accounts", wrapper.GetAccounts)
+	m.HandleFunc("POST "+options.BaseURL+"/accounts", wrapper.PostAccounts)
+	m.HandleFunc("GET "+options.BaseURL+"/accounts/{account_id}", wrapper.GetAccountsAccountId)
 	m.HandleFunc("GET "+options.BaseURL+"/events", wrapper.GetEvents)
 	m.HandleFunc("POST "+options.BaseURL+"/events", wrapper.PostEvents)
+	m.HandleFunc("GET "+options.BaseURL+"/events/{event_id}", wrapper.GetEventsEventId)
 	m.HandleFunc("GET "+options.BaseURL+"/health-check", wrapper.GetHealthCheck)
 	m.HandleFunc("GET "+options.BaseURL+"/listeners", wrapper.GetListeners)
 	m.HandleFunc("POST "+options.BaseURL+"/listeners", wrapper.PostListeners)

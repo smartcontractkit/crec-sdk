@@ -21,6 +21,55 @@ const (
 	ApiKeyAuthScopes = "ApiKeyAuth.Scopes"
 )
 
+// Defines values for ApplicationErrorType.
+const (
+	AlreadyExists ApplicationErrorType = "Already exists"
+	BadRequest    ApplicationErrorType = "Bad request"
+	InternalError ApplicationErrorType = "Internal error"
+	NotFound      ApplicationErrorType = "Not found"
+)
+
+// Account defines model for Account.
+type Account struct {
+	// AccountId Unique identifier for the account
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// Address EVM account address
+	Address string `json:"address"`
+
+	// ChainId The id that identifies the chain where the account exists
+	ChainId string `json:"chain_id"`
+}
+
+// AccountList defines model for AccountList.
+type AccountList struct {
+	Data []Account `json:"data"`
+
+	// HasMore True if there are more accounts to fetch
+	HasMore bool `json:"has_more"`
+}
+
+// ApplicationError defines model for ApplicationError.
+type ApplicationError struct {
+	// Message Error message describing the issue
+	Message string `json:"message"`
+
+	// Type Error type
+	Type ApplicationErrorType `json:"type"`
+}
+
+// ApplicationErrorType Error type
+type ApplicationErrorType string
+
+// CreateAccount defines model for CreateAccount.
+type CreateAccount struct {
+	// Address EVM account address (42-character hex string starting with 0x)
+	Address string `json:"address"`
+
+	// ChainId The id that identifies the chain where the account exists
+	ChainId string `json:"chain_id"`
+}
+
 // CreateEvent defines model for CreateEvent.
 type CreateEvent struct {
 	// Address Smart contract address from which the event was emitted
@@ -51,6 +100,9 @@ type CreateListener struct {
 	// Address Smart contract address to listen for events
 	Address string `json:"address"`
 
+	// ChainFamily (Optional) the network to use.
+	ChainFamily *string `json:"chain_family,omitempty"`
+
 	// ChainId The id that identifies the chain where the listener will run
 	ChainId string `json:"chain_id"`
 
@@ -64,8 +116,8 @@ type CreateListener struct {
 
 // CreateOperation defines model for CreateOperation.
 type CreateOperation struct {
-	// Account Onchain account address performing the operation
-	Account string `json:"account"`
+	// AccountAddress Onchain account address performing the operation
+	AccountAddress string `json:"account_address"`
 
 	// AccountOperationId Unique account operation identifier
 	AccountOperationId string `json:"account_operation_id"`
@@ -91,6 +143,9 @@ type Event struct {
 
 	// EventId Unique identifier for the event
 	EventId openapi_types.UUID `json:"event_id"`
+
+	// ListenerId Listener UUID that emitted the event
+	ListenerId openapi_types.UUID `json:"listener_id"`
 
 	// Name Name of the event
 	Name string `json:"name"`
@@ -157,8 +212,8 @@ type ListenerList struct {
 
 // Operation defines model for Operation.
 type Operation struct {
-	// Account Onchain account address performing the operation
-	Account string `json:"account"`
+	// AccountAddress Onchain account address performing the operation
+	AccountAddress string `json:"account_address"`
 
 	// AccountId Identifier of the account performing the operation
 	AccountId openapi_types.UUID `json:"account_id"`
@@ -223,8 +278,8 @@ type TransactionRequest struct {
 
 // UpdateOperationStatus defines model for UpdateOperationStatus.
 type UpdateOperationStatus struct {
-	// Account Onchain account address performing the operation
-	Account string `json:"account"`
+	// AccountAddress Onchain account address performing the operation
+	AccountAddress string `json:"account_address"`
 
 	// AccountOperationId Unique account operation identifier
 	AccountOperationId string `json:"account_operation_id"`
@@ -239,8 +294,20 @@ type UpdateOperationStatus struct {
 	TransactionTimestamp int `json:"transaction_timestamp"`
 }
 
+// GetAccountsParams defines parameters for GetAccounts.
+type GetAccountsParams struct {
+	// Limit Maximum number of accounts to return
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of accounts to skip for pagination
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // GetEventsParams defines parameters for GetEvents.
 type GetEventsParams struct {
+	// ListenerId Return only events emitted by this listener UUID
+	ListenerId *openapi_types.UUID `form:"listener_id,omitempty" json:"listener_id,omitempty"`
+
 	// CreatedLt Filter events created before this timestamp
 	CreatedLt *int64 `form:"created.lt,omitempty" json:"created.lt,omitempty"`
 
@@ -310,6 +377,9 @@ type GetOperationsParams struct {
 	// EndingBefore Return operations occurring before this operation UUID
 	EndingBefore *openapi_types.UUID `form:"ending_before,omitempty" json:"ending_before,omitempty"`
 }
+
+// PostAccountsJSONRequestBody defines body for PostAccounts for application/json ContentType.
+type PostAccountsJSONRequestBody = CreateAccount
 
 // PostEventsJSONRequestBody defines body for PostEvents for application/json ContentType.
 type PostEventsJSONRequestBody = CreateEvent
@@ -396,6 +466,17 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetAccounts request
+	GetAccounts(ctx context.Context, params *GetAccountsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAccountsWithBody request with any body
+	PostAccountsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAccounts(ctx context.Context, body PostAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAccountsAccountId request
+	GetAccountsAccountId(ctx context.Context, accountId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetEvents request
 	GetEvents(ctx context.Context, params *GetEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -403,6 +484,9 @@ type ClientInterface interface {
 	PostEventsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostEvents(ctx context.Context, body PostEventsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetEventsEventId request
+	GetEventsEventId(ctx context.Context, eventId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetHealthCheck request
 	GetHealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -438,6 +522,54 @@ type ClientInterface interface {
 	GetOperationsOperationId(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
+func (c *Client) GetAccounts(ctx context.Context, params *GetAccountsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAccountsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAccountsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAccountsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAccounts(ctx context.Context, body PostAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAccountsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAccountsAccountId(ctx context.Context, accountId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAccountsAccountIdRequest(c.Server, accountId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetEvents(ctx context.Context, params *GetEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetEventsRequest(c.Server, params)
 	if err != nil {
@@ -464,6 +596,18 @@ func (c *Client) PostEventsWithBody(ctx context.Context, contentType string, bod
 
 func (c *Client) PostEvents(ctx context.Context, body PostEventsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostEventsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetEventsEventId(ctx context.Context, eventId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetEventsEventIdRequest(c.Server, eventId)
 	if err != nil {
 		return nil, err
 	}
@@ -618,6 +762,145 @@ func (c *Client) GetOperationsOperationId(ctx context.Context, operationId opena
 	return c.Client.Do(req)
 }
 
+// NewGetAccountsRequest generates requests for GetAccounts
+func NewGetAccountsRequest(server string, params *GetAccountsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostAccountsRequest calls the generic PostAccounts builder with application/json body
+func NewPostAccountsRequest(server string, body PostAccountsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAccountsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAccountsRequestWithBody generates requests for PostAccounts with any type of body
+func NewPostAccountsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetAccountsAccountIdRequest generates requests for GetAccountsAccountId
+func NewGetAccountsAccountIdRequest(server string, accountId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "account_id", runtime.ParamLocationPath, accountId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetEventsRequest generates requests for GetEvents
 func NewGetEventsRequest(server string, params *GetEventsParams) (*http.Request, error) {
 	var err error
@@ -639,6 +922,22 @@ func NewGetEventsRequest(server string, params *GetEventsParams) (*http.Request,
 
 	if params != nil {
 		queryValues := queryURL.Query()
+
+		if params.ListenerId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "listener_id", runtime.ParamLocationQuery, *params.ListenerId); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
 
 		if params.CreatedLt != nil {
 
@@ -799,6 +1098,40 @@ func NewPostEventsRequestWithBody(server string, contentType string, body io.Rea
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetEventsEventIdRequest generates requests for GetEventsEventId
+func NewGetEventsEventIdRequest(server string, eventId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "event_id", runtime.ParamLocationPath, eventId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/events/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -1385,6 +1718,17 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetAccountsWithResponse request
+	GetAccountsWithResponse(ctx context.Context, params *GetAccountsParams, reqEditors ...RequestEditorFn) (*GetAccountsResponse, error)
+
+	// PostAccountsWithBodyWithResponse request with any body
+	PostAccountsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAccountsResponse, error)
+
+	PostAccountsWithResponse(ctx context.Context, body PostAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAccountsResponse, error)
+
+	// GetAccountsAccountIdWithResponse request
+	GetAccountsAccountIdWithResponse(ctx context.Context, accountId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAccountsAccountIdResponse, error)
+
 	// GetEventsWithResponse request
 	GetEventsWithResponse(ctx context.Context, params *GetEventsParams, reqEditors ...RequestEditorFn) (*GetEventsResponse, error)
 
@@ -1392,6 +1736,9 @@ type ClientWithResponsesInterface interface {
 	PostEventsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostEventsResponse, error)
 
 	PostEventsWithResponse(ctx context.Context, body PostEventsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostEventsResponse, error)
+
+	// GetEventsEventIdWithResponse request
+	GetEventsEventIdWithResponse(ctx context.Context, eventId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetEventsEventIdResponse, error)
 
 	// GetHealthCheckWithResponse request
 	GetHealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthCheckResponse, error)
@@ -1425,6 +1772,77 @@ type ClientWithResponsesInterface interface {
 
 	// GetOperationsOperationIdWithResponse request
 	GetOperationsOperationIdWithResponse(ctx context.Context, operationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetOperationsOperationIdResponse, error)
+}
+
+type GetAccountsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AccountList
+	JSON500      *ApplicationError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAccountsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAccountsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAccountsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *Account
+	JSON400      *ApplicationError
+	JSON500      *ApplicationError
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAccountsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAccountsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAccountsAccountIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Account
+	JSON404      *ApplicationError
+	JSON500      *ApplicationError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAccountsAccountIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAccountsAccountIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type GetEventsResponse struct {
@@ -1465,6 +1883,28 @@ func (r PostEventsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostEventsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetEventsEventIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Event
+}
+
+// Status returns HTTPResponse.Status
+func (r GetEventsEventIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetEventsEventIdResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1667,6 +2107,41 @@ func (r GetOperationsOperationIdResponse) StatusCode() int {
 	return 0
 }
 
+// GetAccountsWithResponse request returning *GetAccountsResponse
+func (c *ClientWithResponses) GetAccountsWithResponse(ctx context.Context, params *GetAccountsParams, reqEditors ...RequestEditorFn) (*GetAccountsResponse, error) {
+	rsp, err := c.GetAccounts(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAccountsResponse(rsp)
+}
+
+// PostAccountsWithBodyWithResponse request with arbitrary body returning *PostAccountsResponse
+func (c *ClientWithResponses) PostAccountsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAccountsResponse, error) {
+	rsp, err := c.PostAccountsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAccountsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAccountsWithResponse(ctx context.Context, body PostAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAccountsResponse, error) {
+	rsp, err := c.PostAccounts(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAccountsResponse(rsp)
+}
+
+// GetAccountsAccountIdWithResponse request returning *GetAccountsAccountIdResponse
+func (c *ClientWithResponses) GetAccountsAccountIdWithResponse(ctx context.Context, accountId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAccountsAccountIdResponse, error) {
+	rsp, err := c.GetAccountsAccountId(ctx, accountId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAccountsAccountIdResponse(rsp)
+}
+
 // GetEventsWithResponse request returning *GetEventsResponse
 func (c *ClientWithResponses) GetEventsWithResponse(ctx context.Context, params *GetEventsParams, reqEditors ...RequestEditorFn) (*GetEventsResponse, error) {
 	rsp, err := c.GetEvents(ctx, params, reqEditors...)
@@ -1691,6 +2166,15 @@ func (c *ClientWithResponses) PostEventsWithResponse(ctx context.Context, body P
 		return nil, err
 	}
 	return ParsePostEventsResponse(rsp)
+}
+
+// GetEventsEventIdWithResponse request returning *GetEventsEventIdResponse
+func (c *ClientWithResponses) GetEventsEventIdWithResponse(ctx context.Context, eventId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetEventsEventIdResponse, error) {
+	rsp, err := c.GetEventsEventId(ctx, eventId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetEventsEventIdResponse(rsp)
 }
 
 // GetHealthCheckWithResponse request returning *GetHealthCheckResponse
@@ -1798,6 +2282,119 @@ func (c *ClientWithResponses) GetOperationsOperationIdWithResponse(ctx context.C
 	return ParseGetOperationsOperationIdResponse(rsp)
 }
 
+// ParseGetAccountsResponse parses an HTTP response from a GetAccountsWithResponse call
+func ParseGetAccountsResponse(rsp *http.Response) (*GetAccountsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAccountsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AccountList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ApplicationError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAccountsResponse parses an HTTP response from a PostAccountsWithResponse call
+func ParsePostAccountsResponse(rsp *http.Response) (*PostAccountsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAccountsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Account
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ApplicationError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ApplicationError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAccountsAccountIdResponse parses an HTTP response from a GetAccountsAccountIdWithResponse call
+func ParseGetAccountsAccountIdResponse(rsp *http.Response) (*GetAccountsAccountIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAccountsAccountIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Account
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ApplicationError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ApplicationError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetEventsResponse parses an HTTP response from a GetEventsWithResponse call
 func ParseGetEventsResponse(rsp *http.Response) (*GetEventsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -1844,6 +2441,32 @@ func ParsePostEventsResponse(rsp *http.Response) (*PostEventsResponse, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetEventsEventIdResponse parses an HTTP response from a GetEventsEventIdWithResponse call
+func ParseGetEventsEventIdResponse(rsp *http.Response) (*GetEventsEventIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetEventsEventIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Event
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 

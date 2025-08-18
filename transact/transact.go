@@ -158,7 +158,7 @@ func (t *Client) SendSignedOperation(
 	var requestData = client.CreateOperation{
 		AccountOperationId: op.ID.String(),
 		ChainId:            t.chainId,
-		Account:            op.Account.String(),
+		AccountAddress:     op.Account.String(),
 		Transactions:       transactions,
 		Signature:          "0x" + common.Bytes2Hex(signature),
 	}
