@@ -37,3 +37,23 @@ Custom AWS configuration:
 ```go
 signer, err := kms.NewSignerWithConfig(awsConfig, keyID)
 ```
+
+## Integration Testing
+
+To run integration tests against real AWS KMS:
+
+1. **Set up AWS CLI profile**:
+   ```bash
+   aws sso login
+   ```
+
+2. **Export environment variables**:
+   ```bash
+   export AWS_PROFILE=<your-profile>
+   export KMS_KEY_ARN=<your-key-arn>
+   ```
+
+3. **Run integration tests**:
+   ```bash
+   go test -v ./... -run ^TestKMSSignerIntegration
+   ```
