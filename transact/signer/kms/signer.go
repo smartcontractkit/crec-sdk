@@ -207,7 +207,7 @@ func GetPubKeyCtx(ctx context.Context, svc KMSClient, keyId string) (*ecdsa.Publ
 }
 
 func adjustSignatureLength(buffer []byte) []byte {
-	buffer = bytes.TrimLeft(buffer, string([]byte{0}))
+	buffer = bytes.TrimLeft(buffer, "\x00")
 	for len(buffer) < 32 {
 		zeroBuf := []byte{0}
 		buffer = append(zeroBuf, buffer...)
