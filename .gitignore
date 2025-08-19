@@ -19,5 +19,8 @@
 .idea
 .cache
 
+# Generated mocks
+**/mocks/
+
 list.md
 out_o.md

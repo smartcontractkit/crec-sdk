@@ -12,7 +12,10 @@ import (
 	"strings"
 
 	vault "github.com/hashicorp/vault/api"
+	"github.com/smartcontractkit/cvn-sdk/transact/signer"
 )
+
+var _ signer.Signer = &Signer{}
 
 // KeyType represents the type of cryptographic key to create
 type KeyType string

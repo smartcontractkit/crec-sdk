@@ -2,11 +2,13 @@
 tools:
 	go install github.com/atombender/go-jsonschema@latest
 	go install github.com/ethereum/go-ethereum/cmd/abigen@latest
+	go install github.com/vektra/mockery/v2@latest
 
 .PHONY: generate
 generate:
 	go generate ./client
 	go generate ./mocks/server/api
+	mockery --name=KMSClient --dir=./transact/signer/kms --output=./transact/signer/kms/mocks --outpkg=mocks
 	go-jsonschema services/dvp/schema/dvp.json -p events -o services/dvp/gen/events/events.go -t
 	go-jsonschema services/dta/schema/dta.json -p events -o services/dta/gen/events/events.go -t
 	abigen --abi services/dvp/abi/CCIPDVPCoordinator.abi.json --pkg contract --out services/dvp/gen/contract/contract.go
