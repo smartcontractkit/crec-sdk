@@ -1,3 +1,7 @@
+// Portions of this file are derived from github.com/matelang/go-ethereum-aws-kms-tx-signer
+// Copyright (c) 2023 matelang, licensed under MIT License.
+// See THIRD_PARTY_LICENSES.md for full license text.
+
 package kms
 
 import (
@@ -106,6 +110,7 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 
 // ------------------------------
 // The below code has been ported over from https://github.com/matelang/go-ethereum-aws-kms-tx-signer
+// Licensed under MIT License (see header above)
 // ------------------------------
 const awsKmsSignOperationMessageType = "DIGEST"
 const awsKmsSignOperationSigningAlgorithm = "ECDSA_SHA_256"
