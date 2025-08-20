@@ -5,7 +5,10 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/smartcontractkit/cvn-sdk/transact/signer"
 )
+
+var _ signer.Signer = &Signer{}
 
 type Signer struct {
 	privateKey *ecdsa.PrivateKey
