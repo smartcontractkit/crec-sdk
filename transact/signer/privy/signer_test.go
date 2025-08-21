@@ -10,9 +10,10 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const mockSignature = "0x1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e56"
 
 func MockPrivyServer(t *testing.T) *httptest.Server {
 	mux := http.NewServeMux()
@@ -76,19 +77,6 @@ func MockPrivyServer(t *testing.T) *httptest.Server {
 			http.Error(w, "Unsupported method", http.StatusBadRequest)
 			return
 		}
-
-		// Generate a valid 65-byte Ethereum signature for a fixed message using a test private key
-		testPrivKeyHex := "4c0883a69102937d6231471b5dbb6204fe5129617082796fe2b8b4b6d20b6e8a" // well-known test key
-		testPrivKey, err := crypto.HexToECDSA(testPrivKeyHex)
-		require.NoError(t, err)
-		message := []byte("test message for signature")
-		hash := crypto.Keccak256(
-			[]byte("\x19Ethereum Signed Message:\n" + string(len(message))),
-			message,
-		)
-		sig, err := crypto.Sign(hash, testPrivKey)
-		require.NoError(t, err)
-		mockSignature := "0x" + hex.EncodeToString(sig)
 
 		rpcResp := RPCResponse{
 			Method: "personal_sign",
@@ -164,15 +152,15 @@ func TestNewSigner(t *testing.T) {
 			signer, err := NewSigner(tt.appID, tt.appSecret, tt.walletID, tt.baseURL)
 
 			if tt.expectError {
-				assert.Error(t, err)
-				assert.Nil(t, signer)
+				require.Error(t, err)
+				require.Nil(t, signer)
 			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, signer)
-				assert.Equal(t, tt.appID, signer.appID)
-				assert.Equal(t, tt.appSecret, signer.appSecret)
-				assert.Equal(t, tt.walletID, signer.walletID)
-				assert.Equal(t, tt.baseURL, signer.baseURL)
+				require.NoError(t, err)
+				require.NotNil(t, signer)
+				require.Equal(t, tt.appID, signer.appID)
+				require.Equal(t, tt.appSecret, signer.appSecret)
+				require.Equal(t, tt.walletID, signer.walletID)
+				require.Equal(t, tt.baseURL, signer.baseURL)
 			}
 		})
 	}
@@ -249,23 +237,23 @@ func TestNewSignerFromEnv(t *testing.T) {
 			signer, err := NewSignerFromEnv()
 
 			if tt.expectError {
-				assert.Error(t, err)
-				assert.Nil(t, signer)
+				require.Error(t, err)
+				require.Nil(t, signer)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+					require.Contains(t, err.Error(), tt.errorMsg)
 				}
 			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, signer)
-				assert.Equal(t, tt.envVars["PRIVY_APP_ID"], signer.appID)
-				assert.Equal(t, tt.envVars["PRIVY_APP_SECRET"], signer.appSecret)
-				assert.Equal(t, tt.envVars["PRIVY_WALLET_ID"], signer.walletID)
+				require.NoError(t, err)
+				require.NotNil(t, signer)
+				require.Equal(t, tt.envVars["PRIVY_APP_ID"], signer.appID)
+				require.Equal(t, tt.envVars["PRIVY_APP_SECRET"], signer.appSecret)
+				require.Equal(t, tt.envVars["PRIVY_WALLET_ID"], signer.walletID)
 
 				expectedBaseURL := tt.envVars["PRIVY_BASE_URL"]
 				if expectedBaseURL == "" {
 					expectedBaseURL = "https://api.privy.io"
 				}
-				assert.Equal(t, expectedBaseURL, signer.baseURL)
+				require.Equal(t, expectedBaseURL, signer.baseURL)
 			}
 
 			// Clean up environment variables
@@ -289,13 +277,8 @@ func TestSigner_Sign(t *testing.T) {
 	signature, err := signer.Sign(ctx, hash)
 
 	require.NoError(t, err)
-	assert.NotNil(t, signature)
-	assert.Greater(t, len(signature), 0)
-
-	// Verify the signature is properly decoded from hex - should be 65 bytes
-	expectedSig, _ := hex.DecodeString(expectedSignatureHex)
-	assert.Equal(t, expectedSig, signature)
-	assert.Equal(t, 65, len(signature))
+	require.NotNil(t, signature)
+	require.Equal(t, mockSignature, "0x"+hex.EncodeToString(signature))
 }
 
 func TestSigner_GetWalletAddress(t *testing.T) {
@@ -309,7 +292,7 @@ func TestSigner_GetWalletAddress(t *testing.T) {
 	address, err := signer.GetWalletAddress(ctx)
 
 	require.NoError(t, err)
-	assert.Equal(t, "0x742d35Cc6634C0532925a3b8D100d3F01F14bFE4", address)
+	require.Equal(t, "0x742d35Cc6634C0532925a3b8D100d3F01F14bFE4", address)
 }
 
 func TestSigner_AuthenticationFailure(t *testing.T) {
@@ -324,12 +307,12 @@ func TestSigner_AuthenticationFailure(t *testing.T) {
 
 	hash := crypto.Keccak256([]byte("hello world"))
 	_, err = signer.Sign(ctx, hash)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "401")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "401")
 
 	_, err = signer.GetWalletAddress(ctx)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "401")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "401")
 }
 
 func TestSigner_ErrorHandling(t *testing.T) {
@@ -346,6 +329,6 @@ func TestSigner_ErrorHandling(t *testing.T) {
 	hash := crypto.Keccak256([]byte("hello world"))
 
 	_, err = signer.Sign(ctx, hash)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "500")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "500")
 }
