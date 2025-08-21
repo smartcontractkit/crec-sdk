@@ -293,7 +293,7 @@ func TestSigner_Sign(t *testing.T) {
 	assert.Greater(t, len(signature), 0)
 
 	// Verify the signature is properly decoded from hex - should be 65 bytes
-	expectedSig, _ := hex.DecodeString("1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e56")
+	expectedSig, _ := hex.DecodeString(expectedSignatureHex)
 	assert.Equal(t, expectedSig, signature)
 	assert.Equal(t, 65, len(signature))
 }
