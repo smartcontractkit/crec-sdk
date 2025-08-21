@@ -77,7 +77,18 @@ func MockPrivyServer(t *testing.T) *httptest.Server {
 			return
 		}
 
-		mockSignature := "0x1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e56"
+		// Generate a valid 65-byte Ethereum signature for a fixed message using a test private key
+		testPrivKeyHex := "4c0883a69102937d6231471b5dbb6204fe5129617082796fe2b8b4b6d20b6e8a" // well-known test key
+		testPrivKey, err := crypto.HexToECDSA(testPrivKeyHex)
+		require.NoError(t, err)
+		message := []byte("test message for signature")
+		hash := crypto.Keccak256(
+			[]byte("\x19Ethereum Signed Message:\n" + string(len(message))),
+			message,
+		)
+		sig, err := crypto.Sign(hash, testPrivKey)
+		require.NoError(t, err)
+		mockSignature := "0x" + hex.EncodeToString(sig)
 
 		rpcResp := RPCResponse{
 			Method: "personal_sign",
