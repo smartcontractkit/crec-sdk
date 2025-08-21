@@ -1,12 +1,14 @@
 # CVN SDK Signers
 
-This package provides signing interfaces for the CVN SDK, allowing you to sign operations using different key management strategies. Currently, two signers are available: `LocalSigner` for local private key management and `TransitSigner` for HashiCorp Vault Transit secrets engine integration.
+This package provides signing interfaces for the CVN SDK, allowing you to sign operations using different key management strategies. Currently, four signers are available: `LocalSigner` for local private key management, `TransitSigner` for HashiCorp Vault Transit secrets engine integration, `KMSSigner` for AWS Key Management Service integration, and `PrivySigner` for Privy's wallet-as-a-service platform.
 
 ## Table of Contents
 
 - [Available Signers](#available-signers)
   - [LocalSigner](#localsigner)
   - [TransitSigner](#transitsigner)
+  - [KMSSigner](#kmssigner)
+  - [PrivySigner](#privysigner)
 - [Signer Interface](#signer-interface)
 - [Usage Examples](#usage-examples)
 - [Key Creation](#key-creation)
@@ -50,6 +52,20 @@ The `TransitSigner` integrates with HashiCorp Vault's Transit secrets engine, pr
 - Compliance requirements (SOC 2, FIPS 140-2)
 - Multi-service key sharing
 - Key rotation requirements
+
+### KMSSigner
+
+The `KMSSigner` integrates with AWS Key Management Service (KMS), providing key management with hardware security module (HSM) support through AWS infrastructure.
+
+**Use Cases:**
+- Environments using AWS infrastructure
+
+### PrivySigner
+
+The `PrivySigner` integrates with Privy's wallet-as-a-service platform, providing secure signing operations using managed wallets.
+
+**Use Cases:**
+- Customer-facing applications requiring wallet-as-a-service
 
 ## Signer Interface
 
@@ -202,6 +218,12 @@ func main() {
     
     // Option 2: Vault signer
     // s, err = vault.NewSigner("vault-url", "token", "transit", "key-name")
+    
+    // Option 3: KMS signer
+    // s, err = kms.NewSigner(ctx, "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012")
+    
+    // Option 4: Privy signer
+    // s, err = privy.NewSignerFromEnv()
     
     // Create an operation
     operation := &types.Operation{
