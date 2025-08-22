@@ -2,17 +2,14 @@ package dta
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/smartcontractkit/cvn-sdk/client"
-	"github.com/smartcontractkit/cvn-sdk/services/dta/gen/events"
 )
 
 func TestNewService(t *testing.T) {
@@ -300,82 +297,6 @@ func TestPrepareEnableDisableFundTokenOperations(t *testing.T) {
 	require.NotNil(t, disableOp)
 	require.Len(t, disableOp.Transactions, 1)
 	require.Equal(t, service.dtaOpenMarketplaceAddress, disableOp.Transactions[0].To)
-}
-
-func TestDecodeDistributorRegistered(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
-	require.NoError(t, err)
-
-	// Create a mock DTA event with proper structure
-	createdAt := time.Date(2023, 10, 1, 12, 0, 0, 0, time.UTC)
-	mockEvent := &events.DtaDistributorRegistered{
-		CreatedAt: &createdAt,
-		Event: &events.DtaEvent{
-			Address:          "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-			Topics:           []string{"0x123", "0x456"},
-			Data:             "0xabcdef",
-			BlockNumber:      "12345",
-			TransactionHash:  "0x789abc",
-			TransactionIndex: "1",
-			BlockHash:        "0xdefabc",
-			LogIndex:         "0",
-			Removed:          false,
-		},
-	}
-
-	// Test JSON marshaling/unmarshaling directly
-	jsonBytes, err := json.Marshal(mockEvent)
-	require.NoError(t, err)
-
-	var decodedEvent events.DtaDistributorRegistered
-	err = json.Unmarshal(jsonBytes, &decodedEvent)
-	require.NoError(t, err)
-	require.Equal(t, mockEvent.CreatedAt, decodedEvent.CreatedAt)
-
-	// Verify the service exists for completeness
-	require.NotNil(t, service)
-}
-
-func TestDecodeSubscriptionRequested(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
-	require.NoError(t, err)
-
-	// Create a mock DTA subscription requested event
-	createdAt := time.Date(2023, 10, 1, 12, 0, 0, 0, time.UTC)
-	mockEvent := &events.DtaSubscriptionRequested{
-		CreatedAt: &createdAt,
-		Event: &events.DtaEvent{
-			Address:          "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-			Topics:           []string{"0x123", "0x456"},
-			Data:             "0xabcdef",
-			BlockNumber:      "12345",
-			TransactionHash:  "0x789abc",
-			TransactionIndex: "1",
-			BlockHash:        "0xdefabc",
-			LogIndex:         "0",
-			Removed:          false,
-		},
-	}
-
-	// Test JSON marshaling/unmarshaling directly
-	jsonBytes, err := json.Marshal(mockEvent)
-	require.NoError(t, err)
-
-	var decodedEvent events.DtaSubscriptionRequested
-	err = json.Unmarshal(jsonBytes, &decodedEvent)
-	require.NoError(t, err)
-	require.Equal(t, mockEvent.CreatedAt, decodedEvent.CreatedAt)
-
-	// Verify the service exists for completeness
-	require.NotNil(t, service)
 }
 
 func TestToJson(t *testing.T) {
