@@ -78,6 +78,10 @@ func (ev EventName) String() string {
 	return string(ev)
 }
 
+// -----------------------------
+// DTAOpenMarketplaceU events as structs
+// -----------------------------
+
 // DistributorRegistered (address distributorAddr)
 type DistributorRegistered struct {
 	DistributorAddr common.Address `json:"distributor_addr"`
@@ -178,6 +182,10 @@ type SubscriptionRequested struct {
 	Amount          *big.Int       `json:"amount"`
 	CreatedAt       uint64         `json:"created_at"` // uint40 in Solidity -> uint64 in Go
 }
+
+// -----------------------------
+// NAV events as structs
+// -----------------------------
 
 // AnswerUpdated (int256 indexed current, uint256 indexed roundId, uint256 updatedAt) note: not fromIDecimalAggregator.sol
 type AnswerUpdated struct {
