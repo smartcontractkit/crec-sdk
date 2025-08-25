@@ -23,7 +23,7 @@ The DTA Service integrates with two main smart contracts:
 - **DTAWalletU**: Manages settlement operations and token transfers
 
 This service provides:
-- ✅ **20 Event Decoders** for all contract events
+- ✅ **Unified Event Decoder** for all contract events
 - ✅ **18 Operation Builders** for all major contract functions
 - ✅ **Token Approval Integration** for seamless ERC20 payment token handling
 - ✅ **Comprehensive Testing** with full coverage
@@ -33,31 +33,8 @@ This service provides:
 
 ```
 DTA Service
-├── Event Decoding (22 events)
-│   ├── OpenMarketplace Events (12)
-│   │   ├── DistributorRegistered
-│   │   ├── DistributorRequestCanceled
-│   │   ├── DistributorRequestProcessed
-│   │   ├── DistributorRequestProcessing
-│   │   ├── FundAdminRegistered
-│   │   ├── FundTokenAllowlistUpdated
-│   │   ├── FundTokenRegistered
-│   │   ├── InvalidDTAWallet
-│   │   ├── MessageFailed
-│   │   ├── NativeFundsRecovered
-│   │   ├── RedemptionRequested
-│   │   └── SubscriptionRequested
-│   └── Wallet Events (10)
-│       ├── DTAAdded
-│       ├── DTARemoved
-│       ├── DTASettlementClosed
-│       ├── DTASettlementOpened
-│       ├── CCIPMessageRecvFailed
-│       ├── EmptyRequestType
-│       ├── InsufficientPaymentTokenBalance
-│       ├── SettlementFailed
-│       ├── TokenWithdrawn
-│       └── UnauthorizedSenderDTA
+├── Event Decoding (Unified)
+│   └── Single decoder returns a VerifiableEvent for all event types
 └── Operation Preparation (19 operations)
     ├── Distributor Operations (6)
     │   ├── PrepareRegisterDistributorOperation
@@ -164,64 +141,34 @@ service, err := dta.NewService(opts)
 
 ## Event Decoding
 
-The DTA service can decode all 20 event types from CVN events:
+The DTA service uses a unified event decoding model. All CVN events are base64-encoded verifiable events that decode into a single VerifiableEvent struct.
 
-### OpenMarketplace Events
+Example:
 
 ```go
-// Decode a subscription request event
-event, err := dtaService.DecodeSubscriptionRequested(cvnEvent)
+// cvnEvent is client.Event from the CVN client
+ve, err := dta.Decode(context.Background(), cvnEvent)
 if err != nil {
     log.Fatal(err)
 }
 
-// Access event data
-log.Printf("Fund Token ID: %x", event.Event.FundTokenID)
-log.Printf("Distributor: %s", event.Event.DistributorAddr)
-log.Printf("Amount: %s", event.Event.Amount)
-```
+// Access core fields
+log.Printf("Created At: %s", ve.CreatedAt)
+log.Printf("Event Name (parsed): %s", ve.EventName())
+log.Printf("Event Type: %s", ve.Event.Type)
+log.Printf("Event Address: %s", ve.Event.Address)
+log.Printf("Request ID: %s", ve.Event.RequestId)
+log.Printf("Topic Hash: %s", ve.Event.TopicHash)
 
-### Wallet Events
-
-```go
-// Decode a settlement opened event
-event, err := dtaService.DecodeDTASettlementOpened(cvnEvent)
-if err != nil {
-    log.Fatal(err)
+// Workflow attributes (key/value map)
+if attr, ok := ve.Metadata.WorkflowEvent.Attributes["some_key"]; ok {
+    log.Printf("Attribute %s = %s", attr.Key, attr.Value)
 }
-
-// Access settlement data
-log.Printf("Settlement ID: %s", event.Event.SettlementID)
-log.Printf("Created At: %s", event.CreatedAt)
 ```
 
-### Available Decode Methods
-
-**OpenMarketplace Events:**
-- `DecodeDistributorRegistered()`
-- `DecodeDistributorRequestCanceled()`
-- `DecodeDistributorRequestProcessed()`
-- `DecodeDistributorRequestProcessing()`
-- `DecodeFundAdminRegistered()`
-- `DecodeFundTokenAllowlistUpdated()`
-- `DecodeFundTokenRegistered()`
-- `DecodeInvalidDTAWallet()`
-- `DecodeMessageFailed()`
-- `DecodeNativeFundsRecovered()`
-- `DecodeRedemptionRequested()`
-- `DecodeSubscriptionRequested()`
-
-**Wallet Events:**
-- `DecodeDTAAdded()`
-- `DecodeDTARemoved()`
-- `DecodeDTASettlementClosed()`
-- `DecodeDTASettlementOpened()`
-- `DecodeCCIPMessageRecvFailed()`
-- `DecodeEmptyRequestType()`
-- `DecodeInsufficientPaymentTokenBalance()`
-- `DecodeSettlementFailed()`
-- `DecodeTokenWithdrawn()`
-- `DecodeUnauthorizedSenderDTA()`
+Notes:
+- VerifiableEvent is a single struct covering metadata, transaction, and workflow attributes for every event type.
+- Use ve.EventName() to get a event name parsed from the "event_type" attribute of the WorkflowEvent struct.
 
 ## Operation Preparation
 
@@ -541,22 +488,31 @@ func subscriptionExample() {
 ```go
 func monitorDTAEvents(cvnClient *client.Client, dtaService *dta.Service) {
     // Listen for CVN events
-    eventChan := make(chan *client.Event)
-    
+    eventChan := make(chan client.Event)
+
     go func() {
         for event := range eventChan {
-            // Try to decode as different event types
-            if subscriptionEvent, err := dtaService.DecodeSubscriptionRequested(event); err == nil {
-                log.Printf("New subscription: %+v", subscriptionEvent)
-            } else if redemptionEvent, err := dtaService.DecodeRedemptionRequested(event); err == nil {
-                log.Printf("New redemption: %+v", redemptionEvent)
-            } else if distributorEvent, err := dtaService.DecodeDistributorRegistered(event); err == nil {
-                log.Printf("New distributor: %+v", distributorEvent)
+            ve, err := dta.Decode(context.Background(), *event)
+            if err != nil {
+                log.Printf("failed to decode event: %v", err)
+                continue
             }
-            // ... handle other event types
+
+            // Use unified struct
+            log.Printf("Event: name=%s type=%s address=%s requestId=%s at=%s",
+                ve.EventName(), ve.Event.Type, ve.Event.Address, ve.Event.RequestId, ve.CreatedAt)
+
+            // Optionally dispatch by name
+            switch ve.EventName() {
+            case dta.EventSubscriptionRequested:
+                // handle subscription
+            case dta.EventRedemptionRequested:
+                // handle redemption
+            // ... handle other event names as needed
+            }
         }
     }()
-    
+
     // Start event monitoring
     cvnClient.SubscribeToEvents(eventChan)
 }
@@ -636,7 +592,7 @@ The service also integrates with DTA Wallet functions for settlement operations.
 
 ### Event Monitoring
 
-All events are automatically available for decoding through the service, providing comprehensive monitoring capabilities for DTA operations.
+All events are decoded via the unified decoder into a VerifiableEvent, providing comprehensive monitoring capabilities for DTA operations.
 
 ---
 
