@@ -9,13 +9,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/cvn-sdk/client"
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
 )
 
 func TestDecode(t *testing.T) {
 	type testCase struct {
 		name          string
-		event         client.Event
+		event         apiClient.Event
 		expectErr     bool
 		expectedEvent VerifiableEvent
 	}
@@ -45,7 +45,7 @@ func TestDecode(t *testing.T) {
 	cases := []testCase{
 		{
 			name: "Valid base64 and valid JSON",
-			event: client.Event{
+			event: apiClient.Event{
 				VerifiableEvent: validBase64,
 			},
 			expectErr:     false,
@@ -53,21 +53,21 @@ func TestDecode(t *testing.T) {
 		},
 		{
 			name: "Invalid base64 string",
-			event: client.Event{
+			event: apiClient.Event{
 				VerifiableEvent: "invalid-base64",
 			},
 			expectErr: true,
 		},
 		{
 			name: "Valid base64 but invalid JSON",
-			event: client.Event{
+			event: apiClient.Event{
 				VerifiableEvent: base64.StdEncoding.EncodeToString([]byte("invalid-json")),
 			},
 			expectErr: true,
 		},
 		{
 			name: "Empty verifiable event",
-			event: client.Event{
+			event: apiClient.Event{
 				VerifiableEvent: "",
 			},
 			expectErr: true,
@@ -75,16 +75,18 @@ func TestDecode(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			result, err := Decode(ctx, tc.event)
+		t.Run(
+			tc.name, func(t *testing.T) {
+				ctx := context.Background()
+				result, err := Decode(ctx, tc.event)
 
-			if tc.expectErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.expectedEvent, result)
-			}
-		})
+				if tc.expectErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, tc.expectedEvent, result)
+				}
+			},
+		)
 	}
 }

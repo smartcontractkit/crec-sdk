@@ -11,7 +11,6 @@ import (
 	apiClient "github.com/smartcontractkit/cvn-api-go/client"
 	"github.com/smartcontractkit/cvn-api-go/services/dta/gen/dtaopenmarketplace"
 	"github.com/smartcontractkit/cvn-api-go/services/dta/gen/dtawallet"
-	"github.com/smartcontractkit/cvn-api-go/services/dta/gen/events"
 
 	"github.com/smartcontractkit/cvn-sdk/interfaces/erc20"
 	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
