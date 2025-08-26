@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+
 	"github.com/smartcontractkit/cvn-sdk/client"
 )
 
@@ -29,14 +31,14 @@ const (
 //   - ValidSigners: List of signer addresses that are authorized verified event signers.
 type ClientOptions struct {
 	Logger                *zerolog.Logger
-	CVNClient             *client.ClientWithResponses
+	CVNClient             *client.CVNClient
 	EventsAfter           int64
 	MinRequiredSignatures int
 	ValidSigners          []string
 }
 
 type Client struct {
-	cvnClient             *client.ClientWithResponses
+	cvnClient             *client.CVNClient
 	logger                *zerolog.Logger
 	eventsAfter           int64
 	minRequiredSignatures int
@@ -86,7 +88,7 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 // GetEvents retrieves events from the CVN service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - params: parameters for filtering events, see client.GetEventsParams for details.
-func (c *Client) GetEvents(ctx context.Context, params *client.GetEventsParams) ([]client.Event, error) {
+func (c *Client) GetEvents(ctx context.Context, params *apiClient.GetEventsParams) ([]apiClient.Event, error) {
 	c.logger.Trace().Msg("Getting events from CVN")
 
 	resp, err := c.cvnClient.GetEventsWithResponse(ctx, params)
@@ -117,7 +119,7 @@ func (c *Client) Reset() {
 // Verify verifies the authenticity of a given event.
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
-func (c *Client) Verify(event *client.Event) (bool, error) {
+func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 	c.logger.Trace().
 		Str("event_service", event.Service).
 		Str("event_name", event.Name).
@@ -194,7 +196,7 @@ func (c *Client) Verify(event *client.Event) (bool, error) {
 // Decode decodes a verifiable event into a specified payload structure.
 //   - event: The event to decode.
 //   - payload: A pointer to the structure where the decoded event will be stored.
-func (c *Client) Decode(event *client.Event, payload any) error {
+func (c *Client) Decode(event *apiClient.Event, payload any) error {
 	jsonBytes, err := c.ToJson(event)
 	if err != nil {
 		return fmt.Errorf("failed to convert verifiable event to JSON: %w", err)
@@ -204,7 +206,7 @@ func (c *Client) Decode(event *client.Event, payload any) error {
 
 // ToJson converts a verifiable event into its JSON representation.
 //   - event: The event to convert.
-func (c *Client) ToJson(event *client.Event) ([]byte, error) {
+func (c *Client) ToJson(event *apiClient.Event) ([]byte, error) {
 	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to decode base64 payload: %w", err)
@@ -213,14 +215,14 @@ func (c *Client) ToJson(event *client.Event) ([]byte, error) {
 }
 
 // EventHash computes the "EventHash" of an event used for verification.
-func (c *Client) EventHash(event *client.Event) common.Hash {
+func (c *Client) EventHash(event *apiClient.Event) common.Hash {
 	return crypto.Keccak256Hash([]byte(event.Service + "." + event.Name + "." + event.VerifiableEvent))
 }
 
 // CreateListener creates a new listener for events in the CVN service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listener: The listener to create. See client.CreateListener for details on required fields.
-func (c *Client) CreateListener(ctx context.Context, listener *client.CreateListener) (*client.Listener, error) {
+func (c *Client) CreateListener(ctx context.Context, listener *apiClient.CreateListener) (*apiClient.Listener, error) {
 	c.logger.Debug().Msg("Creating listener on CVN")
 
 	resp, err := c.cvnClient.PostListenersWithResponse(ctx, *listener)
@@ -238,7 +240,7 @@ func (c *Client) CreateListener(ctx context.Context, listener *client.CreateList
 // GetListener retrieves a listener by its ID from the CVN service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listenerId: The UUID of the listener to retrieve.
-func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*client.Listener, error) {
+func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*apiClient.Listener, error) {
 	c.logger.Trace().Msg("Getting listener")
 
 	resp, err := c.cvnClient.GetListenersListenerIdWithResponse(ctx, listenerId)
@@ -258,7 +260,7 @@ func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*client
 
 // GetListeners retrieves a list of listeners from the CVN service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
-func (c *Client) GetListeners(ctx context.Context, params *client.GetListenersParams) ([]client.Listener, error) {
+func (c *Client) GetListeners(ctx context.Context, params *apiClient.GetListenersParams) ([]apiClient.Listener, error) {
 	c.logger.Debug().Msg("Getting listeners from CVN")
 
 	resp, err := c.cvnClient.GetListenersWithResponse(ctx, params)

@@ -1,5 +1,0 @@
-package: client
-output: api.go
-generate:
-  models: true
-  client: true

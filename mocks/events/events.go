@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/smartcontractkit/cvn-sdk/client"
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
 )
 
-func LoadMockEvent(filename string) (*client.Event, error) {
-	var event client.Event
+func LoadMockEvent(filename string) (*apiClient.Event, error) {
+	var event apiClient.Event
 	err := LoadJson(filename, &event)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load mock event from %s: %w", filename, err)

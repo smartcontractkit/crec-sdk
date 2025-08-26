@@ -9,11 +9,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 
-	"github.com/smartcontractkit/cvn-sdk/client"
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+	"github.com/smartcontractkit/cvn-api-go/services/dta/gen/dtaopenmarketplace"
+	"github.com/smartcontractkit/cvn-api-go/services/dta/gen/dtawallet"
+	"github.com/smartcontractkit/cvn-api-go/services/dta/gen/events"
+
 	"github.com/smartcontractkit/cvn-sdk/interfaces/erc20"
-	"github.com/smartcontractkit/cvn-sdk/services/dta/gen/dtaopenmarketplace"
-	"github.com/smartcontractkit/cvn-sdk/services/dta/gen/dtawallet"
-	"github.com/smartcontractkit/cvn-sdk/services/dta/gen/events"
 	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
@@ -61,7 +62,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 // Event decoding methods for OpenMarketplace events
 
 // DecodeDistributorRegistered decodes a DTA distributor registered event from the provided CVN event.
-func (s *Service) DecodeDistributorRegistered(event *client.Event) (*events.DtaDistributorRegistered, error) {
+func (s *Service) DecodeDistributorRegistered(event *apiClient.Event) (*events.DtaDistributorRegistered, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -77,7 +78,9 @@ func (s *Service) DecodeDistributorRegistered(event *client.Event) (*events.DtaD
 }
 
 // DecodeDistributorRequestCanceled decodes a DTA distributor request canceled event from the provided CVN event.
-func (s *Service) DecodeDistributorRequestCanceled(event *client.Event) (*events.DtaDistributorRequestCanceled, error) {
+func (s *Service) DecodeDistributorRequestCanceled(event *apiClient.Event) (
+	*events.DtaDistributorRequestCanceled, error,
+) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -93,7 +96,9 @@ func (s *Service) DecodeDistributorRequestCanceled(event *client.Event) (*events
 }
 
 // DecodeDistributorRequestProcessed decodes a DTA distributor request processed event from the provided CVN event.
-func (s *Service) DecodeDistributorRequestProcessed(event *client.Event) (*events.DtaDistributorRequestProcessed, error) {
+func (s *Service) DecodeDistributorRequestProcessed(event *apiClient.Event) (
+	*events.DtaDistributorRequestProcessed, error,
+) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -109,7 +114,9 @@ func (s *Service) DecodeDistributorRequestProcessed(event *client.Event) (*event
 }
 
 // DecodeDistributorRequestProcessing decodes a DTA distributor request processing event from the provided CVN event.
-func (s *Service) DecodeDistributorRequestProcessing(event *client.Event) (*events.DtaDistributorRequestProcessing, error) {
+func (s *Service) DecodeDistributorRequestProcessing(event *apiClient.Event) (
+	*events.DtaDistributorRequestProcessing, error,
+) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -125,7 +132,7 @@ func (s *Service) DecodeDistributorRequestProcessing(event *client.Event) (*even
 }
 
 // DecodeFundAdminRegistered decodes a DTA fund admin registered event from the provided CVN event.
-func (s *Service) DecodeFundAdminRegistered(event *client.Event) (*events.DtaFundAdminRegistered, error) {
+func (s *Service) DecodeFundAdminRegistered(event *apiClient.Event) (*events.DtaFundAdminRegistered, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -141,7 +148,9 @@ func (s *Service) DecodeFundAdminRegistered(event *client.Event) (*events.DtaFun
 }
 
 // DecodeFundTokenAllowlistUpdated decodes a DTA fund token allowlist updated event from the provided CVN event.
-func (s *Service) DecodeFundTokenAllowlistUpdated(event *client.Event) (*events.DtaFundTokenAllowlistUpdated, error) {
+func (s *Service) DecodeFundTokenAllowlistUpdated(event *apiClient.Event) (
+	*events.DtaFundTokenAllowlistUpdated, error,
+) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -157,7 +166,7 @@ func (s *Service) DecodeFundTokenAllowlistUpdated(event *client.Event) (*events.
 }
 
 // DecodeFundTokenRegistered decodes a DTA fund token registered event from the provided CVN event.
-func (s *Service) DecodeFundTokenRegistered(event *client.Event) (*events.DtaFundTokenRegistered, error) {
+func (s *Service) DecodeFundTokenRegistered(event *apiClient.Event) (*events.DtaFundTokenRegistered, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -173,7 +182,7 @@ func (s *Service) DecodeFundTokenRegistered(event *client.Event) (*events.DtaFun
 }
 
 // DecodeInvalidDTAWallet decodes a DTA invalid DTA wallet event from the provided CVN event.
-func (s *Service) DecodeInvalidDTAWallet(event *client.Event) (*events.DtaInvalidDTAWallet, error) {
+func (s *Service) DecodeInvalidDTAWallet(event *apiClient.Event) (*events.DtaInvalidDTAWallet, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -189,7 +198,7 @@ func (s *Service) DecodeInvalidDTAWallet(event *client.Event) (*events.DtaInvali
 }
 
 // DecodeMessageFailed decodes a DTA message failed event from the provided CVN event.
-func (s *Service) DecodeMessageFailed(event *client.Event) (*events.DtaMessageFailed, error) {
+func (s *Service) DecodeMessageFailed(event *apiClient.Event) (*events.DtaMessageFailed, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -205,7 +214,7 @@ func (s *Service) DecodeMessageFailed(event *client.Event) (*events.DtaMessageFa
 }
 
 // DecodeNativeFundsRecovered decodes a DTA native funds recovered event from the provided CVN event.
-func (s *Service) DecodeNativeFundsRecovered(event *client.Event) (*events.DtaNativeFundsRecovered, error) {
+func (s *Service) DecodeNativeFundsRecovered(event *apiClient.Event) (*events.DtaNativeFundsRecovered, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -221,7 +230,7 @@ func (s *Service) DecodeNativeFundsRecovered(event *client.Event) (*events.DtaNa
 }
 
 // DecodeRedemptionRequested decodes a DTA redemption requested event from the provided CVN event.
-func (s *Service) DecodeRedemptionRequested(event *client.Event) (*events.DtaRedemptionRequested, error) {
+func (s *Service) DecodeRedemptionRequested(event *apiClient.Event) (*events.DtaRedemptionRequested, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -237,7 +246,7 @@ func (s *Service) DecodeRedemptionRequested(event *client.Event) (*events.DtaRed
 }
 
 // DecodeSubscriptionRequested decodes a DTA subscription requested event from the provided CVN event.
-func (s *Service) DecodeSubscriptionRequested(event *client.Event) (*events.DtaSubscriptionRequested, error) {
+func (s *Service) DecodeSubscriptionRequested(event *apiClient.Event) (*events.DtaSubscriptionRequested, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -255,7 +264,7 @@ func (s *Service) DecodeSubscriptionRequested(event *client.Event) (*events.DtaS
 // Event decoding methods for DTA Wallet events
 
 // DecodeDTAAdded decodes a DTA added event from the provided CVN event.
-func (s *Service) DecodeDTAAdded(event *client.Event) (*events.DtaDTAAdded, error) {
+func (s *Service) DecodeDTAAdded(event *apiClient.Event) (*events.DtaDTAAdded, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -271,7 +280,7 @@ func (s *Service) DecodeDTAAdded(event *client.Event) (*events.DtaDTAAdded, erro
 }
 
 // DecodeDTARemoved decodes a DTA removed event from the provided CVN event.
-func (s *Service) DecodeDTARemoved(event *client.Event) (*events.DtaDTARemoved, error) {
+func (s *Service) DecodeDTARemoved(event *apiClient.Event) (*events.DtaDTARemoved, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -287,7 +296,7 @@ func (s *Service) DecodeDTARemoved(event *client.Event) (*events.DtaDTARemoved, 
 }
 
 // DecodeDTASettlementClosed decodes a DTA settlement closed event from the provided CVN event.
-func (s *Service) DecodeDTASettlementClosed(event *client.Event) (*events.DtaDTASettlementClosed, error) {
+func (s *Service) DecodeDTASettlementClosed(event *apiClient.Event) (*events.DtaDTASettlementClosed, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -303,7 +312,7 @@ func (s *Service) DecodeDTASettlementClosed(event *client.Event) (*events.DtaDTA
 }
 
 // DecodeDTASettlementOpened decodes a DTA settlement opened event from the provided CVN event.
-func (s *Service) DecodeDTASettlementOpened(event *client.Event) (*events.DtaDTASettlementOpened, error) {
+func (s *Service) DecodeDTASettlementOpened(event *apiClient.Event) (*events.DtaDTASettlementOpened, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -319,7 +328,7 @@ func (s *Service) DecodeDTASettlementOpened(event *client.Event) (*events.DtaDTA
 }
 
 // DecodeCCIPMessageRecvFailed decodes a CCIP message receive failed event from the provided CVN event.
-func (s *Service) DecodeCCIPMessageRecvFailed(event *client.Event) (*events.DtaCCIPMessageRecvFailed, error) {
+func (s *Service) DecodeCCIPMessageRecvFailed(event *apiClient.Event) (*events.DtaCCIPMessageRecvFailed, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -335,7 +344,7 @@ func (s *Service) DecodeCCIPMessageRecvFailed(event *client.Event) (*events.DtaC
 }
 
 // DecodeEmptyRequestType decodes an empty request type event from the provided CVN event.
-func (s *Service) DecodeEmptyRequestType(event *client.Event) (*events.DtaEmptyRequestType, error) {
+func (s *Service) DecodeEmptyRequestType(event *apiClient.Event) (*events.DtaEmptyRequestType, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -351,7 +360,9 @@ func (s *Service) DecodeEmptyRequestType(event *client.Event) (*events.DtaEmptyR
 }
 
 // DecodeInsufficientPaymentTokenBalance decodes an insufficient payment token balance event from the provided CVN event.
-func (s *Service) DecodeInsufficientPaymentTokenBalance(event *client.Event) (*events.DtaInsufficientPaymentTokenBalance, error) {
+func (s *Service) DecodeInsufficientPaymentTokenBalance(event *apiClient.Event) (
+	*events.DtaInsufficientPaymentTokenBalance, error,
+) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -367,7 +378,7 @@ func (s *Service) DecodeInsufficientPaymentTokenBalance(event *client.Event) (*e
 }
 
 // DecodeSettlementFailed decodes a settlement failed event from the provided CVN event.
-func (s *Service) DecodeSettlementFailed(event *client.Event) (*events.DtaSettlementFailed, error) {
+func (s *Service) DecodeSettlementFailed(event *apiClient.Event) (*events.DtaSettlementFailed, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -383,7 +394,7 @@ func (s *Service) DecodeSettlementFailed(event *client.Event) (*events.DtaSettle
 }
 
 // DecodeTokenWithdrawn decodes a token withdrawn event from the provided CVN event.
-func (s *Service) DecodeTokenWithdrawn(event *client.Event) (*events.DtaTokenWithdrawn, error) {
+func (s *Service) DecodeTokenWithdrawn(event *apiClient.Event) (*events.DtaTokenWithdrawn, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -399,7 +410,7 @@ func (s *Service) DecodeTokenWithdrawn(event *client.Event) (*events.DtaTokenWit
 }
 
 // DecodeUnauthorizedSenderDTA decodes an unauthorized sender DTA event from the provided CVN event.
-func (s *Service) DecodeUnauthorizedSenderDTA(event *client.Event) (*events.DtaUnauthorizedSenderDTA, error) {
+func (s *Service) DecodeUnauthorizedSenderDTA(event *apiClient.Event) (*events.DtaUnauthorizedSenderDTA, error) {
 	jsonBytes, err := s.toJson(event)
 	if err != nil {
 		return nil, err
@@ -911,7 +922,7 @@ func (s *Service) PrepareDisableFundTokenOperation(fundTokenId [32]byte) (*trans
 }
 
 // toJson decodes an encoded VerifiableEvent from a CVN event into a JSON byte slice.
-func (s *Service) toJson(event *client.Event) ([]byte, error) {
+func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
 	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to decode base64 payload")

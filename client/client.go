@@ -3,10 +3,12 @@ package client
 import (
 	"context"
 	"net/http"
+
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
 )
 
 // CVNClient is a client for the CVN API.
-type CVNClient = ClientWithResponses
+type CVNClient = apiClient.ClientWithResponses
 
 // NewCVNClient creates a new CVN client with the specified base URL.
 // It returns a pointer to the CVNClient and an error if any issues occur during initialization.
@@ -16,5 +18,5 @@ func NewCVNClient(baseURL string, apiKey string) (*CVNClient, error) {
 		req.Header.Set("Api-Key", apiKey)
 		return nil
 	}
-	return NewClientWithResponses(baseURL, WithRequestEditorFn(apiKeyHeaderEditor))
+	return apiClient.NewClientWithResponses(baseURL, apiClient.WithRequestEditorFn(apiKeyHeaderEditor))
 }

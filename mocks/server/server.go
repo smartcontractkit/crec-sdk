@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	openapi_types "github.com/oapi-codegen/runtime/types"
+	openapiTypes "github.com/oapi-codegen/runtime/types"
+
+	api "github.com/smartcontractkit/cvn-api-go/stdserver"
 
 	"github.com/smartcontractkit/cvn-sdk/mocks/events"
-	"github.com/smartcontractkit/cvn-sdk/mocks/server/api"
 )
 
 type MockServer struct {
@@ -98,7 +99,7 @@ func (s *MockServer) GetListeners(w http.ResponseWriter, r *http.Request, params
 	)
 }
 
-func (s *MockServer) GetListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapi_types.UUID) {
+func (s *MockServer) GetListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapiTypes.UUID) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(
@@ -113,7 +114,7 @@ func (s *MockServer) GetListenersListenerId(w http.ResponseWriter, r *http.Reque
 	)
 }
 
-func (s *MockServer) DeleteListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapi_types.UUID) {
+func (s *MockServer) DeleteListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapiTypes.UUID) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
@@ -133,7 +134,7 @@ func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params ap
 	_ = json.NewEncoder(w).Encode(eventResponse)
 }
 
-func (s *MockServer) GetEventsEventId(w http.ResponseWriter, r *http.Request, eventId openapi_types.UUID) {
+func (s *MockServer) GetEventsEventId(w http.ResponseWriter, r *http.Request, eventId openapiTypes.UUID) {
 	// For test purposes, return a minimal event with the requested id.
 	now := time.Now().Unix()
 	ev := api.Event{
@@ -190,7 +191,7 @@ func (s *MockServer) GetOperations(w http.ResponseWriter, r *http.Request, param
 }
 
 func (s *MockServer) GetOperationsOperationId(
-	w http.ResponseWriter, r *http.Request, operationId openapi_types.UUID,
+	w http.ResponseWriter, r *http.Request, operationId openapiTypes.UUID,
 ) {
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(api.Operation{})
@@ -245,7 +246,7 @@ func (s *MockServer) GetAccounts(w http.ResponseWriter, r *http.Request, params 
 	_ = json.NewEncoder(w).Encode(api.AccountList{Data: data, HasMore: hasMore})
 }
 
-func (s *MockServer) GetAccountsAccountId(w http.ResponseWriter, r *http.Request, accountId openapi_types.UUID) {
+func (s *MockServer) GetAccountsAccountId(w http.ResponseWriter, r *http.Request, accountId openapiTypes.UUID) {
 	for _, a := range s.accounts {
 		if a.AccountId == accountId {
 			w.Header().Set("Content-Type", "application/json")

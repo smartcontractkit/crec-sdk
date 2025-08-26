@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+
 	"github.com/smartcontractkit/cvn-sdk/client"
 )
 
@@ -52,12 +54,14 @@ func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
 	}
 
 	// Create listener
-	l, err := c.PostListenersWithResponse(context.Background(), client.CreateListener{
-		Service: "dvp",
-		Name:    "SettlementAccepted",
-		ChainId: "1337",
-		Address: "0x1234567890abcdef1234567890abcdef12345678",
-	})
+	l, err := c.PostListenersWithResponse(
+		context.Background(), apiClient.CreateListener{
+			Service: "dvp",
+			Name:    "SettlementAccepted",
+			ChainId: "1337",
+			Address: "0x1234567890abcdef1234567890abcdef12345678",
+		},
+	)
 	if err != nil {
 		t.Fatalf("PostListeners: %v", err)
 	}
@@ -66,10 +70,12 @@ func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
 	}
 
 	// Accounts: create, list, get by id
-	acc, err := c.PostAccountsWithResponse(context.Background(), client.CreateAccount{
-		Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-		ChainId: "1337",
-	})
+	acc, err := c.PostAccountsWithResponse(
+		context.Background(), apiClient.CreateAccount{
+			Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+			ChainId: "1337",
+		},
+	)
 	if err != nil {
 		t.Fatalf("PostAccounts: %v", err)
 	}

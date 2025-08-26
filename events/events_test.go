@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+
 	"github.com/smartcontractkit/cvn-sdk/client"
 	mockdata "github.com/smartcontractkit/cvn-sdk/mocks/events"
 	mockserver "github.com/smartcontractkit/cvn-sdk/mocks/server"
@@ -96,7 +98,7 @@ func TestCreateListener(t *testing.T) {
 	}
 
 	listener, err := r.CreateListener(
-		ctx, &client.CreateListener{
+		ctx, &apiClient.CreateListener{
 			Service: "dvp",
 			Name:    "SettlementAccepted",
 			ChainId: "1337",
