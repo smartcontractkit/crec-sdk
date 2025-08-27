@@ -1,6 +1,7 @@
 package dvp
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"math/big"
@@ -128,7 +129,7 @@ func (s *Service) PrepareProposeSettlementOperation(settlement *contract.Settlem
 	}
 
 	return &transactTypes.Operation{
-		ID:      settlementHash.Big(),
+		ID:      newSecureRandomID(),
 		Account: s.accountAddress,
 		Transactions: []transactTypes.Transaction{
 			{
@@ -173,7 +174,7 @@ func (s *Service) PrepareProposeSettlementWithTokenApprovalOperation(settlement 
 	}
 
 	return &transactTypes.Operation{
-		ID:      settlementHash.Big(),
+		ID:      newSecureRandomID(),
 		Account: s.accountAddress,
 		Transactions: []transactTypes.Transaction{
 			*approveTransaction,
@@ -231,7 +232,7 @@ func (s *Service) PrepareProposeSettlementWithTokenHoldOperation(
 	}
 
 	return &transactTypes.Operation{
-		ID:      settlementHash.Big(),
+		ID:      newSecureRandomID(),
 		Account: s.accountAddress,
 		Transactions: []transactTypes.Transaction{
 			*holdTransaction,
@@ -263,7 +264,7 @@ func (s *Service) PrepareAcceptSettlementOperation(settlementHash common.Hash) (
 	}
 
 	return &transactTypes.Operation{
-		ID:      settlementHash.Big(),
+		ID:      newSecureRandomID(),
 		Account: s.accountAddress,
 		Transactions: []transactTypes.Transaction{
 			{
@@ -294,7 +295,7 @@ func (s *Service) PrepareExecuteSettlementOperation(settlementHash common.Hash) 
 	}
 
 	return &transactTypes.Operation{
-		ID:      settlementHash.Big(),
+		ID:      newSecureRandomID(),
 		Account: s.accountAddress,
 		Transactions: []transactTypes.Transaction{
 			{
@@ -463,4 +464,9 @@ func (s *Service) prepareTokenHoldTransaction(
 		Value: big.NewInt(0),
 		Data:  calldata,
 	}, nil
+}
+
+func newSecureRandomID() *big.Int {
+	n, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 256))
+	return n
 }
