@@ -423,4 +423,4 @@ An example application using CRELib can be found in the [cvn-example-payment-pro
 
 **Settlement**: In the DvP service, an atomic exchange of assets between parties with cryptographic guarantees.
 
-**CCIP**: Cross-Chain Interoperability Protocol for transferring tokens and messages between different blockchains.
+**CCIP**: Cross-Chain Interoperability Protocol for transferring tokens and messages between different blockchains. 
