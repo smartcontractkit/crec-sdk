@@ -8,10 +8,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 
-	"github.com/smartcontractkit/cvn-sdk/client"
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+	"github.com/smartcontractkit/cvn-api-go/services/dta/gen/dtaopenmarketplace"
+	"github.com/smartcontractkit/cvn-api-go/services/dta/gen/dtawallet"
+
 	"github.com/smartcontractkit/cvn-sdk/interfaces/erc20"
-	"github.com/smartcontractkit/cvn-sdk/services/dta/gen/dtaopenmarketplace"
-	"github.com/smartcontractkit/cvn-sdk/services/dta/gen/dtawallet"
 	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
@@ -553,7 +554,7 @@ func (s *Service) PrepareDisableFundTokenOperation(fundTokenId [32]byte) (*trans
 }
 
 // toJson decodes an encoded VerifiableEvent from a CVN event into a JSON byte slice.
-func (s *Service) toJson(event *client.Event) ([]byte, error) {
+func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
 	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to decode base64 payload")

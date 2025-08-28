@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/smartcontractkit/cvn-sdk/client"
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
 )
 
 func TestNewService(t *testing.T) {
@@ -39,31 +39,38 @@ func TestNewService(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			service, err := NewService(tt.opts)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				service, err := NewService(tt.opts)
 
-			if tt.expectError {
-				require.Error(t, err)
-				require.Nil(t, service)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, service)
-				require.NotNil(t, service.logger)
-			}
-		})
+				if tt.expectError {
+					require.Error(t, err)
+					require.Nil(t, service)
+				} else {
+					require.NoError(t, err)
+					require.NotNil(t, service)
+					require.NotNil(t, service.logger)
+				}
+			},
+		)
 	}
 }
 
 func TestPrepareRequestSubscriptionOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	fundAdminAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
-	fundTokenId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	fundTokenId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
 	amount := big.NewInt(1000000)
 
 	operation, err := service.PrepareRequestSubscriptionOperation(fundAdminAddr, fundTokenId, amount)
@@ -83,15 +90,20 @@ func TestPrepareRequestSubscriptionOperation(t *testing.T) {
 }
 
 func TestPrepareRequestRedemptionOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	fundAdminAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
-	fundTokenId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	fundTokenId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
 	shares := big.NewInt(500000)
 
 	operation, err := service.PrepareRequestRedemptionOperation(fundAdminAddr, fundTokenId, shares)
@@ -111,15 +123,20 @@ func TestPrepareRequestRedemptionOperation(t *testing.T) {
 }
 
 func TestPrepareRequestSubscriptionWithTokenApprovalOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	fundAdminAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
-	fundTokenId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	fundTokenId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
 	amount := big.NewInt(1000000)
 	paymentTokenAddr := common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B86")
 
@@ -148,11 +165,13 @@ func TestPrepareRequestSubscriptionWithTokenApprovalOperation(t *testing.T) {
 }
 
 func TestPrepareRegisterDistributorOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	distributorAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
@@ -175,11 +194,13 @@ func TestPrepareRegisterDistributorOperation(t *testing.T) {
 }
 
 func TestPrepareUpdateDistributorOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	distributorWalletAddr := common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B87")
@@ -201,11 +222,13 @@ func TestPrepareUpdateDistributorOperation(t *testing.T) {
 }
 
 func TestPrepareRegisterFundTokenOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 	fundTokenIdStr := "Test Token"
 	fundTokenIdBytes := []byte(fundTokenIdStr)
@@ -249,14 +272,19 @@ func TestPrepareRegisterFundTokenOperation(t *testing.T) {
 }
 
 func TestPrepareAllowDisallowDistributorForTokenOperations(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
-	fundTokenId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	fundTokenId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
 	distributorAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
 
 	// Test allow operation
@@ -275,14 +303,19 @@ func TestPrepareAllowDisallowDistributorForTokenOperations(t *testing.T) {
 }
 
 func TestPrepareEnableDisableFundTokenOperations(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
-	fundTokenId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	fundTokenId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
 
 	// Test enable operation
 	enableOp, err := service.PrepareEnableFundTokenOperation(fundTokenId)
@@ -300,11 +333,13 @@ func TestPrepareEnableDisableFundTokenOperations(t *testing.T) {
 }
 
 func TestToJson(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -333,36 +368,43 @@ func TestToJson(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			event := &client.Event{
-				VerifiableEvent: tc.input,
-			}
+		t.Run(
+			tc.name, func(t *testing.T) {
+				event := &apiClient.Event{
+					VerifiableEvent: tc.input,
+				}
 
-			result, err := service.toJson(event)
+				result, err := service.toJson(event)
 
-			if tc.expectError {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, []byte(tc.expected), result)
-			}
-		})
+				if tc.expectError {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, []byte(tc.expected), result)
+				}
+			},
+		)
 	}
 }
 
 // DTAWallet Operation Tests
 
 func TestPrepareAllowDTAOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	dtaAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
 	dtaChainSelector := uint64(1234567890)
-	fundTokenId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	fundTokenId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
 	fundTokenAddr := common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B86")
 	burnType := TokenBurnTypeBurn
 
@@ -383,16 +425,21 @@ func TestPrepareAllowDTAOperation(t *testing.T) {
 }
 
 func TestPrepareDisallowDTAOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	dtaAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
 	dtaChainSelector := uint64(1234567890)
-	fundTokenId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	fundTokenId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
 
 	operation, err := service.PrepareDisallowDTAOperation(dtaAddr, dtaChainSelector, fundTokenId)
 	require.NoError(t, err)
@@ -411,11 +458,13 @@ func TestPrepareDisallowDTAOperation(t *testing.T) {
 }
 
 func TestPrepareWithdrawTokensOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	token := common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B86")
@@ -439,11 +488,13 @@ func TestPrepareWithdrawTokensOperation(t *testing.T) {
 }
 
 func TestPrepareTransferWalletOwnershipOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	newOwner := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
@@ -465,11 +516,13 @@ func TestPrepareTransferWalletOwnershipOperation(t *testing.T) {
 }
 
 func TestPrepareRenounceWalletOwnershipOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
 	operation, err := service.PrepareRenounceWalletOwnershipOperation()
@@ -489,14 +542,19 @@ func TestPrepareRenounceWalletOwnershipOperation(t *testing.T) {
 }
 
 func TestPrepareCompleteRequestProcessingOperation(t *testing.T) {
-	service, err := NewService(&ServiceOptions{
-		DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-		AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-	})
+	service, err := NewService(
+		&ServiceOptions{
+			DTAOpenMarketplaceAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTAWalletAddress:          "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:            "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
 	require.NoError(t, err)
 
-	requestId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	requestId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
 	success := true
 	errorData := []byte("test error data")
 

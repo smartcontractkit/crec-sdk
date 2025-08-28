@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/smartcontractkit/cvn-sdk/client"
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
 )
 
 // VerifiableEvent represents an event structure that encapsulates data about the event, its metadata, and associated blockchain transaction details.
@@ -52,7 +52,7 @@ type Attribute struct {
 	Visibility string `json:"visibility"`
 }
 
-func Decode(ctx context.Context, event client.Event) (VerifiableEvent, error) {
+func Decode(ctx context.Context, event apiClient.Event) (VerifiableEvent, error) {
 	decodedBytes, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {
 		return VerifiableEvent{}, err

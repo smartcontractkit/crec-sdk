@@ -15,6 +15,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
+	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+
 	"github.com/smartcontractkit/cvn-sdk/client"
 	"github.com/smartcontractkit/cvn-sdk/transact/signer"
 	"github.com/smartcontractkit/cvn-sdk/transact/types"
@@ -27,13 +29,13 @@ import (
 //   - ChainId: A string representing the chain ID of the blockchain network.
 type ClientOptions struct {
 	Logger    *zerolog.Logger
-	CVNClient *client.ClientWithResponses
+	CVNClient *client.CVNClient
 	ChainId   string
 }
 
 type Client struct {
 	logger    *zerolog.Logger
-	cvnClient *client.ClientWithResponses
+	cvnClient *client.CVNClient
 	chainId   string
 }
 
@@ -133,7 +135,7 @@ func (t *Client) SendSignedOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signature []byte,
-) (*client.Operation, error) {
+) (*apiClient.Operation, error) {
 	if t.cvnClient == nil {
 		return nil, errors.New("no CVNClient provided, cannot send signed operations")
 	}
@@ -144,10 +146,10 @@ func (t *Client) SendSignedOperation(
 		Str("signature", common.Bytes2Hex(signature)).
 		Msg("Sending signed operation")
 
-	var transactions []client.TransactionRequest
+	var transactions []apiClient.TransactionRequest
 	for _, tx := range op.Transactions {
 		transactions = append(
-			transactions, client.TransactionRequest{
+			transactions, apiClient.TransactionRequest{
 				To:    tx.To.String(),
 				Value: tx.Value.String(),
 				Data:  "0x" + common.Bytes2Hex(tx.Data),
@@ -155,7 +157,7 @@ func (t *Client) SendSignedOperation(
 		)
 	}
 
-	var requestData = client.CreateOperation{
+	var requestData = apiClient.CreateOperation{
 		AccountOperationId: op.ID.String(),
 		ChainId:            t.chainId,
 		AccountAddress:     op.Account.String(),
@@ -185,7 +187,9 @@ func (t *Client) SendSignedOperation(
 		Msg("SendSignedOperation result")
 
 	if responseState != 201 {
-		return nil, fmt.Errorf("failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status)
+		return nil, fmt.Errorf(
+			"failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status,
+		)
 	}
 
 	t.logger.Trace().Str("raw_response", string(resp.Body)).Msg("OperationResponse JSON")
@@ -196,7 +200,7 @@ func (t *Client) SendSignedOperation(
 // GetOperation retrieves an operation by its ID from the CVN service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - operationId: The UUID of the operation to retrieve.
-func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*client.Operation, error) {
+func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*apiClient.Operation, error) {
 	t.logger.Trace().Msg("Getting operation")
 
 	resp, err := t.cvnClient.GetOperationsOperationIdWithResponse(ctx, operationId)
@@ -215,7 +219,9 @@ func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*clie
 
 // GetOperations retrieves a list of operations from the CVN service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
-func (t *Client) GetOperations(ctx context.Context, params *client.GetOperationsParams) ([]client.Operation, error) {
+func (t *Client) GetOperations(ctx context.Context, params *apiClient.GetOperationsParams) (
+	[]apiClient.Operation, error,
+) {
 	t.logger.Trace().Msg("Getting operations from CVN")
 
 	resp, err := t.cvnClient.GetOperationsWithResponse(ctx, params)
@@ -234,7 +240,9 @@ func (t *Client) GetOperations(ctx context.Context, params *client.GetOperations
 	return resp.JSON200.Data, nil
 }
 
-func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer.Signer, executorAccount common.Address, txs []types.Transaction) (*client.Operation, error) {
+func (t *Client) ExecuteTransactions(
+	ctx context.Context, operationSigner signer.Signer, executorAccount common.Address, txs []types.Transaction,
+) (*apiClient.Operation, error) {
 	operation := &types.Operation{
 		ID:           big.NewInt(time.Now().Unix()),
 		Account:      executorAccount,
@@ -244,7 +252,9 @@ func (t *Client) ExecuteTransactions(ctx context.Context, operationSigner signer
 	return t.ExecuteOperation(ctx, operationSigner, operation)
 }
 
-func (t *Client) ExecuteOperation(ctx context.Context, operationSigner signer.Signer, operation *types.Operation) (*client.Operation, error) {
+func (t *Client) ExecuteOperation(
+	ctx context.Context, operationSigner signer.Signer, operation *types.Operation,
+) (*apiClient.Operation, error) {
 	_, sig, err := t.SignOperation(ctx, operation, operationSigner)
 	if err != nil {
 		return nil, err

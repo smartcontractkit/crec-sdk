@@ -7,15 +7,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/routerclient"
+	"github.com/smartcontractkit/cvn-api-go/services/ccip/gen/routerclient"
 )
 
 func TestPrepareCcipSendOperation_NoApprovals(t *testing.T) {
-	s, err := NewService(&ServiceOptions{
-		CcipRouterAddress:     "0x1111111111111111111111111111111111111111",
-		AccountAddress:        "0x2222222222222222222222222222222222222222",
-		IncludeTokenApprovals: false,
-	})
+	s, err := NewService(
+		&ServiceOptions{
+			CcipRouterAddress:     "0x1111111111111111111111111111111111111111",
+			AccountAddress:        "0x2222222222222222222222222222222222222222",
+			IncludeTokenApprovals: false,
+		},
+	)
 	require.NoError(t, err)
 
 	// Minimal EVM2AnyMessage
@@ -38,11 +40,13 @@ func TestPrepareCcipSendOperation_NoApprovals(t *testing.T) {
 }
 
 func TestPrepareCcipSendOperation_WithApprovals(t *testing.T) {
-	s, err := NewService(&ServiceOptions{
-		CcipRouterAddress:     "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-		AccountAddress:        "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
-		IncludeTokenApprovals: true,
-	})
+	s, err := NewService(
+		&ServiceOptions{
+			CcipRouterAddress:     "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+			AccountAddress:        "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+			IncludeTokenApprovals: true,
+		},
+	)
 	require.NoError(t, err)
 
 	ta := []routerclient.ClientEVMTokenAmount{

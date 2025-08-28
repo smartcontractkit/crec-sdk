@@ -9,10 +9,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 
-	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
+	"github.com/smartcontractkit/cvn-api-go/services/ccip/gen/routerclient"
 
 	"github.com/smartcontractkit/cvn-sdk/interfaces/erc20"
-	"github.com/smartcontractkit/cvn-sdk/services/ccip/gen/routerclient"
+	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
 // ServiceOptions defines the options for creating a new CVN CCIP service.
