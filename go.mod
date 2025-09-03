@@ -200,4 +200,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
+replace github.com/smartcontractkit/cvn-api-go => ../cvn-api-go
+
 tool github.com/vektra/mockery/v2
