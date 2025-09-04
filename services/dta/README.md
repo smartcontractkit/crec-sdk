@@ -166,9 +166,60 @@ if attr, ok := ve.Metadata.WorkflowEvent.Attributes["some_key"]; ok {
 }
 ```
 
+Full example using DecodeAndParseAttributes:
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+
+    "github.com/smartcontractkit/cvn-sdk/client"
+    "github.com/smartcontractkit/cvn-sdk/services/dta"
+)
+
+func handleEvent(ctx context.Context, cvnEvent client.Event) {
+    // Decode the base64 event, get the typed name, the unified VerifiableEvent, and parsed attributes
+    name, ve, attrs, err := dta.DecodeAndParseAttributes(ctx, cvnEvent)
+    if err != nil {
+        log.Printf("failed to decode/parse event: %v", err)
+        return
+    }
+
+    // Use core fields from the unified VerifiableEvent
+    log.Printf("Event: name=%s type=%s address=%s requestId=%s at=%s",
+        name, ve.Event.Type, ve.Event.Address, ve.Event.RequestId, ve.CreatedAt)
+
+    // Switch on the resolved event name and type-assert the parsed attrs
+    switch name {
+    case dta.EventSubscriptionRequested:
+        e := attrs.(dta.SubscriptionRequested)
+        log.Printf("SubscriptionRequested: fundTokenId=%x distributor=%s requestId=%x amount=%s createdAt=%d",
+            e.FundTokenId, e.DistributorAddr, e.RequestId, e.Amount.String(), e.CreatedAt)
+        // further processing
+
+    case dta.EventRedemptionRequested:
+        e := attrs.(dta.RedemptionRequested)
+        log.Printf("RedemptionRequested: fundTokenId=%x distributor=%s requestId=%x shares=%s createdAt=%d",
+            e.FundTokenId, e.DistributorAddr, e.RequestId, e.Shares.String(), e.CreatedAt)
+
+    case dta.EventFundTokenRegistered:
+        e := attrs.(dta.FundTokenRegistered)
+        log.Printf("FundTokenRegistered: fundAdmin=%s fundTokenId=%x tokenAddr=%s navAddr=%s chainSelector=%d",
+            e.FundAdminAddr, e.FundTokenId, e.FundTokenAddr, e.NavAddr, e.TokenChainSelector)
+
+    // ... handle other event names as needed
+    default:
+        log.Printf("Unhandled event: %s (raw attributes available: %d keys)", name, len(ve.Metadata.WorkflowEvent.Attributes))
+    }
+}
+```
+
 Notes:
 - VerifiableEvent is a single struct covering metadata, transaction, and workflow attributes for every event type.
 - Use ve.EventName() to get a event name parsed from the "event_type" attribute of the WorkflowEvent struct.
+- DecodeAndParseAttributes returns (EventName, VerifiableEvent, any), where the third value is a concrete, typed struct corresponding to the event (e.g., SubscriptionRequested). You can type-assert it based on the returned EventName.
 
 ## Operation Preparation
 

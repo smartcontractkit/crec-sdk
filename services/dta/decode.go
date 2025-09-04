@@ -11,38 +11,46 @@ import (
 
 // VerifiableEvent represents an event structure that encapsulates data about the event, its metadata, and associated blockchain transaction details.
 type VerifiableEvent struct {
-	CreatedAt time.Time `json:"createdAt"`
-	Event     struct {
-		Type      string `json:"type"`
-		Name      string `json:"name"`
-		Address   string `json:"address"`
-		RequestId string `json:"requestId"`
-		TopicHash string `json:"topicHash"`
-	} `json:"event"`
-	Metadata struct {
-		ChainId       string `json:"chainId"`
-		Network       string `json:"network"`
-		WorkflowEvent struct {
-			Attributes      map[string]Attribute `json:"attributes"`
-			BusinessEventId string               `json:"business_event_id"`
-			Component       string               `json:"component"`
-			EventTimestamp  time.Time            `json:"event_timestamp"`
-			EventTypeLabel  string               `json:"event_type_label"`
-			Failed          bool                 `json:"failed"`
-			FinalEvent      bool                 `json:"final_event"`
-			Id              string               `json:"id"`
-			Participant     string               `json:"participant"`
-			ParticipantRole string               `json:"participant_role"`
-			ProcessLabels   []string             `json:"process_labels"`
-			RawData         string               `json:"raw_data"`
-			Title           string               `json:"title"`
-		} `json:"workflowEvent"`
-	} `json:"metadata"`
-	Transaction struct {
-		Timestamp int    `json:"timestamp"`
-		ChainId   string `json:"chainId"`
-		Hash      string `json:"hash"`
-	} `json:"transaction"`
+	CreatedAt   time.Time   `json:"createdAt"`
+	Event       Event       `json:"event"`
+	Metadata    Metadata    `json:"metadata"`
+	Transaction Transaction `json:"transaction"`
+}
+
+type Metadata struct {
+	ChainId       string        `json:"chainId"`
+	Network       string        `json:"network"`
+	WorkflowEvent WorkflowEvent `json:"workflowEvent"`
+}
+
+type Transaction struct {
+	Timestamp int    `json:"timestamp"`
+	ChainId   string `json:"chainId"`
+	Hash      string `json:"hash"`
+}
+
+type WorkflowEvent struct {
+	Attributes      map[string]Attribute `json:"attributes"`
+	BusinessEventId string               `json:"business_event_id"`
+	Component       string               `json:"component"`
+	EventTimestamp  time.Time            `json:"event_timestamp"`
+	EventTypeLabel  string               `json:"event_type_label"`
+	Failed          bool                 `json:"failed"`
+	FinalEvent      bool                 `json:"final_event"`
+	Id              string               `json:"id"`
+	Participant     string               `json:"participant"`
+	ParticipantRole string               `json:"participant_role"`
+	ProcessLabels   []string             `json:"process_labels"`
+	RawData         string               `json:"raw_data"`
+	Title           string               `json:"title"`
+}
+
+type Event struct {
+	Type      string `json:"type"`
+	Name      string `json:"name"`
+	Address   string `json:"address"`
+	RequestId string `json:"requestId"`
+	TopicHash string `json:"topicHash"`
 }
 
 type Attribute struct {
@@ -70,11 +78,22 @@ func Decode(ctx context.Context, event apiClient.Event) (VerifiableEvent, error)
 func (v VerifiableEvent) EventName() EventName {
 	eventType, ok := v.Metadata.WorkflowEvent.Attributes["event_type"]
 	if !ok {
-		return ""
+		return Unknown
 	}
 	eventName, b := parseEvent(eventType.Value)
 	if !b {
-		return ""
+		return Unknown
 	}
 	return eventName
+}
+
+// DecodeAndParseAttributes decodes a base64 encoded event, extracts the event name, and parses its attributes into a concrete structure.
+func DecodeAndParseAttributes(ctx context.Context, event apiClient.Event) (EventName, VerifiableEvent, any, error) {
+	decodedEvent, err := Decode(ctx, event)
+	if err != nil {
+		return "", VerifiableEvent{}, nil, err
+	}
+	eventName := decodedEvent.EventName()
+	attrs, err := decodedEvent.ParseAttributes()
+	return eventName, decodedEvent, attrs, err
 }
