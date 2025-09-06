@@ -7,8 +7,11 @@ type (
 	Account                           = cvnapi.Account
 	AccountList                       = cvnapi.AccountList
 	ApplicationError                  = cvnapi.ApplicationError
+	ApplicationErrorType              = cvnapi.ApplicationErrorType
 	Client                            = cvnapi.Client
+	ClientInterface                   = cvnapi.ClientInterface
 	ClientWithResponses               = cvnapi.ClientWithResponses
+	ClientWithResponsesInterface      = cvnapi.ClientWithResponsesInterface
 	CreateAccount                     = cvnapi.CreateAccount
 	CreateEvent                       = cvnapi.CreateEvent
 	CreateListener                    = cvnapi.CreateListener
@@ -30,6 +33,7 @@ type (
 	GetOperationsParams               = cvnapi.GetOperationsParams
 	GetOperationsResponse             = cvnapi.GetOperationsResponse
 	HealthCheck                       = cvnapi.HealthCheck
+	HttpRequestDoer                   = cvnapi.HttpRequestDoer
 	Listener                          = cvnapi.Listener
 	ListenerList                      = cvnapi.ListenerList
 	Operation                         = cvnapi.Operation
@@ -42,4 +46,12 @@ type (
 	Transaction                       = cvnapi.Transaction
 	TransactionRequest                = cvnapi.TransactionRequest
 	UpdateOperationStatus             = cvnapi.UpdateOperationStatus
+)
+
+const (
+	AlreadyExists    ApplicationErrorType = cvnapi.AlreadyExists
+	ApiKeyAuthScopes                      = cvnapi.ApiKeyAuthScopes
+	BadRequest       ApplicationErrorType = cvnapi.BadRequest
+	InternalError    ApplicationErrorType = cvnapi.InternalError
+	NotFound         ApplicationErrorType = cvnapi.NotFound
 )
