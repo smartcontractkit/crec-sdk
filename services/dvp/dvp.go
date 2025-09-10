@@ -1,7 +1,6 @@
 package dvp
 
 import (
-	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"math/big"
@@ -118,27 +117,12 @@ func (s *Service) PrepareProposeSettlementOperation(settlement *contract.Settlem
 		Str("settlementHash", settlementHash.Hex()).
 		Msg("Preparing proposeSettlement operation")
 
-	abiEncoder, err := contract.ContractMetaData.GetAbi()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
-	}
-
-	calldata, err := abiEncoder.Pack("proposeSettlement", settlement)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack calldata for proposeSettlement: %w", err)
-	}
-
-	return &transactTypes.Operation{
-		ID:      newSecureRandomID(),
-		Account: s.accountAddress,
-		Transactions: []transactTypes.Transaction{
-			{
-				To:    s.dvpCoordinatorAddress,
-				Value: big.NewInt(0),
-				Data:  calldata,
-			},
-		},
-	}, nil
+	return s.prepareSettlementOperation(
+		"proposeSettlement",
+		settlementHash,
+		nil,
+		settlement,
+	)
 }
 
 // PrepareProposeSettlementWithTokenApprovalOperation prepares a DvP propose settlement operation, including
@@ -163,28 +147,12 @@ func (s *Service) PrepareProposeSettlementWithTokenApprovalOperation(settlement 
 		return nil, fmt.Errorf("failed to prepare approve transaction: %w", err)
 	}
 
-	abiEncoder, err := contract.ContractMetaData.GetAbi()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
-	}
-
-	calldata, err := abiEncoder.Pack("proposeSettlement", settlement)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack calldata for proposeSettlement: %w", err)
-	}
-
-	return &transactTypes.Operation{
-		ID:      newSecureRandomID(),
-		Account: s.accountAddress,
-		Transactions: []transactTypes.Transaction{
-			*approveTransaction,
-			{
-				To:    s.dvpCoordinatorAddress,
-				Value: big.NewInt(0),
-				Data:  calldata,
-			},
-		},
-	}, nil
+	return s.prepareSettlementOperation(
+		"proposeSettlement",
+		settlementHash,
+		[]transactTypes.Transaction{*approveTransaction},
+		settlement,
+	)
 }
 
 // PrepareProposeSettlementWithTokenHoldOperation prepares a DvP propose settlement operation, including
@@ -221,28 +189,12 @@ func (s *Service) PrepareProposeSettlementWithTokenHoldOperation(
 		return nil, fmt.Errorf("failed to prepare hold transaction: %w", err)
 	}
 
-	abiEncoder, err := contract.ContractMetaData.GetAbi()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
-	}
-
-	calldata, err := abiEncoder.Pack("proposeSettlement", settlement)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack calldata for proposeSettlement: %w", err)
-	}
-
-	return &transactTypes.Operation{
-		ID:      newSecureRandomID(),
-		Account: s.accountAddress,
-		Transactions: []transactTypes.Transaction{
-			*holdTransaction,
-			{
-				To:    s.dvpCoordinatorAddress,
-				Value: big.NewInt(0),
-				Data:  calldata,
-			},
-		},
-	}, nil
+	return s.prepareSettlementOperation(
+		"proposeSettlement",
+		settlementHash,
+		[]transactTypes.Transaction{*holdTransaction},
+		settlement,
+	)
 }
 
 // PrepareAcceptSettlementOperation prepares a DvP accept settlement operation.
@@ -253,27 +205,12 @@ func (s *Service) PrepareAcceptSettlementOperation(settlementHash common.Hash) (
 		Str("settlementHash", settlementHash.Hex()).
 		Msg("Preparing acceptSettlement operation")
 
-	abiEncoder, err := contract.ContractMetaData.GetAbi()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
-	}
-
-	calldata, err := abiEncoder.Pack("acceptSettlement", settlementHash)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack calldata for acceptSettlement: %w", err)
-	}
-
-	return &transactTypes.Operation{
-		ID:      newSecureRandomID(),
-		Account: s.accountAddress,
-		Transactions: []transactTypes.Transaction{
-			{
-				To:    s.dvpCoordinatorAddress,
-				Value: big.NewInt(0),
-				Data:  calldata,
-			},
-		},
-	}, nil
+	return s.prepareSettlementOperation(
+		"acceptSettlement",
+		settlementHash,
+		nil,
+		settlementHash,
+	)
 }
 
 // PrepareExecuteSettlementOperation prepares a DvP executeSettlement operation.
@@ -284,27 +221,12 @@ func (s *Service) PrepareExecuteSettlementOperation(settlementHash common.Hash) 
 		Str("settlementHash", settlementHash.Hex()).
 		Msg("Preparing executeSettlement operation")
 
-	abiEncoder, err := contract.ContractMetaData.GetAbi()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
-	}
-
-	calldata, err := abiEncoder.Pack("executeSettlement", settlementHash)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack calldata for executeSettlement: %w", err)
-	}
-
-	return &transactTypes.Operation{
-		ID:      newSecureRandomID(),
-		Account: s.accountAddress,
-		Transactions: []transactTypes.Transaction{
-			{
-				To:    s.dvpCoordinatorAddress,
-				Value: big.NewInt(0),
-				Data:  calldata,
-			},
-		},
-	}, nil
+	return s.prepareSettlementOperation(
+		"executeSettlement",
+		settlementHash,
+		nil,
+		settlementHash,
+	)
 }
 
 // HashSettlement computes the hash of a DvP settlement.
@@ -416,6 +338,41 @@ func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
 	return decodedStr, nil
 }
 
+// prepareSettlementOperation is a helper function that abstracts the common logic for preparing settlement operations.
+func (s *Service) prepareSettlementOperation(
+	operationName string,
+	settlementHash common.Hash,
+	extraTransactions []transactTypes.Transaction,
+	packArgs ...interface{},
+) (*transactTypes.Operation, error) {
+	abiEncoder, err := contract.ContractMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get DVP ABI: %w", err)
+	}
+
+	// Pack the calldata
+	calldata, err := abiEncoder.Pack(operationName, packArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack calldata for %s: %w", operationName, err)
+	}
+
+	// Build the main transaction
+	mainTransaction := transactTypes.Transaction{
+		To:    s.dvpCoordinatorAddress,
+		Value: big.NewInt(0),
+		Data:  calldata,
+	}
+
+	// Combine extra transactions with the main transaction
+	transactions := append(extraTransactions, mainTransaction)
+
+	return &transactTypes.Operation{
+		ID:           crypto.Keccak256Hash(append(settlementHash[:], []byte(operationName)...)).Big(),
+		Account:      s.accountAddress,
+		Transactions: transactions,
+	}, nil
+}
+
 func (s *Service) prepareTokenApproveTransaction(
 	tokenAddress common.Address, tokenAmount *big.Int,
 ) (*transactTypes.Transaction, error) {
@@ -464,9 +421,4 @@ func (s *Service) prepareTokenHoldTransaction(
 		Value: big.NewInt(0),
 		Data:  calldata,
 	}, nil
-}
-
-func newSecureRandomID() *big.Int {
-	n, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 256))
-	return n
 }
