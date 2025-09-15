@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -78,21 +79,23 @@ func TestService_PrepareDeployNewECDSAAccountOperation(t *testing.T) {
 	accountId := "test-ecdsa-account"
 
 	service, err := NewService(&ServiceOptions{
-		Logger:                   &zerolog.Logger{},
-		KeystoneForwarderAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		AccountFactoryAddress:    "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+		Logger:                                    &zerolog.Logger{},
+		OperationExecutionAccount:                 accountOwnerAddress,
+		KeystoneForwarderAddress:                  "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+		AccountFactoryAddress:                     "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
 		ECDSASignatureVerifyingAccountImplAddress: "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
 		RSASignatureVerifyingAccountImplAddress:   "0xd123456789012345678901234567890123456789",
 	})
 	require.NoError(t, err)
 
-	operation, err := service.PrepareDeployNewECDSAAccountOperation(accountOwnerAddress, allowedSigners, accountId)
+	operation, predictedAddress, err := service.PrepareDeployNewECDSAAccountOperation(accountOwnerAddress, allowedSigners, accountId)
 
 	require.NoError(t, err)
 	require.NotNil(t, operation)
+	require.NotEqual(t, common.Address{}, predictedAddress, "Predicted address should not be zero")
 
 	assert.NotNil(t, operation.ID)
-	assert.Equal(t, service.accountFactoryAddress, operation.Account)
+	assert.Equal(t, service.operationExecutionAccount, operation.Account)
 	assert.Len(t, operation.Transactions, 1)
 
 	tx := operation.Transactions[0]
@@ -137,21 +140,23 @@ func TestService_PrepareDeployNewRSAAccountOperation(t *testing.T) {
 
 	// Create service
 	service, err := NewService(&ServiceOptions{
-		Logger:                   &zerolog.Logger{},
-		KeystoneForwarderAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-		AccountFactoryAddress:    "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+		Logger:                                    &zerolog.Logger{},
+		OperationExecutionAccount:                 accountOwnerAddress,
+		KeystoneForwarderAddress:                  "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+		AccountFactoryAddress:                     "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
 		ECDSASignatureVerifyingAccountImplAddress: "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
 		RSASignatureVerifyingAccountImplAddress:   "0xd123456789012345678901234567890123456789",
 	})
 	require.NoError(t, err)
 
-	operation, err := service.PrepareDeployNewRSAAccountOperation(accountOwnerAddress, allowedSigners, accountId)
+	operation, predictedAddress, err := service.PrepareDeployNewRSAAccountOperation(accountOwnerAddress, allowedSigners, accountId)
 
 	require.NoError(t, err)
 	require.NotNil(t, operation)
+	require.NotEqual(t, common.Address{}, predictedAddress, "Predicted address should not be zero")
 
 	assert.NotNil(t, operation.ID)
-	assert.Equal(t, service.accountFactoryAddress, operation.Account)
+	assert.Equal(t, service.operationExecutionAccount, operation.Account)
 	assert.Len(t, operation.Transactions, 1)
 
 	tx := operation.Transactions[0]
@@ -175,4 +180,77 @@ func TestService_PrepareDeployNewRSAAccountOperation(t *testing.T) {
 	t.Logf("Account ID (keccak256): 0x%s", actualAccountIdHash)
 	t.Logf("Keystone Forwarder: %s", service.keystoneForwarderAddress.Hex())
 	t.Logf("Account Owner: %s", accountOwnerAddress)
+	t.Logf("Predicted Account Address: %s", predictedAddress.Hex())
+}
+
+func TestAddressPrediction(t *testing.T) {
+	accountOwnerAddress := "0x742d35Cc6634C0532925a3b8D100d3F01F14bFE4"
+
+	service, err := NewService(&ServiceOptions{
+		OperationExecutionAccount:                 accountOwnerAddress,
+		KeystoneForwarderAddress:                  "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+		AccountFactoryAddress:                     "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+		ECDSASignatureVerifyingAccountImplAddress: "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		RSASignatureVerifyingAccountImplAddress:   "0xd123456789012345678901234567890123456789",
+	})
+	require.NoError(t, err)
+
+	allowedSigners := []string{
+		"0x1234567890123456789012345678901234567890",
+		"0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+	}
+	accountId := "test-deterministic-address"
+
+	_, addr1, err := service.PrepareDeployNewECDSAAccountOperation(accountOwnerAddress, allowedSigners, accountId)
+	require.NoError(t, err)
+
+	_, addr2, err := service.PrepareDeployNewECDSAAccountOperation(accountOwnerAddress, allowedSigners, accountId)
+	require.NoError(t, err)
+
+	assert.Equal(t, addr1, addr2, "Predicted addresses should be deterministic")
+
+	assert.NotEqual(t, common.Address{}, addr1, "Predicted address should not be zero")
+
+	t.Logf("Deterministic predicted address: %s", addr1.Hex())
+
+	_, addr3, err := service.PrepareDeployNewECDSAAccountOperation(accountOwnerAddress, allowedSigners, "different-account-id")
+	require.NoError(t, err)
+
+	assert.NotEqual(t, addr1, addr3, "Different account IDs should produce different addresses")
+	t.Logf("Different account ID address: %s", addr3.Hex())
+}
+
+func TestAddressPredictionWithLocalBlockchainValues(t *testing.T) {
+	// Test address prediction using values from local blockchain deployment
+	// Account Factory deployed at: 0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf
+	// Creator: 0x2402a075b4e362E22Bb77Da2137B5f3573c20469
+	// ECDSA Account Implementation: 0x4826533B4897376654Bb4d4AD88B7faFD0C98528
+	// Account ID string: "cre-workflow-owner-account"
+	// Expected address from cast call: 0xb253bd2cc474567d061615aa11101d352d97f7a7
+
+	// Use the exact values from the cast commands
+	accountOwnerAddress := "0x2402a075b4e362E22Bb77Da2137B5f3573c20469" // creator from cast call
+
+	service, err := NewService(&ServiceOptions{
+		OperationExecutionAccount:                 accountOwnerAddress,
+		KeystoneForwarderAddress:                  "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+		AccountFactoryAddress:                     "0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf",
+		ECDSASignatureVerifyingAccountImplAddress: "0x4826533B4897376654Bb4d4AD88B7faFD0C98528",
+		RSASignatureVerifyingAccountImplAddress:   "0xd123456789012345678901234567890123456789",
+	})
+	require.NoError(t, err)
+
+	allowedSigners := []string{
+		"0x1234567890123456789012345678901234567890",
+		"0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+	}
+	accountId := "cre-workflow-owner-account" // This generates 0x06e2557dd67dc7e7f0c8447efe6ce26959746f9bdf59be35f1b585d049b6d83b when hashed
+
+	expectedAddress := common.HexToAddress("0xb253bd2cc474567d061615aa11101d352d97f7a7")
+
+	_, predictedAddress, err := service.PrepareDeployNewECDSAAccountOperation(accountOwnerAddress, allowedSigners, accountId)
+	require.NoError(t, err)
+
+	// Verify the predicted address matches the one from the blockchain
+	assert.Equal(t, expectedAddress, predictedAddress, "Predicted address should match the blockchain calculation")
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/smartcontractkit/cvn-api-go/services/accounts/gen/accounts"
-
 	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
 )
 
@@ -22,12 +21,14 @@ const (
 
 // ServiceOptions defines the options for creating a new CVN Accounts service.
 //   - Logger: Optional logger instance.
+//   - OperationExecutionAccount: A previously deployed smart wallet address that will execute operations to invoke the factory and deploy accounts.
 //   - KeystoneForwarderAddress: A string representing the address of the Keystone forwarder contract.
 //   - AccountFactoryAddress: A string representing the address of the account factory contract.
 //   - ECDSASignatureVerifyingAccountImplAddress: A string representing the address of the ECDSA signature verifying account implementation contract.
 //   - RSASignatureVerifyingAccountImplAddress: A string representing the address of the RSA signature verifying account implementation contract.
 type ServiceOptions struct {
 	Logger                                    *zerolog.Logger
+	OperationExecutionAccount                 string
 	KeystoneForwarderAddress                  string
 	AccountFactoryAddress                     string
 	ECDSASignatureVerifyingAccountImplAddress string
@@ -37,6 +38,7 @@ type ServiceOptions struct {
 // Service provides operations for managing CVN account creation and deployment.
 type Service struct {
 	logger                                    *zerolog.Logger
+	operationExecutionAccount                 common.Address
 	keystoneForwarderAddress                  common.Address
 	accountFactoryAddress                     common.Address
 	ecdsaSignatureVerifyingAccountImplAddress common.Address
@@ -60,9 +62,10 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 	logger.Debug().Msg("Creating CVN Accounts service")
 
 	return &Service{
-		logger:                   logger,
-		keystoneForwarderAddress: common.HexToAddress(opts.KeystoneForwarderAddress),
-		accountFactoryAddress:    common.HexToAddress(opts.AccountFactoryAddress),
+		logger:                                    logger,
+		operationExecutionAccount:                 common.HexToAddress(opts.OperationExecutionAccount),
+		keystoneForwarderAddress:                  common.HexToAddress(opts.KeystoneForwarderAddress),
+		accountFactoryAddress:                     common.HexToAddress(opts.AccountFactoryAddress),
 		ecdsaSignatureVerifyingAccountImplAddress: common.HexToAddress(opts.ECDSASignatureVerifyingAccountImplAddress),
 		rsaSignatureVerifyingAccountImplAddress:   common.HexToAddress(opts.RSASignatureVerifyingAccountImplAddress),
 	}, nil
@@ -73,10 +76,13 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 //   - accountOwnerAddress: The address of the account owner as a hex string.
 //   - allowedSigners: A slice of allowed signer addresses as hex strings.
 //   - accountId: A unique identifier for the account.
+//
+// Returns the operation and the predicted address where the account will be deployed.
 func (s *Service) PrepareDeployNewECDSAAccountOperation(
 	accountOwnerAddress string, allowedSigners []string, accountId string,
-) (*transactTypes.Operation, error) {
+) (*transactTypes.Operation, common.Address, error) {
 	s.logger.Trace().
+		Str("operationExecutionAccount", s.operationExecutionAccount.Hex()).
 		Str("accountOwnerAddress", accountOwnerAddress).
 		Str("allowedSigners", fmt.Sprintf("%v", allowedSigners)).
 		Str("accountId", accountId).
@@ -89,16 +95,17 @@ func (s *Service) PrepareDeployNewECDSAAccountOperation(
 
 	addressArrayType, err := abi.NewType("address[]", "", nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create address array ABI type: %w", err)
+		return nil, common.Address{}, fmt.Errorf("failed to create address array ABI type: %w", err)
 	}
 
 	initializationConfigData, err := abi.Arguments{{Type: addressArrayType}}.Pack(signerAddresses)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode allowed signers: %w", err)
+		return nil, common.Address{}, fmt.Errorf("failed to encode allowed signers: %w", err)
 	}
 
 	return s.createAccountOperation(
-		s.ecdsaSignatureVerifyingAccountImplAddress, accountOwnerAddress, accountId, initializationConfigData,
+		s.operationExecutionAccount, s.ecdsaSignatureVerifyingAccountImplAddress, accountOwnerAddress, accountId,
+		initializationConfigData,
 	)
 }
 
@@ -121,10 +128,13 @@ type abiRSAKey struct {
 //   - accountOwnerAddress: The address of the account owner as a hex string.
 //   - allowedSigners: A slice of RSA public keys for allowed signers.
 //   - accountId: A unique identifier for the account.
+//
+// Returns the operation and the predicted address where the account will be deployed.
 func (s *Service) PrepareDeployNewRSAAccountOperation(
 	accountOwnerAddress string, allowedSigners []RSAKey, accountId string,
-) (*transactTypes.Operation, error) {
+) (*transactTypes.Operation, common.Address, error) {
 	s.logger.Trace().
+		Str("operationExecutionAccount", s.operationExecutionAccount.Hex()).
 		Str("accountOwnerAddress", accountOwnerAddress).
 		Str("allowedSigners", fmt.Sprintf("%v", allowedSigners)).
 		Str("accountId", accountId).
@@ -149,34 +159,43 @@ func (s *Service) PrepareDeployNewRSAAccountOperation(
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create RSAKey array ABI type: %w", err)
+		return nil, common.Address{}, fmt.Errorf("failed to create RSAKey array ABI type: %w", err)
 	}
 
 	initializationConfigData, err := abi.Arguments{{Type: rsaKeyType}}.Pack(abiKeys)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode RSA keys: %w", err)
+		return nil, common.Address{}, fmt.Errorf("failed to encode RSA keys: %w", err)
 	}
 
 	return s.createAccountOperation(
-		s.rsaSignatureVerifyingAccountImplAddress, accountOwnerAddress, accountId, initializationConfigData,
+		s.operationExecutionAccount, s.rsaSignatureVerifyingAccountImplAddress, accountOwnerAddress, accountId,
+		initializationConfigData,
 	)
 }
 
 // createAccountOperation is a helper function that creates a transact operation for account deployment.
-// It encodes the createAccount function call with the provided parameters.
+// It encodes the createAccount function call with the provided parameters and predicts the account address.
+//   - operationExecutionAccount: A previously deployed smart wallet address that will execute the operation to invoke the factory and deploy the account.
 //   - implAddress: The implementation contract address for the account type.
 //   - accountOwnerAddress: The address of the account owner as a hex string.
 //   - accountId: A unique identifier for the account.
 //   - initializationConfigData: ABI-encoded initialization data for the account.
+//
+// Returns the operation and the predicted account address.
 func (s *Service) createAccountOperation(
-	implAddress common.Address, accountOwnerAddress string, accountId string, initializationConfigData []byte,
-) (*transactTypes.Operation, error) {
+	operationExecutionAccount common.Address, implAddress common.Address, accountOwnerAddress string, accountId string,
+	initializationConfigData []byte,
+) (*transactTypes.Operation, common.Address, error) {
 	abiEncoder, err := accounts.AccountsMetaData.GetAbi()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get account factory ABI: %w", err)
-	}
+		return nil, common.Address{}, fmt.Errorf("failed to get account factory ABI: %w", err)
 
+	}
 	accountIdBytes32 := crypto.Keccak256Hash([]byte(accountId))
+
+	// Predict the account address using the same logic as the contract
+	salt := getSalt(operationExecutionAccount, accountIdBytes32)
+	predictedAddress := predictAccountAddress(implAddress, salt, s.accountFactoryAddress)
 
 	calldata, err := abiEncoder.Pack(
 		"createAccount",
@@ -188,12 +207,12 @@ func (s *Service) createAccountOperation(
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to pack createAccount calldata: %w", err)
+		return nil, common.Address{}, fmt.Errorf("failed to pack createAccount calldata: %w", err)
 	}
 
 	return &transactTypes.Operation{
 		ID:      newSecureRandomID(),
-		Account: s.accountFactoryAddress,
+		Account: operationExecutionAccount,
 		Transactions: []transactTypes.Transaction{
 			{
 				To:    s.accountFactoryAddress,
@@ -201,7 +220,45 @@ func (s *Service) createAccountOperation(
 				Data:  calldata,
 			},
 		},
-	}, nil
+	}, predictedAddress, nil
+}
+
+// getSalt generates a deterministic salt for account deployment.
+// This matches the contract's getSalt function: keccak256(abi.encodePacked(sender, uniqueAccountId))
+func getSalt(sender common.Address, uniqueAccountID [32]byte) [32]byte {
+	return crypto.Keccak256Hash(append(sender.Bytes(), uniqueAccountID[:]...))
+}
+
+// predictAccountAddress predicts the deterministic address where an account would be deployed.
+// This replicates the behavior of Clones.predictDeterministicAddress from OpenZeppelin.
+func predictAccountAddress(implementation common.Address, salt [32]byte, factory common.Address) common.Address {
+	// CREATE2 address calculation: keccak256(0xff ++ factory ++ salt ++ keccak256(bytecode))
+	// For minimal proxy (EIP-1167), the bytecode is: 0x3d602d80600a3d3981f3363d3d373d3d3d363d73 + implementation + 0x5af43d82803e903d91602b57fd5bf3
+
+	// EIP-1167 minimal proxy bytecode template
+	initCode := make([]byte, 0, 55)
+	initCode = append(
+		initCode, []byte{
+			0x3d, 0x60, 0x2d, 0x80, 0x60, 0x0a, 0x3d, 0x39, 0x81, 0xf3, 0x36, 0x3d, 0x3d, 0x37, 0x3d, 0x3d, 0x3d, 0x36,
+			0x3d, 0x73,
+		}...,
+	)
+	initCode = append(initCode, implementation.Bytes()...)
+	initCode = append(
+		initCode, []byte{0x5a, 0xf4, 0x3d, 0x82, 0x80, 0x3e, 0x90, 0x3d, 0x91, 0x60, 0x2b, 0x57, 0xfd, 0x5b, 0xf3}...,
+	)
+
+	bytecodeHash := crypto.Keccak256Hash(initCode)
+
+	// CREATE2 address: keccak256(0xff ++ factory ++ salt ++ bytecodeHash)[12:]
+	data := make([]byte, 0, 85)
+	data = append(data, 0xff)
+	data = append(data, factory.Bytes()...)
+	data = append(data, salt[:]...)
+	data = append(data, bytecodeHash.Bytes()...)
+
+	addressHash := crypto.Keccak256(data)
+	return common.BytesToAddress(addressHash[12:])
 }
 
 // newSecureRandomID generates a cryptographically secure random 256-bit integer for operation IDs.

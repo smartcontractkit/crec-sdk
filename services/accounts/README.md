@@ -211,3 +211,92 @@ This enables:
 -   **Pre-deployment Address Calculation**: Know account address before deployment
 -   **Duplicate Prevention**: Same creator + accountId always produces same address
 -   **Cross-chain Consistency**: Same account ID on different chains (if desired)
+
+## Example: Deploying and registering a smart account
+
+Let's walk through a practical example of deploying a new ECDSA signature verifying account and registering it with the CVN backend.
+
+This example demonstrates the complete flow from account creation to backend registration, which is essential for applications that need to provision smart wallets for their users.
+
+### Setup
+
+```go
+import (
+    "context"
+    "time"
+
+    "github.com/google/uuid"
+    "github.com/ethereum/go-ethereum/crypto"
+    apiClient "github.com/smartcontractkit/cvn-api-go/client"
+    "github.com/smartcontractkit/cvn-sdk/client"
+    "github.com/smartcontractkit/cvn-sdk/services/accounts"
+    "github.com/smartcontractkit/cvn-sdk/transact"
+    "github.com/smartcontractkit/cvn-sdk/transact/signer/local"
+)
+
+// 1. Initialize the CVN Client to connect to the Chainlink Verifiable Network
+cvnClient, _ := client.NewCVNClient(cvnURL, cvnAPIKey)
+
+// 2. Create an Accounts Service instance. This service handles smart account
+// provisioning operations and address prediction.
+accountsService, _ := accounts.NewService(&accounts.ServiceOptions{
+    OperationExecutionAccount:                 operationExecutionAccountAddress, // Smart wallet that will execute the deployment
+    KeystoneForwarderAddress:                  keystoneForwarderAddress,         // Keystone forwarder contract
+    AccountFactoryAddress:                     accountFactoryAddress,            // Account factory contract
+    ECDSASignatureVerifyingAccountImplAddress: ecdsaImplAddress,                // ECDSA account implementation
+    RSASignatureVerifyingAccountImplAddress:   rsaImplAddress,                  // RSA account implementation
+})
+
+// 3. Create a Transact Client to send signed operations to the CVN
+transactClient, _ := transact.NewClient(&transact.ClientOptions{
+    CVNClient: cvnClient,
+    ChainId:   chainId,
+})
+
+// 4. Create a local signer for the operation execution account
+operationSigner := local.NewSigner(privateKey)
+```
+
+### Deployment and Registration Flow
+
+```go
+ctx := context.Background()
+
+// 1. Prepare the ECDSA account deployment operation
+// This creates the operation and predicts where the account will be deployed
+operation, predictedAddress, _ := accountsService.PrepareDeployNewECDSAAccountOperation(
+    accountOwnerAddress, // The address that will own the deployed account
+    "trading-account-1", // Unique identifier for this account
+)
+
+// The predicted address is deterministic - it will be the same as the actual
+// deployed address once the operation is executed on-chain
+
+// 2. Sign and send the operation to the CVN
+operationHash, signature, _ := transactClient.SignOperation(ctx, operation, operationSigner)
+txResult, _ := transactClient.SendSignedOperation(ctx, operation, signature)
+
+// 3. Wait for the operation to be executed on-chain
+// In a real application, you might want to implement proper retry logic
+// and handle different status states more gracefully
+operationUUID, _ := uuid.Parse(txResult.OperationId.String())
+
+for {
+    status, _ := transactClient.GetOperation(ctx, operationUUID)
+    if status != nil && status.Status == "confirmed" {
+        break
+    }
+    time.Sleep(3 * time.Second)
+}
+
+// 4. Register the deployed account with the CVN backend
+// This makes the account discoverable and manageable through CVN APIs
+accountData := apiClient.CreateAccount{
+    Address: predictedAddress.Hex(),
+    ChainId: chainId,
+}
+
+response, _ := cvnClient.PostAccountsWithResponse(ctx, accountData)
+```
+
+This example demonstrates the power of the Accounts Service in providing a secure, predictable foundation for CVN applications that need to provision smart wallets at scale.
