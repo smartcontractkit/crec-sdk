@@ -51,7 +51,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 	}, nil
 }
 
-// Operation preparation methods
+// DTARequestManagement Operations - These target the DTARequestManagement contract
 
 // PrepareRequestSubscriptionOperation prepares a DTA request subscription operation.
 // It constructs the necessary transaction to request a subscription for a fund token.
@@ -65,7 +65,7 @@ func (s *Service) PrepareRequestSubscriptionOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -100,7 +100,7 @@ func (s *Service) PrepareRequestRedemptionOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -145,7 +145,7 @@ func (s *Service) PrepareRequestSubscriptionWithTokenApprovalOperation(
 	// Prepare the subscription request transaction
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -177,7 +177,7 @@ func (s *Service) PrepareRequestSubscriptionWithTokenApprovalOperation(
 func (s *Service) PrepareProcessDistributorRequestOperation(requestId [32]byte) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -206,7 +206,7 @@ func (s *Service) PrepareProcessDistributorRequestOperation(requestId [32]byte) 
 func (s *Service) PrepareCancelDistributorRequestOperation(requestId [32]byte) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -237,7 +237,7 @@ func (s *Service) PrepareRegisterDistributorOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -266,7 +266,7 @@ func (s *Service) PrepareRegisterDistributorOperation(
 func (s *Service) PrepareRegisterFundAdminOperation(fundAdminAddr common.Address) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -301,7 +301,7 @@ type FundTokenData struct {
 	RequestsPerDay                uint8
 	NavAddr                       common.Address
 	TokenChainSelector            uint64
-	DtaWalletAddr                 common.Address
+	DtaRequestSettlementAddr      common.Address
 	TimezoneOffsetSecs            *big.Int // int24 in contract
 	NavTTL                        *big.Int // uint24 in contract
 	PaymentInfo                   DTAPaymentInfo
@@ -324,30 +324,12 @@ func (s *Service) PrepareRegisterFundTokenOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
-	// Convert our struct to the contract's expected tuple format
-	contractTokenData := struct {
-		FundTokenAddr                 common.Address
-		NavFeedDecimals               uint8
-		PurchaseTokenRoundingDecimals uint8
-		PurchaseTokenDecimals         uint8
-		FundRoundingDecimals          uint8
-		FundTokenDecimals             uint8
-		RequestsPerDay                uint8
-		NavAddr                       common.Address
-		TokenChainSelector            uint64
-		DtaWalletAddr                 common.Address
-		TimezoneOffsetSecs            *big.Int
-		NavTTL                        *big.Int
-		PaymentInfo                   struct {
-			OffChainPaymentCurrency uint8
-			PaymentTokenSourceAddr  common.Address
-			PaymentTokenDestAddr    common.Address
-		}
-	}{
+	// Convert our struct to the contract's expected tuple format using the generated struct
+	contractTokenData := dtarequestmanagement.IFundTokenRegistryFundTokenData{
 		FundTokenAddr:                 tokenData.FundTokenAddr,
 		NavFeedDecimals:               tokenData.NavFeedDecimals,
 		PurchaseTokenRoundingDecimals: tokenData.PurchaseTokenRoundingDecimals,
@@ -357,14 +339,10 @@ func (s *Service) PrepareRegisterFundTokenOperation(
 		RequestsPerDay:                tokenData.RequestsPerDay,
 		NavAddr:                       tokenData.NavAddr,
 		TokenChainSelector:            tokenData.TokenChainSelector,
-		DtaWalletAddr:                 tokenData.DtaWalletAddr,
+		DtaRequestSettlementAddr:      tokenData.DtaRequestSettlementAddr,
 		TimezoneOffsetSecs:            tokenData.TimezoneOffsetSecs,
 		NavTTL:                        tokenData.NavTTL,
-		PaymentInfo: struct {
-			OffChainPaymentCurrency uint8
-			PaymentTokenSourceAddr  common.Address
-			PaymentTokenDestAddr    common.Address
-		}{
+		PaymentInfo: dtarequestmanagement.IDTAMessageDTAPayment{
 			OffChainPaymentCurrency: tokenData.PaymentInfo.OffChainPaymentCurrency,
 			PaymentTokenSourceAddr:  tokenData.PaymentInfo.PaymentTokenSourceAddr,
 			PaymentTokenDestAddr:    tokenData.PaymentInfo.PaymentTokenDestAddr,
@@ -400,7 +378,7 @@ func (s *Service) PrepareAllowDistributorForTokenOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -433,7 +411,7 @@ func (s *Service) PrepareDisallowDistributorForTokenOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -462,7 +440,7 @@ func (s *Service) PrepareDisallowDistributorForTokenOperation(
 func (s *Service) PrepareEnableFundTokenOperation(fundTokenId [32]byte) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
@@ -491,13 +469,75 @@ func (s *Service) PrepareEnableFundTokenOperation(fundTokenId [32]byte) (*transa
 func (s *Service) PrepareDisableFundTokenOperation(fundTokenId [32]byte) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA OpenMarketplace ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
 		return nil, err
 	}
 
 	calldata, err := abiEncoder.Pack("disableFundToken", fundTokenId)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to pack calldata for disableFundToken")
+		return nil, err
+	}
+
+	return &transactTypes.Operation{
+		ID:      big.NewInt(time.Now().Unix()),
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
+			{
+				To:    s.dtaRequestManagementAddress,
+				Value: big.NewInt(0),
+				Data:  calldata,
+			},
+		},
+	}, nil
+}
+
+// PrepareVerifyDistributorWalletOperation prepares a DTA verify distributor wallet operation.
+// It constructs the necessary transaction to verify a distributor's wallet ownership.
+//   - distributorAddr: The address of the distributor to verify.
+func (s *Service) PrepareVerifyDistributorWalletOperation(distributorAddr common.Address) (*transactTypes.Operation, error) {
+	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
+		return nil, err
+	}
+
+	calldata, err := abiEncoder.Pack("verifyDistributorWallet", distributorAddr)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to pack calldata for verifyDistributorWallet")
+		return nil, err
+	}
+
+	return &transactTypes.Operation{
+		ID:      big.NewInt(time.Now().Unix()),
+		Account: s.accountAddress,
+		Transactions: []transactTypes.Transaction{
+			{
+				To:    s.dtaRequestManagementAddress,
+				Value: big.NewInt(0),
+				Data:  calldata,
+			},
+		},
+	}, nil
+}
+
+// PrepareForceAllowDistributorForTokenOperation prepares a DTA force allow distributor for token operation.
+// It constructs the necessary transaction to force allow a distributor for a specific token (admin function).
+//   - fundTokenId: The ID of the fund token.
+//   - distributorAddr: The address of the distributor to force allow.
+func (s *Service) PrepareForceAllowDistributorForTokenOperation(
+	fundTokenId [32]byte,
+	distributorAddr common.Address,
+) (*transactTypes.Operation, error) {
+	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestManagement ABI")
+		return nil, err
+	}
+
+	calldata, err := abiEncoder.Pack("forceAllowDistributorForToken", fundTokenId, distributorAddr)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to pack calldata for forceAllowDistributorForToken")
 		return nil, err
 	}
 
@@ -525,7 +565,7 @@ func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
 }
 
 // prepareTokenApproveTransaction prepares a token approval transaction.
-// It constructs the necessary transaction to approve tokens for the DTA OpenMarketplace contract.
+// It constructs the necessary transaction to approve tokens for the DTARequestManagement contract.
 //   - tokenAddress: The address of the token to approve.
 //   - tokenAmount: The amount of tokens to approve.
 func (s *Service) prepareTokenApproveTransaction(
@@ -550,7 +590,7 @@ func (s *Service) prepareTokenApproveTransaction(
 	}, nil
 }
 
-// DTAWallet Operations - These target the DTAWallet contract
+// DTARequestSettlement Operations - These target the DTARequestSettlement contract
 
 // TokenBurnType represents the burn type for DTA operations
 type TokenBurnType uint8
@@ -561,7 +601,7 @@ const (
 	TokenBurnTypeTransfer
 )
 
-// PrepareAllowDTAOperation prepares a DTA wallet allow DTA operation.
+// PrepareAllowDTAOperation prepares a DTARequestSettlement allow DTA operation.
 // It constructs the necessary transaction to allow a DTA address to interact with a fund token.
 //   - dtaAddr: The DTA contract address to allow.
 //   - dtaChainSelector: The chain selector for the DTA contract.
@@ -577,7 +617,7 @@ func (s *Service) PrepareAllowDTAOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestsettlement.DtarequestsettlementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA Wallet ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestSettlement ABI")
 		return nil, err
 	}
 
@@ -600,7 +640,7 @@ func (s *Service) PrepareAllowDTAOperation(
 	}, nil
 }
 
-// PrepareDisallowDTAOperation prepares a DTA wallet disallow DTA operation.
+// PrepareDisallowDTAOperation prepares a DTARequestSettlement disallow DTA operation.
 // It constructs the necessary transaction to disallow a DTA address from interacting with a fund token.
 //   - dtaAddr: The DTA contract address to disallow.
 //   - dtaChainSelector: The chain selector for the DTA contract.
@@ -612,7 +652,7 @@ func (s *Service) PrepareDisallowDTAOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestsettlement.DtarequestsettlementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA Wallet ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestSettlement ABI")
 		return nil, err
 	}
 
@@ -635,8 +675,8 @@ func (s *Service) PrepareDisallowDTAOperation(
 	}, nil
 }
 
-// PrepareWithdrawTokensOperation prepares a DTA wallet withdraw tokens operation.
-// It constructs the necessary transaction to withdraw tokens from the DTA wallet.
+// PrepareWithdrawTokensOperation prepares a DTARequestSettlement withdraw tokens operation.
+// It constructs the necessary transaction to withdraw tokens from the DTARequestSettlement contract.
 //   - token: The address of the token to withdraw.
 //   - recipient: The address to receive the withdrawn tokens.
 //   - amount: The amount of tokens to withdraw.
@@ -647,7 +687,7 @@ func (s *Service) PrepareWithdrawTokensOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestsettlement.DtarequestsettlementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA Wallet ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestSettlement ABI")
 		return nil, err
 	}
 
@@ -670,13 +710,13 @@ func (s *Service) PrepareWithdrawTokensOperation(
 	}, nil
 }
 
-// PrepareTransferWalletOwnershipOperation prepares a DTA wallet transfer ownership operation.
-// It constructs the necessary transaction to transfer ownership of the DTA wallet.
+// PrepareTransferDTARequestSettlementOwnershipOperation prepares a DTARequestSettlement transfer ownership operation.
+// It constructs the necessary transaction to transfer ownership of the DTARequestSettlement contract.
 //   - newOwner: The address of the new owner.
-func (s *Service) PrepareTransferWalletOwnershipOperation(newOwner common.Address) (*transactTypes.Operation, error) {
+func (s *Service) PrepareTransferDTARequestSettlementOwnershipOperation(newOwner common.Address) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestsettlement.DtarequestsettlementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA Wallet ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestSettlement ABI")
 		return nil, err
 	}
 
@@ -699,12 +739,12 @@ func (s *Service) PrepareTransferWalletOwnershipOperation(newOwner common.Addres
 	}, nil
 }
 
-// PrepareRenounceWalletOwnershipOperation prepares a DTA wallet renounce ownership operation.
-// It constructs the necessary transaction to renounce ownership of the DTA wallet.
-func (s *Service) PrepareRenounceWalletOwnershipOperation() (*transactTypes.Operation, error) {
+// PrepareRenounceDTARequestSettlementOwnershipOperation prepares a DTARequestSettlement renounce ownership operation.
+// It constructs the necessary transaction to renounce ownership of the DTARequestSettlement contract.
+func (s *Service) PrepareRenounceDTARequestSettlementOwnershipOperation() (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestsettlement.DtarequestsettlementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA Wallet ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestSettlement ABI")
 		return nil, err
 	}
 
@@ -727,8 +767,8 @@ func (s *Service) PrepareRenounceWalletOwnershipOperation() (*transactTypes.Oper
 	}, nil
 }
 
-// PrepareCompleteRequestProcessingOperation prepares a DTA wallet complete request processing operation.
-// It constructs the necessary transaction to complete the processing of a request in the DTA wallet.
+// PrepareCompleteRequestProcessingOperation prepares a DTARequestSettlement complete request processing operation.
+// It constructs the necessary transaction to complete the processing of a request in the DTARequestSettlement contract.
 //   - requestId: The ID of the request to complete.
 //   - success: Whether the request processing was successful.
 //   - errorData: Error data if the request failed (can be empty for successful requests).
@@ -739,7 +779,7 @@ func (s *Service) PrepareCompleteRequestProcessingOperation(
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestsettlement.DtarequestsettlementMetaData.GetAbi()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get DTA Wallet ABI")
+		s.logger.Error().Err(err).Msg("Failed to get DTARequestSettlement ABI")
 		return nil, err
 	}
 

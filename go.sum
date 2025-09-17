@@ -443,8 +443,8 @@ github.com/shirou/gopsutil/v4 v4.25.5 h1:rtd9piuSMGeU8g1RMXjZs9y9luK5BwtnG7dZaQU
 github.com/shirou/gopsutil/v4 v4.25.5/go.mod h1:PfybzyydfZcN+JMMjkF6Zb8Mq1A/VcogFFg7hj50W9c=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
-github.com/smartcontractkit/cvn-api-go v0.1.3-preview h1:lo6GATqsVRTbT/bNGQM03B3Jmxiq008+S/wr67cnAis=
-github.com/smartcontractkit/cvn-api-go v0.1.3-preview/go.mod h1:esOz30hbe30oP/uRVGbgg16I65y4/00X54EfmADhGeY=
+github.com/smartcontractkit/cvn-api-go v0.1.3-rc.2 h1:01HElSz+6tuGcARF5SVOhNg+O6kJKjFXmSRNYWq1TuM=
+github.com/smartcontractkit/cvn-api-go v0.1.3-rc.2/go.mod h1:esOz30hbe30oP/uRVGbgg16I65y4/00X54EfmADhGeY=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
 github.com/spf13/afero v1.12.0 h1:UcOPyRBYczmFn6yvphxkn9ZEOY65cpwGKb5mL36mrqs=

@@ -210,7 +210,7 @@ func TestPrepareRegisterFundTokenOperation(t *testing.T) {
 		FundTokenAddr:                 common.HexToAddress("0xA5F12FDA3e8B7209a3019141F105e5DB43445B86"),
 		NavAddr:                       common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621"),
 		TokenChainSelector:            1234567890,
-		DtaWalletAddr:                 common.HexToAddress("0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1"),
+		DtaRequestSettlementAddr:      common.HexToAddress("0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1"),
 		TimezoneOffsetSecs:            big.NewInt(-18000), // -5 hours in seconds
 		NavFeedDecimals:               18,
 		PurchaseTokenRoundingDecimals: 18,
@@ -303,6 +303,156 @@ func TestPrepareEnableDisableFundTokenOperations(t *testing.T) {
 	require.Equal(t, service.dtaRequestManagementAddress, disableOp.Transactions[0].To)
 }
 
+func TestPrepareProcessDistributorRequestOperation(t *testing.T) {
+	service, err := NewService(
+		&ServiceOptions{
+			DTARequestManagementAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTARequestSettlementAddress: "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:              "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
+	require.NoError(t, err)
+
+	requestId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
+
+	operation, err := service.PrepareProcessDistributorRequestOperation(requestId)
+	require.NoError(t, err)
+	require.NotNil(t, operation)
+
+	// Verify operation structure
+	require.NotNil(t, operation.ID)
+	require.Equal(t, service.accountAddress, operation.Account)
+	require.Len(t, operation.Transactions, 1)
+
+	// Verify transaction structure
+	tx := operation.Transactions[0]
+	require.Equal(t, service.dtaRequestManagementAddress, tx.To)
+	require.Equal(t, big.NewInt(0), tx.Value)
+	require.NotEmpty(t, tx.Data)
+}
+
+func TestPrepareCancelDistributorRequestOperation(t *testing.T) {
+	service, err := NewService(
+		&ServiceOptions{
+			DTARequestManagementAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTARequestSettlementAddress: "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:              "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
+	require.NoError(t, err)
+
+	requestId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
+
+	operation, err := service.PrepareCancelDistributorRequestOperation(requestId)
+	require.NoError(t, err)
+	require.NotNil(t, operation)
+
+	// Verify operation structure
+	require.NotNil(t, operation.ID)
+	require.Equal(t, service.accountAddress, operation.Account)
+	require.Len(t, operation.Transactions, 1)
+
+	// Verify transaction structure
+	tx := operation.Transactions[0]
+	require.Equal(t, service.dtaRequestManagementAddress, tx.To)
+	require.Equal(t, big.NewInt(0), tx.Value)
+	require.NotEmpty(t, tx.Data)
+}
+
+func TestPrepareRegisterFundAdminOperation(t *testing.T) {
+	service, err := NewService(
+		&ServiceOptions{
+			DTARequestManagementAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTARequestSettlementAddress: "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:              "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
+	require.NoError(t, err)
+
+	fundAdminAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
+
+	operation, err := service.PrepareRegisterFundAdminOperation(fundAdminAddr)
+	require.NoError(t, err)
+	require.NotNil(t, operation)
+
+	// Verify operation structure
+	require.NotNil(t, operation.ID)
+	require.Equal(t, service.accountAddress, operation.Account)
+	require.Len(t, operation.Transactions, 1)
+
+	// Verify transaction structure
+	tx := operation.Transactions[0]
+	require.Equal(t, service.dtaRequestManagementAddress, tx.To)
+	require.Equal(t, big.NewInt(0), tx.Value)
+	require.NotEmpty(t, tx.Data)
+}
+
+func TestPrepareVerifyDistributorWalletOperation(t *testing.T) {
+	service, err := NewService(
+		&ServiceOptions{
+			DTARequestManagementAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTARequestSettlementAddress: "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:              "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
+	require.NoError(t, err)
+
+	distributorAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
+
+	operation, err := service.PrepareVerifyDistributorWalletOperation(distributorAddr)
+	require.NoError(t, err)
+	require.NotNil(t, operation)
+
+	// Verify operation structure
+	require.NotNil(t, operation.ID)
+	require.Equal(t, service.accountAddress, operation.Account)
+	require.Len(t, operation.Transactions, 1)
+
+	// Verify transaction structure
+	tx := operation.Transactions[0]
+	require.Equal(t, service.dtaRequestManagementAddress, tx.To)
+	require.Equal(t, big.NewInt(0), tx.Value)
+	require.NotEmpty(t, tx.Data)
+}
+
+func TestPrepareForceAllowDistributorForTokenOperation(t *testing.T) {
+	service, err := NewService(
+		&ServiceOptions{
+			DTARequestManagementAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+			DTARequestSettlementAddress: "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
+			AccountAddress:              "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
+		},
+	)
+	require.NoError(t, err)
+
+	fundTokenId := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32,
+	}
+	distributorAddr := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
+
+	operation, err := service.PrepareForceAllowDistributorForTokenOperation(fundTokenId, distributorAddr)
+	require.NoError(t, err)
+	require.NotNil(t, operation)
+
+	// Verify operation structure
+	require.NotNil(t, operation.ID)
+	require.Equal(t, service.accountAddress, operation.Account)
+	require.Len(t, operation.Transactions, 1)
+
+	// Verify transaction structure
+	tx := operation.Transactions[0]
+	require.Equal(t, service.dtaRequestManagementAddress, tx.To)
+	require.Equal(t, big.NewInt(0), tx.Value)
+	require.NotEmpty(t, tx.Data)
+}
+
 func TestToJson(t *testing.T) {
 	service, err := NewService(
 		&ServiceOptions{
@@ -358,7 +508,7 @@ func TestToJson(t *testing.T) {
 	}
 }
 
-// DTAWallet Operation Tests
+// DTARequestSettlement Operation Tests
 
 func TestPrepareAllowDTAOperation(t *testing.T) {
 	service, err := NewService(
@@ -458,7 +608,7 @@ func TestPrepareWithdrawTokensOperation(t *testing.T) {
 	require.NotEmpty(t, tx.Data)
 }
 
-func TestPrepareTransferWalletOwnershipOperation(t *testing.T) {
+func TestPrepareTransferDTARequestSettlementOwnershipOperation(t *testing.T) {
 	service, err := NewService(
 		&ServiceOptions{
 			DTARequestManagementAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
@@ -470,7 +620,7 @@ func TestPrepareTransferWalletOwnershipOperation(t *testing.T) {
 
 	newOwner := common.HexToAddress("0xeb457346d2218f7f77aa23ac6d9e394b505dd621")
 
-	operation, err := service.PrepareTransferWalletOwnershipOperation(newOwner)
+	operation, err := service.PrepareTransferDTARequestSettlementOwnershipOperation(newOwner)
 	require.NoError(t, err)
 	require.NotNil(t, operation)
 
@@ -486,7 +636,7 @@ func TestPrepareTransferWalletOwnershipOperation(t *testing.T) {
 	require.NotEmpty(t, tx.Data)
 }
 
-func TestPrepareRenounceWalletOwnershipOperation(t *testing.T) {
+func TestPrepareRenounceDTARequestSettlementOwnershipOperation(t *testing.T) {
 	service, err := NewService(
 		&ServiceOptions{
 			DTARequestManagementAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
@@ -496,7 +646,7 @@ func TestPrepareRenounceWalletOwnershipOperation(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	operation, err := service.PrepareRenounceWalletOwnershipOperation()
+	operation, err := service.PrepareRenounceDTARequestSettlementOwnershipOperation()
 	require.NoError(t, err)
 	require.NotNil(t, operation)
 
