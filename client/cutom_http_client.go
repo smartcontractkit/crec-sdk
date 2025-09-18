@@ -1,7 +1,6 @@
 package client
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/moul/http2curl"
@@ -20,10 +19,10 @@ func NewCustomHttpClient(logger zerolog.Logger) *CustomHttpClient {
 }
 
 func (l *CustomHttpClient) Do(req *http.Request) (*http.Response, error) {
-	if l.Logger.Debug().Enabled() {
-
-		curl, _ := http2curl.GetCurlCommand(req)
-		log.Println(curl.String())
+	if curl, err := http2curl.GetCurlCommand(req); err == nil {
+		l.Logger.Debug().
+			Str("curl", curl.String()).
+			Msg("Outgoing HTTP request dump")
 	}
 
 	return l.Client.Do(req)
