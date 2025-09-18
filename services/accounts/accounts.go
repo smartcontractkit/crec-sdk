@@ -194,8 +194,8 @@ func (s *Service) createAccountOperation(
 	accountIdBytes32 := crypto.Keccak256Hash([]byte(accountId))
 
 	// Predict the account address using the same logic as the contract
-	salt := getSalt(operationExecutionAccount, accountIdBytes32)
-	predictedAddress := predictAccountAddress(implAddress, salt, s.accountFactoryAddress)
+	salt := GetSalt(operationExecutionAccount, accountIdBytes32)
+	predictedAddress := PredictAccountAddress(implAddress, salt, s.accountFactoryAddress)
 
 	calldata, err := abiEncoder.Pack(
 		"createAccount",
@@ -223,15 +223,15 @@ func (s *Service) createAccountOperation(
 	}, predictedAddress, nil
 }
 
-// getSalt generates a deterministic salt for account deployment.
-// This matches the contract's getSalt function: keccak256(abi.encodePacked(sender, uniqueAccountId))
-func getSalt(sender common.Address, uniqueAccountID [32]byte) [32]byte {
+// GetSalt generates a deterministic salt for account deployment.
+// This matches the contract's GetSalt function: keccak256(abi.encodePacked(sender, uniqueAccountId))
+func GetSalt(sender common.Address, uniqueAccountID [32]byte) [32]byte {
 	return crypto.Keccak256Hash(append(sender.Bytes(), uniqueAccountID[:]...))
 }
 
-// predictAccountAddress predicts the deterministic address where an account would be deployed.
+// PredictAccountAddress predicts the deterministic address where an account would be deployed.
 // This replicates the behavior of Clones.predictDeterministicAddress from OpenZeppelin.
-func predictAccountAddress(implementation common.Address, salt [32]byte, factory common.Address) common.Address {
+func PredictAccountAddress(implementation common.Address, salt [32]byte, factory common.Address) common.Address {
 	// CREATE2 address calculation: keccak256(0xff ++ factory ++ salt ++ keccak256(bytecode))
 	// For minimal proxy (EIP-1167), the bytecode is: 0x3d602d80600a3d3981f3363d3d373d3d3d363d73 + implementation + 0x5af43d82803e903d91602b57fd5bf3
 
