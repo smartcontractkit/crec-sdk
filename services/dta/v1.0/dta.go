@@ -289,38 +289,13 @@ func (s *Service) PrepareRegisterFundAdminOperation(fundAdminAddr common.Address
 	}, nil
 }
 
-// FundTokenData represents the data structure for fund token registration.
-// This struct mirrors the IFundTokenRegistry.FundTokenData from the contract.
-type FundTokenData struct {
-	FundTokenAddr                 common.Address
-	NavFeedDecimals               uint8
-	PurchaseTokenRoundingDecimals uint8
-	PurchaseTokenDecimals         uint8
-	FundRoundingDecimals          uint8
-	FundTokenDecimals             uint8
-	RequestsPerDay                uint8
-	NavAddr                       common.Address
-	TokenChainSelector            uint64
-	DtaRequestSettlementAddr      common.Address
-	TimezoneOffsetSecs            *big.Int // int24 in contract
-	NavTTL                        *big.Int // uint24 in contract
-	PaymentInfo                   DTAPaymentInfo
-}
-
-// DTAPaymentInfo represents the payment information for DTA operations.
-type DTAPaymentInfo struct {
-	OffChainPaymentCurrency uint8 // Currency enum
-	PaymentTokenSourceAddr  common.Address
-	PaymentTokenDestAddr    common.Address
-}
-
 // PrepareRegisterFundTokenOperation prepares a DTA register fund token operation.
 // It constructs the necessary transaction to register a new fund token with its metadata.
 //   - fundTokenId: The ID of the fund token to register.
 //   - tokenData: The fund token data containing all metadata.
 func (s *Service) PrepareRegisterFundTokenOperation(
 	fundTokenId [32]byte,
-	tokenData FundTokenData,
+	tokenData dtarequestmanagement.IFundTokenRegistryFundTokenData,
 ) (*transactTypes.Operation, error) {
 	abiEncoder, err := dtarequestmanagement.DtarequestmanagementMetaData.GetAbi()
 	if err != nil {
