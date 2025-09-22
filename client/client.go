@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"net/http"
+	"os"
 
+	"github.com/rs/zerolog"
 	apiClient "github.com/smartcontractkit/cvn-api-go/client"
 )
 
@@ -18,5 +20,26 @@ func NewCVNClient(baseURL string, apiKey string) (*CVNClient, error) {
 		req.Header.Set("Api-Key", apiKey)
 		return nil
 	}
-	return apiClient.NewClientWithResponses(baseURL, apiClient.WithRequestEditorFn(apiKeyHeaderEditor))
+
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	customHttpClient := NewHTTPClientWithCURLLogger(&logger, nil)
+
+	return apiClient.NewClientWithResponses(baseURL,
+		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
+		apiClient.WithHTTPClient(customHttpClient),
+	)
+}
+
+func NewCVNClientWithHTTPClient(baseURL, apiKey string, httpClient *http.Client, lgr *zerolog.Logger) (*CVNClient, error) {
+	apiKeyHeaderEditor := func(ctx context.Context, req *http.Request) error {
+		req.Header.Set("Api-Key", apiKey)
+		return nil
+	}
+
+	wrappedHTTPClient := NewHTTPClientWithCURLLogger(lgr, httpClient)
+
+	return apiClient.NewClientWithResponses(baseURL,
+		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
+		apiClient.WithHTTPClient(wrappedHTTPClient),
+	)
 }
