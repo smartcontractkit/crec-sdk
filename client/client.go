@@ -2,43 +2,46 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	apiClient "github.com/smartcontractkit/cvn-api-go/client"
 )
 
+// ClientOptions defines the options for creating a new CVN client used to interact with the CVN API.
+//   - BaseURL: The base URL of the CVN API.
+//   - ApiKey: The API key for authenticating with the CVN API.
+//   - HttpClient: The custom HTTP client to use for making requests. If nil, the default HTTP client is used.
+type ClientOptions struct {
+	BaseURL    string
+	APIKey     string
+	HTTPClient *http.Client // Optional custom HTTP client
+}
+
 // CVNClient is a client for the CVN API.
 type CVNClient = apiClient.ClientWithResponses
 
-// NewCVNClient creates a new CVN client with the specified base URL and API key.
-// It returns a pointer to the CVNClient and an error if any issues occur during initialization.
-//   - baseURL: The base URL of the CVN API.
-//   - apiKey: The API key for authenticating with the CVN API.
-func NewCVNClient(baseURL string, apiKey string) (*CVNClient, error) {
-	return NewCVNClientWithHTTPClient(baseURL, apiKey, nil)
-}
-
-// NewCVNClientWithHTTPClient creates a new CVN client with the specified base URL and API key, using the provided HTTP client.
-// It returns a pointer to the CVNClient and an error if any issues occur during initialization.
-//   - baseURL: The base URL of the CVN API.
-//   - apiKey: The API key for authenticating with the CVN API.
-//   - httpClient: The custom HTTP client to use for making requests. If nil, the default HTTP client is used.
-func NewCVNClientWithHTTPClient(baseURL, apiKey string, httpClient *http.Client) (*CVNClient, error) {
+// NewCVNClient creates a new CVN client with the given options.
+//   - opts: Options for configuring the CVN client, see ClientOptions for details.
+func NewCVNClient(opts *ClientOptions) (*CVNClient, error) {
+	if opts == nil {
+		return nil, fmt.Errorf("ClientOptions is required")
+	}
 	apiKeyHeaderEditor := func(ctx context.Context, req *http.Request) error {
-		req.Header.Set("Api-Key", apiKey)
+		req.Header.Set("Api-Key", opts.APIKey)
 		return nil
 	}
 
-	if httpClient == nil {
+	if opts.HTTPClient == nil {
 		return apiClient.NewClientWithResponses(
-			baseURL,
+			opts.BaseURL,
 			apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
 		)
 	} else {
 		return apiClient.NewClientWithResponses(
-			baseURL,
+			opts.BaseURL,
 			apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
-			apiClient.WithHTTPClient(httpClient),
+			apiClient.WithHTTPClient(opts.HTTPClient),
 		)
 	}
 }

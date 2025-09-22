@@ -33,7 +33,12 @@ func TestHashOperation(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")
+	c, err := client.NewCVNClient(
+		&client.ClientOptions{
+			BaseURL: mockServer.TestServer.URL,
+			APIKey:  "some-api-key",
+		},
+	)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -73,7 +78,12 @@ func TestSignOperation(t *testing.T) {
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
-	c, err := client.NewCVNClient("http://localhost:8080", "some-api-key")
+	c, err := client.NewCVNClient(
+		&client.ClientOptions{
+			BaseURL: "http://localhost:8080",
+			APIKey:  "some-api-key",
+		},
+	)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -175,7 +185,12 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")
+	c, err := client.NewCVNClient(
+		&client.ClientOptions{
+			BaseURL: mockServer.TestServer.URL,
+			APIKey:  "some-api-key",
+		},
+	)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}

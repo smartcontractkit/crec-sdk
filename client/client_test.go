@@ -33,7 +33,12 @@ func TestNewCVNClient_HealthCheck_AddsAPIKeyHeader(t *testing.T) {
 	)
 	defer ts.Close()
 
-	c, err := NewCVNClient(ts.URL, apiKey)
+	c, err := NewCVNClient(
+		&ClientOptions{
+			BaseURL: ts.URL,
+			APIKey:  apiKey,
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewCVNClient: %v", err)
 	}
@@ -88,7 +93,13 @@ func TestNewCVNClient_HealthCheck_AddsAPIKeyHeader_CustomHTTPClient(t *testing.T
 
 	httpClient := &http.Client{Transport: roundtripLogger{}}
 
-	c, err := NewCVNClientWithHTTPClient(ts.URL, apiKey, httpClient)
+	c, err := NewCVNClient(
+		&ClientOptions{
+			BaseURL:    ts.URL,
+			APIKey:     apiKey,
+			HTTPClient: httpClient,
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewCVNClient: %v", err)
 	}
