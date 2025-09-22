@@ -16,7 +16,7 @@ type HTTPClientWithCURLLogger struct {
 var _ apiClient.HttpRequestDoer = (*HTTPClientWithCURLLogger)(nil)
 
 func NewHTTPClientWithCURLLogger(logger *zerolog.Logger, httpClient *http.Client) *HTTPClientWithCURLLogger {
-	if httpClient != nil {
+	if httpClient == nil {
 		return &HTTPClientWithCURLLogger{Logger: logger, Client: &http.Client{}}
 	} else {
 		return &HTTPClientWithCURLLogger{Logger: logger, Client: httpClient}
