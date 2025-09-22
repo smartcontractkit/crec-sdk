@@ -9,10 +9,11 @@ import (
 )
 
 type CustomHTTPClient struct {
-	apiClient.HttpRequestDoer
 	Client *http.Client
 	Logger zerolog.Logger
 }
+
+var _ apiClient.HttpRequestDoer = (*CustomHTTPClient)(nil)
 
 func NewCustomHTTPClient(logger zerolog.Logger) *CustomHTTPClient {
 	return &CustomHTTPClient{Logger: logger, Client: &http.Client{}}
