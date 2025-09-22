@@ -2,6 +2,7 @@ package client
 
 import (
 	"net/http"
+	"regexp"
 
 	"github.com/moul/http2curl"
 	"github.com/rs/zerolog"
@@ -29,19 +30,26 @@ func (l *HTTPClientWithCURLLogger) Do(req *http.Request) (*http.Response, error)
 }
 
 func (l *HTTPClientWithCURLLogger) logCurl(req *http.Request) {
-	// Clone to avoid mutating original request
-	clone := req.Clone(req.Context())
+	// Generate curl command
+	if curl, err := http2curl.GetCurlCommand(req); err == nil {
+		// Redact sensitive headers
+		filteredCURL := filterCURL(curl.String())
 
-	// Redact sensitive headers
-	sensitiveHeaders := []string{"Api-Key", "Authorization", "Cookie"}
-	for _, h := range sensitiveHeaders {
-		clone.Header.Del(h)
-	}
-
-	// Generate curl command and log at debug level
-	if curl, err := http2curl.GetCurlCommand(clone); err == nil {
 		l.Logger.Debug().
-			Str("curl", curl.String()).
+			Str("curl", filteredCURL).
 			Msg("Outgoing HTTP request dump")
 	}
+}
+
+func filterCURL(curl string) string {
+	sensitiveHeaders := []string{"Api-Key", "Authorization", "Cookie"}
+
+	for _, h := range sensitiveHeaders {
+		// Regex pattern to match: -H 'Header-Name: some-value'
+		re := regexp.MustCompile(`(?i)(-H\s+'` + h + `: )[^']+'`)
+		// Replace actual value with masked version
+		curl = re.ReplaceAllString(curl, `${1}REDACTED'`)
+	}
+
+	return curl
 }
