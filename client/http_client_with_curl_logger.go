@@ -24,11 +24,24 @@ func NewHTTPClientWithCURLLogger(logger *zerolog.Logger, httpClient *http.Client
 }
 
 func (l *HTTPClientWithCURLLogger) Do(req *http.Request) (*http.Response, error) {
-	if curl, err := http2curl.GetCurlCommand(req); err == nil {
+	l.logCurl(req)
+	return l.Client.Do(req)
+}
+
+func (l *HTTPClientWithCURLLogger) logCurl(req *http.Request) {
+	// Clone to avoid mutating original request
+	clone := req.Clone(req.Context())
+
+	// Redact sensitive headers
+	sensitiveHeaders := []string{"Api-Key", "Authorization", "Cookie"}
+	for _, h := range sensitiveHeaders {
+		clone.Header.Del(h)
+	}
+
+	// Generate curl command and log at debug level
+	if curl, err := http2curl.GetCurlCommand(clone); err == nil {
 		l.Logger.Debug().
 			Str("curl", curl.String()).
 			Msg("Outgoing HTTP request dump")
 	}
-
-	return l.Client.Do(req)
 }
