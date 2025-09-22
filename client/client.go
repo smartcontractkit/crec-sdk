@@ -2,44 +2,46 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"os"
 
-	"github.com/rs/zerolog"
 	apiClient "github.com/smartcontractkit/cvn-api-go/client"
 )
+
+// ClientOptions defines the options for creating a new CVN client used to interact with the CVN API.
+//   - BaseURL: The base URL of the CVN API.
+//   - ApiKey: The API key for authenticating with the CVN API.
+//   - HttpClient: The custom HTTP client to use for making requests. If nil, the default HTTP client is used.
+type ClientOptions struct {
+	BaseURL    string
+	APIKey     string
+	HTTPClient *http.Client // Optional custom HTTP client
+}
 
 // CVNClient is a client for the CVN API.
 type CVNClient = apiClient.ClientWithResponses
 
-// NewCVNClient creates a new CVN client with the specified base URL.
-// It returns a pointer to the CVNClient and an error if any issues occur during initialization.
-//   - baseURL: The base URL of the CVN API.
-func NewCVNClient(baseURL string, apiKey string) (*CVNClient, error) {
+// NewCVNClient creates a new CVN client with the given options.
+//   - opts: Options for configuring the CVN client, see ClientOptions for details.
+func NewCVNClient(opts *ClientOptions) (*CVNClient, error) {
+	if opts == nil {
+		return nil, fmt.Errorf("ClientOptions is required")
+	}
 	apiKeyHeaderEditor := func(ctx context.Context, req *http.Request) error {
-		req.Header.Set("Api-Key", apiKey)
+		req.Header.Set("Api-Key", opts.APIKey)
 		return nil
 	}
 
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
-	customHttpClient := NewHTTPClientWithCURLLogger(&logger, nil)
-
-	return apiClient.NewClientWithResponses(baseURL,
-		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
-		apiClient.WithHTTPClient(customHttpClient),
-	)
-}
-
-func NewCVNClientWithHTTPClient(baseURL, apiKey string, httpClient *http.Client, lgr *zerolog.Logger) (*CVNClient, error) {
-	apiKeyHeaderEditor := func(ctx context.Context, req *http.Request) error {
-		req.Header.Set("Api-Key", apiKey)
-		return nil
+	if opts.HTTPClient == nil {
+		return apiClient.NewClientWithResponses(
+			opts.BaseURL,
+			apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
+		)
+	} else {
+		return apiClient.NewClientWithResponses(
+			opts.BaseURL,
+			apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
+			apiClient.WithHTTPClient(opts.HTTPClient),
+		)
 	}
-
-	wrappedHTTPClient := NewHTTPClientWithCURLLogger(lgr, httpClient)
-
-	return apiClient.NewClientWithResponses(baseURL,
-		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
-		apiClient.WithHTTPClient(wrappedHTTPClient),
-	)
 }

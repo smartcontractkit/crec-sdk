@@ -20,7 +20,12 @@ func TestReadEvent(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")
+	c, err := client.NewCVNClient(
+		&client.ClientOptions{
+			BaseURL: mockServer.TestServer.URL,
+			APIKey:  "some-api-key",
+		},
+	)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -54,7 +59,12 @@ func TestVerifyEvent(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")
+	c, err := client.NewCVNClient(
+		&client.ClientOptions{
+			BaseURL: mockServer.TestServer.URL,
+			APIKey:  "some-api-key",
+		},
+	)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -83,7 +93,12 @@ func TestCreateListener(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCVNClient(mockServer.TestServer.URL, "some-api-key")
+	c, err := client.NewCVNClient(
+		&client.ClientOptions{
+			BaseURL: mockServer.TestServer.URL,
+			APIKey:  "some-api-key",
+		},
+	)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}

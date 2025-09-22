@@ -26,7 +26,12 @@ func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
 	}
 
 	// Use the generated CVN client against the mock server
-	c, err := client.NewCVNClient(s.TestServer.URL, "test-key")
+	c, err := client.NewCVNClient(
+		&client.ClientOptions{
+			BaseURL: s.TestServer.URL,
+			APIKey:  "test-key",
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewCVNClient: %v", err)
 	}
