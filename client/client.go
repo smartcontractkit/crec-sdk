@@ -22,7 +22,7 @@ func NewCVNClient(baseURL string, apiKey string) (*CVNClient, error) {
 	}
 
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
-	customHttpClient := NewCustomHTTPClient(logger)
+	customHttpClient := NewHTTPClientWithCURLLogger(logger)
 
 	return apiClient.NewClientWithResponses(baseURL,
 		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
