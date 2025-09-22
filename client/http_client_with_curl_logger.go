@@ -10,13 +10,17 @@ import (
 
 type HTTPClientWithCURLLogger struct {
 	Client *http.Client
-	Logger zerolog.Logger
+	Logger *zerolog.Logger
 }
 
 var _ apiClient.HttpRequestDoer = (*HTTPClientWithCURLLogger)(nil)
 
-func NewHTTPClientWithCURLLogger(logger zerolog.Logger) *HTTPClientWithCURLLogger {
-	return &HTTPClientWithCURLLogger{Logger: logger, Client: &http.Client{}}
+func NewHTTPClientWithCURLLogger(logger *zerolog.Logger, httpClient *http.Client) *HTTPClientWithCURLLogger {
+	if httpClient != nil {
+		return &HTTPClientWithCURLLogger{Logger: logger, Client: &http.Client{}}
+	} else {
+		return &HTTPClientWithCURLLogger{Logger: logger, Client: httpClient}
+	}
 }
 
 func (l *HTTPClientWithCURLLogger) Do(req *http.Request) (*http.Response, error) {

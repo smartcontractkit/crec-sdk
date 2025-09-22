@@ -22,10 +22,24 @@ func NewCVNClient(baseURL string, apiKey string) (*CVNClient, error) {
 	}
 
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
-	customHttpClient := NewHTTPClientWithCURLLogger(logger)
+	customHttpClient := NewHTTPClientWithCURLLogger(&logger, nil)
 
 	return apiClient.NewClientWithResponses(baseURL,
 		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
 		apiClient.WithHTTPClient(customHttpClient),
+	)
+}
+
+func NewCVNClientWithHTTPClient(baseURL, apiKey string, httpClient *http.Client, lgr *zerolog.Logger) (*CVNClient, error) {
+	apiKeyHeaderEditor := func(ctx context.Context, req *http.Request) error {
+		req.Header.Set("Api-Key", apiKey)
+		return nil
+	}
+
+	wrappedHTTPClient := NewHTTPClientWithCURLLogger(lgr, httpClient)
+
+	return apiClient.NewClientWithResponses(baseURL,
+		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
+		apiClient.WithHTTPClient(wrappedHTTPClient),
 	)
 }
