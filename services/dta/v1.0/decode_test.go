@@ -428,3 +428,219 @@ func TestScientificNotationInEventParsing(t *testing.T) {
 		})
 	}
 }
+
+func TestParseScientificNotationToUint64(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    uint64
+		expectError bool
+	}{
+		// Regular decimal numbers
+		{
+			name:        "Simple integer",
+			input:       "123456",
+			expected:    123456,
+			expectError: false,
+		},
+		{
+			name:        "Zero",
+			input:       "0",
+			expected:    0,
+			expectError: false,
+		},
+		{
+			name:        "Max uint64",
+			input:       "18446744073709551615",
+			expected:    18446744073709551615,
+			expectError: false,
+		},
+
+		// Scientific notation - positive exponents
+		{
+			name:        "Simple scientific notation",
+			input:       "1e6",
+			expected:    1000000,
+			expectError: false,
+		},
+		{
+			name:        "Scientific notation with decimal",
+			input:       "1.5e+3",
+			expected:    1500,
+			expectError: false,
+		},
+		{
+			name:        "Scientific notation uppercase E",
+			input:       "5E4",
+			expected:    50000,
+			expectError: false,
+		},
+		{
+			name:        "Large scientific notation",
+			input:       "1.23e+15",
+			expected:    1230000000000000,
+			expectError: false,
+		},
+
+		// Scientific notation - negative exponents (truncated to integer)
+		{
+			name:        "Scientific notation negative exponent small",
+			input:       "1.5e-1",
+			expected:    0, // truncated to integer
+			expectError: false,
+		},
+		{
+			name:        "Scientific notation that becomes integer",
+			input:       "1.23e2",
+			expected:    123,
+			expectError: false,
+		},
+
+		// Error cases
+		{
+			name:        "Invalid format",
+			input:       "not-a-number",
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "Empty string",
+			input:       "",
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "Negative number",
+			input:       "-123",
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "Value too large for uint64",
+			input:       "1e100",
+			expected:    0,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseScientificNotationToUint64(tt.input)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestParseScientificNotationToUint8(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    uint8
+		expectError bool
+	}{
+		// Regular decimal numbers
+		{
+			name:        "Simple integer",
+			input:       "123",
+			expected:    123,
+			expectError: false,
+		},
+		{
+			name:        "Zero",
+			input:       "0",
+			expected:    0,
+			expectError: false,
+		},
+		{
+			name:        "Max uint8",
+			input:       "255",
+			expected:    255,
+			expectError: false,
+		},
+
+		// Scientific notation - positive exponents
+		{
+			name:        "Simple scientific notation",
+			input:       "1e2",
+			expected:    100,
+			expectError: false,
+		},
+		{
+			name:        "Scientific notation with decimal",
+			input:       "2.5e+1",
+			expected:    25,
+			expectError: false,
+		},
+		{
+			name:        "Scientific notation uppercase E",
+			input:       "1E1",
+			expected:    10,
+			expectError: false,
+		},
+
+		// Scientific notation - negative exponents (truncated to integer)
+		{
+			name:        "Scientific notation negative exponent small",
+			input:       "1.5e-1",
+			expected:    0, // truncated to integer
+			expectError: false,
+		},
+		{
+			name:        "Scientific notation that becomes integer",
+			input:       "1.23e1",
+			expected:    12, // truncated
+			expectError: false,
+		},
+
+		// Error cases
+		{
+			name:        "Invalid format",
+			input:       "not-a-number",
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "Empty string",
+			input:       "",
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "Negative number",
+			input:       "-1",
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "Value too large for uint8",
+			input:       "256",
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "Scientific notation too large",
+			input:       "1e3",
+			expected:    0,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseScientificNotationToUint8(tt.input)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
