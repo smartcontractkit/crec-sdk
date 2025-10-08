@@ -212,6 +212,7 @@ func (s *MockServer) PostAccounts(w http.ResponseWriter, r *http.Request) {
 		AccountId: id,
 		Address:   strings.ToLower(in.Address),
 		ChainId:   in.ChainId,
+		Name:      in.Name,
 	}
 	s.accounts = append(s.accounts, acc)
 
