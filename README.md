@@ -26,7 +26,7 @@ Building reliable blockchain applications requires handling:
 
 CRELib is a client library for the Chainlink Runtime Environment (CRE), designed to facilitate the development of applications that interact with onchain data and services.
 
-The CRELib integrates with the following capabilities of the Chainlink Verifiable Network:
+The CRELib integrates with the following capabilities of CRE Connect:
 
 - **Receiving verifiable events** from the blockchain with high assurance of the event's authenticity. Events can come from well-known services where they are decoded and decorated with extensive metadata, or they can be received from any smart contract, with decoding handled by the application.
 - **Sending operations** to the blockchain using an account abstraction model. This allows an operation to contain a batch of transactions, have gas sponsorship, and use a wider variety of signature algorithms.
@@ -62,9 +62,10 @@ The library also includes a number of [helper services](#services-helpers-for-co
 
 Before diving into the workflows, let's understand the key concepts:
 
-### Chainlink Verifiable Network (CVN)
+### CRE Connect (CREc)
 
-The CVN is a decentralized network that provides cryptographic proof of event authenticity through consensus among Decentralized Oracle Network (DON) members.
+#####TODO: Correct this docs.
+The CREConnect is a decentralized network that provides cryptographic proof of event authenticity through consensus among Decentralized Oracle Network (DON) members.
 
 ### Verifiable Events
 
@@ -80,7 +81,7 @@ A network of independent nodes that reach consensus on event authenticity and co
 
 ## Core workflows
 
-CRELib is built around two primary workflows that map directly to the core capabilities of the Chainlink Verifiable Network: **listening for verifiable events** and **sending signed operations**.
+CRELib is built around two primary workflows that map directly to the core capabilities of the CRE Connect: **listening for verifiable events** and **sending signed operations**.
 
 ### Workflow 1: Listening for verifiable events
 
@@ -94,10 +95,10 @@ graph LR
         A[Smart Contract Event]
     end
 
-    subgraph Chainlink Verifiable Network
+    subgraph CRE Connect
         B(DON Consensus)
         C(Event Signing)
-        D{CVN API}
+        D{CREc API}
     end
 
     subgraph Your Application
@@ -111,7 +112,7 @@ graph LR
 
 1. **Event Occurs:** A relevant event is emitted by a smart contract on the blockchain.
 2. **Consensus & Signing:** A Decentralized Oracle Network (DON) observes the event, comes to a consensus, and collectively signs it.
-3. **Fetch & Verify:** The `events` client fetches this signed event from the CVN API. It then cryptographically verifies that the signatures are authentic and from the trusted DON members.
+3. **Fetch & Verify:** The `events` client fetches this signed event from the CREc API. It then cryptographically verifies that the signatures are authentic and from the trusted DON members.
 4. **Trigger Your Logic:** Once verified, you can confidently use the event data to trigger your application's logic. For example, upon receiving a verified `PaymentReceived` event, an e-commerce platform could check its internal database and then use the `transact` client to trigger the on-chain delivery of the purchased digital asset.
 
 ### Workflow 2: Sending signed operations (gas-less)
@@ -128,8 +129,8 @@ graph LR
         C[CRELib: Transact Client]
     end
 
-    subgraph Chainlink Verifiable Network
-        D{CVN API}
+    subgraph CRE Connect
+        D{CREc API}
         E[Pays Gas & Relays]
     end
 
@@ -142,7 +143,7 @@ graph LR
 ```
 
 1. **Build & Sign:** Your application constructs an `Operation`, which is a list of one or more transactions to be executed atomically. You then use the `transact` client to sign this operation with an authorized private key.
-2. **Send to CVN:** The library sends the signed operation to the CVN API.
+2. **Send to CREc:** The library sends the signed operation to the CREc API.
 3. **Relay & Execute:** The Chainlink network takes the operation, pays the necessary gas fees, and relays it to a designated onchain smart account for execution.
 4. **Operation Executed:** The smart account verifies the signature on the operation and executes the bundled transactions.
 
@@ -150,7 +151,7 @@ graph LR
 
 Before diving into the examples, here's what you need to get started.
 
-**Note**: For a complete working example, see the [example payment processor application](https://github.com/smartcontractkit/cvn-example-payment-processor).
+**Note**: For a complete working example, see the [example payment processor application](https://github.com/smartcontractkit/crec-example-payment-processor).
 
 ### Prerequisites
 
@@ -163,7 +164,7 @@ Before diving into the examples, here's what you need to get started.
 Install CRELib by running the following `go get` command in your terminal:
 
 ```bash
-go get github.com/smartcontractkit/cvn-sdk
+go get github.com/smartcontractkit/crec-sdk
 ```
 
 ### Usage guides
@@ -172,28 +173,28 @@ These guides walk through the most common use cases for CRELib.
 
 ### 🔍 Receiving and verifying events
 
-This guide shows you how to use the `events` client to fetch, verify, and decode verifiable events from the CVN.
+This guide shows you how to use the `events` client to fetch, verify, and decode verifiable events from the CREc.
 
 #### Step 1: Initialize the `events` client
 
-First, you need an `events.Client`. This requires an existing `client.CVNClient` to be supplied with a set of `ClientOptions`. The options are critical for defining your security parameters.
+First, you need an `events.Client`. This requires an existing `client.CREcClient` to be supplied with a set of `ClientOptions`. The options are critical for defining your security parameters.
 
 ```go
 import (
     "context"
     "fmt"
 
-    "github.com/smartcontractkit/cvn-sdk/client"
-    "github.com/smartcontractkit/cvn-sdk/events"
+    "github.com/smartcontractkit/crec-sdk/client"
+    "github.com/smartcontractkit/crec-sdk/events"
 )
 
-// create a CVN client pointed to the Chainlink Verifiable Network URL and with your API key
-cvnClient, _ := client.NewCVNClient(cvnURL, cvnApiKey)
+// create a CREc client pointed to the CRE Connect URL and with your API key
+crecClient, _ := client.NewCREcClient(crecURL, crecApiKey)
 
-// Create CVN events client with trusted signers
-cvnEventsClient, _ := events.NewClient(
+// Create CREc events client with trusted signers
+crecEventsClient, _ := events.NewClient(
     &events.ClientOptions{
-		CVNClient: cvnClient,
+		CREcClient: crecClient,
         MinRequiredSignatures: 3,
 
         // A list of the public addresses of the trusted DON members
@@ -209,13 +210,13 @@ cvnEventsClient, _ := events.NewClient(
 )
 ```
 
-#### Step 2: Get events from the CVN
+#### Step 2: Get events from the CREc
 
 Use the `GetEvents` method to fetch a list of recent events. The client automatically tracks the last event you read, so you won't get duplicates on subsequent calls.
 
 ```go
-// Get a list of events from the CVN
-eventList, _ := cvnEventsClient.GetEvents(context.Background())
+// Get a list of events from the CREc
+eventList, _ := crecEventsClient.GetEvents(context.Background())
 ```
 
 #### Step 3: Loop, verify, and decode
@@ -228,11 +229,11 @@ For each event in the list, you must perform two crucial actions:
 ```go
 for _, event := range eventList {
     // Verify the event's authenticity and integrity
-    verified, _ := cvnEventsClient.Verify(event)
+    verified, _ := crecEventsClient.Verify(event)
     if verified {
         // Decode the event into a structured format
         var decodedEvent map[string]interface{}
-        cvnEventsClient.Decode(event, &decodedEvent)
+        crecEventsClient.Decode(event, &decodedEvent)
 
         handle(decodedEvent) // Handle the decoded event
     } else {
@@ -243,11 +244,11 @@ for _, event := range eventList {
 
 ### ⚡ Sending a signed operation
 
-This guide shows you how to use the `transact` client to build an operation, sign it with a local private key, and send it to the CVN for gas-sponsored execution.
+This guide shows you how to use the `transact` client to build an operation, sign it with a local private key, and send it to the CREc for gas-sponsored execution.
 
 #### Step 1: Initialize the `transact` client
 
-First, create a `transact.Client`. It needs a `client.CVNClient` and the `ChainId` to be supplied with a set of `ClientOptions` for the network where the operation will be executed.
+First, create a `transact.Client`. It needs a `client.CREcClient` and the `ChainId` to be supplied with a set of `ClientOptions` for the network where the operation will be executed.
 
 ```go
 import (
@@ -255,20 +256,20 @@ import (
     "math/big"
     "time"
 
-    "github.com/smartcontractkit/cvn-sdk/client"
-    "github.com/smartcontractkit/cvn-sdk/transact"
-    "github.com/smartcontractkit/cvn-sdk/transact/signer"
-    "github.com/smartcontractkit/cvn-sdk/transact/signer/local"
-    transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
+    "github.com/smartcontractkit/crec-sdk/client"
+    "github.com/smartcontractkit/crec-sdk/transact"
+    "github.com/smartcontractkit/crec-sdk/transact/signer"
+    "github.com/smartcontractkit/crec-sdk/transact/signer/local"
+    transactTypes "github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// create a CVN client pointed to the Chainlink Verifiable Network URL and with your API key
-cvnClient, _ := client.NewCVNClient(cvnURL, cvnApiKey)
+// create a CREc client pointed to the CRE Connect URL and with your API key
+crecClient, _ := client.NewCREcClient(crecURL, crecApiKey)
 
-// Create CVN transact client
-cvnTransactClient, _ = transact.NewClient(
+// Create CREc transact client
+crecTransactClient, _ = transact.NewClient(
     &transact.ClientOptions{
-		CVNClient: cvnClient,
+		CREcClient: crecClient,
         ChainId: "1337", // The ID of the target blockchain
     },
 )
@@ -306,16 +307,16 @@ The library uses a `Signer` interface to sign operations. The `local.NewSigner` 
 operationSigner = local.NewSigner(privateKey)
 
 // Sign the operation using the local signer
-opHash, signature, _ := cvnTransactClient.SignOperation(context.Background(), operation, operationSigner)
+opHash, signature, _ := crecTransactClient.SignOperation(context.Background(), operation, operationSigner)
 ```
 
 #### Step 4: Send the signed `operation`
 
-Finally, send the `operation` and its `signature` to the CVN. The network will validate the request, pay the gas fee, and relay it to the blockchain for execution.
+Finally, send the `operation` and its `signature` to the CREc. The network will validate the request, pay the gas fee, and relay it to the blockchain for execution.
 
 ```go
-// Send the signed operation to the Chainlink Verifiable Network for relaying onchain
-cvnTransactClient.SendSignedOperation(context.Background(), operation, signature)
+// Send the signed operation to the CRE Connect for relaying onchain
+crecTransactClient.SendSignedOperation(context.Background(), operation, signature)
 ```
 
 #### 🔑 Signing
@@ -330,8 +331,8 @@ The `local.NewSigner` implementation handles signing with a standard ECDSA priva
 
 The following packages are available in CRELib:
 
-- [`client`](./client): The main client package for interacting with the Chainlink Verifiable Network.
-- [`events`](./events): Provides functionality for receiving and decoding verifiable events from the Chainlink Verifiable Network.
+- [`client`](./client): The main client package for interacting with CRE Connect.
+- [`events`](./events): Provides functionality for receiving and decoding verifiable events from CRE Connect.
 - [`transact`](./transact): Provides functionality for sending onchain operations using the account abstraction model.
 - [`services`](./services): Helper services that simplify interaction with specific Chainlink systems. The following services are available:
   - [`services/dvp`](./services/dvp): Provides the DvP (Delivery vs Payment) service for asset and payment exchange.
@@ -387,21 +388,21 @@ To view the complete code documentation for every function and type, you can run
 
    You can then explore the documentation for each package:
 
-   - [client](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/client/) - Main CVN client
-   - [events](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/events/) - Event processing
-   - [transact](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/transact/) - Transaction operations
-   - [services/dvp](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/services/dvp/) - DvP service
-   - [services/ccip](http://localhost:8080/pkg/github.com/smartcontractkit/cvn-sdk/services/ccip/) - CCIP service
+   - [client](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/client/) - Main CREc client
+   - [events](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/events/) - Event processing
+   - [transact](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/transact/) - Transaction operations
+   - [services/dvp](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/dvp/) - DvP service
+   - [services/ccip](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/ccip/) - CCIP service
 
 ### Complete example application
 
-An example application using CRELib can be found in the [cvn-example-payment-processor](https://github.com/smartcontractkit/cvn-example-payment-processor) repository.
+An example application using CRELib can be found in the [crec-example-payment-processor](https://github.com/smartcontractkit/crec-example-payment-processor) repository.
 
 ## Glossary
 
 ### Core terms
 
-**CVN (Chainlink Verifiable Network)**: A decentralized network that provides cryptographic proof of blockchain event authenticity through consensus among DON members.
+**CREc (CRE Connect)**: A decentralized network that provides cryptographic proof of blockchain event authenticity through consensus among DON members.
 
 **DON (Decentralized Oracle Network)**: A network of independent nodes that observe blockchain events, reach consensus, and collectively sign verifiable events.
 
@@ -423,4 +424,4 @@ An example application using CRELib can be found in the [cvn-example-payment-pro
 
 **Settlement**: In the DvP service, an atomic exchange of assets between parties with cryptographic guarantees.
 
-**CCIP**: Cross-Chain Interoperability Protocol for transferring tokens and messages between different blockchains. 
+**CCIP**: Cross-Chain Interoperability Protocol for transferring tokens and messages between different blockchains.

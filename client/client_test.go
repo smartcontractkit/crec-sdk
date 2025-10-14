@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestNewCVNClient_HealthCheck_AddsAPIKeyHeader(t *testing.T) {
+func TestNewCREcClient_HealthCheck_AddsAPIKeyHeader(t *testing.T) {
 	const apiKey = "MY-DEV-KEY"
 
 	// Minimal test server that validates Api-Key header and returns a HC payload
@@ -33,14 +33,14 @@ func TestNewCVNClient_HealthCheck_AddsAPIKeyHeader(t *testing.T) {
 	)
 	defer ts.Close()
 
-	c, err := NewCVNClient(
+	c, err := NewCREcClient(
 		&ClientOptions{
 			BaseURL: ts.URL,
 			APIKey:  apiKey,
 		},
 	)
 	if err != nil {
-		t.Fatalf("NewCVNClient: %v", err)
+		t.Fatalf("NewCREcClient: %v", err)
 	}
 
 	resp, err := c.GetHealthCheckWithResponse(context.Background())
@@ -69,7 +69,7 @@ func (r roundtripLogger) RoundTrip(request *http.Request) (*http.Response, error
 	return res, err
 }
 
-func TestNewCVNClient_HealthCheck_AddsAPIKeyHeader_CustomHTTPClient(t *testing.T) {
+func TestNewCREcClient_HealthCheck_AddsAPIKeyHeader_CustomHTTPClient(t *testing.T) {
 	const apiKey = "MY-DEV-KEY"
 
 	// Minimal test server that validates Api-Key header and returns a HC payload
@@ -93,7 +93,7 @@ func TestNewCVNClient_HealthCheck_AddsAPIKeyHeader_CustomHTTPClient(t *testing.T
 
 	httpClient := &http.Client{Transport: roundtripLogger{}}
 
-	c, err := NewCVNClient(
+	c, err := NewCREcClient(
 		&ClientOptions{
 			BaseURL:    ts.URL,
 			APIKey:     apiKey,
@@ -101,7 +101,7 @@ func TestNewCVNClient_HealthCheck_AddsAPIKeyHeader_CustomHTTPClient(t *testing.T
 		},
 	)
 	if err != nil {
-		t.Fatalf("NewCVNClient: %v", err)
+		t.Fatalf("NewCREcClient: %v", err)
 	}
 
 	resp, err := c.GetHealthCheckWithResponse(context.Background())

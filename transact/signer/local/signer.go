@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/smartcontractkit/cvn-sdk/transact/signer"
+	"github.com/smartcontractkit/crec-sdk/transact/signer"
 )
 
 var _ signer.Signer = &Signer{}

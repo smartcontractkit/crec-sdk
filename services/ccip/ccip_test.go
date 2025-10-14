@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/cvn-api-go/services/ccip/gen/routerclient"
+	"github.com/smartcontractkit/crec-api-go/services/ccip/gen/routerclient"
 )
 
 func TestPrepareCcipSendOperation_NoApprovals(t *testing.T) {

@@ -11,15 +11,15 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
 
-	"github.com/smartcontractkit/cvn-api-go/services/accounts/gen/accounts"
-	transactTypes "github.com/smartcontractkit/cvn-sdk/transact/types"
+	"github.com/smartcontractkit/crec-api-go/services/accounts/gen/accounts"
+	transactTypes "github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
 const (
 	ServiceName = "accounts"
 )
 
-// ServiceOptions defines the options for creating a new CVN Accounts service.
+// ServiceOptions defines the options for creating a new CREc Accounts service.
 //   - Logger: Optional logger instance.
 //   - OperationExecutionAccount: A previously deployed smart wallet address that will execute operations to invoke the factory and deploy accounts.
 //   - KeystoneForwarderAddress: A string representing the address of the Keystone forwarder contract.
@@ -35,7 +35,7 @@ type ServiceOptions struct {
 	RSASignatureVerifyingAccountImplAddress   string
 }
 
-// Service provides operations for managing CVN account creation and deployment.
+// Service provides operations for managing CREc account creation and deployment.
 type Service struct {
 	logger                                    *zerolog.Logger
 	operationExecutionAccount                 common.Address
@@ -45,9 +45,9 @@ type Service struct {
 	rsaSignatureVerifyingAccountImplAddress   common.Address
 }
 
-// NewService creates a new CVN Accounts service with the provided options.
+// NewService creates a new CREc Accounts service with the provided options.
 // Returns a pointer to the Service and an error if any issues occur during initialization.
-//   - opts: Options for configuring the CVN Accounts service, see ServiceOptions for details.
+//   - opts: Options for configuring the CREc Accounts service, see ServiceOptions for details.
 func NewService(opts *ServiceOptions) (*Service, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("ServiceOptions is required")
@@ -59,7 +59,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 		logger = &lgr
 	}
 
-	logger.Debug().Msg("Creating CVN Accounts service")
+	logger.Debug().Msg("Creating CREc Accounts service")
 
 	return &Service{
 		logger:                                    logger,

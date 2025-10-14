@@ -1,4 +1,4 @@
-module github.com/smartcontractkit/cvn-sdk
+module github.com/smartcontractkit/crec-sdk
 
 go 1.24
 
@@ -10,10 +10,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/kms v1.44.0
 	github.com/ethereum/go-ethereum v1.16.2
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/vault/api v1.20.0
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.34.0
-	github.com/smartcontractkit/cvn-api-go v0.1.3
+	github.com/smartcontractkit/crec-api-go v0.1.5
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/vault v0.38.0
@@ -101,7 +102,6 @@ require (
 	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -170,7 +170,6 @@ require (
 	github.com/gogo/protobuf v1.3.3 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/graph-gophers/graphql-go v1.5.0 // indirect
-	github.com/hashicorp/vault/api v1.20.0
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210311194329-9aa0e372d097 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
@@ -200,5 +199,7 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/smartcontractkit/crec-api-go => ../cvn-api-go
 
 tool github.com/vektra/mockery/v2

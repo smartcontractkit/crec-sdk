@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 
-	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
-	"github.com/smartcontractkit/cvn-sdk/client"
+	"github.com/smartcontractkit/crec-sdk/client"
 )
 
 func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
@@ -25,15 +25,15 @@ func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
 		t.Fatalf("health-check status: %d", resp.StatusCode)
 	}
 
-	// Use the generated CVN client against the mock server
-	c, err := client.NewCVNClient(
+	// Use the generated CREc client against the mock server
+	c, err := client.NewCREcClient(
 		&client.ClientOptions{
 			BaseURL: s.TestServer.URL,
 			APIKey:  "test-key",
 		},
 	)
 	if err != nil {
-		t.Fatalf("NewCVNClient: %v", err)
+		t.Fatalf("NewCREcClient: %v", err)
 	}
 
 	// List events

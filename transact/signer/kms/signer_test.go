@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/smartcontractkit/cvn-sdk/transact/signer/kms/mocks"
+	"github.com/smartcontractkit/crec-sdk/transact/signer/kms/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

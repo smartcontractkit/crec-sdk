@@ -16,11 +16,11 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	vaultcontainer "github.com/testcontainers/testcontainers-go/modules/vault"
 
-	"github.com/smartcontractkit/cvn-sdk/client"
-	"github.com/smartcontractkit/cvn-sdk/mocks/server"
-	"github.com/smartcontractkit/cvn-sdk/transact/signer/local"
-	"github.com/smartcontractkit/cvn-sdk/transact/signer/vault"
-	"github.com/smartcontractkit/cvn-sdk/transact/types"
+	"github.com/smartcontractkit/crec-sdk/client"
+	"github.com/smartcontractkit/crec-sdk/mocks/server"
+	"github.com/smartcontractkit/crec-sdk/transact/signer/local"
+	"github.com/smartcontractkit/crec-sdk/transact/signer/vault"
+	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
 func TestHashOperation(t *testing.T) {
@@ -33,7 +33,7 @@ func TestHashOperation(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCVNClient(
+	c, err := client.NewCREcClient(
 		&client.ClientOptions{
 			BaseURL: mockServer.TestServer.URL,
 			APIKey:  "some-api-key",
@@ -45,8 +45,8 @@ func TestHashOperation(t *testing.T) {
 
 	transact, err := NewClient(
 		&ClientOptions{
-			CVNClient: c,
-			ChainId:   chainId,
+			CREcClient: c,
+			ChainId:    chainId,
 		},
 	)
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestSignOperation(t *testing.T) {
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
-	c, err := client.NewCVNClient(
+	c, err := client.NewCREcClient(
 		&client.ClientOptions{
 			BaseURL: "http://localhost:8080",
 			APIKey:  "some-api-key",
@@ -90,8 +90,8 @@ func TestSignOperation(t *testing.T) {
 
 	transact, err := NewClient(
 		&ClientOptions{
-			CVNClient: c,
-			ChainId:   chainId,
+			CREcClient: c,
+			ChainId:    chainId,
 		},
 	)
 	require.NoError(t, err)
@@ -185,7 +185,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCVNClient(
+	c, err := client.NewCREcClient(
 		&client.ClientOptions{
 			BaseURL: mockServer.TestServer.URL,
 			APIKey:  "some-api-key",
@@ -197,8 +197,8 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 
 	transact, err := NewClient(
 		&ClientOptions{
-			CVNClient: c,
-			ChainId:   chainId,
+			CREcClient: c,
+			ChainId:    chainId,
 		},
 	)
 	require.NoError(t, err)

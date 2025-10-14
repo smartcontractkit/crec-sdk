@@ -24,7 +24,7 @@ aws kms create-key \
 ## Usage
 
 ```go
-import "github.com/smartcontractkit/cvn-sdk/transact/signer/kms"
+import "github.com/smartcontractkit/crec-sdk/transact/signer/kms"
 
 // Create signer with KMS key ID/ARN/alias
 signer, err := kms.NewSigner(ctx, "arn:aws:kms:us-west-2:123456789012:key/...")
@@ -34,6 +34,7 @@ signature, err := signer.Sign(ctx, hash)
 ```
 
 Custom AWS configuration:
+
 ```go
 signer, err := kms.NewSignerWithConfig(awsConfig, keyID)
 ```
@@ -43,11 +44,13 @@ signer, err := kms.NewSignerWithConfig(awsConfig, keyID)
 To run integration tests against real AWS KMS:
 
 1. **Set up AWS CLI profile**:
+
    ```bash
    aws sso login
    ```
 
 2. **Export environment variables**:
+
    ```bash
    export AWS_PROFILE=<your-profile>
    export KMS_KEY_ARN=<your-key-arn>

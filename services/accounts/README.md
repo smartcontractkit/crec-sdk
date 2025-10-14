@@ -1,31 +1,31 @@
 # Accounts Service
 
-The Accounts Service provides a comprehensive Go SDK for provisioning and deploying smart wallet accounts on the CVN platform. This service enables users to create deterministic, signature-verifying account contracts that serve as the foundation for executing CVN business operations like DvP settlements and DTA transactions.
+The Accounts Service provides a comprehensive Go SDK for provisioning and deploying smart wallet accounts on the CREc platform. This service enables users to create deterministic, signature-verifying account contracts that serve as the foundation for executing CREc business operations like DvP settlements and DTA transactions.
 
 ## Table of Contents
 
--   [Overview](#overview)
--   [Architecture](#architecture)
--   [Smart Contract Foundation](#smart-contract-foundation)
--   [Service Configuration](#service-configuration)
--   [Account Types](#account-types)
--   [Operation Preparation](#operation-preparation)
--   [Contract Integration](#contract-integration)
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Smart Contract Foundation](#smart-contract-foundation)
+- [Service Configuration](#service-configuration)
+- [Account Types](#account-types)
+- [Operation Preparation](#operation-preparation)
+- [Contract Integration](#contract-integration)
 
 ## Overview
 
-The Accounts Service is a **provisioning service** that creates smart wallet accounts for CVN users. This service focuses on the **infrastructure layer** - deploying the account contracts that users need to participate in CVN operations.
+The Accounts Service is a **provisioning service** that creates smart wallet accounts for CREc users. This service focuses on the **infrastructure layer** - deploying the account contracts that users need to participate in CREc operations.
 
-Think of it as the **"wallet factory"** that creates the secure, signature-verifying contracts that CVN users control. Once deployed, these accounts become the execution layer for all CVN business operations.
+Think of it as the **"wallet factory"** that creates the secure, signature-verifying contracts that CREc users control. Once deployed, these accounts become the execution layer for all CREc business operations.
 
 ### Key Benefits
 
--   ✅ **Deterministic Deployment** using OpenZeppelin's Clone Factory pattern
--   ✅ **Multiple Signature Types** supporting both ECDSA and RSA verification
--   ✅ **Gas Efficient** using minimal proxy clones (EIP-1167)
--   ✅ **Keystone Integration** for decentralized oracle reporting
--   ✅ **Type-Safe Operations** with comprehensive ABI encoding
--   ✅ **Predictable Addresses** for account address calculation before deployment
+- ✅ **Deterministic Deployment** using OpenZeppelin's Clone Factory pattern
+- ✅ **Multiple Signature Types** supporting both ECDSA and RSA verification
+- ✅ **Gas Efficient** using minimal proxy clones (EIP-1167)
+- ✅ **Keystone Integration** for decentralized oracle reporting
+- ✅ **Type-Safe Operations** with comprehensive ABI encoding
+- ✅ **Predictable Addresses** for account address calculation before deployment
 
 ## Architecture
 
@@ -86,16 +86,16 @@ The `AccountFactory` is the central deployment contract that:
 
 **Core Functions:**
 
--   `createAccount()` - Deploys new account proxies with deterministic addresses
--   `predictAccountAddress()` - Calculates account addresses before deployment
--   `getSalt()` - Generates deterministic salts from creator + accountId
+- `createAccount()` - Deploys new account proxies with deterministic addresses
+- `predictAccountAddress()` - Calculates account addresses before deployment
+- `getSalt()` - Generates deterministic salts from creator + accountId
 
 **Key Features:**
 
--   **Deterministic Addresses**: Uses CREATE2 with `keccak256(creator, accountId)` salt
--   **Duplicate Prevention**: Reverts if account already exists at predicted address
--   **Automatic Initialization**: Calls `initialize()` on deployed proxy immediately
--   **Gas Efficiency**: Minimal proxy deployment ~45k gas vs ~500k+ for full contracts
+- **Deterministic Addresses**: Uses CREATE2 with `keccak256(creator, accountId)` salt
+- **Duplicate Prevention**: Reverts if account already exists at predicted address
+- **Automatic Initialization**: Calls `initialize()` on deployed proxy immediately
+- **Gas Efficiency**: Minimal proxy deployment ~45k gas vs ~500k+ for full contracts
 
 ### Abstract Account Base Class
 
@@ -103,10 +103,10 @@ All account implementations inherit from the `Account` abstract contract, provid
 
 **Common Functionality:**
 
--   **EIP-712 Domain Setup** for typed data signing
--   **Keystone Forwarder Integration** for oracle reporting
--   **Owner Management** using OpenZeppelin's upgradeable ownership
--   **Template Method Pattern** for implementation-specific configuration
+- **EIP-712 Domain Setup** for typed data signing
+- **Keystone Forwarder Integration** for oracle reporting
+- **Owner Management** using OpenZeppelin's upgradeable ownership
+- **Template Method Pattern** for implementation-specific configuration
 
 **Initialization Flow:**
 
@@ -129,11 +129,11 @@ Configure the accounts service with all required contract addresses:
 
 **Configuration Details:**
 
--   **KeystoneForwarder**: The CVN oracle system that will call `onReport()` on deployed accounts
--   **AccountFactory**: The factory contract that creates minimal proxy clones
--   **Implementation Addresses**: Pre-deployed implementation contracts for each signature type
+- **KeystoneForwarder**: The CREc oracle system that will call `onReport()` on deployed accounts
+- **AccountFactory**: The factory contract that creates minimal proxy clones
+- **Implementation Addresses**: Pre-deployed implementation contracts for each signature type
 
--   **Cross-chain Consistency**: Same account ID on different chains (if desired)
+- **Cross-chain Consistency**: Same account ID on different chains (if desired)
 
 ## Operation Preparation
 
@@ -145,9 +145,9 @@ Creates a deployment operation for ECDSA-based signature verification.
 
 **Parameters:**
 
--   `accountOwnerAddress`: The Ethereum address that will own the deployed account contract
--   `allowedSigners`: Array of Ethereum addresses authorized to sign transactions for this account
--   `accountId`: Human-readable unique identifier (combined with creator to ensure uniqueness)
+- `accountOwnerAddress`: The Ethereum address that will own the deployed account contract
+- `allowedSigners`: Array of Ethereum addresses authorized to sign transactions for this account
+- `accountId`: Human-readable unique identifier (combined with creator to ensure uniqueness)
 
 ### PrepareDeployNewRSAAccountOperation
 
@@ -155,9 +155,9 @@ Creates a deployment operation for RSA-based signature verification.
 
 **Parameters:**
 
--   `accountOwnerAddress`: The Ethereum address that will own the deployed account contract
--   `allowedSigners`: Array of RSA public keys (E and N components as hex strings)
--   `accountId`: Human-readable unique identifier (combined with creator to ensure uniqueness)
+- `accountOwnerAddress`: The Ethereum address that will own the deployed account contract
+- `allowedSigners`: Array of RSA public keys (E and N components as hex strings)
+- `accountId`: Human-readable unique identifier (combined with creator to ensure uniqueness)
 
 ### Common Operation Flow
 
@@ -180,7 +180,7 @@ The service integrates with the AccountFactory contract through these key intera
 function createAccount(
     address implementation,        // Implementation contract address
     bytes32 uniqueAccountId,      // Keccak256 hash of account ID string
-    address keystoneForwarder,    // CVN oracle forwarder address
+    address keystoneForwarder,    // CREc oracle forwarder address
     address initialOwner,         // Account owner address
     bytes calldata configData     // ABI-encoded signer configuration
 ) external returns (address accountAddress)
@@ -188,11 +188,11 @@ function createAccount(
 
 **Parameter Mapping:**
 
--   `implementation`: Selected based on account type (ECDSA vs RSA)
--   `uniqueAccountId`: `crypto.Keccak256Hash([]byte(accountId))`
--   `keystoneForwarder`: From service configuration
--   `initialOwner`: `common.HexToAddress(accountOwnerAddress)`
--   `configData`: ABI-encoded signer data (address[] or (bytes,bytes)[])
+- `implementation`: Selected based on account type (ECDSA vs RSA)
+- `uniqueAccountId`: `crypto.Keccak256Hash([]byte(accountId))`
+- `keystoneForwarder`: From service configuration
+- `initialOwner`: `common.HexToAddress(accountOwnerAddress)`
+- `configData`: ABI-encoded signer data (address[] or (bytes,bytes)[])
 
 ### Deterministic Addresses
 
@@ -208,13 +208,13 @@ address predicted = Clones.predictDeterministicAddress(implementation, salt);
 
 This enables:
 
--   **Pre-deployment Address Calculation**: Know account address before deployment
--   **Duplicate Prevention**: Same creator + accountId always produces same address
--   **Cross-chain Consistency**: Same account ID on different chains (if desired)
+- **Pre-deployment Address Calculation**: Know account address before deployment
+- **Duplicate Prevention**: Same creator + accountId always produces same address
+- **Cross-chain Consistency**: Same account ID on different chains (if desired)
 
 ## Example: Deploying and registering a smart account
 
-Let's walk through a practical example of deploying a new ECDSA signature verifying account and registering it with the CVN backend.
+Let's walk through a practical example of deploying a new ECDSA signature verifying account and registering it with the CREc backend.
 
 This example demonstrates the complete flow from account creation to backend registration, which is essential for applications that need to provision smart wallets for their users.
 
@@ -227,15 +227,15 @@ import (
 
     "github.com/google/uuid"
     "github.com/ethereum/go-ethereum/crypto"
-    apiClient "github.com/smartcontractkit/cvn-api-go/client"
-    "github.com/smartcontractkit/cvn-sdk/client"
-    "github.com/smartcontractkit/cvn-sdk/services/accounts"
-    "github.com/smartcontractkit/cvn-sdk/transact"
-    "github.com/smartcontractkit/cvn-sdk/transact/signer/local"
+    apiClient "github.com/smartcontractkit/crec-api-go/client"
+    "github.com/smartcontractkit/crec-sdk/client"
+    "github.com/smartcontractkit/crec-sdk/services/accounts"
+    "github.com/smartcontractkit/crec-sdk/transact"
+    "github.com/smartcontractkit/crec-sdk/transact/signer/local"
 )
 
-// 1. Initialize the CVN Client to connect to the Chainlink Verifiable Network
-cvnClient, _ := client.NewCVNClient(cvnURL, cvnAPIKey)
+// 1. Initialize the CREc Client to connect to the Chainlink Verifiable Network
+crecClient, _ := client.NewCREcClient(crecURL, crecAPIKey)
 
 // 2. Create an Accounts Service instance. This service handles smart account
 // provisioning operations and address prediction.
@@ -247,9 +247,9 @@ accountsService, _ := accounts.NewService(&accounts.ServiceOptions{
     RSASignatureVerifyingAccountImplAddress:   rsaImplAddress,                  // RSA account implementation
 })
 
-// 3. Create a Transact Client to send signed operations to the CVN
+// 3. Create a Transact Client to send signed operations to the CREc
 transactClient, _ := transact.NewClient(&transact.ClientOptions{
-    CVNClient: cvnClient,
+    CREcClient: crecClient,
     ChainId:   chainId,
 })
 
@@ -272,7 +272,7 @@ operation, predictedAddress, _ := accountsService.PrepareDeployNewECDSAAccountOp
 // The predicted address is deterministic - it will be the same as the actual
 // deployed address once the operation is executed on-chain
 
-// 2. Sign and send the operation to the CVN
+// 2. Sign and send the operation to the CREc
 operationHash, signature, _ := transactClient.SignOperation(ctx, operation, operationSigner)
 txResult, _ := transactClient.SendSignedOperation(ctx, operation, signature)
 
@@ -289,14 +289,14 @@ for {
     time.Sleep(3 * time.Second)
 }
 
-// 4. Register the deployed account with the CVN backend
-// This makes the account discoverable and manageable through CVN APIs
+// 4. Register the deployed account with the CREc backend
+// This makes the account discoverable and manageable through CREc APIs
 accountData := apiClient.CreateAccount{
     Address: predictedAddress.Hex(),
     ChainId: chainId,
 }
 
-response, _ := cvnClient.PostAccountsWithResponse(ctx, accountData)
+response, _ := crecClient.PostAccountsWithResponse(ctx, accountData)
 ```
 
-This example demonstrates the power of the Accounts Service in providing a secure, predictable foundation for CVN applications that need to provision smart wallets at scale.
+This example demonstrates the power of the Accounts Service in providing a secure, predictable foundation for CREc applications that need to provision smart wallets at scale.

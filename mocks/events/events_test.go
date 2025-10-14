@@ -3,7 +3,7 @@ package events
 import (
 	"testing"
 
-	"github.com/smartcontractkit/cvn-api-go/client"
+	"github.com/smartcontractkit/crec-api-go/client"
 )
 
 type eventListFile struct {
