@@ -291,9 +291,11 @@ for {
 
 // 4. Register the deployed account with the CREc backend
 // This makes the account discoverable and manageable through CREc APIs
+accountName := "My Trading Account"
 accountData := apiClient.CreateAccount{
     Address: predictedAddress.Hex(),
     ChainId: chainId,
+    Name:    &accountName, // Optional: human-readable name for the account
 }
 
 response, _ := crecClient.PostAccountsWithResponse(ctx, accountData)

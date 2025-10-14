@@ -75,10 +75,12 @@ func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
 	}
 
 	// Accounts: create, list, get by id
+	testAccountName := "Test Account"
 	acc, err := c.PostAccountsWithResponse(
 		context.Background(), apiClient.CreateAccount{
 			Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 			ChainId: "1337",
+			Name:    &testAccountName,
 		},
 	)
 	if err != nil {

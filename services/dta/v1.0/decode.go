@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -126,7 +127,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			RequestId:       common.HexToHash(v.Metadata.WorkflowEvent.Attributes["request_id"].Value),
 		}
 	case EventDistributorRequestProcessed:
-		shares, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["shares"].Value, 10)
+		shares, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse shares: %s", name, v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		}
@@ -141,11 +142,11 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			Error:     []byte(v.Metadata.WorkflowEvent.Attributes["error"].Value),
 		}
 	case EventDistributorRequestProcessing:
-		shares, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["shares"].Value, 10)
+		shares, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse shares: %s", name, v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		}
-		amount, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["amount"].Value, 10)
+		amount, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse amount: %s", name, v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		}
@@ -207,7 +208,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			Reason:    []byte(v.Metadata.WorkflowEvent.Attributes["reason"].Value),
 		}
 	case EventNativeFundsRecovered:
-		amount, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["amount"].Value, 10)
+		amount, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse amount: %s", name, v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		}
@@ -221,7 +222,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			NewOwner:      common.HexToAddress(v.Metadata.WorkflowEvent.Attributes["new_owner"].Value),
 		}
 	case EventRedemptionRequested:
-		shares, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["shares"].Value, 10)
+		shares, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse shares: %s", name, v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		}
@@ -237,7 +238,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			CreatedAt:       createdAt,
 		}
 	case EventSubscriptionRequested:
-		amount, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["amount"].Value, 10)
+		amount, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse amount: %s", name, v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		}
@@ -253,15 +254,15 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			CreatedAt:       createdAt,
 		}
 	case EventAnswerUpdated:
-		current, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["current"].Value, 10)
+		current, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["current"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse current: %s", name, v.Metadata.WorkflowEvent.Attributes["current"].Value)
 		}
-		roundId, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["roundId"].Value, 10)
+		roundId, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["roundId"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse roundId: %s", name, v.Metadata.WorkflowEvent.Attributes["roundId"].Value)
 		}
-		updatedAt, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["updatedAt"].Value, 10)
+		updatedAt, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["updatedAt"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse updatedAt: %s", name, v.Metadata.WorkflowEvent.Attributes["updatedAt"].Value)
 		}
@@ -324,11 +325,11 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse dta_chain_selector: %s", name, v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		}
-		shares, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["shares"].Value, 10)
+		shares, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse shares: %s", name, v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		}
-		amount, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["amount"].Value, 10)
+		amount, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse amount: %s", name, v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		}
@@ -355,7 +356,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			RequestId: common.HexToHash(v.Metadata.WorkflowEvent.Attributes["request_id"].Value),
 		}
 	case EventInsufficientPaymentTokenBalance:
-		amount, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["amount"].Value, 10)
+		amount, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse amount: %s", name, v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		}
@@ -367,7 +368,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			Amount:                amount,
 		}
 	case EventInvalidSubscriptionCrossChainPayment:
-		ccipDestTokenAmountsLength, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["ccip_dest_token_amounts_length"].Value, 10)
+		ccipDestTokenAmountsLength, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["ccip_dest_token_amounts_length"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse ccip_dest_token_amounts_length: %s", name, v.Metadata.WorkflowEvent.Attributes["ccip_dest_token_amounts_length"].Value)
 		}
@@ -379,11 +380,11 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			CCIPPaymentTokenAddr:       common.HexToAddress(v.Metadata.WorkflowEvent.Attributes["ccip_payment_token_addr"].Value),
 		}
 	case EventSettlementFailed:
-		shares, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["shares"].Value, 10)
+		shares, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse shares: %s", name, v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		}
-		amount, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["amount"].Value, 10)
+		amount, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse amount: %s", name, v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		}
@@ -398,7 +399,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			ErrData:               []byte(v.Metadata.WorkflowEvent.Attributes["err_data"].Value),
 		}
 	case EventTokenWithdrawn:
-		amount, ok := new(big.Int).SetString(v.Metadata.WorkflowEvent.Attributes["amount"].Value, 10)
+		amount, ok := parseScientificNotationToBigInt(v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		if !ok {
 			return fmt.Errorf("event %s unable to parse amount: %s", name, v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		}
@@ -464,4 +465,132 @@ func (v VerifiableEvent) EventName() EventName {
 		return EventUnknown
 	}
 	return name
+}
+
+// parseScientificNotationToBigInt converts scientific notation strings to big.Int
+// Handles formats like "1.2e+21", "1e18", etc. that big.Int.SetString cannot parse directly
+func parseScientificNotationToBigInt(value string) (*big.Int, bool) {
+	// First try direct parsing in case it's already a regular integer
+	if result, ok := new(big.Int).SetString(value, 10); ok {
+		return result, true
+	}
+
+	// Handle scientific notation
+	lowerValue := strings.ToLower(value)
+	if strings.Contains(lowerValue, "e") {
+		// Split on 'e' to get mantissa and exponent
+		parts := strings.Split(lowerValue, "e")
+		if len(parts) != 2 {
+			return nil, false
+		}
+
+		mantissaStr := parts[0]
+		exponentStr := parts[1]
+
+		// Remove optional '+' from exponent
+		exponentStr = strings.TrimPrefix(exponentStr, "+")
+
+		// Parse exponent as integer
+		exponent, err := strconv.Atoi(exponentStr)
+		if err != nil {
+			return nil, false
+		}
+
+		// Handle negative exponents (fractional results truncated to integer)
+		if exponent < 0 {
+			// For negative exponents, we need to check if the result would be < 1
+			// If so, truncate to 0 (integer part)
+			mantissaFloat, err := strconv.ParseFloat(mantissaStr, 64)
+			if err != nil {
+				return nil, false
+			}
+
+			// Calculate the actual value to see if it's < 1
+			actualValue := mantissaFloat * pow10(exponent)
+			if actualValue < 1.0 {
+				return big.NewInt(0), true
+			}
+
+			// If >= 1, we need to handle it properly
+			// Convert to string without scientific notation and truncate decimal part
+			decimalStr := fmt.Sprintf("%.0f", actualValue)
+			if result, ok := new(big.Int).SetString(decimalStr, 10); ok {
+				return result, true
+			}
+			return nil, false
+		}
+
+		// For positive exponents, handle manually to avoid precision loss
+		var mantissaBig *big.Int
+
+		// Check if mantissa has decimal point
+		if strings.Contains(mantissaStr, ".") {
+			// Split mantissa into integer and fractional parts
+			decimalParts := strings.Split(mantissaStr, ".")
+			if len(decimalParts) != 2 {
+				return nil, false
+			}
+
+			integerPart := decimalParts[0]
+			fractionalPart := decimalParts[1]
+
+			// Combine integer and fractional parts
+			combinedStr := integerPart + fractionalPart
+
+			// Parse as big integer
+			var ok bool
+			mantissaBig, ok = new(big.Int).SetString(combinedStr, 10)
+			if !ok {
+				return nil, false
+			}
+
+			// Adjust exponent to account for the fractional digits
+			exponent -= len(fractionalPart)
+		} else {
+			// No decimal point, parse directly
+			var ok bool
+			mantissaBig, ok = new(big.Int).SetString(mantissaStr, 10)
+			if !ok {
+				return nil, false
+			}
+		}
+
+		// Multiply by 10^exponent
+		if exponent > 0 {
+			// Multiply by 10^exponent
+			multiplier := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(exponent)), nil)
+			result := new(big.Int).Mul(mantissaBig, multiplier)
+			return result, true
+		} else if exponent < 0 {
+			// Divide by 10^(-exponent) and truncate to integer
+			divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(-exponent)), nil)
+			result := new(big.Int).Div(mantissaBig, divisor)
+			return result, true
+		} else {
+			// exponent == 0
+			return mantissaBig, true
+		}
+	}
+
+	return nil, false
+}
+
+// Helper function to calculate 10^exp for small exponents
+func pow10(exp int) float64 {
+	if exp == 0 {
+		return 1.0
+	}
+	if exp > 0 {
+		result := 1.0
+		for i := 0; i < exp; i++ {
+			result *= 10.0
+		}
+		return result
+	} else {
+		result := 1.0
+		for i := 0; i < -exp; i++ {
+			result /= 10.0
+		}
+		return result
+	}
 }
