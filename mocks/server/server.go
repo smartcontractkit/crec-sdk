@@ -258,3 +258,23 @@ func (s *MockServer) GetAccountsAccountId(w http.ResponseWriter, r *http.Request
 	}
 	http.Error(w, "account not found", http.StatusNotFound)
 }
+
+func (s *MockServer) PatchAccountsAccountId(w http.ResponseWriter, r *http.Request, accountId openapiTypes.UUID) {
+	var request stdserver.UpdateAccount
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Find and update the account
+	for i, a := range s.accounts {
+		if a.AccountId == accountId {
+			s.accounts[i].Name = &request.Name
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(s.accounts[i])
+			return
+		}
+	}
+	http.Error(w, "account not found", http.StatusNotFound)
+}
