@@ -14,7 +14,7 @@ require (
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.34.0
-	github.com/smartcontractkit/crec-api-go v0.1.5
+	github.com/smartcontractkit/crec-api-go v0.2.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/vault v0.38.0
@@ -199,7 +199,5 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/smartcontractkit/crec-api-go => ../cvn-api-go
 
 tool github.com/vektra/mockery/v2

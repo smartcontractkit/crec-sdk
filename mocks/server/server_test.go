@@ -103,4 +103,19 @@ func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
 	if one.StatusCode() != http.StatusOK || one.JSON200 == nil {
 		t.Fatalf("unexpected account get response")
 	}
+
+	// Test updating account name
+	updateRequest := apiClient.UpdateAccount{
+		Name: "Updated Account Name",
+	}
+	updateResp, err := c.PatchAccountsAccountIdWithResponse(context.Background(), acc.JSON201.AccountId, updateRequest)
+	if err != nil {
+		t.Fatalf("PatchAccountsAccountId: %v", err)
+	}
+	if updateResp.StatusCode() != http.StatusOK || updateResp.JSON200 == nil {
+		t.Fatalf("unexpected account update response")
+	}
+	if updateResp.JSON200.Name == nil || *updateResp.JSON200.Name != "Updated Account Name" {
+		t.Fatalf("account name not updated correctly")
+	}
 }

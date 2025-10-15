@@ -131,14 +131,14 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 		if !ok {
 			return fmt.Errorf("event %s unable to parse shares: %s", name, v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		}
-		status, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["status"].Value, 10, 8) // base 10, fit into uint8
+		status, err := parseScientificNotationToUint8(v.Metadata.WorkflowEvent.Attributes["status"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse status: %s", name, v.Metadata.WorkflowEvent.Attributes["status"].Value)
 		}
 		concrete = &DistributorRequestProcessed{
 			RequestId: common.HexToHash(v.Metadata.WorkflowEvent.Attributes["request_id"].Value),
 			Shares:    shares,
-			Status:    uint8(status),
+			Status:    status,
 			Error:     []byte(v.Metadata.WorkflowEvent.Attributes["error"].Value),
 		}
 	case EventDistributorRequestProcessing:
@@ -173,7 +173,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			Allowed:         allowed,
 		}
 	case EventFundTokenRegistered:
-		tokenChainSelector, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["token_chain_selector"].Value, 10, 64)
+		tokenChainSelector, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["token_chain_selector"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse token_chain_selector: %s", name, v.Metadata.WorkflowEvent.Attributes["token_chain_selector"].Value)
 		}
@@ -185,13 +185,13 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			TokenChainSelector: tokenChainSelector,
 		}
 	case EventInitialized:
-		version, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["version"].Value, 10, 64)
+		version, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["version"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse version: %s", name, v.Metadata.WorkflowEvent.Attributes["version"].Value)
 		}
 		concrete = &Initialized{Version: version}
 	case EventInvalidDTARequestSettlement:
-		actualChainSelector, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["actual_chain_selector"].Value, 10, 64)
+		actualChainSelector, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["actual_chain_selector"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse actual_chain_selector: %s", name, v.Metadata.WorkflowEvent.Attributes["actual_chain_selector"].Value)
 		}
@@ -226,7 +226,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 		if !ok {
 			return fmt.Errorf("event %s unable to parse shares: %s", name, v.Metadata.WorkflowEvent.Attributes["shares"].Value)
 		}
-		createdAt, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["created_at"].Value, 10, 64)
+		createdAt, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["created_at"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse created_at: %s", name, v.Metadata.WorkflowEvent.Attributes["created_at"].Value)
 		}
@@ -242,7 +242,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 		if !ok {
 			return fmt.Errorf("event %s unable to parse amount: %s", name, v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		}
-		createdAt, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["created_at"].Value, 10, 64)
+		createdAt, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["created_at"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse created_at: %s", name, v.Metadata.WorkflowEvent.Attributes["created_at"].Value)
 		}
@@ -273,7 +273,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			Reason:    []byte(v.Metadata.WorkflowEvent.Attributes["reason"].Value),
 		}
 	case EventDTAAdded:
-		dtaChainSelector, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value, 10, 64)
+		dtaChainSelector, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse dta_chain_selector: %s", name, v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		}
@@ -284,7 +284,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			FundTokenAddr:    common.HexToAddress(v.Metadata.WorkflowEvent.Attributes["fund_token_addr"].Value),
 		}
 	case EventDTARemoved:
-		dtaChainSelector, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value, 10, 64)
+		dtaChainSelector, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse dta_chain_selector: %s", name, v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		}
@@ -294,11 +294,11 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			FundTokenId:      common.HexToHash(v.Metadata.WorkflowEvent.Attributes["fund_token_id"].Value),
 		}
 	case EventDTASettlementClosed:
-		requestType, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["request_type"].Value, 10, 8)
+		requestType, err := parseScientificNotationToUint8(v.Metadata.WorkflowEvent.Attributes["request_type"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse request_type: %s", name, v.Metadata.WorkflowEvent.Attributes["request_type"].Value)
 		}
-		dtaChainSelector, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value, 10, 64)
+		dtaChainSelector, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse dta_chain_selector: %s", name, v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		}
@@ -317,11 +317,11 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			Err:              []byte(v.Metadata.WorkflowEvent.Attributes["err"].Value),
 		}
 	case EventDTASettlementOpened:
-		requestType, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["request_type"].Value, 10, 8)
+		requestType, err := parseScientificNotationToUint8(v.Metadata.WorkflowEvent.Attributes["request_type"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse request_type: %s", name, v.Metadata.WorkflowEvent.Attributes["request_type"].Value)
 		}
-		dtaChainSelector, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value, 10, 64)
+		dtaChainSelector, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse dta_chain_selector: %s", name, v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		}
@@ -333,13 +333,13 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 		if !ok {
 			return fmt.Errorf("event %s unable to parse amount: %s", name, v.Metadata.WorkflowEvent.Attributes["amount"].Value)
 		}
-		currency, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["currency"].Value, 10, 8)
+		currency, err := parseScientificNotationToUint8(v.Metadata.WorkflowEvent.Attributes["currency"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse currency: %s", name, v.Metadata.WorkflowEvent.Attributes["currency"].Value)
 		}
 		concrete = &DTASettlementOpened{
 			DistributorAddr:       common.HexToAddress(v.Metadata.WorkflowEvent.Attributes["distributor_addr"].Value),
-			RequestType:           uint8(requestType),
+			RequestType:           requestType,
 			FundTokenId:           common.HexToHash(v.Metadata.WorkflowEvent.Attributes["fund_token_id"].Value),
 			FundAdminAddr:         common.HexToAddress(v.Metadata.WorkflowEvent.Attributes["fund_admin_addr"].Value),
 			DtaChainSelector:      dtaChainSelector,
@@ -348,7 +348,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			DistributorWalletAddr: common.HexToAddress(v.Metadata.WorkflowEvent.Attributes["distributor_wallet_addr"].Value),
 			Shares:                shares,
 			Amount:                amount,
-			Currency:              uint8(currency),
+			Currency:              currency,
 		}
 	case EventEmptyRequestType:
 		concrete = &EmptyRequestType{
@@ -409,11 +409,11 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			Amount:    amount,
 		}
 	case EventUnauthorizedSenderDTA:
-		reqType, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["req_type"].Value, 10, 8)
+		reqType, err := parseScientificNotationToUint8(v.Metadata.WorkflowEvent.Attributes["req_type"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse req_type: %s", name, v.Metadata.WorkflowEvent.Attributes["req_type"].Value)
 		}
-		dtaChainSelector, err := strconv.ParseUint(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value, 10, 64)
+		dtaChainSelector, err := parseScientificNotationToUint64(v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		if err != nil {
 			return fmt.Errorf("event %s unable to parse dta_chain_selector: %s", name, v.Metadata.WorkflowEvent.Attributes["dta_chain_selector"].Value)
 		}
@@ -423,7 +423,7 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 			FundTokenId:      common.HexToHash(v.Metadata.WorkflowEvent.Attributes["fund_token_id"].Value),
 			DistributorAddr:  common.HexToAddress(v.Metadata.WorkflowEvent.Attributes["distributor_addr"].Value),
 			RequestId:        common.HexToHash(v.Metadata.WorkflowEvent.Attributes["request_id"].Value),
-			ReqType:          uint8(reqType),
+			ReqType:          reqType,
 		}
 	default:
 		return fmt.Errorf("unsupported event type: %s", v.Metadata.WorkflowEvent.Attributes["event_type"].Value)
@@ -573,6 +573,50 @@ func parseScientificNotationToBigInt(value string) (*big.Int, bool) {
 	}
 
 	return nil, false
+}
+
+// parseScientificNotationToUint64 converts scientific notation strings to uint64
+// Handles formats like "1.2e+21", "1e18", etc. that strconv.ParseUint cannot parse directly
+func parseScientificNotationToUint64(value string) (uint64, error) {
+	// First try direct parsing in case it's already a regular integer
+	if result, err := strconv.ParseUint(value, 10, 64); err == nil {
+		return result, nil
+	}
+
+	// Handle scientific notation using the big.Int parser and then convert
+	bigIntResult, ok := parseScientificNotationToBigInt(value)
+	if !ok {
+		return 0, fmt.Errorf("unable to parse scientific notation: %s", value)
+	}
+
+	// Check if the result fits in uint64
+	if !bigIntResult.IsUint64() {
+		return 0, fmt.Errorf("value too large for uint64: %s", value)
+	}
+
+	return bigIntResult.Uint64(), nil
+}
+
+// parseScientificNotationToUint8 converts scientific notation strings to uint8
+// Handles formats like "1e2", "2.5e+1", etc. that strconv.ParseUint cannot parse directly
+func parseScientificNotationToUint8(value string) (uint8, error) {
+	// First try direct parsing in case it's already a regular integer
+	if result, err := strconv.ParseUint(value, 10, 8); err == nil {
+		return uint8(result), nil
+	}
+
+	// Handle scientific notation using the big.Int parser and then convert
+	bigIntResult, ok := parseScientificNotationToBigInt(value)
+	if !ok {
+		return 0, fmt.Errorf("unable to parse scientific notation: %s", value)
+	}
+
+	// Check if the result fits in uint8 (0-255)
+	if bigIntResult.Sign() < 0 || bigIntResult.Cmp(big.NewInt(255)) > 0 {
+		return 0, fmt.Errorf("value out of range for uint8: %s", value)
+	}
+
+	return uint8(bigIntResult.Uint64()), nil
 }
 
 // Helper function to calculate 10^exp for small exponents
