@@ -8,9 +8,9 @@ import (
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
 
-// ClientOptions defines the options for creating a new CREc client used to interact with the CREc API.
-//   - BaseURL: The base URL of the CREc API.
-//   - ApiKey: The API key for authenticating with the CREc API.
+// ClientOptions defines the options for creating a new CREC client used to interact with the CREC API.
+//   - BaseURL: The base URL of the CREC API.
+//   - ApiKey: The API key for authenticating with the CREC API.
 //   - HttpClient: The custom HTTP client to use for making requests. If nil, the default HTTP client is used.
 type ClientOptions struct {
 	BaseURL    string
@@ -18,12 +18,12 @@ type ClientOptions struct {
 	HTTPClient *http.Client // Optional custom HTTP client
 }
 
-// CREcClient is a client for the CREc API.
-type CREcClient = apiClient.ClientWithResponses
+// CRECClient is a client for the CREC API.
+type CRECClient = apiClient.ClientWithResponses
 
-// NewCREcClient creates a new CREc client with the given options.
-//   - opts: Options for configuring the CREc client, see ClientOptions for details.
-func NewCREcClient(opts *ClientOptions) (*CREcClient, error) {
+// NewCRECClient creates a new CREC client with the given options.
+//   - opts: Options for configuring the CREC client, see ClientOptions for details.
+func NewCRECClient(opts *ClientOptions) (*CRECClient, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("ClientOptions is required")
 	}

@@ -15,7 +15,7 @@ import (
 	transactTypes "github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// ServiceOptions defines the options for creating a new CREc CCIP service.
+// ServiceOptions defines the options for creating a new CREC CCIP service.
 //   - Logger: Optional logger instance.
 //   - CcipRouterAddress: A string representing the address of the CCIP router contract.
 //   - AccountAddress: A string representing the address of the account performing the CCIP operations.
@@ -34,9 +34,9 @@ type Service struct {
 	includeTokenApprovals bool
 }
 
-// NewService creates a new CREc CCIP service with the provided options.
+// NewService creates a new CREC CCIP service with the provided options.
 // Returns a pointer to the Service and an error if any issues occur during initialization.
-//   - opts: Options for configuring the CREc CCIP service, see ServiceOptions for details.
+//   - opts: Options for configuring the CREC CCIP service, see ServiceOptions for details.
 func NewService(opts *ServiceOptions) (*Service, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("ServiceOptions is required")
@@ -48,7 +48,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 		logger = &lgr
 	}
 
-	logger.Debug().Msg("Creating CREc CCIP service")
+	logger.Debug().Msg("Creating CREC CCIP service")
 
 	return &Service{
 		logger:                logger,

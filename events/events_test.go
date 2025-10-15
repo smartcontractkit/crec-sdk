@@ -20,7 +20,7 @@ func TestReadEvent(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCREcClient(
+	c, err := client.NewCRECClient(
 		&client.ClientOptions{
 			BaseURL: mockServer.TestServer.URL,
 			APIKey:  "some-api-key",
@@ -32,7 +32,7 @@ func TestReadEvent(t *testing.T) {
 
 	r, err := NewClient(
 		&ClientOptions{
-			CREcClient:  c,
+			CRECClient:  c,
 			EventsAfter: 0,
 		},
 	)
@@ -59,7 +59,7 @@ func TestVerifyEvent(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCREcClient(
+	c, err := client.NewCRECClient(
 		&client.ClientOptions{
 			BaseURL: mockServer.TestServer.URL,
 			APIKey:  "some-api-key",
@@ -71,7 +71,7 @@ func TestVerifyEvent(t *testing.T) {
 
 	v, err := NewClient(
 		&ClientOptions{
-			CREcClient: c,
+			CRECClient: c,
 			ValidSigners: []string{
 				"0xFD528f7bd7a6eB8d6605BF944d122da7665C69A1",
 				"0x4f4ddd274635D014C4584118a0fdD6cf89B25d3b",
@@ -93,7 +93,7 @@ func TestCreateListener(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCREcClient(
+	c, err := client.NewCRECClient(
 		&client.ClientOptions{
 			BaseURL: mockServer.TestServer.URL,
 			APIKey:  "some-api-key",
@@ -105,7 +105,7 @@ func TestCreateListener(t *testing.T) {
 
 	r, err := NewClient(
 		&ClientOptions{
-			CREcClient: c,
+			CRECClient: c,
 		},
 	)
 	if err != nil {

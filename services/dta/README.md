@@ -1,6 +1,6 @@
 # DTA Service
 
-This DTA (Digital Transfer Agent) service is a Go SDK for composing on-chain operations against DTA contracts and for decoding DTA CREc verifiable events into strongly-typed Go structures.
+This DTA (Digital Transfer Agent) service is a Go SDK for composing on-chain operations against DTA contracts and for decoding DTA CREC verifiable events into strongly-typed Go structures.
 
 This README focuses on three things:
 
@@ -19,12 +19,12 @@ This README focuses on three things:
 
 ## What you get
 
-- A single Decode function that base64-decodes and unmarshals CREc events into VerifiableEvent and a typed ConcreteEvent
+- A single Decode function that base64-decodes and unmarshals CREC events into VerifiableEvent and a typed ConcreteEvent
 - A set of Prepare\*Operation builders that return a transact/types.Operation containing one or more transactions ready to be signed/sent by your transaction client
 
 ## Decoding
 
-CREc emits verifiable events as base64-encoded JSON. Use Decode to obtain a VerifiableEvent with a populated ConcreteEvent.
+CREC emits verifiable events as base64-encoded JSON. Use Decode to obtain a VerifiableEvent with a populated ConcreteEvent.
 
 Key types (simplified):
 

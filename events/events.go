@@ -22,23 +22,23 @@ const (
 	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
 )
 
-// ClientOptions holds the configuration options for the CREc events client.
+// ClientOptions holds the configuration options for the CREC events client.
 // It includes options for logging, event retrieval, and signature verification.
 //   - Logger: Optional logger instance.
-//   - CREcClient: A client instance for interacting with the CREc system.
+//   - CRECClient: A client instance for interacting with the CREC system.
 //   - EventsAfter: Unix timestamp to start retrieving events from. Defaults to current time if not set.
 //   - MinRequiredSignatures: Minimum number of valid signatures required to verify an event.
 //   - ValidSigners: List of signer addresses that are authorized verified event signers.
 type ClientOptions struct {
 	Logger                *zerolog.Logger
-	CREcClient            *client.CREcClient
+	CRECClient            *client.CRECClient
 	EventsAfter           int64
 	MinRequiredSignatures int
 	ValidSigners          []string
 }
 
 type Client struct {
-	crecClient            *client.CREcClient
+	crecClient            *client.CRECClient
 	logger                *zerolog.Logger
 	eventsAfter           int64
 	minRequiredSignatures int
@@ -47,17 +47,17 @@ type Client struct {
 	lastReadEventId       uuid.UUID
 }
 
-// NewClient creates a new CREc events client with the provided CREc client and options.
+// NewClient creates a new CREC events client with the provided CREC client and options.
 // Returns a pointer to the Client and an error if any issues occur during initialization.
-// If the CREc client or options are nil, it returns an error.
-//   - crecClient: A valid CREc client instance.
-//   - opts: Options for configuring the CREc events client, see ClientOptions for details.
+// If the CREC client or options are nil, it returns an error.
+//   - crecClient: A valid CREC client instance.
+//   - opts: Options for configuring the CREC events client, see ClientOptions for details.
 func NewClient(opts *ClientOptions) (*Client, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("ClientOptions is required")
 	}
-	if opts.CREcClient == nil {
-		return nil, fmt.Errorf("a valid CREcClient must be provided")
+	if opts.CRECClient == nil {
+		return nil, fmt.Errorf("a valid CRECClient must be provided")
 	}
 
 	logger := opts.Logger
@@ -66,7 +66,7 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 		logger = &lgr
 	}
 
-	logger.Debug().Msg("Creating CREc events client")
+	logger.Debug().Msg("Creating CREC events client")
 
 	eventsAfter := opts.EventsAfter
 	if eventsAfter == 0 {
@@ -74,7 +74,7 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 	}
 
 	return &Client{
-		crecClient:            opts.CREcClient,
+		crecClient:            opts.CRECClient,
 		logger:                logger,
 		eventsAfter:           eventsAfter,
 		minRequiredSignatures: opts.MinRequiredSignatures,
@@ -85,30 +85,30 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 	}, nil
 }
 
-// GetEvents retrieves events from the CREc service.
+// GetEvents retrieves events from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - params: parameters for filtering events, see client.GetEventsParams for details.
 func (c *Client) GetEvents(ctx context.Context, params *apiClient.GetEventsParams) ([]apiClient.Event, error) {
-	c.logger.Trace().Msg("Getting events from CREc")
+	c.logger.Trace().Msg("Getting events from CREC")
 
 	resp, err := c.crecClient.GetEventsWithResponse(ctx, params)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get events from CREc: %w", err)
+		return nil, fmt.Errorf("failed to get events from CREC: %w", err)
 	}
 
 	if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get events from CREc, unexpected status code: %d", resp.StatusCode())
+		return nil, fmt.Errorf("failed to get events from CREC, unexpected status code: %d", resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("invalid events response from CREc")
+		return nil, fmt.Errorf("invalid events response from CREC")
 	}
 
 	return resp.JSON200.Data, nil
 }
 
-// Reset resets the internal state of the CREc events client.
+// Reset resets the internal state of the CREC events client.
 // It clears the last read timestamp and event ID, allowing the client to start reading events from scratch.
 func (c *Client) Reset() {
 	c.logger.Debug().Msg("Resetting event reader state")
@@ -219,11 +219,11 @@ func (c *Client) EventHash(event *apiClient.Event) common.Hash {
 	return crypto.Keccak256Hash([]byte(event.Service + "." + event.Name + "." + event.VerifiableEvent))
 }
 
-// CreateListener creates a new listener for events in the CREc service.
+// CreateListener creates a new listener for events in the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listener: The listener to create. See client.CreateListener for details on required fields.
 func (c *Client) CreateListener(ctx context.Context, listener *apiClient.CreateListener) (*apiClient.Listener, error) {
-	c.logger.Debug().Msg("Creating listener on CREc")
+	c.logger.Debug().Msg("Creating listener on CREC")
 
 	resp, err := c.crecClient.PostListenersWithResponse(ctx, *listener)
 	if err != nil {
@@ -237,7 +237,7 @@ func (c *Client) CreateListener(ctx context.Context, listener *apiClient.CreateL
 	return resp.JSON201, nil
 }
 
-// GetListener retrieves a listener by its ID from the CREc service.
+// GetListener retrieves a listener by its ID from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listenerId: The UUID of the listener to retrieve.
 func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*apiClient.Listener, error) {
@@ -258,28 +258,28 @@ func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*apiCli
 	return resp.JSON200, nil
 }
 
-// GetListeners retrieves a list of listeners from the CREc service.
+// GetListeners retrieves a list of listeners from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 func (c *Client) GetListeners(ctx context.Context, params *apiClient.GetListenersParams) ([]apiClient.Listener, error) {
-	c.logger.Debug().Msg("Getting listeners from CREc")
+	c.logger.Debug().Msg("Getting listeners from CREC")
 
 	resp, err := c.crecClient.GetListenersWithResponse(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get listeners from CREc: %w", err)
+		return nil, fmt.Errorf("failed to get listeners from CREC: %w", err)
 	}
 
 	if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get listeners from CREc, unexpected status code: %d", resp.StatusCode())
+		return nil, fmt.Errorf("failed to get listeners from CREC, unexpected status code: %d", resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("invalid listeners response from CREc")
+		return nil, fmt.Errorf("invalid listeners response from CREC")
 	}
 
 	return resp.JSON200.Data, nil
 }
 
-// DeleteListener deletes a listener by its ID from the CREc service.
+// DeleteListener deletes a listener by its ID from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listenerId: The UUID of the listener to delete.
 func (c *Client) DeleteListener(ctx context.Context, listenerId uuid.UUID) error {

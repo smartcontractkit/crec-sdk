@@ -1,6 +1,6 @@
-# Accounts Service
+# Wallets Service
 
-The Accounts Service provides a comprehensive Go SDK for provisioning and deploying smart wallet accounts on the CREC platform. This service enables users to create deterministic, signature-verifying account contracts that serve as the foundation for executing CREC business operations like DvP settlements and DTA transactions.
+The Wallets Service provides a comprehensive Go SDK for provisioning and deploying smart wallets on the CREC platform. This service enables users to create deterministic, signature-verifying wallet contracts that serve as the foundation for executing CREC business operations like DvP settlements and DTA transactions.
 
 ## Table of Contents
 
@@ -8,15 +8,15 @@ The Accounts Service provides a comprehensive Go SDK for provisioning and deploy
 - [Architecture](#architecture)
 - [Smart Contract Foundation](#smart-contract-foundation)
 - [Service Configuration](#service-configuration)
-- [Account Types](#account-types)
+- [Wallet Types](#wallet-types)
 - [Operation Preparation](#operation-preparation)
 - [Contract Integration](#contract-integration)
 
 ## Overview
 
-The Accounts Service is a **provisioning service** that creates smart wallet accounts for CREC users. This service focuses on the **infrastructure layer** - deploying the account contracts that users need to participate in CREC operations.
+The Wallets Service is a **provisioning service** that creates smart wallets for CREC users. This service focuses on the **infrastructure layer** - deploying the wallet contracts that users need to participate in CREC operations.
 
-Think of it as the **"wallet factory"** that creates the secure, signature-verifying contracts that CREC users control. Once deployed, these accounts become the execution layer for all CREC business operations.
+Think of it as the **"wallet factory"** that creates the secure, signature-verifying contracts that CREC users control. Once deployed, these wallets become the execution layer for all CREC business operations.
 
 ### Key Benefits
 
@@ -25,27 +25,27 @@ Think of it as the **"wallet factory"** that creates the secure, signature-verif
 - ✅ **Gas Efficient** using minimal proxy clones (EIP-1167)
 - ✅ **Keystone Integration** for decentralized oracle reporting
 - ✅ **Type-Safe Operations** with comprehensive ABI encoding
-- ✅ **Predictable Addresses** for account address calculation before deployment
+- ✅ **Predictable Addresses** for wallet address calculation before deployment
 
 ## Architecture
 
 ```mermaid
 graph TD
-    A[Accounts Service Architecture] --> B[Service Layer - Go SDK]
+    A[Wallets Service Architecture] --> B[Service Layer - Go SDK]
     A --> C[Smart Contract Layer]
     A --> D[Proxy Pattern - OpenZeppelin Clones]
 
-    B --> B1[PrepareDeployNewECDSAAccountOperation]
-    B --> B2[PrepareDeployNewRSAAccountOperation]
+    B --> B1[PrepareDeployNewECDSAWalletOperation]
+    B --> B2[PrepareDeployNewRSAWalletOperation]
 
-    C --> C1[AccountFactory]
-    C --> C2[Account Implementations]
+    C --> C1[WalletFactory]
+    C --> C2[Wallet Implementations]
 
     C1 --> C1a[createAccount]
     C1 --> C1b[predictAccountAddress]
 
-    C2 --> C2a[ECDSASignatureVerifyingAccount]
-    C2 --> C2b[RSASignatureVerifyingAccount]
+    C2 --> C2a[ECDSASignatureVerifyingWallet]
+    C2 --> C2b[RSASignatureVerifyingWallet]
 
     D --> D1[Minimal Proxy - EIP-1167]
     D --> D2[Deterministic Deployment - CREATE2]
@@ -54,25 +54,25 @@ graph TD
 
 ## Smart Contract Foundation
 
-The Accounts Service leverages **OpenZeppelin's Clone Factory pattern** to create gas-efficient, deterministic account deployments. This architecture separates **implementation contracts** from **proxy contracts**, enabling cost-effective scaling.
+The Wallets Service leverages **OpenZeppelin's Clone Factory pattern** to create gas-efficient, deterministic wallet deployments. This architecture separates **implementation contracts** from **proxy contracts**, enabling cost-effective scaling.
 
 ### The Clone Factory Pattern
 
-Instead of deploying full contract bytecode for each account (expensive), the system:
+Instead of deploying full contract bytecode for each wallet (expensive), the system:
 
-1. **Deploys implementation contracts once** (ECDSAAccount, RSAAccount, etc.)
+1. **Deploys implementation contracts once** (ECDSAWallet, RSAWallet, etc.)
 2. **Creates minimal proxies** (EIP-1167) that delegate calls to implementations
 3. **Uses deterministic salts** to ensure predictable addresses
 4. **Initializes after deployment** with user-specific configuration
 
 ```mermaid
 graph LR
-    A[AccountFactory] --> B[ECDSA Implementation<br/>deployed once]
-    A --> C[User's Account<br/>minimal proxy<br/>0x1234...abcd]
+    A[WalletFactory] --> B[ECDSA Implementation<br/>deployed once]
+    A --> C[User's Wallet<br/>minimal proxy<br/>0x1234...abcd]
     C -.->|delegates to| B
     A -->|creates| C
 
-    subgraph Factory["AccountFactory Functions"]
+    subgraph Factory["WalletFactory Functions"]
         A1[createAccount]
         A2[predictAddress]
     end
@@ -80,26 +80,28 @@ graph LR
     A --- Factory
 ```
 
-### AccountFactory Contract
+### WalletFactory Contract
 
-The `AccountFactory` is the central deployment contract that:
+The `WalletFactory` is the central deployment contract that:
 
 **Core Functions:**
 
-- `createAccount()` - Deploys new account proxies with deterministic addresses
-- `predictAccountAddress()` - Calculates account addresses before deployment
-- `getSalt()` - Generates deterministic salts from creator + accountId
+# TODO: Change when renamed
+
+- `createAccount()` - Deploys new wallet proxies with deterministic addresses
+- `predictAccountAddress()` - Calculates wallet addresses before deployment
+- `getSalt()` - Generates deterministic salts from creator + walletId
 
 **Key Features:**
 
-- **Deterministic Addresses**: Uses CREATE2 with `keccak256(creator, accountId)` salt
-- **Duplicate Prevention**: Reverts if account already exists at predicted address
+- **Deterministic Addresses**: Uses CREATE2 with `keccak256(creator, walletId)` salt
+- **Duplicate Prevention**: Reverts if wallet already exists at predicted address
 - **Automatic Initialization**: Calls `initialize()` on deployed proxy immediately
 - **Gas Efficiency**: Minimal proxy deployment ~45k gas vs ~500k+ for full contracts
 
-### Abstract Account Base Class
+### Abstract Wallet Base Class
 
-All account implementations inherit from the `Account` abstract contract, providing:
+All wallet implementations inherit from the `Account` abstract contract, providing:
 
 **Common Functionality:**
 
@@ -113,7 +115,7 @@ All account implementations inherit from the `Account` abstract contract, provid
 ```solidity
 function initialize(
     address keystoneForwarder,  // CRE Keystone Forwarder contract
-    address initialOwner,       // Account owner
+    address initialOwner,       // Wallet owner
     bytes calldata configParams // Implementation-specific signers
 ) public initializer
 ```
@@ -125,54 +127,54 @@ The base class uses the **template method pattern** where concrete implementatio
 
 ### ServiceOptions
 
-Configure the accounts service with all required contract addresses:
+Configure the wallets service with all required contract addresses:
 
 **Configuration Details:**
 
-- **KeystoneForwarder**: The CREC oracle system that will call `onReport()` on deployed accounts
-- **AccountFactory**: The factory contract that creates minimal proxy clones
+- **KeystoneForwarder**: The CREC oracle system that will call `onReport()` on deployed wallets
+- **Walletactory**: The factory contract that creates minimal proxy clones
 - **Implementation Addresses**: Pre-deployed implementation contracts for each signature type
 
-- **Cross-chain Consistency**: Same account ID on different chains (if desired)
+- **Cross-chain Consistency**: Same wallet ID on different chains (if desired)
 
 ## Operation Preparation
 
-The service provides two main operations for account deployment:
+The service provides two main operations for wallet deployment:
 
-### PrepareDeployNewECDSAAccountOperation
+### PrepareDeployNewECDSAWalletOperation
 
 Creates a deployment operation for ECDSA-based signature verification.
 
 **Parameters:**
 
-- `accountOwnerAddress`: The Ethereum address that will own the deployed account contract
-- `allowedSigners`: Array of Ethereum addresses authorized to sign transactions for this account
-- `accountId`: Human-readable unique identifier (combined with creator to ensure uniqueness)
+- `walletOwnerAddress`: The Ethereum address that will own the deployed wallet contract
+- `allowedSigners`: Array of Ethereum addresses authorized to sign transactions for this wallet
+- `walletId`: Human-readable unique identifier (combined with creator to ensure uniqueness)
 
-### PrepareDeployNewRSAAccountOperation
+### PrepareDeployNewRSAWalletOperation
 
 Creates a deployment operation for RSA-based signature verification.
 
 **Parameters:**
 
-- `accountOwnerAddress`: The Ethereum address that will own the deployed account contract
+- `walletOwnerAddress`: The Ethereum address that will own the deployed wallet contract
 - `allowedSigners`: Array of RSA public keys (E and N components as hex strings)
-- `accountId`: Human-readable unique identifier (combined with creator to ensure uniqueness)
+- `walletId`: Human-readable unique identifier (combined with creator to ensure uniqueness)
 
 ### Common Operation Flow
 
 Both operations follow the same internal flow:
 
 1. **Validate Parameters**: Check addresses and signer data format
-2. **Encode Signers**: ABI-encode signer data according to account type
+2. **Encode Signers**: ABI-encode signer data according to wallet type
 3. **Generate Calldata**: Create `createAccount()` function call with parameters
 4. **Return Operation**: Package transaction for execution framework
 
 ## Contract Integration
 
-### AccountFactory Integration
+### WalletFactory Integration
 
-The service integrates with the AccountFactory contract through these key interactions:
+The service integrates with the WalletFactory contract through these key interactions:
 
 **createAccount Function Signature:**
 
@@ -196,7 +198,7 @@ function createAccount(
 
 ### Deterministic Addresses
 
-Accounts are deployed with deterministic addresses using CREATE2:
+Wallets are deployed with deterministic addresses using CREATE2:
 
 ```solidity
 // Salt generation
@@ -208,15 +210,15 @@ address predicted = Clones.predictDeterministicAddress(implementation, salt);
 
 This enables:
 
-- **Pre-deployment Address Calculation**: Know account address before deployment
-- **Duplicate Prevention**: Same creator + accountId always produces same address
-- **Cross-chain Consistency**: Same account ID on different chains (if desired)
+- **Pre-deployment Address Calculation**: Know wallet address before deployment
+- **Duplicate Prevention**: Same creator + walletId always produces same address
+- **Cross-chain Consistency**: Same wallet ID on different chains (if desired)
 
-## Example: Deploying and registering a smart account
+## Example: Deploying and registering a smart wallet
 
-Let's walk through a practical example of deploying a new ECDSA signature verifying account and registering it with the CREC backend.
+Let's walk through a practical example of deploying a new ECDSA signature verifying wallet and registering it with the CREC backend.
 
-This example demonstrates the complete flow from account creation to backend registration, which is essential for applications that need to provision smart wallets for their users.
+This example demonstrates the complete flow from wallet creation to backend registration, which is essential for applications that need to provision smart wallets for their users.
 
 ### Setup
 
@@ -229,7 +231,7 @@ import (
     "github.com/ethereum/go-ethereum/crypto"
     apiClient "github.com/smartcontractkit/crec-api-go/client"
     "github.com/smartcontractkit/crec-sdk/client"
-    "github.com/smartcontractkit/crec-sdk/services/accounts"
+    "github.com/smartcontractkit/crec-sdk/services/wallets"
     "github.com/smartcontractkit/crec-sdk/transact"
     "github.com/smartcontractkit/crec-sdk/transact/signer/local"
 )
@@ -237,14 +239,14 @@ import (
 // 1. Initialize the CREC Client to connect to the Chainlink Verifiable Network
 crecClient, _ := client.NewCRECClient(crecURL, crecAPIKey)
 
-// 2. Create an Accounts Service instance. This service handles smart account
+// 2. Create an Accounts Service instance. This service handles smart wallet
 // provisioning operations and address prediction.
-accountsService, _ := accounts.NewService(&accounts.ServiceOptions{
+walletsService, _ := wallets.NewService(&wallets.ServiceOptions{
     OperationExecutionAccount:                 operationExecutionAccountAddress, // Smart wallet that will execute the deployment
     KeystoneForwarderAddress:                  keystoneForwarderAddress,         // Keystone forwarder contract
-    AccountFactoryAddress:                     accountFactoryAddress,            // Account factory contract
-    ECDSASignatureVerifyingAccountImplAddress: ecdsaImplAddress,                // ECDSA account implementation
-    RSASignatureVerifyingAccountImplAddress:   rsaImplAddress,                  // RSA account implementation
+    WalletFactoryAddress:                      walletFactoryAddress,            // Account factory contract
+    ECDSASignatureVerifyingAccountImplAddress: ecdsaImplAddress,                // ECDSA wallet implementation
+    RSASignatureVerifyingAccountImplAddress:   rsaImplAddress,                  // RSA wallet implementation
 })
 
 // 3. Create a Transact Client to send signed operations to the CREC
@@ -253,7 +255,7 @@ transactClient, _ := transact.NewClient(&transact.ClientOptions{
     ChainId:   chainId,
 })
 
-// 4. Create a local signer for the operation execution account
+// 4. Create a local signer for the operation execution wallet
 operationSigner := local.NewSigner(privateKey)
 ```
 
@@ -262,11 +264,11 @@ operationSigner := local.NewSigner(privateKey)
 ```go
 ctx := context.Background()
 
-// 1. Prepare the ECDSA account deployment operation
-// This creates the operation and predicts where the account will be deployed
-operation, predictedAddress, _ := accountsService.PrepareDeployNewECDSAAccountOperation(
-    accountOwnerAddress, // The address that will own the deployed account
-    "trading-account-1", // Unique identifier for this account
+// 1. Prepare the ECDSA wallet deployment operation
+// This creates the operation and predicts where the wallet will be deployed
+operation, predictedAddress, _ := walletsService.PrepareDeployNewECDSAWalletOperation(
+    walletOwnerAddress, // The address that will own the deployed wallet
+    "trading-wallet-1", // Unique identifier for this wallet
 )
 
 // The predicted address is deterministic - it will be the same as the actual
@@ -289,16 +291,16 @@ for {
     time.Sleep(3 * time.Second)
 }
 
-// 4. Register the deployed account with the CREC backend
-// This makes the account discoverable and manageable through CREC APIs
-accountName := "My Trading Account"
-accountData := apiClient.CreateAccount{
+// 4. Register the deployed wallet with the CREC backend
+// This makes the wallet discoverable and manageable through CREC APIs
+walletName := "My Trading Wallet"
+walletData := apiClient.CreateWallet{
     Address: predictedAddress.Hex(),
     ChainId: chainId,
-    Name:    &accountName, // Optional: human-readable name for the account
+    Name:    &walletName, // Optional: human-readable name for the account
 }
 
-response, _ := crecClient.PostAccountsWithResponse(ctx, accountData)
+response, _ := crecClient.PostAccountsWithResponse(ctx, walletData)
 ```
 
 This example demonstrates the power of the Accounts Service in providing a secure, predictable foundation for CREC applications that need to provision smart wallets at scale.

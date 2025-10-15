@@ -25,15 +25,15 @@ func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
 		t.Fatalf("health-check status: %d", resp.StatusCode)
 	}
 
-	// Use the generated CREc client against the mock server
-	c, err := client.NewCREcClient(
+	// Use the generated CREC client against the mock server
+	c, err := client.NewCRECClient(
 		&client.ClientOptions{
 			BaseURL: s.TestServer.URL,
 			APIKey:  "test-key",
 		},
 	)
 	if err != nil {
-		t.Fatalf("NewCREcClient: %v", err)
+		t.Fatalf("NewCRECClient: %v", err)
 	}
 
 	// List events

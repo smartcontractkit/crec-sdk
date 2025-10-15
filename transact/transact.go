@@ -22,26 +22,26 @@ import (
 	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// ClientOptions defines the options for creating a new CREc transact client used to send operations to the CREc system.
+// ClientOptions defines the options for creating a new CREC transact client used to send operations to the CREC system.
 // It includes a logger for logging messages and a chain ID for the blockchain network.
 //   - Logger: Optional logger instance.
-//   - CREcClient: A client instance for interacting with the CREc system, nil for no direct CREc interaction.
+//   - CRECClient: A client instance for interacting with the CREC system, nil for no direct CREC interaction.
 //   - ChainId: A string representing the chain ID of the blockchain network.
 type ClientOptions struct {
 	Logger     *zerolog.Logger
-	CREcClient *client.CREcClient
+	CRECClient *client.CRECClient
 	ChainId    string
 }
 
 type Client struct {
 	logger     *zerolog.Logger
-	crecClient *client.CREcClient
+	crecClient *client.CRECClient
 	chainId    string
 }
 
-// NewClient creates a new CREc transact client with the provided CREc client and options.
+// NewClient creates a new CREC transact client with the provided CREC client and options.
 // Returns a pointer to the Client and an error if any issues occur during initialization.
-//   - opts: Options for configuring the CREc transact client, see ClientOptions for details.
+//   - opts: Options for configuring the CREC transact client, see ClientOptions for details.
 func NewClient(opts *ClientOptions) (*Client, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("ClientOptions is required")
@@ -53,11 +53,11 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 		logger = &lgr
 	}
 
-	logger.Debug().Msg("Creating CREc transact client")
+	logger.Debug().Msg("Creating CREC transact client")
 
 	return &Client{
 		logger:     logger,
-		crecClient: opts.CREcClient,
+		crecClient: opts.CRECClient,
 		chainId:    opts.ChainId,
 	}, nil
 }
@@ -127,7 +127,7 @@ func (t *Client) SignOperationHash(
 	return sig, nil
 }
 
-// SendSignedOperation sends a signed operation to the CREc system.
+// SendSignedOperation sends a signed operation to the CREC system.
 //   - ctx: The context for the request.
 //   - op: The operation to send, which must be signed.
 //   - signature: The signature of the operation, to be verified by the onchain smart account.
@@ -137,7 +137,7 @@ func (t *Client) SendSignedOperation(
 	signature []byte,
 ) (*apiClient.Operation, error) {
 	if t.crecClient == nil {
-		return nil, errors.New("no CREcClient provided, cannot send signed operations")
+		return nil, errors.New("no CRECClient provided, cannot send signed operations")
 	}
 
 	t.logger.Debug().
@@ -197,7 +197,7 @@ func (t *Client) SendSignedOperation(
 	return resp.JSON201, nil
 }
 
-// GetOperation retrieves an operation by its ID from the CREc service.
+// GetOperation retrieves an operation by its ID from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - operationId: The UUID of the operation to retrieve.
 func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*apiClient.Operation, error) {
@@ -217,24 +217,24 @@ func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*apiC
 	return resp.JSON200, nil
 }
 
-// GetOperations retrieves a list of operations from the CREc service.
+// GetOperations retrieves a list of operations from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 func (t *Client) GetOperations(ctx context.Context, params *apiClient.GetOperationsParams) (
 	[]apiClient.Operation, error,
 ) {
-	t.logger.Trace().Msg("Getting operations from CREc")
+	t.logger.Trace().Msg("Getting operations from CREC")
 
 	resp, err := t.crecClient.GetOperationsWithResponse(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get operations from CREc: %w", err)
+		return nil, fmt.Errorf("failed to get operations from CREC: %w", err)
 	}
 
 	if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get operations from CREc, unexpected status code: %d", resp.StatusCode())
+		return nil, fmt.Errorf("failed to get operations from CREC, unexpected status code: %d", resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("invalid operations response from CREc")
+		return nil, fmt.Errorf("invalid operations response from CREC")
 	}
 
 	return resp.JSON200.Data, nil

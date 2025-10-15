@@ -246,8 +246,8 @@ import (
     "github.com/smartcontractkit/crec-sdk/services/dvp"
 )
 
-// 1. Initialize the CREc Client to connect to the Chainlink Verifiable Network
-crecClient, _ := client.NewCREcClient(crecURL)
+// 1. Initialize the CREC Client to connect to the Chainlink Verifiable Network
+crecClient, _ := client.NewCRECClient(crecURL)
 
 // 2. Create a DVP Service instance. This service is the main entry point for
 // interacting with the DvP protocol. It helps create and format operations.
@@ -260,15 +260,15 @@ dvpService, _ := dvp.NewService(
     },
 )
 
-// 3. Create an Events Client to listen for verified onchain events from the CREc.
+// 3. Create an Events Client to listen for verified onchain events from the CREC.
 // This is used to reliably track the state of a settlement.
 crecEventsClient, _ := events.NewClient(crecClient, &events.ClientOptions{
     MinRequiredSignatures: 3,
-    ValidSigners: []string{ /* ... trusted CREc signer addresses ... */ },
+    ValidSigners: []string{ /* ... trusted CREC signer addresses ... */ },
 })
 
-// 4. Create a Transact Client to send signed operations to the CREc.
-// The CREc will then relay the transaction to the blockchain for execution.
+// 4. Create a Transact Client to send signed operations to the CREC.
+// The CREC will then relay the transaction to the blockchain for execution.
 crecTransactClient, _ := transact.NewClient(crecClient, &transact.ClientOptions{
     ChainId: "1337", // The chain ID where the execution will happen
 })
@@ -284,7 +284,7 @@ operationSigner := signer.NewLocalSigner(privateKey)
 Now, let's process an event and execute the settlement.
 
 ```go
-// 1. Fetch and verify an event from the CREc
+// 1. Fetch and verify an event from the CREC
 eventList, _ := crecEventsClient.GetEvents(context.Background())
 if len(eventList) == 0 {
     log.Println("No events found.")
@@ -292,7 +292,7 @@ if len(eventList) == 0 {
 }
 event := eventList[0]
 
-// The CREc Events client verifies the cryptographic signatures on the event,
+// The CREC Events client verifies the cryptographic signatures on the event,
 // ensuring it is authentic and was emitted by the trusted DvP contract.
 verified, _ := crecEventsClient.Verify(event)
 if !verified {
@@ -321,7 +321,7 @@ if event.Service == "dvp" && event.Name == "SettlementAccepted" {
     // the smart account to execute the operation.
     signature, _ := crecTransactClient.SignOperation(operation, operationSigner)
 
-    // 6. Send the signed operation to the CREc to be relayed onchain
+    // 6. Send the signed operation to the CREC to be relayed onchain
     txHash, _ := crecTransactClient.SendSignedOperation(context.Background(), operation, signature)
 
     log.Println("Settlement execution sent! Transaction hash:", txHash)

@@ -45,7 +45,7 @@ const (
 	SettlementStatusCanceled
 )
 
-// ServiceOptions defines the options for creating a new CREc DvP service.
+// ServiceOptions defines the options for creating a new CREC DvP service.
 //   - Logger: Optional logger instance.
 //   - DvpCoordinatorAddress: A string representing the address of the DvP coordinator contract.
 //   - AccountAddress: A string representing the address of the account performing the DvP operations.
@@ -61,9 +61,9 @@ type Service struct {
 	accountAddress        common.Address
 }
 
-// NewService creates a new CREc DvP service with the provided options.
+// NewService creates a new CREC DvP service with the provided options.
 // Returns a pointer to the Service and an error if any issues occur during initialization.
-//   - opts: Options for configuring the CREc DvP service, see ServiceOptions for details.
+//   - opts: Options for configuring the CREC DvP service, see ServiceOptions for details.
 func NewService(opts *ServiceOptions) (*Service, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("ServiceOptions is required")
@@ -75,7 +75,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 		logger = &lgr
 	}
 
-	logger.Debug().Msg("Creating CREc DvP service")
+	logger.Debug().Msg("Creating CREC DvP service")
 
 	return &Service{
 		logger:                logger,
@@ -84,7 +84,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 	}, nil
 }
 
-// DecodeDvpEvent decodes a DvP settlement event from the provided CREc event.
+// DecodeDvpEvent decodes a DvP settlement event from the provided CREC event.
 func (s *Service) DecodeDvpEvent(event *apiClient.Event) (
 	*events.DvpEvent, error,
 ) {
@@ -329,7 +329,7 @@ func (s *Service) HashSettlement(settlement *contract.Settlement) (common.Hash, 
 	return crypto.Keccak256Hash(settlementInfoData), nil
 }
 
-// toJson decodes an encoded VerifiableEvent from a CREc event into a JSON byte slice.
+// toJson decodes an encoded VerifiableEvent from a CREC event into a JSON byte slice.
 func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
 	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {

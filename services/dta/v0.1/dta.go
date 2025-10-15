@@ -16,7 +16,7 @@ import (
 	transactTypes "github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// ServiceOptions defines the options for creating a new CREc DTA service.
+// ServiceOptions defines the options for creating a new CREC DTA service.
 //   - Logger: Optional logger instance.
 //   - DTAOpenMarketplaceAddress: A string representing the address of the DTA OpenMarketplace contract.
 //   - DTAWalletAddress: A string representing the address of the DTA Wallet contract.
@@ -35,9 +35,9 @@ type Service struct {
 	accountAddress            common.Address
 }
 
-// NewService creates a new CREc DTA service with the provided options.
+// NewService creates a new CREC DTA service with the provided options.
 // Returns a pointer to the Service and an error if any issues occur during initialization.
-//   - opts: Options for configuring the CREc DTA service, see ServiceOptions for details.
+//   - opts: Options for configuring the CREC DTA service, see ServiceOptions for details.
 func NewService(opts *ServiceOptions) (*Service, error) {
 	var logger *zerolog.Logger
 	if opts.Logger != nil {
@@ -47,7 +47,7 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 		logger = &nopLogger
 	}
 
-	logger.Info().Msg("Creating CREc DTA service")
+	logger.Info().Msg("Creating CREC DTA service")
 
 	return &Service{
 		logger:                    logger,
@@ -553,7 +553,7 @@ func (s *Service) PrepareDisableFundTokenOperation(fundTokenId [32]byte) (*trans
 	}, nil
 }
 
-// toJson decodes an encoded VerifiableEvent from a CREc event into a JSON byte slice.
+// toJson decodes an encoded VerifiableEvent from a CREC event into a JSON byte slice.
 func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
 	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
 	if err != nil {

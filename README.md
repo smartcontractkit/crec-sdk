@@ -62,7 +62,7 @@ The library also includes a number of [helper services](#services-helpers-for-co
 
 Before diving into the workflows, let's understand the key concepts:
 
-### CRE Connect (CREc)
+### CRE Connect (CREC)
 
 #####TODO: Correct this docs.
 The CREConnect is a decentralized network that provides cryptographic proof of event authenticity through consensus among Decentralized Oracle Network (DON) members.
@@ -98,7 +98,7 @@ graph LR
     subgraph CRE Connect
         B(DON Consensus)
         C(Event Signing)
-        D{CREc API}
+        D{CREC API}
     end
 
     subgraph Your Application
@@ -112,7 +112,7 @@ graph LR
 
 1. **Event Occurs:** A relevant event is emitted by a smart contract on the blockchain.
 2. **Consensus & Signing:** A Decentralized Oracle Network (DON) observes the event, comes to a consensus, and collectively signs it.
-3. **Fetch & Verify:** The `events` client fetches this signed event from the CREc API. It then cryptographically verifies that the signatures are authentic and from the trusted DON members.
+3. **Fetch & Verify:** The `events` client fetches this signed event from the CREC API. It then cryptographically verifies that the signatures are authentic and from the trusted DON members.
 4. **Trigger Your Logic:** Once verified, you can confidently use the event data to trigger your application's logic. For example, upon receiving a verified `PaymentReceived` event, an e-commerce platform could check its internal database and then use the `transact` client to trigger the on-chain delivery of the purchased digital asset.
 
 ### Workflow 2: Sending signed operations (gas-less)
@@ -130,7 +130,7 @@ graph LR
     end
 
     subgraph CRE Connect
-        D{CREc API}
+        D{CREC API}
         E[Pays Gas & Relays]
     end
 
@@ -143,7 +143,7 @@ graph LR
 ```
 
 1. **Build & Sign:** Your application constructs an `Operation`, which is a list of one or more transactions to be executed atomically. You then use the `transact` client to sign this operation with an authorized private key.
-2. **Send to CREc:** The library sends the signed operation to the CREc API.
+2. **Send to CREC:** The library sends the signed operation to the CREC API.
 3. **Relay & Execute:** The Chainlink network takes the operation, pays the necessary gas fees, and relays it to a designated onchain smart account for execution.
 4. **Operation Executed:** The smart account verifies the signature on the operation and executes the bundled transactions.
 
@@ -173,11 +173,11 @@ These guides walk through the most common use cases for CRELib.
 
 ### 🔍 Receiving and verifying events
 
-This guide shows you how to use the `events` client to fetch, verify, and decode verifiable events from the CREc.
+This guide shows you how to use the `events` client to fetch, verify, and decode verifiable events from the CREC.
 
 #### Step 1: Initialize the `events` client
 
-First, you need an `events.Client`. This requires an existing `client.CREcClient` to be supplied with a set of `ClientOptions`. The options are critical for defining your security parameters.
+First, you need an `events.Client`. This requires an existing `client.CRECClient` to be supplied with a set of `ClientOptions`. The options are critical for defining your security parameters.
 
 ```go
 import (
@@ -188,13 +188,13 @@ import (
     "github.com/smartcontractkit/crec-sdk/events"
 )
 
-// create a CREc client pointed to the CRE Connect URL and with your API key
-crecClient, _ := client.NewCREcClient(crecURL, crecApiKey)
+// create a CREC client pointed to the CRE Connect URL and with your API key
+crecClient, _ := client.NewCRECClient(crecURL, crecApiKey)
 
-// Create CREc events client with trusted signers
+// Create CREC events client with trusted signers
 crecEventsClient, _ := events.NewClient(
     &events.ClientOptions{
-		CREcClient: crecClient,
+		CRECClient: crecClient,
         MinRequiredSignatures: 3,
 
         // A list of the public addresses of the trusted DON members
@@ -210,12 +210,12 @@ crecEventsClient, _ := events.NewClient(
 )
 ```
 
-#### Step 2: Get events from the CREc
+#### Step 2: Get events from the CREC
 
 Use the `GetEvents` method to fetch a list of recent events. The client automatically tracks the last event you read, so you won't get duplicates on subsequent calls.
 
 ```go
-// Get a list of events from the CREc
+// Get a list of events from the CREC
 eventList, _ := crecEventsClient.GetEvents(context.Background())
 ```
 
@@ -244,11 +244,11 @@ for _, event := range eventList {
 
 ### ⚡ Sending a signed operation
 
-This guide shows you how to use the `transact` client to build an operation, sign it with a local private key, and send it to the CREc for gas-sponsored execution.
+This guide shows you how to use the `transact` client to build an operation, sign it with a local private key, and send it to the CREC for gas-sponsored execution.
 
 #### Step 1: Initialize the `transact` client
 
-First, create a `transact.Client`. It needs a `client.CREcClient` and the `ChainId` to be supplied with a set of `ClientOptions` for the network where the operation will be executed.
+First, create a `transact.Client`. It needs a `client.CRECClient` and the `ChainId` to be supplied with a set of `ClientOptions` for the network where the operation will be executed.
 
 ```go
 import (
@@ -263,13 +263,13 @@ import (
     transactTypes "github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// create a CREc client pointed to the CRE Connect URL and with your API key
-crecClient, _ := client.NewCREcClient(crecURL, crecApiKey)
+// create a CREC client pointed to the CRE Connect URL and with your API key
+crecClient, _ := client.NewCRECClient(crecURL, crecApiKey)
 
-// Create CREc transact client
+// Create CREC transact client
 crecTransactClient, _ = transact.NewClient(
     &transact.ClientOptions{
-		CREcClient: crecClient,
+		CRECClient: crecClient,
         ChainId: "1337", // The ID of the target blockchain
     },
 )
@@ -312,7 +312,7 @@ opHash, signature, _ := crecTransactClient.SignOperation(context.Background(), o
 
 #### Step 4: Send the signed `operation`
 
-Finally, send the `operation` and its `signature` to the CREc. The network will validate the request, pay the gas fee, and relay it to the blockchain for execution.
+Finally, send the `operation` and its `signature` to the CREC. The network will validate the request, pay the gas fee, and relay it to the blockchain for execution.
 
 ```go
 // Send the signed operation to the CRE Connect for relaying onchain
@@ -388,7 +388,7 @@ To view the complete code documentation for every function and type, you can run
 
    You can then explore the documentation for each package:
 
-   - [client](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/client/) - Main CREc client
+   - [client](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/client/) - Main CREC client
    - [events](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/events/) - Event processing
    - [transact](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/transact/) - Transaction operations
    - [services/dvp](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/dvp/) - DvP service
@@ -402,7 +402,7 @@ An example application using CRELib can be found in the [crec-example-payment-pr
 
 ### Core terms
 
-**CREc (CRE Connect)**: A decentralized network that provides cryptographic proof of blockchain event authenticity through consensus among DON members.
+**CREC (CRE Connect)**: A decentralized network that provides cryptographic proof of blockchain event authenticity through consensus among DON members.
 
 **DON (Decentralized Oracle Network)**: A network of independent nodes that observe blockchain events, reach consensus, and collectively sign verifiable events.
 

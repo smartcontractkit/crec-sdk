@@ -1,6 +1,6 @@
-# CREc SDK Signers
+# CREC SDK Signers
 
-This package provides signing interfaces for the CREc SDK, allowing you to sign operations using different key management strategies. Currently, four signers are available: `LocalSigner` for local private key management, `TransitSigner` for HashiCorp Vault Transit secrets engine integration, `KMSSigner` for AWS Key Management Service integration, and `PrivySigner` for Privy's wallet-as-a-service platform.
+This package provides signing interfaces for the CREC SDK, allowing you to sign operations using different key management strategies. Currently, four signers are available: `LocalSigner` for local private key management, `TransitSigner` for HashiCorp Vault Transit secrets engine integration, `KMSSigner` for AWS Key Management Service integration, and `PrivySigner` for Privy's wallet-as-a-service platform.
 
 ## Table of Contents
 
@@ -186,7 +186,7 @@ func main() {
 }
 ```
 
-### Integration with CREc Transact Client
+### Integration with CREC Transact Client
 
 ```go
 package main
@@ -201,8 +201,8 @@ import (
 )
 
 func main() {
-    // Create CREc client
-    crecClient, err := client.NewCREcClient("https://api.example.com", "api-key")
+    // Create CREC client
+    crecClient, err := client.NewCRECClient("https://api.example.com", "api-key")
     if err != nil {
         panic(err)
     }
@@ -256,7 +256,7 @@ func main() {
 
 ## Key Creation
 
-The CREc SDK provides functionality to create cryptographic keys directly in Vault Transit secrets engine, with automatic extraction of RSA public key modulus.
+The CREC SDK provides functionality to create cryptographic keys directly in Vault Transit secrets engine, with automatic extraction of RSA public key modulus.
 
 ### Creating Keys with TransitSigner
 
@@ -589,7 +589,7 @@ The test suite includes:
 
 9. **Integration Test** (`TestSignOperationWithVaultTransit`)
    - Full end-to-end workflow
-   - CREc client + Transact client + Vault signer
+   - CREC client + Transact client + Vault signer
    - Real operation signing and cryptographic verification
 
 ### Test Architecture
