@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 
-	apiClient "github.com/smartcontractkit/cvn-api-go/client"
-	"github.com/smartcontractkit/cvn-api-go/services/dta/gen/dtarequestmanagement"
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
+	"github.com/smartcontractkit/crec-api-go/services/dta/gen/dtarequestmanagement"
 )
 
 func TestNewService(t *testing.T) {

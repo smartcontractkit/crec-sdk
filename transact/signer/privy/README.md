@@ -1,4 +1,3 @@
-
 ## Privy Signer
 
 The Privy signer integrates with Privy's wallet-as-a-service platform to provide secure signing operations using managed wallets. It uses Privy's [`personal_sign`](https://docs.privy.io/api-reference/wallets/ethereum/personal-sign) method for Ethereum-compatible message signing.
@@ -13,7 +12,7 @@ package main
 import (
     "context"
     "github.com/ethereum/go-ethereum/crypto"
-    "github.com/smartcontractkit/cvn-sdk/transact/signer/privy"
+    "github.com/smartcontractkit/crec-sdk/transact/signer/privy"
 )
 
 // Environment Variables
@@ -33,14 +32,14 @@ func main() {
     // Create signer with explicit parameters
     // signer, err := privy.NewSigner(
     //     "your-app-id",
-    //     "your-app-secret", 
+    //     "your-app-secret",
     //     "your-wallet-id",
     //     "https://api.privy.io",
     // )
     // if err != nil {
     //     panic(err)
     // }
-    
+
     // Sign data
     ctx := context.Background()
     hash := crypto.Keccak256([]byte("hello world"))
@@ -48,6 +47,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    
+
     // Use signature...
 }
+```

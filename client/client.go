@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net/http"
 
-	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
 
-// ClientOptions defines the options for creating a new CVN client used to interact with the CVN API.
-//   - BaseURL: The base URL of the CVN API.
-//   - ApiKey: The API key for authenticating with the CVN API.
+// ClientOptions defines the options for creating a new CREC client used to interact with the CREC API.
+//   - BaseURL: The base URL of the CREC API.
+//   - ApiKey: The API key for authenticating with the CREC API.
 //   - HttpClient: The custom HTTP client to use for making requests. If nil, the default HTTP client is used.
 type ClientOptions struct {
 	BaseURL    string
@@ -18,12 +18,12 @@ type ClientOptions struct {
 	HTTPClient *http.Client // Optional custom HTTP client
 }
 
-// CVNClient is a client for the CVN API.
-type CVNClient = apiClient.ClientWithResponses
+// CRECClient is a client for the CREC API.
+type CRECClient = apiClient.ClientWithResponses
 
-// NewCVNClient creates a new CVN client with the given options.
-//   - opts: Options for configuring the CVN client, see ClientOptions for details.
-func NewCVNClient(opts *ClientOptions) (*CVNClient, error) {
+// NewCRECClient creates a new CREC client with the given options.
+//   - opts: Options for configuring the CREC client, see ClientOptions for details.
+func NewCRECClient(opts *ClientOptions) (*CRECClient, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("ClientOptions is required")
 	}

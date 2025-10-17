@@ -239,15 +239,15 @@ import (
     "context"
     "log"
 
-    "github.com/smartcontractkit/cvn-sdk/client"
-    "github.com/smartcontractkit/cvn-sdk/events"
-    "github.com/smartcontractkit/cvn-sdk/transact"
-    "github.com/smartcontractkit/cvn-sdk/transact/signer"
-    "github.com/smartcontractkit/cvn-sdk/services/dvp"
+    "github.com/smartcontractkit/crec-sdk/client"
+    "github.com/smartcontractkit/crec-sdk/events"
+    "github.com/smartcontractkit/crec-sdk/transact"
+    "github.com/smartcontractkit/crec-sdk/transact/signer"
+    "github.com/smartcontractkit/crec-sdk/services/dvp"
 )
 
-// 1. Initialize the CVN Client to connect to the Chainlink Verifiable Network
-cvnClient, _ := client.NewCVNClient(cvnURL)
+// 1. Initialize the CREC Client to connect to the Chainlink Verifiable Network
+crecClient, _ := client.NewCRECClient(crecURL)
 
 // 2. Create a DVP Service instance. This service is the main entry point for
 // interacting with the DvP protocol. It helps create and format operations.
@@ -260,16 +260,16 @@ dvpService, _ := dvp.NewService(
     },
 )
 
-// 3. Create an Events Client to listen for verified onchain events from the CVN.
+// 3. Create an Events Client to listen for verified onchain events from the CREC.
 // This is used to reliably track the state of a settlement.
-cvnEventsClient, _ := events.NewClient(cvnClient, &events.ClientOptions{
+crecEventsClient, _ := events.NewClient(crecClient, &events.ClientOptions{
     MinRequiredSignatures: 3,
-    ValidSigners: []string{ /* ... trusted CVN signer addresses ... */ },
+    ValidSigners: []string{ /* ... trusted CREC signer addresses ... */ },
 })
 
-// 4. Create a Transact Client to send signed operations to the CVN.
-// The CVN will then relay the transaction to the blockchain for execution.
-cvnTransactClient, _ := transact.NewClient(cvnClient, &transact.ClientOptions{
+// 4. Create a Transact Client to send signed operations to the CREC.
+// The CREC will then relay the transaction to the blockchain for execution.
+crecTransactClient, _ := transact.NewClient(crecClient, &transact.ClientOptions{
     ChainId: "1337", // The chain ID where the execution will happen
 })
 
@@ -284,17 +284,17 @@ operationSigner := signer.NewLocalSigner(privateKey)
 Now, let's process an event and execute the settlement.
 
 ```go
-// 1. Fetch and verify an event from the CVN
-eventList, _ := cvnEventsClient.GetEvents(context.Background())
+// 1. Fetch and verify an event from the CREC
+eventList, _ := crecEventsClient.GetEvents(context.Background())
 if len(eventList) == 0 {
     log.Println("No events found.")
     return
 }
 event := eventList[0]
 
-// The CVN Events client verifies the cryptographic signatures on the event,
+// The CREC Events client verifies the cryptographic signatures on the event,
 // ensuring it is authentic and was emitted by the trusted DvP contract.
-verified, _ := cvnEventsClient.Verify(event)
+verified, _ := crecEventsClient.Verify(event)
 if !verified {
     log.Println("Event verification failed.")
     return
@@ -319,10 +319,10 @@ if event.Service == "dvp" && event.Name == "SettlementAccepted" {
 
     // 5. Sign the operation with our executor's key. This signature authorizes
     // the smart account to execute the operation.
-    signature, _ := cvnTransactClient.SignOperation(operation, operationSigner)
+    signature, _ := crecTransactClient.SignOperation(operation, operationSigner)
 
-    // 6. Send the signed operation to the CVN to be relayed onchain
-    txHash, _ := cvnTransactClient.SendSignedOperation(context.Background(), operation, signature)
+    // 6. Send the signed operation to the CREC to be relayed onchain
+    txHash, _ := crecTransactClient.SendSignedOperation(context.Background(), operation, signature)
 
     log.Println("Settlement execution sent! Transaction hash:", txHash)
 }

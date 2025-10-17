@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
 
 func LoadMockEvent(filename string) (*apiClient.Event, error) {

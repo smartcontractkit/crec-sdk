@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 
-	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
 
 func TestNewService(t *testing.T) {

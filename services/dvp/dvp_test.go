@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/cvn-api-go/services/dvp/gen/contract"
+	"github.com/smartcontractkit/crec-api-go/services/dvp/gen/contract"
 )
 
 func TestHashSettlement(t *testing.T) {

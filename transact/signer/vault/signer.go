@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	vault "github.com/hashicorp/vault/api"
-	"github.com/smartcontractkit/cvn-sdk/transact/signer"
+	"github.com/smartcontractkit/crec-sdk/transact/signer"
 )
 
 var _ signer.Signer = &Signer{}

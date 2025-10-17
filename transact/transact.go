@@ -15,33 +15,33 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
-	apiClient "github.com/smartcontractkit/cvn-api-go/client"
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
-	"github.com/smartcontractkit/cvn-sdk/client"
-	"github.com/smartcontractkit/cvn-sdk/transact/signer"
-	"github.com/smartcontractkit/cvn-sdk/transact/types"
+	"github.com/smartcontractkit/crec-sdk/client"
+	"github.com/smartcontractkit/crec-sdk/transact/signer"
+	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// ClientOptions defines the options for creating a new CVN transact client used to send operations to the CVN system.
+// ClientOptions defines the options for creating a new CREC transact client used to send operations to the CREC system.
 // It includes a logger for logging messages and a chain ID for the blockchain network.
 //   - Logger: Optional logger instance.
-//   - CVNClient: A client instance for interacting with the CVN system, nil for no direct CVN interaction.
+//   - CRECClient: A client instance for interacting with the CREC system, nil for no direct CREC interaction.
 //   - ChainId: A string representing the chain ID of the blockchain network.
 type ClientOptions struct {
-	Logger    *zerolog.Logger
-	CVNClient *client.CVNClient
-	ChainId   string
+	Logger     *zerolog.Logger
+	CRECClient *client.CRECClient
+	ChainId    string
 }
 
 type Client struct {
-	logger    *zerolog.Logger
-	cvnClient *client.CVNClient
-	chainId   string
+	logger     *zerolog.Logger
+	crecClient *client.CRECClient
+	chainId    string
 }
 
-// NewClient creates a new CVN transact client with the provided CVN client and options.
+// NewClient creates a new CREC transact client with the provided CREC client and options.
 // Returns a pointer to the Client and an error if any issues occur during initialization.
-//   - opts: Options for configuring the CVN transact client, see ClientOptions for details.
+//   - opts: Options for configuring the CREC transact client, see ClientOptions for details.
 func NewClient(opts *ClientOptions) (*Client, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("ClientOptions is required")
@@ -53,12 +53,12 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 		logger = &lgr
 	}
 
-	logger.Debug().Msg("Creating CVN transact client")
+	logger.Debug().Msg("Creating CREC transact client")
 
 	return &Client{
-		logger:    logger,
-		cvnClient: opts.CVNClient,
-		chainId:   opts.ChainId,
+		logger:     logger,
+		crecClient: opts.CRECClient,
+		chainId:    opts.ChainId,
 	}, nil
 }
 
@@ -127,7 +127,7 @@ func (t *Client) SignOperationHash(
 	return sig, nil
 }
 
-// SendSignedOperation sends a signed operation to the CVN system.
+// SendSignedOperation sends a signed operation to the CREC system.
 //   - ctx: The context for the request.
 //   - op: The operation to send, which must be signed.
 //   - signature: The signature of the operation, to be verified by the onchain smart account.
@@ -136,8 +136,8 @@ func (t *Client) SendSignedOperation(
 	op *types.Operation,
 	signature []byte,
 ) (*apiClient.Operation, error) {
-	if t.cvnClient == nil {
-		return nil, errors.New("no CVNClient provided, cannot send signed operations")
+	if t.crecClient == nil {
+		return nil, errors.New("no CRECClient provided, cannot send signed operations")
 	}
 
 	t.logger.Debug().
@@ -176,7 +176,7 @@ func (t *Client) SendSignedOperation(
 		}
 	}
 
-	resp, err := t.cvnClient.PostOperationsWithResponse(ctx, requestData)
+	resp, err := t.crecClient.PostOperationsWithResponse(ctx, requestData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send signed operation: %w", err)
 	}
@@ -197,13 +197,13 @@ func (t *Client) SendSignedOperation(
 	return resp.JSON201, nil
 }
 
-// GetOperation retrieves an operation by its ID from the CVN service.
+// GetOperation retrieves an operation by its ID from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - operationId: The UUID of the operation to retrieve.
 func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*apiClient.Operation, error) {
 	t.logger.Trace().Msg("Getting operation")
 
-	resp, err := t.cvnClient.GetOperationsOperationIdWithResponse(ctx, operationId)
+	resp, err := t.crecClient.GetOperationsOperationIdWithResponse(ctx, operationId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operation id %v: %w", operationId, err)
 	}
@@ -217,24 +217,24 @@ func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*apiC
 	return resp.JSON200, nil
 }
 
-// GetOperations retrieves a list of operations from the CVN service.
+// GetOperations retrieves a list of operations from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 func (t *Client) GetOperations(ctx context.Context, params *apiClient.GetOperationsParams) (
 	[]apiClient.Operation, error,
 ) {
-	t.logger.Trace().Msg("Getting operations from CVN")
+	t.logger.Trace().Msg("Getting operations from CREC")
 
-	resp, err := t.cvnClient.GetOperationsWithResponse(ctx, params)
+	resp, err := t.crecClient.GetOperationsWithResponse(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get operations from CVN: %w", err)
+		return nil, fmt.Errorf("failed to get operations from CREC: %w", err)
 	}
 
 	if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get operations from CVN, unexpected status code: %d", resp.StatusCode())
+		return nil, fmt.Errorf("failed to get operations from CREC, unexpected status code: %d", resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("invalid operations response from CVN")
+		return nil, fmt.Errorf("invalid operations response from CREC")
 	}
 
 	return resp.JSON200.Data, nil

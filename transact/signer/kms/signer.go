@@ -19,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/pkg/errors"
-	"github.com/smartcontractkit/cvn-sdk/transact/signer"
+	"github.com/smartcontractkit/crec-sdk/transact/signer"
 )
 
 var _ signer.Signer = &Signer{}

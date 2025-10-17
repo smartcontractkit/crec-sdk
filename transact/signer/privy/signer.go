@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/smartcontractkit/cvn-sdk/transact/signer"
+	"github.com/smartcontractkit/crec-sdk/transact/signer"
 )
 
 var _ signer.Signer = &Signer{}

@@ -11,9 +11,9 @@ import (
 	"github.com/google/uuid"
 	openapiTypes "github.com/oapi-codegen/runtime/types"
 
-	"github.com/smartcontractkit/cvn-api-go/stdserver"
+	"github.com/smartcontractkit/crec-api-go/stdserver"
 
-	"github.com/smartcontractkit/cvn-sdk/mocks/events"
+	"github.com/smartcontractkit/crec-sdk/mocks/events"
 )
 
 type MockServer struct {
