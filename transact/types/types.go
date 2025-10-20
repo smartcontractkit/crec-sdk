@@ -126,7 +126,7 @@ func SignatureVerifyingAccountEIP712Domain(chainId uint64, account common.Addres
 	return &EIP712Domain{
 		Name:              EIP712DomainName,
 		Version:           EIP712DomainVersion,
-		ChainId:           big.NewInt(int64(chainId)),
+		ChainId:           new(big.Int).SetUint64(chainId),
 		VerifyingContract: account,
 	}
 }
