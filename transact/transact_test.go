@@ -46,7 +46,6 @@ func TestHashOperation(t *testing.T) {
 	transact, err := NewClient(
 		&ClientOptions{
 			CRECClient: c,
-			ChainId:    chainId,
 		},
 	)
 	require.NoError(t, err)
@@ -63,7 +62,7 @@ func TestHashOperation(t *testing.T) {
 		},
 	}
 
-	hash, err := transact.HashOperation(operation)
+	hash, err := transact.HashOperation(operation, chainId)
 	if err != nil {
 		t.Fatalf("Failed to hash operation: %v", err)
 	}
@@ -91,7 +90,6 @@ func TestSignOperation(t *testing.T) {
 	transact, err := NewClient(
 		&ClientOptions{
 			CRECClient: c,
-			ChainId:    chainId,
 		},
 	)
 	require.NoError(t, err)
@@ -112,7 +110,7 @@ func TestSignOperation(t *testing.T) {
 	require.NoError(t, err)
 
 	localSigner := local.NewSigner(privateKey)
-	opHash, sig, err := transact.SignOperation(context.Background(), operation, localSigner)
+	opHash, sig, err := transact.SignOperation(context.Background(), operation, localSigner, chainId)
 	require.NoError(t, err)
 
 	// check for pre-computed signature for the operation based on the above to/account and private key
@@ -198,7 +196,6 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	transact, err := NewClient(
 		&ClientOptions{
 			CRECClient: c,
-			ChainId:    chainId,
 		},
 	)
 	require.NoError(t, err)
@@ -225,7 +222,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test signing the operation
-	_, sig, err := transact.SignOperation(context.Background(), operation, vaultSigner)
+	_, sig, err := transact.SignOperation(context.Background(), operation, vaultSigner, chainId)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig)
 
@@ -246,7 +243,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NotNil(t, rsaPubKey)
 
 	// Get the operation hash for verification
-	operationHash, err := transact.HashOperation(operation)
+	operationHash, err := transact.HashOperation(operation, chainId)
 	require.NoError(t, err)
 
 	// Verify the signature using the public key
@@ -254,7 +251,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err, "Vault signature should be valid")
 
 	// Test that we can sign the same operation multiple times
-	opHash, sig2, err := transact.SignOperation(context.Background(), operation, vaultSigner)
+	opHash, sig2, err := transact.SignOperation(context.Background(), operation, vaultSigner, chainId)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig2)
 

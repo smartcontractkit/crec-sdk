@@ -26,17 +26,14 @@ import (
 // It includes a logger for logging messages and a chain ID for the blockchain network.
 //   - Logger: Optional logger instance.
 //   - CRECClient: A client instance for interacting with the CREC system, nil for no direct CREC interaction.
-//   - ChainId: A string representing the chain ID of the blockchain network.
 type ClientOptions struct {
 	Logger     *zerolog.Logger
 	CRECClient *client.CRECClient
-	ChainId    string
 }
 
 type Client struct {
 	logger     *zerolog.Logger
 	crecClient *client.CRECClient
-	chainId    string
 }
 
 // NewClient creates a new CREC transact client with the provided CREC client and options.
@@ -58,14 +55,14 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 	return &Client{
 		logger:     logger,
 		crecClient: opts.CRECClient,
-		chainId:    opts.ChainId,
 	}, nil
 }
 
 // HashOperation computes the EIP-712 digest of the given operation.
 //   - op: The operation to hash.
-func (t *Client) HashOperation(op *types.Operation) (common.Hash, error) {
-	chainIdInt, err := strconv.ParseUint(t.chainId, 10, 64)
+//   - chainId: The chain ID of the blockchain network in which the operation is being executed.
+func (t *Client) HashOperation(op *types.Operation, chainId string) (common.Hash, error) {
+	chainIdInt, err := strconv.ParseUint(chainId, 10, 64)
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("failed to parse chain ID: %w", err)
 	}
@@ -90,8 +87,9 @@ func (t *Client) SignOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signer signer.Signer,
+	chainId string,
 ) (common.Hash, []byte, error) {
-	hash, err := t.HashOperation(op)
+	hash, err := t.HashOperation(op, chainId)
 	if err != nil {
 		return common.Hash{}, nil, fmt.Errorf("failed to hash operation: %w", err)
 	}
@@ -100,6 +98,7 @@ func (t *Client) SignOperation(
 		return common.Hash{}, nil, fmt.Errorf("failed to sign operation: %w", err)
 	}
 	t.logger.Debug().
+		Str("chain_id", chainId).
 		Str("operation_id", op.ID.String()).
 		Str("hash", hash.Hex()).
 		Str("signature", common.Bytes2Hex(sig)).
@@ -131,17 +130,19 @@ func (t *Client) SignOperationHash(
 //   - ctx: The context for the request.
 //   - op: The operation to send, which must be signed.
 //   - signature: The signature of the operation, to be verified by the onchain smart account.
+//   - chainId: The chain ID of the blockchain network in which the operation is being executed.
 func (t *Client) SendSignedOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signature []byte,
+	chainId string,
 ) (*apiClient.Operation, error) {
 	if t.crecClient == nil {
 		return nil, errors.New("no CRECClient provided, cannot send signed operations")
 	}
 
 	t.logger.Debug().
-		Str("chain_id", t.chainId).
+		Str("chain_id", chainId).
 		Str("operation_id", op.ID.String()).
 		Str("signature", common.Bytes2Hex(signature)).
 		Msg("Sending signed operation")
@@ -159,7 +160,7 @@ func (t *Client) SendSignedOperation(
 
 	var requestData = apiClient.CreateOperation{
 		AccountOperationId: op.ID.String(),
-		ChainId:            t.chainId,
+		ChainId:            chainId,
 		AccountAddress:     op.Account.String(),
 		Transactions:       transactions,
 		Signature:          "0x" + common.Bytes2Hex(signature),
@@ -240,8 +241,19 @@ func (t *Client) GetOperations(ctx context.Context, params *apiClient.GetOperati
 	return resp.JSON200.Data, nil
 }
 
+// ExecuteTransactions executes a list of transactions using the provided signer and executor account.
+// It bundles the transactions into an operation and executes it.
+//   - ctx: The context for the request.
+//   - operationSigner: The signer to use for signing the operation.
+//   - executorAccount: The account to use for executing the operation.
+//   - txs: The transactions to execute.
+//   - chainId: The chain ID of the blockchain network in which the transactions are being executed.
 func (t *Client) ExecuteTransactions(
-	ctx context.Context, operationSigner signer.Signer, executorAccount common.Address, txs []types.Transaction,
+	ctx context.Context,
+	operationSigner signer.Signer,
+	executorAccount common.Address,
+	txs []types.Transaction,
+	chainId string,
 ) (*apiClient.Operation, error) {
 	operation := &types.Operation{
 		ID:           big.NewInt(time.Now().Unix()),
@@ -249,23 +261,24 @@ func (t *Client) ExecuteTransactions(
 		Transactions: txs,
 	}
 
-	return t.ExecuteOperation(ctx, operationSigner, operation)
+	return t.ExecuteOperation(ctx, operationSigner, operation, chainId)
 }
 
 func (t *Client) ExecuteOperation(
-	ctx context.Context, operationSigner signer.Signer, operation *types.Operation,
+	ctx context.Context, operationSigner signer.Signer, operation *types.Operation, chainId string,
 ) (*apiClient.Operation, error) {
-	_, sig, err := t.SignOperation(ctx, operation, operationSigner)
+	_, sig, err := t.SignOperation(ctx, operation, operationSigner, chainId)
 	if err != nil {
 		return nil, err
 	}
 
-	opr, err := t.SendSignedOperation(ctx, operation, sig)
+	opr, err := t.SendSignedOperation(ctx, operation, sig, chainId)
 	if err != nil {
 		return nil, err
 	}
 
 	t.logger.Debug().
+		Str("chainID", chainId).
 		Str("operationID", operation.ID.String()).
 		Str("account", operation.Account.Hex()).
 		Msg("ExecuteOperation: operation sent successfully")
