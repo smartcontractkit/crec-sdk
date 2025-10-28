@@ -157,6 +157,28 @@ func TestService_CreateChannel(t *testing.T) {
 		assert.Contains(t, err.Error(), "channel name is required")
 	})
 
+	t.Run("NameTooLong", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with name too long")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		longName := make([]byte, MaxChannelNameLength+1)
+		for i := range longName {
+			longName[i] = 'a'
+		}
+
+		channel, err := service.CreateChannel(context.Background(), CreateChannelInput{
+			Name: string(longName),
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, channel)
+		assert.Contains(t, err.Error(), "cannot exceed 255 characters")
+	})
+
 	t.Run("BadRequest", func(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
