@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	ServiceName = "channels"
+	ServiceName          = "channels"
+	MaxChannelNameLength = 255
 )
 
 // ServiceOptions defines the options for creating a new CREC Channels service.
@@ -79,6 +80,10 @@ func (s *Service) CreateChannel(ctx context.Context, input CreateChannelInput) (
 
 	if input.Name == "" {
 		return nil, fmt.Errorf("channel name is required")
+	}
+
+	if len(input.Name) > MaxChannelNameLength {
+		return nil, fmt.Errorf("channel name cannot exceed %d characters", MaxChannelNameLength)
 	}
 
 	createChannelReq := apiClient.CreateChannel{
