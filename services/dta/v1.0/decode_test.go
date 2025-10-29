@@ -24,25 +24,36 @@ func TestDecodeSimple(t *testing.T) {
 
 	validVerifiableEvent := VerifiableEvent{
 		CreatedAt: time.Now(),
-		Event: struct {
-			Type      string "json:\"type\""
-			Name      string "json:\"name\""
-			Address   string "json:\"address\""
-			RequestId string "json:\"requestId\""
-			TopicHash string "json:\"topicHash\""
-		}{
-			Type:      "exampleType",
-			Name:      "exampleName",
-			Address:   "exampleAddress",
-			RequestId: "exampleRequestId",
-			TopicHash: "exampleTopicHash",
+		Event: Event{
+			Name:     "exampleName",
+			Address:  "exampleAddress",
+			Service:  "dta",
+			LogIndex: 1,
+			Parameters: map[string]string{
+				"distributor_addr": "exampleAddress",
+			},
+			TopicHash:   "exampleTopicHash",
+			BlockNumber: 12345,
 		},
 		Metadata: Metadata{
-			WorkflowEvent: WorkflowEvent{Attributes: map[string]Attribute{
-				"event_type":       {Value: EventDistributorRegistered.String()},
-				"request_id":       {Value: "exampleRequestId"},
-				"distributor_addr": {Value: "exampleAddress"},
-			}},
+			WorkflowEvent: WorkflowEvent{
+				Component: "event-listener-dta",
+				Attributes: map[string]Attribute{
+					"event_type":       {Value: EventDistributorRegistered.String()},
+					"distributor_addr": {Value: "exampleAddress"},
+				},
+				ProcessLabels:  []string{"dta"},
+				EventTypeLabel: EventDistributorRegistered.String(),
+			},
+		},
+		Parameters: map[string]string{
+			"distributor_addr": "exampleAddress",
+		},
+		Transaction: Transaction{
+			Hash:        "0xexampleHash",
+			ChainId:     "1337",
+			Timestamp:   1234567890,
+			BlockNumber: 12345,
 		},
 	}
 
@@ -100,14 +111,19 @@ func TestDecodeSimple(t *testing.T) {
 	}
 }
 
-// helper to build a verifiable event envelope with attributes
+// helper to build a verifiable event envelope with parameters
 func buildEnvelope(attrs map[string]string, overrideEventName string) VerifiableEvent {
 	ve := VerifiableEvent{}
 	ve.CreatedAt = time.Unix(0, 0)
 	// set outer event name for fallback logic
 	ve.Event.Name = overrideEventName
+	ve.Event.Parameters = make(map[string]string)
+	ve.Parameters = make(map[string]string)
 	ve.Metadata.WorkflowEvent.Attributes = make(Attrs)
 	for k, v := range attrs {
+		// Populate Event.Parameters, Parameters, and Attributes for compatibility
+		ve.Event.Parameters[k] = v
+		ve.Parameters[k] = v
 		ve.Metadata.WorkflowEvent.Attributes[k] = Attribute{Key: k, Value: v}
 	}
 	return ve
@@ -292,6 +308,38 @@ func TestParseScientificNotationToBigInt(t *testing.T) {
 			wantOk:   true,
 		},
 
+		// Decimal numbers without scientific notation
+		{
+			name:     "Decimal number with zeros",
+			input:    "600000000000000000000.000000",
+			expected: "600000000000000000000",
+			wantOk:   true,
+		},
+		{
+			name:     "Simple decimal number with non-zero fractional part",
+			input:    "123.456",
+			expected: "",
+			wantOk:   false, // Should fail because fractional part is not all zeros
+		},
+		{
+			name:     "Decimal number with integer zero but non-zero fractional part",
+			input:    "0.123456",
+			expected: "",
+			wantOk:   false, // Should fail because fractional part is not all zeros
+		},
+		{
+			name:     "Large decimal number with non-zero fractional part",
+			input:    "999999999999999999999.999999999",
+			expected: "",
+			wantOk:   false, // Should fail because fractional part is not all zeros
+		},
+		{
+			name:     "Decimal with single digit",
+			input:    "5.0",
+			expected: "5",
+			wantOk:   true,
+		},
+
 		// Invalid inputs
 		{
 			name:     "Invalid format",
@@ -369,6 +417,20 @@ func TestScientificNotationInEventParsing(t *testing.T) {
 			sharesValue:            "3.14159e+20",
 			expectedAmountOrShares: "314159000000000000000",
 			expectError:            false,
+		},
+		{
+			name:                   "SubscriptionRequested with decimal amount (issue case)",
+			eventType:              EventSubscriptionRequested.String(),
+			amountValue:            "600000000000000000000.000000",
+			expectedAmountOrShares: "600000000000000000000",
+			expectError:            false,
+		},
+		{
+			name:                   "SubscriptionRequested with simple decimal (non-zero fractional)",
+			eventType:              EventSubscriptionRequested.String(),
+			amountValue:            "123.456",
+			expectedAmountOrShares: "",
+			expectError:            true, // Should error because fractional part is not all zeros
 		},
 		{
 			name:        "SubscriptionRequested with invalid scientific notation",
