@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,34 +11,30 @@ import (
 	openapiTypes "github.com/oapi-codegen/runtime/types"
 
 	"github.com/smartcontractkit/crec-api-go/stdserver"
-
-	"github.com/smartcontractkit/crec-sdk/mocks/events"
 )
 
 type MockServer struct {
 	TestServer *httptest.Server
-	eventsFile string
 
-	// simple in-memory accounts store for the mock
-	accounts []stdserver.Account
+	// simple in-memory stores for the mock
+	accounts   []stdserver.Account
+	channels   []stdserver.Channel
+	operations []stdserver.Operation
 }
 
 var _ stdserver.ServerInterface = (*MockServer)(nil)
 
 func NewMockServer() *MockServer {
 	s := &MockServer{
-		eventsFile: "event_list.json",
 		accounts:   make([]stdserver.Account, 0),
+		channels:   make([]stdserver.Channel, 0),
+		operations: make([]stdserver.Operation, 0),
 	}
 	r := http.NewServeMux()
 	h := stdserver.HandlerFromMux(s, r)
 
 	s.TestServer = httptest.NewServer(h)
 	return s
-}
-
-func (s *MockServer) SetEventsResponse(filename string) {
-	s.eventsFile = filename
 }
 
 func (s *MockServer) Close() {
@@ -58,147 +53,187 @@ func (s *MockServer) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func (s *MockServer) PostListeners(w http.ResponseWriter, r *http.Request) {
-	var createListenerReq stdserver.CreateListener
-	err := json.NewDecoder(r.Body).Decode(&createListenerReq)
-	if err != nil {
+// ============================================================================
+// CHANNELS ENDPOINTS
+// ============================================================================
+
+func (s *MockServer) PostChannels(w http.ResponseWriter, r *http.Request) {
+	var request stdserver.CreateChannel
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	listenerId, err := uuid.NewUUID()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	channelId := uuid.New()
+	now := time.Now().Unix()
+	channel := stdserver.Channel{
+		ChannelId: channelId,
+		Name:      request.Name,
+		CreatedAt: now,
+	}
+	s.channels = append(s.channels, channel)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(channel)
+}
+
+func (s *MockServer) GetChannels(w http.ResponseWriter, r *http.Request, params stdserver.GetChannelsParams) {
+	limit := 20
+	offset := 0
+	if params.Limit != nil && *params.Limit > 0 {
+		limit = *params.Limit
+	}
+	if params.Offset != nil && *params.Offset >= 0 {
+		offset = *params.Offset
+	}
+
+	filteredChannels := s.channels
+	if params.Name != nil && *params.Name != "" {
+		filtered := []stdserver.Channel{}
+		for _, ch := range s.channels {
+			if ch.Name == *params.Name {
+				filtered = append(filtered, ch)
+			}
+		}
+		filteredChannels = filtered
+	}
+
+	end := offset + limit
+	if end > len(filteredChannels) {
+		end = len(filteredChannels)
+	}
+	data := []stdserver.Channel{}
+	if offset < len(filteredChannels) {
+		data = filteredChannels[offset:end]
+	}
+	hasMore := end < len(filteredChannels)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stdserver.ChannelList{Data: data, HasMore: hasMore})
+}
+
+func (s *MockServer) GetChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	for _, ch := range s.channels {
+		if ch.ChannelId == channelId {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(ch)
+			return
+		}
+	}
+	http.Error(w, "channel not found", http.StatusNotFound)
+}
+
+func (s *MockServer) DeleteChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	for _, ch := range s.channels {
+		if ch.ChannelId == channelId {
+			// Just mark as accepted - in a real implementation would set deleted_at
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+	}
+	http.Error(w, "channel not found", http.StatusNotFound)
+}
+
+// ============================================================================
+// OPERATIONS ENDPOINTS (under channels)
+// ============================================================================
+
+func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	var request stdserver.CreateOperation
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	listener := stdserver.Listener{
-		ListenerId: listenerId,
-		Service:    createListenerReq.Service,
-		Name:       createListenerReq.Name,
-		ChainId:    createListenerReq.ChainId,
-		Address:    createListenerReq.Address,
-		CreatedAt:  time.Now().Unix(),
-		Status:     "active",
-	}
-
+	operationId := uuid.New()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(listener)
+	_ = json.NewEncoder(w).Encode(stdserver.OperationResponse{
+		OperationId: operationId,
+	})
 }
 
-func (s *MockServer) GetListeners(w http.ResponseWriter, r *http.Request, params stdserver.GetListenersParams) {
-	w.Header().Set("Content-Type", "application/json")
-	// spec returns 200 for GET /listeners
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(
-		stdserver.ListenerList{
-			Data:    []stdserver.Listener{},
-			HasMore: false,
-		},
-	)
-}
-
-func (s *MockServer) GetListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapiTypes.UUID) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(
-		stdserver.Listener{
-			ListenerId: listenerId,
-			Service:    "dvp",
-			Name:       "SettlementAccepted",
-			ChainId:    "1337",
-			Address:    "0x1234567890abcdef1234567890abcdef12345678",
-			Status:     "active",
-		},
-	)
-}
-
-func (s *MockServer) DeleteListenersListenerId(w http.ResponseWriter, r *http.Request, listenerId openapiTypes.UUID) {
-	w.WriteHeader(http.StatusAccepted)
-}
-
-func (s *MockServer) PostEvents(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusCreated)
-}
-
-func (s *MockServer) GetEvents(w http.ResponseWriter, r *http.Request, params stdserver.GetEventsParams) {
-	var eventResponse stdserver.EventList
-	err := events.LoadJson(s.eventsFile, &eventResponse)
-	if err != nil {
-		log.Fatalf("Failed to load event data: %v", err)
+func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdOperationsParams) {
+	limit := 20
+	offset := 0
+	if params.Limit != nil && *params.Limit > 0 {
+		limit = *params.Limit
+	}
+	if params.Offset != nil && *params.Offset >= 0 {
+		offset = *params.Offset
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(eventResponse)
-}
-
-func (s *MockServer) GetEventsEventId(w http.ResponseWriter, r *http.Request, eventId openapiTypes.UUID) {
-	// For test purposes, return a minimal event with the requested id.
-	now := time.Now().Unix()
-	ev := stdserver.Event{
-		EventId:    eventId,
-		CreatedAt:  now,
-		ListenerId: uuid.New(),
-		Service:    "dvp",
-		Name:       "SettlementAccepted",
-		ChainId:    "1337",
-		Address:    "0x1234567890abcdef1234567890abcdef12345678",
-		OcrReport:  "0x01",
-		OcrContext: "0x01",
-		// Empty but valid shape; unit tests which call this only assert ID equality.
-		VerifiableEvent: "e30=", // "{}" base64
-		Signatures:      []string{},
+	filteredOps := []stdserver.Operation{}
+	for _, op := range s.operations {
+		filteredOps = append(filteredOps, op)
 	}
+
+	end := offset + limit
+	if end > len(filteredOps) {
+		end = len(filteredOps)
+	}
+	data := []stdserver.Operation{}
+	if offset < len(filteredOps) {
+		data = filteredOps[offset:end]
+	}
+	hasMore := end < len(filteredOps)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(ev)
+	_ = json.NewEncoder(w).Encode(stdserver.OperationList{Data: data, HasMore: hasMore})
 }
 
-func (s *MockServer) PostOperations(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	response := `{
-	"account": "",
-	"account_id": "df72db52-fa74-4dd8-8c53-a9742be70caa",
-	"account_operation_id": "1755036418",
-	"chain_id": "",
-	"created_at": 1755036421,
-	"operation_id": "a47760fc-6eae-456f-84b9-e6e349d13281",
-	"signature": "0xe227e4533ea6198d58d167971f13733239447b0a298416355a226acb07cc2e5c3efff04c41b32a1a2fefdbf5aba4f15312c527be249d19756850e61b269fcecd1c",
-	"status": "pending",
-	"transactions": [
-		{
-			"data": "0x40c10f19000000000000000000000000f32efccd3087563c226ef51c7e659888de78c59c0000000000000000000000000000000000000000000000000000000000087a23",
-			"to": "0x79009066202906e3d1644029d0B6e441370fD865",
-			"value": "0"
+func (s *MockServer) GetChannelsChannelIdOperationsOperationId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
+	for _, op := range s.operations {
+		if op.OperationId == operationId {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(op)
+			return
 		}
-	]
-}`
-	w.Write([]byte(response))
-}
-
-func (s *MockServer) GetOperations(w http.ResponseWriter, r *http.Request, params stdserver.GetOperationsParams) {
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(
-		stdserver.OperationList{
-			Data:    []stdserver.Operation{},
-			HasMore: false,
-		},
-	)
-}
-
-func (s *MockServer) GetOperationsOperationId(
-	w http.ResponseWriter, r *http.Request, operationId openapiTypes.UUID,
-) {
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(stdserver.Operation{})
+	}
+	http.Error(w, "operation not found", http.StatusNotFound)
 }
 
 func (s *MockServer) PostOperationStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// ============================================================================
+// EVENTS & WATCHERS - COMMENTED OUT (not part of channels/operations)
+// ============================================================================
+
+func (s *MockServer) PostEvents(w http.ResponseWriter, r *http.Request) {
+	// Commented out - not part of channels/operations service
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func (s *MockServer) GetChannelsChannelIdEvents(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdEventsParams) {
+	// Commented out - not part of channels/operations service
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdWatchersParams) {
+	// Commented out - not part of channels/operations service
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	// Commented out - not part of channels/operations service
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func (s *MockServer) GetChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
+	// Commented out - not part of channels/operations service
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func (s *MockServer) DeleteChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
+	// Commented out - not part of channels/operations service
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *MockServer) PostAccounts(w http.ResponseWriter, r *http.Request) {

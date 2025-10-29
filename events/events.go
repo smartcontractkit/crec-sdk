@@ -2,14 +2,14 @@ package events
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
+	// "encoding/base64" // Commented out - not used after migration
+	// "encoding/json"   // Commented out - not used after migration
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	// "github.com/ethereum/go-ethereum/crypto" // Commented out - not used after migration
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
@@ -88,24 +88,30 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 // GetEvents retrieves events from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - params: parameters for filtering events, see client.GetEventsParams for details.
-func (c *Client) GetEvents(ctx context.Context, params *apiClient.GetEventsParams) ([]apiClient.Event, error) {
-	c.logger.Trace().Msg("Getting events from CREC")
+//
+// COMMENTED OUT: This method needs to be updated to work with the new API structure (channels-based events)
+// TODO: Update to use /channels/{channel_id}/events endpoint
+// Commenting out param type because it doesn't exist in new API
+func (c *Client) GetEvents(ctx context.Context, params interface{}) ([]apiClient.Event, error) {
+	return nil, fmt.Errorf("GetEvents is temporarily disabled - needs migration to channels-based API")
 
-	resp, err := c.crecClient.GetEventsWithResponse(ctx, params)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get events from CREC: %w", err)
-	}
-
-	if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get events from CREC, unexpected status code: %d", resp.StatusCode())
-	}
-
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("invalid events response from CREC")
-	}
-
-	return resp.JSON200.Data, nil
+	// c.logger.Trace().Msg("Getting events from CREC")
+	//
+	// resp, err := c.crecClient.GetEventsWithResponse(ctx, params)
+	//
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get events from CREC: %w", err)
+	// }
+	//
+	// if resp.StatusCode() != 200 {
+	// 	return nil, fmt.Errorf("failed to get events from CREC, unexpected status code: %d", resp.StatusCode())
+	// }
+	//
+	// if resp.JSON200 == nil {
+	// 	return nil, fmt.Errorf("invalid events response from CREC")
+	// }
+	//
+	// return resp.JSON200.Data, nil
 }
 
 // Reset resets the internal state of the CREC events client.
@@ -119,184 +125,220 @@ func (c *Client) Reset() {
 // Verify verifies the authenticity of a given event.
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
+//
+// COMMENTED OUT: This method needs to be updated to work with the new Event structure
+// TODO: Update to work with new Event fields
 func (c *Client) Verify(event *apiClient.Event) (bool, error) {
-	c.logger.Trace().
-		Str("event_service", event.Service).
-		Str("event_name", event.Name).
-		Str("ocr_report", event.OcrReport).
-		Str("ocr_context", event.OcrContext).
-		Msg("Verifying event")
+	return false, fmt.Errorf("Verify is temporarily disabled - needs migration to new Event structure")
 
-	ocrReport, err := common.ParseHexOrString(event.OcrReport)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse OCR report: %w", err)
-	}
-	ocrContext, err := common.ParseHexOrString(event.OcrContext)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse OCR context: %w", err)
-	}
-
-	if len(ocrReport) < ocrReportPayloadOffset+32 { // 32 bytes for event hash
-		return false, fmt.Errorf("OCR report is too short")
-	}
-
-	// compute the event hash from the event data
-	eventHash := c.EventHash(event)
-
-	// ensure locally computed event hash matches the one in the report
-	eventHashValid := c.verifyEventHash(ocrReport, eventHash)
-	if !eventHashValid {
-		return false, fmt.Errorf("failed to verify event hash")
-	}
-
-	// generate the report hash matching the DON signing format
-	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
-
-	validSigCount := 0
-	availableSigners := make(map[common.Address]bool)
-	for _, signer := range c.validSigners {
-		availableSigners[common.HexToAddress(signer)] = true
-	}
-
-	for _, sig := range event.Signatures {
-		sigBytes, err := common.ParseHexOrString(sig)
-		if err != nil {
-			return false, fmt.Errorf("failed to parse signature: %w", err)
-		}
-		if sigBytes[64] == 27 || sigBytes[64] == 28 {
-			sigBytes[64] -= 27 // Adjust signature for Ethereum signatures
-		}
-		pubKey, err := crypto.SigToPub(reportHash.Bytes(), sigBytes)
-		if err != nil {
-			return false, fmt.Errorf("failed to recover public key from signature")
-		}
-
-		signer := crypto.PubkeyToAddress(*pubKey)
-		c.logger.Trace().
-			Str("signer", signer.Hex()).
-			Str("signature", sig).
-			Msg("Recovered signer from signature")
-
-		if availableSigners[signer] {
-			c.logger.Debug().Str("signer", signer.Hex()).Msg("Signature verified successfully")
-			validSigCount++
-			availableSigners[signer] = false // Mark this signer as used
-		}
-
-		// If we have enough valid signatures, we can stop
-		if validSigCount >= c.minRequiredSignatures {
-			break
-		}
-	}
-	c.logger.Debug().Int("valid_signatures", validSigCount).Msg("Finished signature checking")
-
-	return validSigCount >= c.minRequiredSignatures, nil
+	// c.logger.Trace().
+	// 	Str("event_service", event.Service).
+	// 	Str("event_name", event.Name).
+	// 	Str("ocr_report", event.OcrReport).
+	// 	Str("ocr_context", event.OcrContext).
+	// 	Msg("Verifying event")
+	//
+	// ocrReport, err := common.ParseHexOrString(event.OcrReport)
+	// if err != nil {
+	// 	return false, fmt.Errorf("failed to parse OCR report: %w", err)
+	// }
+	// ocrContext, err := common.ParseHexOrString(event.OcrContext)
+	// if err != nil {
+	// 	return false, fmt.Errorf("failed to parse OCR context: %w", err)
+	// }
+	//
+	// if len(ocrReport) < ocrReportPayloadOffset+32 { // 32 bytes for event hash
+	// 	return false, fmt.Errorf("OCR report is too short")
+	// }
+	//
+	// // compute the event hash from the event data
+	// eventHash := c.EventHash(event)
+	//
+	// // ensure locally computed event hash matches the one in the report
+	// eventHashValid := c.verifyEventHash(ocrReport, eventHash)
+	// if !eventHashValid {
+	// 	return false, fmt.Errorf("failed to verify event hash")
+	// }
+	//
+	// // generate the report hash matching the DON signing format
+	// reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+	//
+	// validSigCount := 0
+	// availableSigners := make(map[common.Address]bool)
+	// for _, signer := range c.validSigners {
+	// 	availableSigners[common.HexToAddress(signer)] = true
+	// }
+	//
+	// for _, sig := range event.Signatures {
+	// 	sigBytes, err := common.ParseHexOrString(sig)
+	// 	if err != nil {
+	// 		return false, fmt.Errorf("failed to parse signature: %w", err)
+	// 	}
+	// 	if sigBytes[64] == 27 || sigBytes[64] == 28 {
+	// 		sigBytes[64] -= 27 // Adjust signature for Ethereum signatures
+	// 	}
+	// 	pubKey, err := crypto.SigToPub(reportHash.Bytes(), sigBytes)
+	// 	if err != nil {
+	// 		return false, fmt.Errorf("failed to recover public key from signature")
+	// 	}
+	//
+	// 	signer := crypto.PubkeyToAddress(*pubKey)
+	// 	c.logger.Trace().
+	// 		Str("signer", signer.Hex()).
+	// 		Str("signature", sig).
+	// 		Msg("Recovered signer from signature")
+	//
+	// 	if availableSigners[signer] {
+	// 		c.logger.Debug().Str("signer", signer.Hex()).Msg("Signature verified successfully")
+	// 		validSigCount++
+	// 		availableSigners[signer] = false // Mark this signer as used
+	// 	}
+	//
+	// 	// If we have enough valid signatures, we can stop
+	// 	if validSigCount >= c.minRequiredSignatures {
+	// 		break
+	// 	}
+	// }
+	// c.logger.Debug().Int("valid_signatures", validSigCount).Msg("Finished signature checking")
+	//
+	// return validSigCount >= c.minRequiredSignatures, nil
 }
 
 // Decode decodes a verifiable event into a specified payload structure.
 //   - event: The event to decode.
 //   - payload: A pointer to the structure where the decoded event will be stored.
+//
+// COMMENTED OUT: This method needs to be updated to work with the new Event structure
+// TODO: Update to work with new Event fields (event.VerifiableEvent no longer exists)
 func (c *Client) Decode(event *apiClient.Event, payload any) error {
-	jsonBytes, err := c.ToJson(event)
-	if err != nil {
-		return fmt.Errorf("failed to convert verifiable event to JSON: %w", err)
-	}
-	return json.Unmarshal(jsonBytes, payload)
+	return fmt.Errorf("Decode is temporarily disabled - needs migration to new Event structure")
+	// jsonBytes, err := c.ToJson(event)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to convert verifiable event to JSON: %w", err)
+	// }
+	// return json.Unmarshal(jsonBytes, payload)
 }
 
 // ToJson converts a verifiable event into its JSON representation.
 //   - event: The event to convert.
+//
+// COMMENTED OUT: This method needs to be updated to work with the new Event structure
+// TODO: Update to work with new Event fields (event.VerifiableEvent no longer exists)
 func (c *Client) ToJson(event *apiClient.Event) ([]byte, error) {
-	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
-	if err != nil {
-		return []byte{}, fmt.Errorf("failed to decode base64 payload: %w", err)
-	}
-	return decodedStr, nil
+	return nil, fmt.Errorf("ToJson is temporarily disabled - needs migration to new Event structure")
+	// decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
+	// if err != nil {
+	// 	return []byte{}, fmt.Errorf("failed to decode base64 payload: %w", err)
+	// }
+	// return decodedStr, nil
 }
 
 // EventHash computes the "EventHash" of an event used for verification.
+//
+// COMMENTED OUT: This method needs to be updated to work with the new Event structure
+// TODO: Update to work with new Event fields
 func (c *Client) EventHash(event *apiClient.Event) common.Hash {
-	return crypto.Keccak256Hash([]byte(event.Service + "." + event.Name + "." + event.VerifiableEvent))
+	return common.Hash{}
+	// return crypto.Keccak256Hash([]byte(event.Service + "." + event.Name + "." + event.VerifiableEvent))
 }
 
 // CreateListener creates a new listener for events in the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listener: The listener to create. See client.CreateListener for details on required fields.
-func (c *Client) CreateListener(ctx context.Context, listener *apiClient.CreateListener) (*apiClient.Listener, error) {
-	c.logger.Debug().Msg("Creating listener on CREC")
-
-	resp, err := c.crecClient.PostListenersWithResponse(ctx, *listener)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create listener: %w", err)
-	}
-
-	if resp.StatusCode() != 201 {
-		return nil, fmt.Errorf("failed to create listener, unexpected status code: %s", resp.Status())
-	}
-
-	return resp.JSON201, nil
+//
+// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
+// TODO: Update to use /channels/{channel_id}/watchers endpoint
+// Commenting out types because they don't exist in new API
+func (c *Client) CreateListener(ctx context.Context, listener interface{}) (interface{}, error) {
+	return nil, fmt.Errorf("CreateListener is temporarily disabled - needs migration to channels-based API")
+	// c.logger.Debug().Msg("Creating listener on CREC")
+	//
+	// resp, err := c.crecClient.PostListenersWithResponse(ctx, *listener)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to create listener: %w", err)
+	// }
+	//
+	// if resp.StatusCode() != 201 {
+	// 	return nil, fmt.Errorf("failed to create listener, unexpected status code: %s", resp.Status())
+	// }
+	//
+	// return resp.JSON201, nil
 }
 
 // GetListener retrieves a listener by its ID from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listenerId: The UUID of the listener to retrieve.
-func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (*apiClient.Listener, error) {
-	c.logger.Trace().Msg("Getting listener")
-
-	resp, err := c.crecClient.GetListenersListenerIdWithResponse(ctx, listenerId)
-	if err != nil {
-		c.logger.Error().Err(err).Msg("Failed to get listener")
-		return nil, err
-	}
-
-	if resp.StatusCode() == 404 {
-		return nil, nil
-	} else if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get listener, unexpected status code: %s", resp.Status())
-	}
-
-	return resp.JSON200, nil
+//
+// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
+// TODO: Update to use /channels/{channel_id}/watchers/{watcher_id} endpoint
+// Commenting out types because they don't exist in new API
+func (c *Client) GetListener(ctx context.Context, listenerId uuid.UUID) (interface{}, error) {
+	return nil, fmt.Errorf("GetListener is temporarily disabled - needs migration to channels-based API")
+	// c.logger.Trace().Msg("Getting listener")
+	//
+	// resp, err := c.crecClient.GetListenersListenerIdWithResponse(ctx, listenerId)
+	// if err != nil {
+	// 	c.logger.Error().Err(err).Msg("Failed to get listener")
+	// 	return nil, err
+	// }
+	//
+	// if resp.StatusCode() == 404 {
+	// 	return nil, nil
+	// } else if resp.StatusCode() != 200 {
+	// 	return nil, fmt.Errorf("failed to get listener, unexpected status code: %s", resp.Status())
+	// }
+	//
+	// return resp.JSON200, nil
 }
 
 // GetListeners retrieves a list of listeners from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
-func (c *Client) GetListeners(ctx context.Context, params *apiClient.GetListenersParams) ([]apiClient.Listener, error) {
-	c.logger.Debug().Msg("Getting listeners from CREC")
-
-	resp, err := c.crecClient.GetListenersWithResponse(ctx, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get listeners from CREC: %w", err)
-	}
-
-	if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get listeners from CREC, unexpected status code: %d", resp.StatusCode())
-	}
-
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("invalid listeners response from CREC")
-	}
-
-	return resp.JSON200.Data, nil
+//
+// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
+// TODO: Update to use /channels/{channel_id}/watchers endpoint
+// Commenting out types because they don't exist in new API
+func (c *Client) GetListeners(ctx context.Context, params interface{}) ([]interface{}, error) {
+	return nil, fmt.Errorf("GetListeners is temporarily disabled - needs migration to channels-based API")
+	// c.logger.Debug().Msg("Getting listeners from CREC")
+	//
+	// resp, err := c.crecClient.GetListenersWithResponse(ctx, params)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get listeners from CREC: %w", err)
+	// }
+	//
+	// if resp.StatusCode() != 200 {
+	// 	return nil, fmt.Errorf("failed to get listeners from CREC, unexpected status code: %d", resp.StatusCode())
+	// }
+	//
+	// if resp.JSON200 == nil {
+	// 	return nil, fmt.Errorf("invalid listeners response from CREC")
+	// }
+	//
+	// return resp.JSON200.Data, nil
 }
 
 // DeleteListener deletes a listener by its ID from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - listenerId: The UUID of the listener to delete.
+//
+// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
+// TODO: Update to use DELETE /channels/{channel_id}/watchers/{watcher_id} endpoint
 func (c *Client) DeleteListener(ctx context.Context, listenerId uuid.UUID) error {
-	c.logger.Debug().
-		Str("listener_id", listenerId.String()).
-		Msg("Deleting listener")
-
-	resp, err := c.crecClient.DeleteListenersListenerIdWithResponse(ctx, listenerId)
-	if err != nil {
-		return fmt.Errorf("failed to delete listener: %w", err)
-	}
-
-	if resp.StatusCode() != 202 {
-		return fmt.Errorf("failed to delete listener, unexpected status code: %s", resp.Status())
-	}
-
-	return nil
+	return fmt.Errorf("DeleteListener is temporarily disabled - needs migration to channels-based API")
+	// c.logger.Debug().
+	// 	Str("listener_id", listenerId.String()).
+	// 	Msg("Deleting listener")
+	//
+	// resp, err := c.crecClient.DeleteListenersListenerIdWithResponse(ctx, listenerId)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to delete listener: %w", err)
+	// }
+	//
+	// if resp.StatusCode() != 202 {
+	// 	return fmt.Errorf("failed to delete listener, unexpected status code: %s", resp.Status())
+	// }
+	//
+	// return nil
 }
 
 func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash) bool {
