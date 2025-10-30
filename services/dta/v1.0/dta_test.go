@@ -1,7 +1,6 @@
 package dta
 
 import (
-	"encoding/base64"
 	"math/big"
 	"testing"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 
-	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/services/dta/gen/dtarequestmanagement"
 )
 
@@ -452,61 +450,6 @@ func TestPrepareForceAllowDistributorForTokenOperation(t *testing.T) {
 	require.Equal(t, service.dtaRequestManagementAddress, tx.To)
 	require.Equal(t, big.NewInt(0), tx.Value)
 	require.NotEmpty(t, tx.Data)
-}
-
-func TestToJson(t *testing.T) {
-	service, err := NewService(
-		&ServiceOptions{
-			DTARequestManagementAddress: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
-			DTARequestSettlementAddress: "0x7Eb6D2Bf84C394A1718a60f0f89FBc4626eCdbA1",
-			AccountAddress:              "0xce2152bfcd0995f56a07dcbfef2bc85d404d65bc",
-		},
-	)
-	require.NoError(t, err)
-
-	testCases := []struct {
-		name        string
-		input       string
-		expected    string
-		expectError bool
-	}{
-		{
-			name:        "valid base64 JSON",
-			input:       base64.StdEncoding.EncodeToString([]byte(`{"test": "data"}`)),
-			expected:    `{"test": "data"}`,
-			expectError: false,
-		},
-		{
-			name:        "empty base64",
-			input:       base64.StdEncoding.EncodeToString([]byte("")),
-			expected:    "",
-			expectError: false,
-		},
-		{
-			name:        "invalid base64",
-			input:       "invalid_base64_string_with_invalid_characters!!!",
-			expectError: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(
-			tc.name, func(t *testing.T) {
-				event := &apiClient.Event{
-					VerifiableEvent: tc.input,
-				}
-
-				result, err := service.toJson(event)
-
-				if tc.expectError {
-					require.Error(t, err)
-				} else {
-					require.NoError(t, err)
-					require.Equal(t, []byte(tc.expected), result)
-				}
-			},
-		)
-	}
 }
 
 // DTARequestSettlement Operation Tests

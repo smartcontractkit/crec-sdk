@@ -98,7 +98,7 @@ func TestDecodeSimple(t *testing.T) {
 		t.Run(
 			tc.name, func(t *testing.T) {
 				ctx := context.Background()
-				result, err := Decode(ctx, tc.event)
+				result, err := Decode(ctx, tc.event.VerifiableEvent)
 
 				if tc.expectErr {
 					require.Error(t, err)
@@ -201,7 +201,7 @@ func TestDecodeUnmarshal(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ve := buildEnvelope(tc.attrs, tc.overrideName)
-			ev, err := Decode(t.Context(), encodeEvent(t, ve))
+			ev, err := Decode(t.Context(), encodeEvent(t, ve).VerifiableEvent)
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -466,7 +466,7 @@ func TestScientificNotationInEventParsing(t *testing.T) {
 			}
 
 			ve := buildEnvelope(attrs, "")
-			ev, err := Decode(context.Background(), encodeEvent(t, ve))
+			ev, err := Decode(context.Background(), encodeEvent(t, ve).VerifiableEvent)
 
 			if tt.expectError {
 				require.Error(t, err)

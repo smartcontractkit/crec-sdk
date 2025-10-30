@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
 
 // ConcreteEvent represents any decoded concrete event payload.
@@ -428,9 +427,9 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Decode parses a base64-encoded JSON string from the event and unmarshals it into a VerifiableEvent. It returns an error if decoding or unmarshalling fails.
-func Decode(ctx context.Context, event apiClient.Event) (VerifiableEvent, error) {
-	decodedBytes, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
+// Decode parses a base64-encoded JSON string and unmarshals it into a VerifiableEvent. It returns an error if decoding or unmarshalling fails.
+func Decode(ctx context.Context, verifiableEventString string) (VerifiableEvent, error) {
+	decodedBytes, err := base64.StdEncoding.DecodeString(verifiableEventString)
 	if err != nil {
 		return VerifiableEvent{}, err
 	}

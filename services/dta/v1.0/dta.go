@@ -1,14 +1,12 @@
 package dta
 
 import (
-	"encoding/base64"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 
-	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/services/dta/gen/dtarequestmanagement"
 	"github.com/smartcontractkit/crec-api-go/services/dta/gen/dtarequestsettlement"
 	"github.com/smartcontractkit/crec-sdk/interfaces/erc20"
@@ -527,16 +525,6 @@ func (s *Service) PrepareForceAllowDistributorForTokenOperation(
 			},
 		},
 	}, nil
-}
-
-// toJson decodes an encoded VerifiableEvent from a CREC event into a JSON byte slice.
-func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
-	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to decode base64 payload")
-		return []byte{}, err
-	}
-	return decodedStr, nil
 }
 
 // prepareTokenApproveTransaction prepares a token approval transaction.
