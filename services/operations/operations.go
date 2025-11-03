@@ -70,16 +70,14 @@ type TransactionRequest struct {
 
 // CreateOperationInput defines the input parameters for creating a new operation.
 //   - ChannelID: The UUID of the channel where the operation will be created.
-//   - ChainFamily: The blockchain family (default: "evm").
-//   - ChainID: The ID of the blockchain where the operation will execute.
+//   - ChainSelector: The chain selector to identify the chain where the operation will be executed.
 //   - Address: The account address performing the operation.
 //   - WalletOperationID: Unique identifier for the wallet operation.
 //   - Transactions: List of transactions to execute (at least one required).
 //   - Signature: EIP-712 signature of the operation.
 type CreateOperationInput struct {
 	ChannelID         uuid.UUID
-	ChainFamily       *string
-	ChainID           string
+	ChainSelector     uint64
 	Address           string
 	WalletOperationID string
 	Transactions      []TransactionRequest
@@ -98,7 +96,7 @@ func (s *Service) CreateOperation(ctx context.Context, input CreateOperationInpu
 	s.logger.Debug().
 		Str("channel_id", input.ChannelID.String()).
 		Str("wallet_operation_id", input.WalletOperationID).
-		Str("chain_id", input.ChainID).
+		Uint64("chain_selector", input.ChainSelector).
 		Str("address", input.Address).
 		Int("num_transactions", len(input.Transactions)).
 		Msg("Creating operation")
@@ -107,8 +105,8 @@ func (s *Service) CreateOperation(ctx context.Context, input CreateOperationInpu
 	if input.ChannelID == uuid.Nil {
 		return nil, fmt.Errorf("channel_id is required")
 	}
-	if input.ChainID == "" {
-		return nil, fmt.Errorf("chain_id is required")
+	if input.ChainSelector == 0 {
+		return nil, fmt.Errorf("chain_selector is required")
 	}
 	if input.Address == "" {
 		return nil, fmt.Errorf("address is required")
@@ -134,8 +132,7 @@ func (s *Service) CreateOperation(ctx context.Context, input CreateOperationInpu
 	}
 
 	createOperationReq := apiClient.CreateOperation{
-		ChainFamily:       input.ChainFamily,
-		ChainId:           input.ChainID,
+		ChainSelector:     input.ChainSelector,
 		Address:           input.Address,
 		WalletOperationId: input.WalletOperationID,
 		Transactions:      transactions,
@@ -229,19 +226,19 @@ func (s *Service) GetOperation(ctx context.Context, channelID uuid.UUID, operati
 // ListOperationsInput defines the input parameters for listing operations.
 //   - ChannelID: The UUID of the channel to list operations from.
 //   - Status: Optional filter for operation status.
-//   - ChainFamily: Optional filter for blockchain family.
-//   - ChainID: Optional filter for chain ID.
+//   - ChainSelector: Optional filter for chain selector.
 //   - Address: Optional filter for account address.
+//   - WalletID: Optional filter for wallet ID.
 //   - Limit: Maximum number of operations to return (1-100, default: 20).
 //   - Offset: Number of operations to skip for pagination (default: 0).
 type ListOperationsInput struct {
-	ChannelID   uuid.UUID
-	Status      *string
-	ChainFamily *string
-	ChainID     *string
-	Address     *string
-	Limit       *int
-	Offset      *int
+	ChannelID     uuid.UUID
+	Status        *string
+	ChainSelector *string
+	Address       *string
+	WalletID      *uuid.UUID
+	Limit         *int
+	Offset        *int
 }
 
 // ListOperations retrieves a list of operations for a channel.
@@ -263,12 +260,12 @@ func (s *Service) ListOperations(ctx context.Context, input ListOperationsInput)
 	}
 
 	params := apiClient.GetChannelsChannelIdOperationsParams{
-		Status:      input.Status,
-		ChainFamily: input.ChainFamily,
-		ChainId:     input.ChainID,
-		Address:     input.Address,
-		Limit:       input.Limit,
-		Offset:      input.Offset,
+		Status:        input.Status,
+		ChainSelector: input.ChainSelector,
+		Address:       input.Address,
+		WalletId:      input.WalletID,
+		Limit:         input.Limit,
+		Offset:        input.Offset,
 	}
 
 	resp, err := s.crecClient.GetChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, &params)

@@ -113,7 +113,7 @@ func TestService_CreateOperation(t *testing.T) {
 			var createReq apiClient.CreateOperation
 			err = json.Unmarshal(body, &createReq)
 			require.NoError(t, err)
-			assert.Equal(t, "1337", createReq.ChainId)
+			assert.Equal(t, uint64(1337), createReq.ChainSelector)
 			assert.Equal(t, "0x1234", createReq.Address)
 			assert.Equal(t, "op-123", createReq.WalletOperationId)
 			assert.Len(t, createReq.Transactions, 1)
@@ -132,7 +132,7 @@ func TestService_CreateOperation(t *testing.T) {
 
 		returnedOperationID, err := service.CreateOperation(context.Background(), CreateOperationInput{
 			ChannelID:         channelID,
-			ChainID:           "1337",
+			ChainSelector:     1337,
 			Address:           "0x1234",
 			WalletOperationID: "op-123",
 			Transactions: []TransactionRequest{
@@ -167,7 +167,7 @@ func TestService_CreateOperation(t *testing.T) {
 				name: "EmptyChannelID",
 				input: CreateOperationInput{
 					ChannelID:         uuid.Nil,
-					ChainID:           "1337",
+					ChainSelector:     1337,
 					Address:           "0x1234",
 					WalletOperationID: "op-123",
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
@@ -176,22 +176,22 @@ func TestService_CreateOperation(t *testing.T) {
 				expectedError: "channel_id is required",
 			},
 			{
-				name: "EmptyChainID",
+				name: "EmptyChainSelector",
 				input: CreateOperationInput{
 					ChannelID:         uuid.New(),
-					ChainID:           "",
+					ChainSelector:     0,
 					Address:           "0x1234",
 					WalletOperationID: "op-123",
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
 					Signature:         "0xsig",
 				},
-				expectedError: "chain_id is required",
+				expectedError: "chain_selector is required",
 			},
 			{
 				name: "EmptyAddress",
 				input: CreateOperationInput{
 					ChannelID:         uuid.New(),
-					ChainID:           "1337",
+					ChainSelector:     1337,
 					Address:           "",
 					WalletOperationID: "op-123",
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
@@ -203,7 +203,7 @@ func TestService_CreateOperation(t *testing.T) {
 				name: "EmptyWalletOperationID",
 				input: CreateOperationInput{
 					ChannelID:         uuid.New(),
-					ChainID:           "1337",
+					ChainSelector:     1337,
 					Address:           "0x1234",
 					WalletOperationID: "",
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
@@ -215,7 +215,7 @@ func TestService_CreateOperation(t *testing.T) {
 				name: "EmptyTransactions",
 				input: CreateOperationInput{
 					ChannelID:         uuid.New(),
-					ChainID:           "1337",
+					ChainSelector:     1337,
 					Address:           "0x1234",
 					WalletOperationID: "op-123",
 					Transactions:      []TransactionRequest{},
@@ -227,7 +227,7 @@ func TestService_CreateOperation(t *testing.T) {
 				name: "EmptySignature",
 				input: CreateOperationInput{
 					ChannelID:         uuid.New(),
-					ChainID:           "1337",
+					ChainSelector:     1337,
 					Address:           "0x1234",
 					WalletOperationID: "op-123",
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
@@ -264,7 +264,7 @@ func TestService_CreateOperation(t *testing.T) {
 
 		opID, err := service.CreateOperation(context.Background(), CreateOperationInput{
 			ChannelID:         channelID,
-			ChainID:           "1337",
+			ChainSelector:     1337,
 			Address:           "0x1234",
 			WalletOperationID: "op-123",
 			Transactions: []TransactionRequest{
@@ -294,7 +294,7 @@ func TestService_CreateOperation(t *testing.T) {
 
 		opID, err := service.CreateOperation(context.Background(), CreateOperationInput{
 			ChannelID:         channelID,
-			ChainID:           "1337",
+			ChainSelector:     1337,
 			Address:           "0x1234",
 			WalletOperationID: "op-123",
 			Transactions: []TransactionRequest{
@@ -326,8 +326,7 @@ func TestService_GetOperation(t *testing.T) {
 			response := apiClient.Operation{
 				OperationId:       operationID,
 				Status:            "pending",
-				ChainFamily:       "evm",
-				ChainId:           "1337",
+				ChainSelector:     uint64(1337),
 				Address:           "0x1234",
 				WalletOperationId: "op-123",
 				Transactions: []apiClient.TransactionRequest{
@@ -348,7 +347,7 @@ func TestService_GetOperation(t *testing.T) {
 		assert.NotNil(t, operation)
 		assert.Equal(t, operationID, operation.OperationId)
 		assert.Equal(t, "pending", operation.Status)
-		assert.Equal(t, "1337", operation.ChainId)
+		assert.Equal(t, uint64(1337), operation.ChainSelector)
 		assert.Equal(t, "0x1234", operation.Address)
 	})
 
@@ -422,7 +421,7 @@ func TestService_ListOperations(t *testing.T) {
 					{
 						OperationId:       operation1ID,
 						Status:            "pending",
-						ChainId:           "1337",
+						ChainSelector:     uint64(1337),
 						Address:           "0x1234",
 						WalletOperationId: "op-1",
 						Transactions:      []apiClient.TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
@@ -432,7 +431,7 @@ func TestService_ListOperations(t *testing.T) {
 					{
 						OperationId:       operation2ID,
 						Status:            "confirmed",
-						ChainId:           "1337",
+						ChainSelector:     uint64(1337),
 						Address:           "0x1234",
 						WalletOperationId: "op-2",
 						Transactions:      []apiClient.TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
@@ -470,7 +469,7 @@ func TestService_ListOperations(t *testing.T) {
 		operationID := uuid.New()
 		createdAt := time.Now().Unix()
 		status := "pending"
-		chainID := "1337"
+		chainSelector := "1337"
 		address := "0x1234"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
@@ -479,7 +478,7 @@ func TestService_ListOperations(t *testing.T) {
 			// Check query parameters
 			query := r.URL.Query()
 			assert.Equal(t, status, query.Get("status"))
-			assert.Equal(t, chainID, query.Get("chain_id"))
+			assert.Equal(t, chainSelector, query.Get("chain_selector"))
 			assert.Equal(t, address, query.Get("address"))
 
 			w.Header().Set("Content-Type", "application/json")
@@ -489,7 +488,60 @@ func TestService_ListOperations(t *testing.T) {
 					{
 						OperationId:       operationID,
 						Status:            status,
-						ChainId:           chainID,
+						ChainSelector:     uint64(1337),
+						Address:           address,
+						WalletOperationId: "op-1",
+						Transactions:      []apiClient.TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
+						Signature:         "0xsig",
+						CreatedAt:         createdAt,
+					},
+				},
+				HasMore: false,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
+			ChannelID:     channelID,
+			Status:        &status,
+			ChainSelector: &chainSelector,
+			Address:       &address,
+		})
+
+		require.NoError(t, err)
+		assert.Len(t, operations, 1)
+		assert.False(t, hasMore)
+		assert.Equal(t, status, operations[0].Status)
+		assert.Equal(t, uint64(1337), operations[0].ChainSelector)
+		assert.Equal(t, address, operations[0].Address)
+	})
+
+	t.Run("WithWalletIDFilter", func(t *testing.T) {
+		channelID := uuid.New()
+		operationID := uuid.New()
+		walletID := uuid.New()
+		createdAt := time.Now().Unix()
+		status := "pending"
+		address := "0x1234"
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "GET", r.Method)
+
+			// Check that wallet_id query parameter is passed correctly
+			query := r.URL.Query()
+			assert.Equal(t, walletID.String(), query.Get("wallet_id"))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.OperationList{
+				Data: []apiClient.Operation{
+					{
+						OperationId:       operationID,
+						Status:            status,
+						ChainSelector:     uint64(1337),
 						Address:           address,
 						WalletOperationId: "op-1",
 						Transactions:      []apiClient.TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
@@ -507,17 +559,13 @@ func TestService_ListOperations(t *testing.T) {
 
 		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID: channelID,
-			Status:    &status,
-			ChainID:   &chainID,
-			Address:   &address,
+			WalletID:  &walletID,
 		})
 
 		require.NoError(t, err)
 		assert.Len(t, operations, 1)
 		assert.False(t, hasMore)
-		assert.Equal(t, status, operations[0].Status)
-		assert.Equal(t, chainID, operations[0].ChainId)
-		assert.Equal(t, address, operations[0].Address)
+		assert.Equal(t, operationID, operations[0].OperationId)
 	})
 
 	t.Run("WithPagination", func(t *testing.T) {
