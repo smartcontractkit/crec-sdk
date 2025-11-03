@@ -12,7 +12,7 @@ import (
 	"github.com/smartcontractkit/crec-sdk/client"
 )
 
-func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
+func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 	s := NewMockServer()
 	defer s.Close()
 
@@ -40,89 +40,51 @@ func TestMockServer_Health_Events_Listeners_Accounts(t *testing.T) {
 	// These need migration to channels-based API
 	// List events → /channels/{channel_id}/events
 	// Create listener → /channels/{channel_id}/watchers
-	/*
-		evs, err := c.GetEventsWithResponse(context.Background(), nil)
-		if err != nil {
-			t.Fatalf("GetEvents: %v", err)
-		}
-		if evs.StatusCode() != http.StatusOK {
-			t.Fatalf("GetEvents status: %d", evs.StatusCode())
-		}
-
-		// Get single event by ID
-		eid := uuid.New()
-		ev, err := c.GetEventsEventIdWithResponse(context.Background(), eid)
-		if err != nil {
-			t.Fatalf("GetEventsEventId: %v", err)
-		}
-		if ev.StatusCode() != http.StatusOK {
-			t.Fatalf("GetEventsEventId status: %d", ev.StatusCode())
-		}
-		if ev.JSON200 == nil || ev.JSON200.EventId != eid {
-			t.Fatalf("unexpected event id: %+v", ev.JSON200)
-		}
-
-		// Create listener
-		l, err := c.PostListenersWithResponse(
-			context.Background(), apiClient.CreateListener{
-				Service: "dvp",
-				Name:    "SettlementAccepted",
-				ChainId: "1337",
-				Address: "0x1234567890abcdef1234567890abcdef12345678",
-			},
-		)
-		if err != nil {
-			t.Fatalf("PostListeners: %v", err)
-		}
-		if l.StatusCode() != http.StatusCreated || l.JSON201 == nil {
-			t.Fatalf("unexpected listener creation response: status=%d body=%+v", l.StatusCode(), l.JSON201)
-		}
-	*/
 
 	_ = uuid.New() // Keep uuid import for future use
 
-	// Accounts: create, list, get by id
-	testAccountName := "Test Account"
-	acc, err := c.PostAccountsWithResponse(
-		context.Background(), apiClient.CreateAccount{
-			Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-			ChainId: "1337",
-			Name:    &testAccountName,
+	// Wallets: create, list, get by id
+	testWalletName := "Test Wallet"
+	wallet, err := c.PostWalletsWithResponse(
+		context.Background(), apiClient.CreateWallet{
+			Address:       "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+			ChainSelector: 1337,
+			Name:          &testWalletName,
 		},
 	)
 	if err != nil {
-		t.Fatalf("PostAccounts: %v", err)
+		t.Fatalf("PostWallets: %v", err)
 	}
-	if acc.StatusCode() != http.StatusCreated || acc.JSON201 == nil {
-		t.Fatalf("unexpected account creation response")
+	if wallet.StatusCode() != http.StatusCreated || wallet.JSON201 == nil {
+		t.Fatalf("unexpected wallet creation response")
 	}
-	list, err := c.GetAccountsWithResponse(context.Background(), nil)
+	list, err := c.GetWalletsWithResponse(context.Background(), nil)
 	if err != nil {
-		t.Fatalf("GetAccounts: %v", err)
+		t.Fatalf("GetWallets: %v", err)
 	}
 	if list.StatusCode() != http.StatusOK || list.JSON200 == nil {
-		t.Fatalf("unexpected accounts list response")
+		t.Fatalf("unexpected wallets list response")
 	}
-	one, err := c.GetAccountsAccountIdWithResponse(context.Background(), acc.JSON201.AccountId)
+	one, err := c.GetWalletsWalletIdWithResponse(context.Background(), wallet.JSON201.WalletId)
 	if err != nil {
-		t.Fatalf("GetAccountsAccountId: %v", err)
+		t.Fatalf("GetWalletsWalletId: %v", err)
 	}
 	if one.StatusCode() != http.StatusOK || one.JSON200 == nil {
-		t.Fatalf("unexpected account get response")
+		t.Fatalf("unexpected wallet get response")
 	}
 
-	// Test updating account name
-	updateRequest := apiClient.UpdateAccount{
-		Name: "Updated Account Name",
+	// Test updating wallet name
+	updateRequest := apiClient.UpdateWallet{
+		Name: "Updated Wallet Name",
 	}
-	updateResp, err := c.PatchAccountsAccountIdWithResponse(context.Background(), acc.JSON201.AccountId, updateRequest)
+	updateResp, err := c.PatchWalletsWalletIdWithResponse(context.Background(), wallet.JSON201.WalletId, updateRequest)
 	if err != nil {
-		t.Fatalf("PatchAccountsAccountId: %v", err)
+		t.Fatalf("PatchWalletsWalletId: %v", err)
 	}
 	if updateResp.StatusCode() != http.StatusOK || updateResp.JSON200 == nil {
-		t.Fatalf("unexpected account update response")
+		t.Fatalf("unexpected wallet update response")
 	}
-	if updateResp.JSON200.Name == nil || *updateResp.JSON200.Name != "Updated Account Name" {
-		t.Fatalf("account name not updated correctly")
+	if updateResp.JSON200.Name == nil || *updateResp.JSON200.Name != "Updated Wallet Name" {
+		t.Fatalf("wallet name not updated correctly")
 	}
 }

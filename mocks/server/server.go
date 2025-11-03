@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,7 +16,7 @@ type MockServer struct {
 	TestServer *httptest.Server
 
 	// simple in-memory stores for the mock
-	accounts   []stdserver.Account
+	wallets    []stdserver.Wallet
 	channels   []stdserver.Channel
 	operations []stdserver.Operation
 }
@@ -26,7 +25,7 @@ var _ stdserver.ServerInterface = (*MockServer)(nil)
 
 func NewMockServer() *MockServer {
 	s := &MockServer{
-		accounts:   make([]stdserver.Account, 0),
+		wallets:    make([]stdserver.Wallet, 0),
 		channels:   make([]stdserver.Channel, 0),
 		operations: make([]stdserver.Operation, 0),
 	}
@@ -236,27 +235,27 @@ func (s *MockServer) DeleteChannelsChannelIdWatchersWatcherId(w http.ResponseWri
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-func (s *MockServer) PostAccounts(w http.ResponseWriter, r *http.Request) {
-	var in stdserver.CreateAccount
+func (s *MockServer) PostWallets(w http.ResponseWriter, r *http.Request) {
+	var in stdserver.CreateWallet
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	id := uuid.New()
-	acc := stdserver.Account{
-		AccountId: id,
-		Address:   strings.ToLower(in.Address),
-		ChainId:   in.ChainId,
-		Name:      in.Name,
+	wallet := stdserver.Wallet{
+		WalletId:      id,
+		Address:       in.Address,
+		ChainSelector: in.ChainSelector,
+		Name:          in.Name,
 	}
-	s.accounts = append(s.accounts, acc)
+	s.wallets = append(s.wallets, wallet)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(acc)
+	_ = json.NewEncoder(w).Encode(wallet)
 }
 
-func (s *MockServer) GetAccounts(w http.ResponseWriter, r *http.Request, params stdserver.GetAccountsParams) {
+func (s *MockServer) GetWallets(w http.ResponseWriter, r *http.Request, params stdserver.GetWalletsParams) {
 	// simple pagination on our in-memory slice
 	limit := 50
 	offset := 0
@@ -268,48 +267,48 @@ func (s *MockServer) GetAccounts(w http.ResponseWriter, r *http.Request, params 
 	}
 
 	end := offset + limit
-	if end > len(s.accounts) {
-		end = len(s.accounts)
+	if end > len(s.wallets) {
+		end = len(s.wallets)
 	}
-	data := []stdserver.Account{}
-	if offset < len(s.accounts) {
-		data = s.accounts[offset:end]
+	data := []stdserver.Wallet{}
+	if offset < len(s.wallets) {
+		data = s.wallets[offset:end]
 	}
-	hasMore := end < len(s.accounts)
+	hasMore := end < len(s.wallets)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(stdserver.AccountList{Data: data, HasMore: hasMore})
+	_ = json.NewEncoder(w).Encode(stdserver.WalletList{Data: data, HasMore: hasMore})
 }
 
-func (s *MockServer) GetAccountsAccountId(w http.ResponseWriter, r *http.Request, accountId openapiTypes.UUID) {
-	for _, a := range s.accounts {
-		if a.AccountId == accountId {
+func (s *MockServer) GetWalletsWalletId(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
+	for _, wallet := range s.wallets {
+		if wallet.WalletId == walletId {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(a)
+			_ = json.NewEncoder(w).Encode(wallet)
 			return
 		}
 	}
-	http.Error(w, "account not found", http.StatusNotFound)
+	http.Error(w, "wallet not found", http.StatusNotFound)
 }
 
-func (s *MockServer) PatchAccountsAccountId(w http.ResponseWriter, r *http.Request, accountId openapiTypes.UUID) {
-	var request stdserver.UpdateAccount
+func (s *MockServer) PatchWalletsWalletId(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
+	var request stdserver.UpdateWallet
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Find and update the account
-	for i, a := range s.accounts {
-		if a.AccountId == accountId {
-			s.accounts[i].Name = &request.Name
+	// Find and update the wallet
+	for i, wallet := range s.wallets {
+		if wallet.WalletId == walletId {
+			s.wallets[i].Name = &request.Name
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(s.accounts[i])
+			_ = json.NewEncoder(w).Encode(s.wallets[i])
 			return
 		}
 	}
-	http.Error(w, "account not found", http.StatusNotFound)
+	http.Error(w, "wallet not found", http.StatusNotFound)
 }
