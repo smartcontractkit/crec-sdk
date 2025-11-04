@@ -242,7 +242,6 @@ type ListOperationsInput struct {
 }
 
 // ListOperations retrieves a list of operations for a channel.
-// Results are scoped to the organization associated with the API key.
 //
 // Parameters:
 //   - ctx: The context for the request.

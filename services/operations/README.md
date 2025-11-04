@@ -47,7 +47,7 @@ graph TD
     C --> C3[GET /channels/:id/operations]
 
     D --> D1[Channel Validation]
-    D --> D2[Organization Scoping]
+    D --> D2[Resource Isolation]
     D --> D3[Status Management]
 ```
 
