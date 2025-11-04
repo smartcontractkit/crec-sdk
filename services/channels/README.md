@@ -196,7 +196,7 @@ if err != nil {
 
 ### DeleteChannel
 
-Performs a logical deletion of a channel. The channel is marked as deleted but not physically removed from the database. This allows for audit trails and potential recovery.
+Deletes a channel. Once deleted, the channel and its associated resources will no longer be accessible.
 
 **Input Parameters:**
 
@@ -413,12 +413,22 @@ if err != nil {
 
 ## Integration with Other CREC Services
 
-Channels are the foundation for organizing CREC resources. Once you create a channel, you can:
+Channels are the foundation for organizing CREC resources and serve two main purposes:
 
-1. **Create Watchers** in the channel to monitor blockchain events
-2. **View Events** detected by watchers in the channel
-3. **Submit Operations** to the channel for transaction execution
-4. **Track Operation Status** for operations in the channel
+### 1. Event Monitoring
+
+Channels enable you to monitor various types of events by creating **watchers**. These events include:
+- **Blockchain events**: Smart contract events, transaction confirmations, etc.
+- **Status updates**: Operation state changes, system notifications, etc.
+- **Custom events**: Application-specific events from your services
+
+Events are consumed by **polling** the channel's events endpoint. Watchers continuously monitor for new events, and you can retrieve them using pagination and filtering options.
+
+### 2. Operation Execution
+
+Channels provide a context for submitting and tracking blockchain operations:
+- **Submit operations**: Send transaction execution requests to the channel
+- **Track status**: Monitor the lifecycle of your operations from submission to completion
 
 Example integration:
 

@@ -26,8 +26,8 @@ type ServiceOptions struct {
 }
 
 // Service provides operations for managing CREC channels.
-// Channels are logical groupings that allow customers to organize their watchers,
-// events, and operations. Each channel is scoped to an organization.
+// Channels are logical groupings that allow you to organize your watchers,
+// events, and operations.
 type Service struct {
 	logger     *zerolog.Logger
 	crecClient *client.CRECClient
@@ -60,13 +60,12 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 }
 
 // CreateChannelInput defines the input parameters for creating a new channel.
-//   - Name: The name of the channel. Must be unique within the organization.
+//   - Name: The name of the channel. Must be unique.
 type CreateChannelInput struct {
 	Name string
 }
 
 // CreateChannel creates a new channel in the CREC backend.
-// The channel will be scoped to the organization associated with the API key.
 //
 // Parameters:
 //   - ctx: The context for the request.
@@ -171,8 +170,7 @@ type ListChannelsInput struct {
 	Offset *int
 }
 
-// ListChannels retrieves a list of channels for the organization.
-// Results are scoped to the organization associated with the API key.
+// ListChannels retrieves a list of channels.
 //
 // Parameters:
 //   - ctx: The context for the request.
@@ -216,8 +214,7 @@ func (s *Service) ListChannels(ctx context.Context, input ListChannelsInput) ([]
 	return resp.JSON200.Data, resp.JSON200.HasMore, nil
 }
 
-// DeleteChannel performs a logical delete of a channel.
-// The channel will be marked as deleted but not physically removed from the database.
+// DeleteChannel deletes a channel.
 //
 // Parameters:
 //   - ctx: The context for the request.
