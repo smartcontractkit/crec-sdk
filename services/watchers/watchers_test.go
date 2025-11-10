@@ -1,341 +1,1850 @@
 package watchers
 
 import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
+	"github.com/smartcontractkit/crec-sdk/client"
 )
 
-func TestServiceCreation(t *testing.T) {
-	t.Run("nil options", func(t *testing.T) {
-		_, err := NewService(nil)
+func setupTestService(t *testing.T, handler http.HandlerFunc) (*Service, *httptest.Server) {
+	server := httptest.NewServer(handler)
+
+	crecClient, err := client.NewCRECClient(&client.ClientOptions{
+		BaseURL: server.URL,
+		APIKey:  "test-api-key",
+	})
+	require.NoError(t, err)
+
+	logger := zerolog.Nop()
+	service, err := NewService(&ServiceOptions{
+		Logger:       &logger,
+		CRECClient:   crecClient,
+		PollInterval: 10 * time.Millisecond, // Fast polling for tests
+	})
+	require.NoError(t, err)
+
+	return service, server
+}
+
+func TestNewService(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		crecClient, err := client.NewCRECClient(&client.ClientOptions{
+			BaseURL: "http://localhost:8080",
+			APIKey:  "test-api-key",
+		})
+		require.NoError(t, err)
+
+		logger := zerolog.Nop()
+		service, err := NewService(&ServiceOptions{
+			Logger:     &logger,
+			CRECClient: crecClient,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+		assert.NotNil(t, service.logger)
+		assert.NotNil(t, service.crecClient)
+	})
+
+	t.Run("NilOptions", func(t *testing.T) {
+		service, err := NewService(nil)
+
 		require.Error(t, err)
+		assert.Nil(t, service)
 		assert.Contains(t, err.Error(), "ServiceOptions is required")
 	})
 
-	t.Run("nil CREC client", func(t *testing.T) {
-		opts := &ServiceOptions{}
-		_, err := NewService(opts)
+	t.Run("NilCRECClient", func(t *testing.T) {
+		logger := zerolog.Nop()
+		service, err := NewService(&ServiceOptions{
+			Logger:     &logger,
+			CRECClient: nil,
+		})
+
 		require.Error(t, err)
+		assert.Nil(t, service)
 		assert.Contains(t, err.Error(), "CRECClient is required")
 	})
-}
 
-func TestCreateWatcherWithDomainInputValidation(t *testing.T) {
-	t.Run("validates required fields", func(t *testing.T) {
-		tests := []struct {
-			name      string
-			channelID uuid.UUID
-			input     CreateWatcherWithDomainInput
-			expectErr string
-		}{
-			{
-				name:      "empty channel ID",
-				channelID: uuid.Nil,
-				input: CreateWatcherWithDomainInput{
-					ChainSelector: 1,
-					Address:       "0x123",
-					Domain:        "dvp",
-					Events:        []string{"OperationExecuted"},
-				},
-				expectErr: "channel_id cannot be empty",
-			},
-			{
-				name:      "empty chain selector",
-				channelID: uuid.New(),
-				input: CreateWatcherWithDomainInput{
-					Address: "0x123",
-					Domain:  "dvp",
-					Events:  []string{"OperationExecuted"},
-				},
-				expectErr: "chain_selector is required",
-			},
-			{
-				name:      "empty address",
-				channelID: uuid.New(),
-				input: CreateWatcherWithDomainInput{
-					ChainSelector: 1,
-					Domain:        "dvp",
-					Events:        []string{"OperationExecuted"},
-				},
-				expectErr: "address is required",
-			},
-			{
-				name:      "empty domain",
-				channelID: uuid.New(),
-				input: CreateWatcherWithDomainInput{
-					ChainSelector: 1,
-					Address:       "0x123",
-					Events:        []string{"OperationExecuted"},
-				},
-				expectErr: "domain is required",
-			},
-			{
-				name:      "empty events",
-				channelID: uuid.New(),
-				input: CreateWatcherWithDomainInput{
-					ChainSelector: 1,
-					Address:       "0x123",
-					Domain:        "dvp",
-				},
-				expectErr: "events list cannot be empty",
-			},
-		}
+	t.Run("DefaultLogger", func(t *testing.T) {
+		crecClient, err := client.NewCRECClient(&client.ClientOptions{
+			BaseURL: "http://localhost:8080",
+			APIKey:  "test-api-key",
+		})
+		require.NoError(t, err)
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				if tt.channelID == uuid.Nil {
-					assert.Contains(t, "channel_id cannot be empty", tt.expectErr)
-					return
-				}
-				if tt.input.ChainSelector == 0 {
-					assert.Contains(t, "chain_selector is required", tt.expectErr)
-					return
-				}
-				if tt.input.Address == "" {
-					assert.Contains(t, "address is required", tt.expectErr)
-					return
-				}
-				if tt.input.Domain == "" {
-					assert.Contains(t, "domain is required", tt.expectErr)
-					return
-				}
-				if len(tt.input.Events) == 0 {
-					assert.Contains(t, "events list cannot be empty", tt.expectErr)
-					return
-				}
-			})
-		}
+		service, err := NewService(&ServiceOptions{
+			Logger:     nil,
+			CRECClient: crecClient,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+		assert.NotNil(t, service.logger)
+	})
+
+	t.Run("DefaultPollInterval", func(t *testing.T) {
+		crecClient, err := client.NewCRECClient(&client.ClientOptions{
+			BaseURL: "http://localhost:8080",
+			APIKey:  "test-api-key",
+		})
+		require.NoError(t, err)
+
+		logger := zerolog.Nop()
+		service, err := NewService(&ServiceOptions{
+			Logger:     &logger,
+			CRECClient: crecClient,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+		assert.Equal(t, 2*time.Second, service.pollInterval)
+	})
+
+	t.Run("CustomPollInterval", func(t *testing.T) {
+		crecClient, err := client.NewCRECClient(&client.ClientOptions{
+			BaseURL: "http://localhost:8080",
+			APIKey:  "test-api-key",
+		})
+		require.NoError(t, err)
+
+		logger := zerolog.Nop()
+		customInterval := 500 * time.Millisecond
+		service, err := NewService(&ServiceOptions{
+			Logger:       &logger,
+			CRECClient:   crecClient,
+			PollInterval: customInterval,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+		assert.Equal(t, customInterval, service.pollInterval)
 	})
 }
 
-func TestCreateWatcherWithABIInputValidation(t *testing.T) {
-	t.Run("validates required fields", func(t *testing.T) {
-		tests := []struct {
-			name      string
-			channelID uuid.UUID
-			input     CreateWatcherWithABIInput
-			expectErr string
-		}{
-			{
-				name:      "empty channel ID",
-				channelID: uuid.Nil,
-				input: CreateWatcherWithABIInput{
-					ChainSelector: 1,
-					Address:       "0x123",
-					Events:        []string{"Transfer"},
-					ABI: []EventABI{
-						{
-							Type: "event",
-							Name: "Transfer",
-							Inputs: []EventABIInput{
-								{Name: "from", Type: "address", InternalType: "address"},
-							},
-						},
-					},
-				},
-				expectErr: "channel_id cannot be empty",
-			},
-			{
-				name:      "empty chain selector",
-				channelID: uuid.New(),
-				input: CreateWatcherWithABIInput{
-					Address: "0x123",
-					Events:  []string{"Transfer"},
-					ABI: []EventABI{
-						{
-							Type: "event",
-							Name: "Transfer",
-							Inputs: []EventABIInput{
-								{Name: "from", Type: "address", InternalType: "address"},
-							},
-						},
-					},
-				},
-				expectErr: "chain_selector is required",
-			},
-			{
-				name:      "empty address",
-				channelID: uuid.New(),
-				input: CreateWatcherWithABIInput{
-					ChainSelector: 1,
-					Events:        []string{"Transfer"},
-					ABI: []EventABI{
-						{
-							Type: "event",
-							Name: "Transfer",
-							Inputs: []EventABIInput{
-								{Name: "from", Type: "address", InternalType: "address"},
-							},
-						},
-					},
-				},
-				expectErr: "address is required",
-			},
-			{
-				name:      "empty events",
-				channelID: uuid.New(),
-				input: CreateWatcherWithABIInput{
-					ChainSelector: 1,
-					Address:       "0x123",
-					ABI: []EventABI{
-						{
-							Type: "event",
-							Name: "Transfer",
-							Inputs: []EventABIInput{
-								{Name: "from", Type: "address", InternalType: "address"},
-							},
-						},
-					},
-				},
-				expectErr: "events list cannot be empty",
-			},
-			{
-				name:      "empty ABI",
-				channelID: uuid.New(),
-				input: CreateWatcherWithABIInput{
-					ChainSelector: 1,
-					Address:       "0x123",
-					Events:        []string{"Transfer"},
-				},
-				expectErr: "abi cannot be empty",
-			},
+func TestService_CreateWatcherWithDomain(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		watcherName := "test-watcher"
+		domain := "dvp"
+		chainSelector := uint64(1337)
+		address := "0x1234567890abcdef"
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			expectedPath := "/channels/" + channelID.String() + "/watchers"
+			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, "POST", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var createReq apiClient.CreateWatcher
+			err = json.Unmarshal(body, &createReq)
+			require.NoError(t, err)
+
+			domainWatcher, err := createReq.AsCreateWatcherWithDomain()
+			require.NoError(t, err)
+			require.NotNil(t, domainWatcher.Name)
+			assert.Equal(t, watcherName, *domainWatcher.Name)
+			assert.Equal(t, domain, domainWatcher.Domain)
+			assert.Equal(t, chainSelector, domainWatcher.ChainSelector)
+			assert.Equal(t, address, domainWatcher.Address)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &watcherName,
+				ChainSelector: chainSelector,
+				Address:       address,
+				Status:        "pending",
+			}
+			json.NewEncoder(w).Encode(response)
 		}
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				if tt.channelID == uuid.Nil {
-					assert.Contains(t, "channel_id cannot be empty", tt.expectErr)
-					return
-				}
-				if tt.input.ChainSelector == 0 {
-					assert.Contains(t, "chain_selector is required", tt.expectErr)
-					return
-				}
-				if tt.input.Address == "" {
-					assert.Contains(t, "address is required", tt.expectErr)
-					return
-				}
-				if len(tt.input.Events) == 0 {
-					assert.Contains(t, "events list cannot be empty", tt.expectErr)
-					return
-				}
-				if len(tt.input.ABI) == 0 {
-					assert.Contains(t, "abi cannot be empty", tt.expectErr)
-					return
-				}
-			})
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.CreateWatcherWithDomain(context.Background(), channelID, CreateWatcherWithDomainInput{
+			Name:          &watcherName,
+			Domain:        domain,
+			ChainSelector: chainSelector,
+			Address:       address,
+			Events:        []string{"TestEvent"},
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, watcherID, watcher.WatcherId)
+		require.NotNil(t, watcher.Name)
+		assert.Equal(t, watcherName, *watcher.Name)
+		assert.Equal(t, chainSelector, watcher.ChainSelector)
+		assert.Equal(t, address, watcher.Address)
+		assert.Equal(t, "pending", watcher.Status)
+	})
+
+	t.Run("EmptyChannelID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty channel ID")
 		}
-	})
-}
 
-func TestConvertUint64PtrToStringPtr(t *testing.T) {
-	t.Run("nil value", func(t *testing.T) {
-		result := convertUint64PtrToStringPtr(nil)
-		assert.Nil(t, result)
-	})
+		service, server := setupTestService(t, handler)
+		defer server.Close()
 
-	t.Run("non-nil value", func(t *testing.T) {
-		val := uint64(12345)
-		result := convertUint64PtrToStringPtr(&val)
-		require.NotNil(t, result)
-		assert.Equal(t, "12345", *result)
-	})
-
-	t.Run("zero value", func(t *testing.T) {
-		val := uint64(0)
-		result := convertUint64PtrToStringPtr(&val)
-		require.NotNil(t, result)
-		assert.Equal(t, "0", *result)
-	})
-}
-
-func TestWatcherInputTypes(t *testing.T) {
-	t.Run("CreateWatcherWithDomainInput structure", func(t *testing.T) {
 		name := "test-watcher"
-		input := CreateWatcherWithDomainInput{
+		watcher, err := service.CreateWatcherWithDomain(context.Background(), uuid.Nil, CreateWatcherWithDomainInput{
 			Name:          &name,
-			ChainSelector: 1,
-			Address:       "0x123",
 			Domain:        "dvp",
-			Events:        []string{"OperationExecuted"},
-		}
+			ChainSelector: 1337,
+			Address:       "0x1234",
+			Events:        []string{"TestEvent"},
+		})
 
-		assert.Equal(t, &name, input.Name)
-		assert.Equal(t, uint64(1), input.ChainSelector)
-		assert.Equal(t, "0x123", input.Address)
-		assert.Equal(t, "dvp", input.Domain)
-		assert.Len(t, input.Events, 1)
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "channel_id cannot be empty")
 	})
 
-	t.Run("CreateWatcherWithABIInput structure", func(t *testing.T) {
+	t.Run("EmptyDomain", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty domain")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
 		name := "test-watcher"
-		input := CreateWatcherWithABIInput{
+		watcher, err := service.CreateWatcherWithDomain(context.Background(), uuid.New(), CreateWatcherWithDomainInput{
 			Name:          &name,
-			ChainSelector: 1,
-			Address:       "0x123",
+			Domain:        "",
+			ChainSelector: 1337,
+			Address:       "0x1234",
+			Events:        []string{"TestEvent"},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "domain is required")
+	})
+
+	t.Run("EmptyAddress", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty address")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		name := "test-watcher"
+		watcher, err := service.CreateWatcherWithDomain(context.Background(), uuid.New(), CreateWatcherWithDomainInput{
+			Name:          &name,
+			Domain:        "dvp",
+			ChainSelector: 1337,
+			Address:       "",
+			Events:        []string{"TestEvent"},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "address is required")
+	})
+
+	t.Run("BadRequest", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Invalid watcher configuration",
+			})
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		name := "test-watcher"
+		watcher, err := service.CreateWatcherWithDomain(context.Background(), channelID, CreateWatcherWithDomainInput{
+			Name:          &name,
+			Domain:        "dvp",
+			ChainSelector: 1337,
+			Address:       "0x1234",
+			Events:        []string{"TestEvent"},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "failed to create watcher with domain")
+	})
+}
+
+func TestService_CreateWatcherWithABI(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		watcherName := "test-watcher-abi"
+		chainSelector := uint64(1337)
+		address := "0x1234567890abcdef"
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			expectedPath := "/channels/" + channelID.String() + "/watchers"
+			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, "POST", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var createReq apiClient.CreateWatcher
+			err = json.Unmarshal(body, &createReq)
+			require.NoError(t, err)
+
+			abiWatcher, err := createReq.AsCreateWatcherWithABI()
+			require.NoError(t, err)
+			require.NotNil(t, abiWatcher.Name)
+			assert.Equal(t, watcherName, *abiWatcher.Name)
+			assert.Equal(t, chainSelector, abiWatcher.ChainSelector)
+			assert.Equal(t, address, abiWatcher.Address)
+			assert.Len(t, abiWatcher.Abi, 1)
+			assert.Equal(t, "Transfer", abiWatcher.Abi[0].Name)
+			assert.Len(t, abiWatcher.Abi[0].Inputs, 3)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &watcherName,
+				ChainSelector: chainSelector,
+				Address:       address,
+				Status:        "pending",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.CreateWatcherWithABI(context.Background(), channelID, CreateWatcherWithABIInput{
+			Name:          &watcherName,
+			ChainSelector: chainSelector,
+			Address:       address,
 			Events:        []string{"Transfer"},
 			ABI: []EventABI{
 				{
-					Type: "event",
-					Name: "Transfer",
+					Name:      "Transfer",
+					Anonymous: false,
 					Inputs: []EventABIInput{
-						{Name: "from", Type: "address", InternalType: "address", Indexed: true},
-						{Name: "to", Type: "address", InternalType: "address", Indexed: true},
-						{Name: "value", Type: "uint256", InternalType: "uint256", Indexed: false},
+						{
+							Indexed: true,
+							Name:    "from",
+							Type:    "address",
+						},
+						{
+							Indexed: true,
+							Name:    "to",
+							Type:    "address",
+						},
+						{
+							Indexed: false,
+							Name:    "value",
+							Type:    "uint256",
+						},
+					},
+				},
+			},
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, watcherID, watcher.WatcherId)
+		require.NotNil(t, watcher.Name)
+		assert.Equal(t, watcherName, *watcher.Name)
+		assert.Equal(t, chainSelector, watcher.ChainSelector)
+		assert.Equal(t, address, watcher.Address)
+		assert.Equal(t, "pending", watcher.Status)
+	})
+
+	t.Run("EmptyChannelID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty channel ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		name := "test-watcher"
+		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.Nil, CreateWatcherWithABIInput{
+			Name:          &name,
+			ChainSelector: 1337,
+			Address:       "0x1234",
+			Events:        []string{"TestEvent"},
+			ABI:           []EventABI{},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "channel_id cannot be empty")
+	})
+
+	t.Run("EmptyABI", func(t *testing.T) {
+		service, server := setupTestService(t, nil)
+		defer server.Close()
+
+		name := "test-watcher"
+		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.New(), CreateWatcherWithABIInput{
+			Name:          &name,
+			ChainSelector: 1337,
+			Address:       "0x1234",
+			Events:        []string{"TestEvent"},
+			ABI:           []EventABI{},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "abi cannot be empty")
+	})
+}
+
+func TestService_FindWatchersByChannel(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		channelID := uuid.New()
+		watcher1ID := uuid.New()
+		watcher2ID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			expectedPath := "/channels/" + channelID.String() + "/watchers"
+			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, "GET", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			query := r.URL.Query()
+			assert.Equal(t, "10", query.Get("limit"))
+			assert.Equal(t, "0", query.Get("offset"))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name1 := "watcher-1"
+			name2 := "watcher-2"
+			response := apiClient.WatcherList{
+				Data: []apiClient.Watcher{
+					{
+						WatcherId:     watcher1ID,
+						Name:          &name1,
+						ChainSelector: 1337,
+						Address:       "0x1111",
+						Status:        "active",
+					},
+					{
+						WatcherId:     watcher2ID,
+						Name:          &name2,
+						ChainSelector: 1337,
+						Address:       "0x2222",
+						Status:        "active",
+					},
+				},
+				HasMore: false,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		limit := 10
+		offset := 0
+		result, err := service.FindWatchersByChannel(context.Background(), channelID, WatcherFilters{
+			Limit:  &limit,
+			Offset: &offset,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, result.Data, 2)
+		assert.False(t, result.HasMore)
+		assert.Equal(t, watcher1ID, result.Data[0].WatcherId)
+		require.NotNil(t, result.Data[0].Name)
+		assert.Equal(t, "watcher-1", *result.Data[0].Name)
+		assert.Equal(t, watcher2ID, result.Data[1].WatcherId)
+		require.NotNil(t, result.Data[1].Name)
+		assert.Equal(t, "watcher-2", *result.Data[1].Name)
+	})
+
+	t.Run("WithFilters", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		name := "test-watcher"
+		status := StatusActive
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			query := r.URL.Query()
+			assert.Equal(t, name, query.Get("name"))
+			assert.Equal(t, string(status), query.Get("status"))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.WatcherList{
+				Data: []apiClient.Watcher{
+					{
+						WatcherId:     watcherID,
+						Name:          &name,
+						ChainSelector: 1337,
+						Address:       "0x1111",
+						Status:        string(status),
+					},
+				},
+				HasMore: false,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		result, err := service.FindWatchersByChannel(context.Background(), channelID, WatcherFilters{
+			Name:   &name,
+			Status: &status,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, result.Data, 1)
+		require.NotNil(t, result.Data[0].Name)
+		assert.Equal(t, name, *result.Data[0].Name)
+		assert.Equal(t, string(status), result.Data[0].Status)
+	})
+
+	t.Run("EmptyChannelID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty channel ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		result, err := service.FindWatchersByChannel(context.Background(), uuid.Nil, WatcherFilters{})
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "channel_id cannot be empty")
+	})
+
+	t.Run("ServerError", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Internal server error",
+			})
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		result, err := service.FindWatchersByChannel(context.Background(), channelID, WatcherFilters{})
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to find watchers")
+	})
+}
+
+func TestService_FindWatcherByID(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
+			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, "GET", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "active",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.FindWatcherByID(context.Background(), channelID, watcherID)
+
+		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, watcherID, watcher.WatcherId)
+		require.NotNil(t, watcher.Name)
+		assert.Equal(t, "test-watcher", *watcher.Name)
+		assert.Equal(t, "active", watcher.Status)
+	})
+
+	t.Run("EmptyChannelID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty channel ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.FindWatcherByID(context.Background(), uuid.Nil, uuid.New())
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "channel_id cannot be empty")
+	})
+
+	t.Run("EmptyWatcherID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty watcher ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.FindWatcherByID(context.Background(), uuid.New(), uuid.Nil)
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "watcher_id cannot be empty")
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Watcher not found",
+			})
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.FindWatcherByID(context.Background(), channelID, watcherID)
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "failed to find watcher")
+	})
+}
+
+func TestService_UpdateWatcher(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		newName := "updated-watcher"
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
+			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, "PATCH", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var updateReq apiClient.UpdateWatcher
+			err = json.Unmarshal(body, &updateReq)
+			require.NoError(t, err)
+			assert.Equal(t, newName, updateReq.Name)
+
+			// Return success response
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &newName,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "active",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.UpdateWatcher(context.Background(), channelID, watcherID, UpdateWatcherInput{
+			Name: newName,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, watcherID, watcher.WatcherId)
+		require.NotNil(t, watcher.Name)
+		assert.Equal(t, newName, *watcher.Name)
+	})
+
+	t.Run("EmptyChannelID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty channel ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.UpdateWatcher(context.Background(), uuid.Nil, uuid.New(), UpdateWatcherInput{
+			Name: "new-name",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "channel_id cannot be empty")
+	})
+
+	t.Run("EmptyWatcherID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty watcher ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.UpdateWatcher(context.Background(), uuid.New(), uuid.Nil, UpdateWatcherInput{
+			Name: "new-name",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "watcher_id cannot be empty")
+	})
+
+	t.Run("EmptyName", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty name")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.UpdateWatcher(context.Background(), uuid.New(), uuid.New(), UpdateWatcherInput{
+			Name: "",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "name is required")
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Watcher not found",
+			})
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.UpdateWatcher(context.Background(), channelID, watcherID, UpdateWatcherInput{
+			Name: "new-name",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "failed to update watcher")
+	})
+}
+
+func TestService_DeleteWatcher(t *testing.T) {
+	t.Run("SuccessSync", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
+			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, "DELETE", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			w.WriteHeader(http.StatusNoContent)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.DeleteWatcher(context.Background(), channelID, watcherID)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("SuccessAsync", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
+			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, "DELETE", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			w.WriteHeader(http.StatusAccepted) // 202 for async deletion
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.DeleteWatcher(context.Background(), channelID, watcherID)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("EmptyChannelID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty channel ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.DeleteWatcher(context.Background(), uuid.Nil, uuid.New())
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "channel_id cannot be empty")
+	})
+
+	t.Run("EmptyWatcherID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty watcher ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.DeleteWatcher(context.Background(), uuid.New(), uuid.Nil)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "watcher_id cannot be empty")
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Watcher not found",
+			})
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.DeleteWatcher(context.Background(), channelID, watcherID)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete watcher")
+	})
+
+	t.Run("ServerError", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Internal server error",
+			})
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.DeleteWatcher(context.Background(), channelID, watcherID)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete watcher")
+	})
+}
+
+func TestService_WaitForActive(t *testing.T) {
+	t.Run("SuccessImmediatelyActive", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "active",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+
+		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, "active", watcher.Status)
+	})
+
+	t.Run("SuccessAfterPolling", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		callCount := 0
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			callCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+
+			var status string
+			if callCount < 3 {
+				status = "pending"
+			} else {
+				status = "active"
+			}
+
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        status,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 10*time.Second)
+
+		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, "active", watcher.Status)
+		assert.GreaterOrEqual(t, callCount, 3)
+	})
+
+	t.Run("FailedStatus", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "failed",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "watcher deployment failed")
+	})
+
+	t.Run("Timeout", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "pending",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 100*time.Millisecond)
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "timeout waiting for watcher to become active")
+	})
+
+	t.Run("EmptyChannelID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty channel ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.WaitForActive(context.Background(), uuid.Nil, uuid.New(), 5*time.Second)
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "channel_id cannot be empty")
+	})
+
+	t.Run("EmptyWatcherID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty watcher ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.WaitForActive(context.Background(), uuid.New(), uuid.Nil, 5*time.Second)
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "watcher_id cannot be empty")
+	})
+
+	t.Run("DeletingStatus", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "deleting",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "watcher is being deleted and cannot become active")
+	})
+
+	t.Run("DeletedStatus", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "deleted",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.Contains(t, err.Error(), "watcher has been deleted and cannot become active")
+	})
+}
+
+func TestService_WaitForDeleted(t *testing.T) {
+	t.Run("SuccessImmediatelyDeleted", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "deleted",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("SuccessAfterPolling", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		callCount := 0
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			callCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+
+			var status string
+			if callCount < 3 {
+				status = "deleting"
+			} else {
+				status = "deleted"
+			}
+
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        status,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, callCount, 3)
+	})
+
+	t.Run("SuccessNotFound", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Watcher not found",
+			})
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+
+		require.NoError(t, err) // 404 means it's been deleted
+	})
+
+	t.Run("Timeout", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "deleting",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		// Use a very short timeout to test timeout behavior
+		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 100*time.Millisecond)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "timeout waiting for watcher to be deleted")
+	})
+
+	t.Run("UnexpectedStatus", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: 1337,
+				Address:       "0x1234",
+				Status:        "active", // Unexpected status while waiting for deletion
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "watcher deletion failed")
+		assert.Contains(t, err.Error(), "active state")
+	})
+
+	t.Run("EmptyChannelID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty channel ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.WaitForDeleted(context.Background(), uuid.Nil, uuid.New(), 5*time.Second)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "channel_id cannot be empty")
+	})
+
+	t.Run("EmptyWatcherID", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with empty watcher ID")
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.WaitForDeleted(context.Background(), uuid.New(), uuid.Nil, 5*time.Second)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "watcher_id cannot be empty")
+	})
+}
+
+func TestEndToEnd_WatcherLifecycle(t *testing.T) {
+	t.Run("CreateWithDomain_WaitActive_Update_Delete", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		watcherName := "integration-test-watcher"
+		updatedName := "updated-watcher"
+
+		callCount := 0
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			callCount++
+			w.Header().Set("Content-Type", "application/json")
+
+			switch {
+			// 1. Create watcher
+			case r.Method == "POST" && strings.Contains(r.URL.Path, "/channels/"+channelID.String()+"/watchers"):
+				w.WriteHeader(http.StatusCreated)
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &watcherName,
+					ChainSelector: 1337,
+					Address:       "0x1234",
+					Status:        "pending",
+				}
+				json.NewEncoder(w).Encode(response)
+
+			// 2-3. Wait for active (first pending, then active)
+			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
+				w.WriteHeader(http.StatusOK)
+				status := "pending"
+				name := watcherName
+				if callCount > 2 {
+					status = "active"
+				}
+				if callCount > 4 {
+					name = updatedName
+				}
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &name,
+					ChainSelector: 1337,
+					Address:       "0x1234",
+					Status:        status,
+				}
+				json.NewEncoder(w).Encode(response)
+
+			// 4. Update watcher
+			case r.Method == "PATCH" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
+				w.WriteHeader(http.StatusOK)
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &updatedName,
+					ChainSelector: 1337,
+					Address:       "0x1234",
+					Status:        "active",
+				}
+				json.NewEncoder(w).Encode(response)
+
+			// 5. Delete watcher
+			case r.Method == "DELETE" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
+				w.WriteHeader(http.StatusNoContent)
+
+			default:
+				t.Fatalf("Unexpected request: %s %s", r.Method, r.URL.Path)
+			}
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		ctx := context.Background()
+
+		// Step 1: Create watcher with domain
+		createInput := CreateWatcherWithDomainInput{
+			Name:          &watcherName,
+			ChainSelector: 1337,
+			Address:       "0x1234",
+			Domain:        "dvp",
+			Events:        []string{"TestEvent"},
+		}
+		created, err := service.CreateWatcherWithDomain(ctx, channelID, createInput)
+		require.NoError(t, err)
+		assert.Equal(t, watcherID, created.WatcherId)
+		assert.Equal(t, "pending", created.Status)
+
+		// Step 2: Wait for watcher to become active
+		active, err := service.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
+		require.NoError(t, err)
+		assert.Equal(t, "active", active.Status)
+
+		// Step 3: Find the watcher
+		found, err := service.FindWatcherByID(ctx, channelID, watcherID)
+		require.NoError(t, err)
+		assert.Equal(t, watcherID, found.WatcherId)
+		assert.Equal(t, watcherName, *found.Name)
+
+		// Step 4: Update the watcher
+		updateInput := UpdateWatcherInput{
+			Name: updatedName,
+		}
+		updated, err := service.UpdateWatcher(ctx, channelID, watcherID, updateInput)
+		require.NoError(t, err)
+		assert.Equal(t, updatedName, *updated.Name)
+
+		// Step 5: Verify update
+		found, err = service.FindWatcherByID(ctx, channelID, watcherID)
+		require.NoError(t, err)
+		assert.Equal(t, updatedName, *found.Name)
+
+		// Step 6: Delete the watcher
+		err = service.DeleteWatcher(ctx, channelID, watcherID)
+		require.NoError(t, err)
+
+		// Verify we made all expected calls
+		assert.GreaterOrEqual(t, callCount, 6, "Should have made at least 6 API calls")
+	})
+
+	t.Run("CreateWithABI_WaitActive_List_Delete", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		watcherName := "abi-test-watcher"
+
+		callCount := 0
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			callCount++
+			w.Header().Set("Content-Type", "application/json")
+
+			switch {
+			// 1. Create watcher with ABI
+			case r.Method == "POST" && strings.Contains(r.URL.Path, "/channels/"+channelID.String()+"/watchers"):
+				w.WriteHeader(http.StatusCreated)
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &watcherName,
+					ChainSelector: 1337,
+					Address:       "0x5678",
+					Status:        "pending",
+				}
+				json.NewEncoder(w).Encode(response)
+
+			// 2. Wait for active (immediately active)
+			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
+				w.WriteHeader(http.StatusOK)
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &watcherName,
+					ChainSelector: 1337,
+					Address:       "0x5678",
+					Status:        "active",
+				}
+				json.NewEncoder(w).Encode(response)
+
+			// 3. List watchers
+			case r.Method == "GET" && strings.Contains(r.URL.Path, "/channels/"+channelID.String()+"/watchers") && !strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
+				w.WriteHeader(http.StatusOK)
+				response := apiClient.WatcherList{
+					Data: []apiClient.Watcher{
+						{
+							WatcherId:     watcherID,
+							Name:          &watcherName,
+							ChainSelector: 1337,
+							Address:       "0x5678",
+							Status:        "active",
+						},
+					},
+					HasMore: false,
+				}
+				json.NewEncoder(w).Encode(response)
+
+			// 4. Delete watcher (async)
+			case r.Method == "DELETE" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
+				w.WriteHeader(http.StatusAccepted)
+
+			default:
+				t.Fatalf("Unexpected request: %s %s", r.Method, r.URL.Path)
+			}
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		ctx := context.Background()
+
+		// Step 1: Create watcher with custom ABI
+		createInput := CreateWatcherWithABIInput{
+			Name:          &watcherName,
+			ChainSelector: 1337,
+			Address:       "0x5678",
+			Events:        []string{"Transfer"},
+			ABI: []EventABI{
+				{
+					Name:      "Transfer",
+					Anonymous: false,
+					Inputs: []EventABIInput{
+						{Name: "from", Type: "address", Indexed: true},
+						{Name: "to", Type: "address", Indexed: true},
+						{Name: "value", Type: "uint256", Indexed: false},
 					},
 				},
 			},
 		}
+		created, err := service.CreateWatcherWithABI(ctx, channelID, createInput)
+		require.NoError(t, err)
+		assert.Equal(t, watcherID, created.WatcherId)
 
-		assert.Equal(t, &name, input.Name)
-		assert.Equal(t, uint64(1), input.ChainSelector)
-		assert.Equal(t, "0x123", input.Address)
-		assert.Len(t, input.Events, 1)
-		assert.Len(t, input.ABI, 1)
-		assert.Equal(t, "Transfer", input.ABI[0].Name)
-		assert.Len(t, input.ABI[0].Inputs, 3)
+		// Step 2: Wait for active
+		active, err := service.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
+		require.NoError(t, err)
+		assert.Equal(t, "active", active.Status)
+
+		// Step 3: List all watchers in the channel
+		filters := WatcherFilters{}
+		list, err := service.FindWatchersByChannel(ctx, channelID, filters)
+		require.NoError(t, err)
+		assert.Len(t, list.Data, 1)
+		assert.Equal(t, watcherID, list.Data[0].WatcherId)
+
+		// Step 4: Delete the watcher (async)
+		err = service.DeleteWatcher(ctx, channelID, watcherID)
+		require.NoError(t, err)
+
+		assert.Equal(t, 4, callCount, "Should have made 4 API calls")
 	})
+}
 
-	t.Run("UpdateWatcherInput structure", func(t *testing.T) {
-		input := UpdateWatcherInput{
-			Name: "updated-name",
+// TestEndToEnd_ErrorScenarios tests various error scenarios in realistic workflows
+func TestEndToEnd_ErrorScenarios(t *testing.T) {
+	t.Run("CreateFails_NeverReachesActive", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "POST" {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(`{"error": "invalid chain selector"}`))
+			}
 		}
 
-		assert.Equal(t, "updated-name", input.Name)
-	})
-}
+		service, server := setupTestService(t, handler)
+		defer server.Close()
 
-func TestWatcherStatus(t *testing.T) {
-	t.Run("status constants", func(t *testing.T) {
-		assert.Equal(t, WatcherStatus("pending"), StatusPending)
-		assert.Equal(t, WatcherStatus("active"), StatusActive)
-		assert.Equal(t, WatcherStatus("failed"), StatusFailed)
-		assert.Equal(t, WatcherStatus("deleting"), StatusDeleting)
-		assert.Equal(t, WatcherStatus("deleted"), StatusDeleted)
-	})
-}
+		ctx := context.Background()
 
-func TestDeleteWatcherValidation(t *testing.T) {
-	t.Run("validation logic", func(t *testing.T) {
-		channelID := uuid.Nil
+		// Try to create with invalid data
+		createInput := CreateWatcherWithDomainInput{
+			ChainSelector: 0, // Invalid
+			Address:       "0x1234",
+			Domain:        "dvp",
+			Events:        []string{"TestEvent"},
+		}
+		_, err := service.CreateWatcherWithDomain(ctx, channelID, createInput)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "chain_selector is required")
+	})
+
+	t.Run("CreateSucceeds_ButFailsToDeploy", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		watcherName := "failing-watcher"
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+
+			if r.Method == "POST" {
+				w.WriteHeader(http.StatusCreated)
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &watcherName,
+					ChainSelector: 1337,
+					Address:       "0x1234",
+					Status:        "pending",
+				}
+				json.NewEncoder(w).Encode(response)
+			} else if r.Method == "GET" {
+				// Watcher failed to deploy
+				w.WriteHeader(http.StatusOK)
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &watcherName,
+					ChainSelector: 1337,
+					Address:       "0x1234",
+					Status:        "failed",
+				}
+				json.NewEncoder(w).Encode(response)
+			}
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		ctx := context.Background()
+
+		// Create watcher
+		createInput := CreateWatcherWithDomainInput{
+			Name:          &watcherName,
+			ChainSelector: 1337,
+			Address:       "0x1234",
+			Domain:        "dvp",
+			Events:        []string{"TestEvent"},
+		}
+		created, err := service.CreateWatcherWithDomain(ctx, channelID, createInput)
+		require.NoError(t, err)
+
+		// Wait for active - should fail because watcher deployment failed
+		_, err = service.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "watcher deployment failed")
+	})
+
+	t.Run("WatcherIsDeleted_WhileWaitingForActive", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		watcherName := "deleted-watcher"
+
+		callCount := 0
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			callCount++
+			w.Header().Set("Content-Type", "application/json")
+
+			if r.Method == "POST" {
+				w.WriteHeader(http.StatusCreated)
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &watcherName,
+					ChainSelector: 1337,
+					Address:       "0x1234",
+					Status:        "pending",
+				}
+				json.NewEncoder(w).Encode(response)
+			} else if r.Method == "GET" {
+				w.WriteHeader(http.StatusOK)
+				// First call: pending, then deleted
+				status := "pending"
+				if callCount > 2 {
+					status = "deleted"
+				}
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &watcherName,
+					ChainSelector: 1337,
+					Address:       "0x1234",
+					Status:        status,
+				}
+				json.NewEncoder(w).Encode(response)
+			}
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		ctx := context.Background()
+
+		// Create watcher
+		createInput := CreateWatcherWithDomainInput{
+			Name:          &watcherName,
+			ChainSelector: 1337,
+			Address:       "0x1234",
+			Domain:        "dvp",
+			Events:        []string{"TestEvent"},
+		}
+		created, err := service.CreateWatcherWithDomain(ctx, channelID, createInput)
+		require.NoError(t, err)
+
+		// Wait for active - should fail because watcher was deleted
+		_, err = service.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "watcher has been deleted and cannot become active")
+	})
+
+	t.Run("UpdateNonExistentWatcher", func(t *testing.T) {
+		channelID := uuid.New()
 		watcherID := uuid.New()
 
-		if channelID == uuid.Nil {
-			assert.Equal(t, uuid.Nil, channelID)
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "PATCH" {
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`{"error": "watcher not found"}`))
+			}
 		}
 
-		channelID = uuid.New()
-		watcherID = uuid.Nil
-		if watcherID == uuid.Nil {
-			assert.Equal(t, uuid.Nil, watcherID)
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		ctx := context.Background()
+
+		// Try to update non-existent watcher
+		updateInput := UpdateWatcherInput{
+			Name: "new-name",
+		}
+		_, err := service.UpdateWatcher(ctx, channelID, watcherID, updateInput)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to update watcher: status code 404")
+	})
+
+	t.Run("DeleteDuringWaitForDeleted_CompletesSuccessfully", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		callCount := 0
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			callCount++
+			w.Header().Set("Content-Type", "application/json")
+
+			if r.Method == "DELETE" {
+				// Async deletion
+				w.WriteHeader(http.StatusAccepted)
+			} else if r.Method == "GET" {
+				// First call: deleting, then deleted
+				if callCount <= 2 {
+					w.WriteHeader(http.StatusOK)
+					name := "test-watcher"
+					response := apiClient.Watcher{
+						WatcherId:     watcherID,
+						Name:          &name,
+						ChainSelector: 1337,
+						Address:       "0x1234",
+						Status:        "deleting",
+					}
+					json.NewEncoder(w).Encode(response)
+				} else {
+					w.WriteHeader(http.StatusOK)
+					name := "test-watcher"
+					response := apiClient.Watcher{
+						WatcherId:     watcherID,
+						Name:          &name,
+						ChainSelector: 1337,
+						Address:       "0x1234",
+						Status:        "deleted",
+					}
+					json.NewEncoder(w).Encode(response)
+				}
+			}
 		}
 
-		channelID = uuid.New()
-		watcherID = uuid.New()
-		assert.NotEqual(t, uuid.Nil, channelID)
-		assert.NotEqual(t, uuid.Nil, watcherID)
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		ctx := context.Background()
+
+		// Delete watcher (async)
+		err := service.DeleteWatcher(ctx, channelID, watcherID)
+		require.NoError(t, err)
+
+		// Wait for deletion to complete
+		err = service.WaitForDeleted(ctx, channelID, watcherID, 5*time.Second)
+		require.NoError(t, err)
+	})
+}
+
+// TestEndToEnd_Filtering tests filtering and pagination in list operations
+func TestEndToEnd_Filtering(t *testing.T) {
+	t.Run("FilterByMultipleCriteria", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != "GET" {
+				t.Fatalf("Expected GET, got %s", r.Method)
+			}
+
+			// Verify query parameters
+			query := r.URL.Query()
+			assert.Equal(t, "my-watcher", query.Get("name"))
+			assert.Equal(t, "1337", query.Get("chain_selector"))
+			assert.Equal(t, "0x1234", query.Get("address"))
+			assert.Equal(t, "dvp", query.Get("domain"))
+			assert.Equal(t, "active", query.Get("status"))
+			assert.Equal(t, "10", query.Get("limit"))
+			assert.Equal(t, "5", query.Get("offset"))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "my-watcher"
+			response := apiClient.WatcherList{
+				Data: []apiClient.Watcher{
+					{
+						WatcherId:     uuid.New(),
+						Name:          &name,
+						ChainSelector: 1337,
+						Address:       "0x1234",
+						Status:        "active",
+					},
+				},
+				HasMore: false,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		ctx := context.Background()
+
+		// Search with all filters
+		chainSelector := uint64(1337)
+		name := "my-watcher"
+		address := "0x1234"
+		domain := "dvp"
+		status := StatusActive
+		limit := 10
+		offset := 5
+
+		filters := WatcherFilters{
+			Name:          &name,
+			ChainSelector: &chainSelector,
+			Address:       &address,
+			Domain:        &domain,
+			Status:        &status,
+			Limit:         &limit,
+			Offset:        &offset,
+		}
+
+		list, err := service.FindWatchersByChannel(ctx, channelID, filters)
+		require.NoError(t, err)
+		assert.Len(t, list.Data, 1)
+	})
+
+	t.Run("PaginationThroughResults", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			query := r.URL.Query()
+			offset := 0
+			if query.Get("offset") != "" {
+				offset, _ = strconv.Atoi(query.Get("offset"))
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+
+			// Simulate paginated results
+			watchers := []apiClient.Watcher{}
+			for i := 0; i < 5 && offset+i < 15; i++ {
+				name := "watcher-" + strconv.Itoa(offset+i)
+				watchers = append(watchers, apiClient.Watcher{
+					WatcherId:     uuid.New(),
+					Name:          &name,
+					ChainSelector: 1337,
+					Address:       "0x1234",
+					Status:        "active",
+				})
+			}
+
+			hasMore := offset+5 < 15
+			response := apiClient.WatcherList{
+				Data:    watchers,
+				HasMore: hasMore,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		ctx := context.Background()
+		limit := 5
+
+		// Fetch pages
+		allWatchers := []apiClient.Watcher{}
+		for offset := 0; offset < 15; offset += 5 {
+			filters := WatcherFilters{
+				Limit:  &limit,
+				Offset: &offset,
+			}
+			list, err := service.FindWatchersByChannel(ctx, channelID, filters)
+			require.NoError(t, err)
+			allWatchers = append(allWatchers, list.Data...)
+
+			// Break if no more results
+			if !list.HasMore {
+				break
+			}
+		}
+
+		// Should have fetched all 15 watchers across 3 pages
+		assert.Len(t, allWatchers, 15)
 	})
 }

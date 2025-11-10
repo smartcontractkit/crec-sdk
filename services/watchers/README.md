@@ -46,6 +46,7 @@ graph TD
     B --> B5[UpdateWatcher]
     B --> B6[WaitForActive]
     B --> B7[DeleteWatcher]
+    B --> B8[WaitForDeleted]
 
     C --> C1[POST /channels/:id/watchers]
     C --> C2[GET /channels/:id/watchers]
@@ -347,6 +348,9 @@ fmt.Printf("Watcher is now active: %s\n", activeWatcher.WatcherId)
 
 Deletes a watcher from a channel. The watcher will stop monitoring events and be removed from the system.
 
+**Async Support:** This operation can be either synchronous (204 No Content) or asynchronous (202 Accepted). 
+For async deletions, use `WaitForDeleted` to wait for completion.
+
 **Input Parameters:**
 
 - `channelID`: UUID of the channel containing the watcher
@@ -359,12 +363,48 @@ Deletes a watcher from a channel. The watcher will stop monitoring events and be
 **Example:**
 
 ```go
+// Initiate deletion
 err := watchersService.DeleteWatcher(ctx, channelID, watcherID)
 if err != nil {
     log.Fatal(err)
 }
 
-fmt.Println("Watcher deleted successfully")
+fmt.Println("Watcher deletion initiated")
+```
+
+### WaitForDeleted
+
+Waits for a watcher to be fully deleted. This is useful when deletion is asynchronous (returns 202 Accepted).
+
+The method polls the watcher status until it reaches "deleted" state, the watcher is not found (404), 
+or the timeout is reached.
+
+**Input Parameters:**
+
+- `channelID`: UUID of the channel containing the watcher
+- `watcherID`: UUID of the watcher to wait for
+- `maxWaitTime`: Maximum time to wait for deletion
+
+**Returns:**
+
+- `error`: Error if the watcher is not deleted within the timeout or if an error occurs
+
+**Example:**
+
+```go
+// Delete watcher (may return 202 for async)
+err := watchersService.DeleteWatcher(ctx, channelID, watcherID)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Wait for deletion to complete
+err = watchersService.WaitForDeleted(ctx, channelID, watcherID, 30*time.Second)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Watcher fully deleted")
 ```
 
 ## Usage Examples
@@ -469,13 +509,19 @@ func main() {
         fmt.Printf("  - %s: %s (Address: %s)\n", w.WatcherId, w.Status, w.Address)
     }
 
-    // 8. Delete the watcher (cleanup)
+    // 8. Delete the watcher (cleanup) and wait for completion
     fmt.Println("\nCleaning up...")
     err = watchersService.DeleteWatcher(ctx, channel.ChannelId, watcher.WatcherId)
     if err != nil {
         log.Fatal(err)
     }
-    fmt.Printf("✓ Deleted watcher: %s\n", watcher.WatcherId)
+    
+    // Wait for deletion to complete (handles async deletions)
+    err = watchersService.WaitForDeleted(ctx, channel.ChannelId, watcher.WatcherId, 30*time.Second)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("✓ Watcher fully deleted: %s\n", watcher.WatcherId)
 }
 ```
 
