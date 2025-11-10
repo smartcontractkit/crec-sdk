@@ -36,11 +36,6 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 		t.Fatalf("NewCRECClient: %v", err)
 	}
 
-	// COMMENTED OUT: Events and Listeners API no longer exist in this form
-	// These need migration to channels-based API
-	// List events → /channels/{channel_id}/events
-	// Create listener → /channels/{channel_id}/watchers
-
 	_ = uuid.New() // Keep uuid import for future use
 
 	// Wallets: create, list, get by id
