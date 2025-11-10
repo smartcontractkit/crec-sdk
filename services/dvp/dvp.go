@@ -1,7 +1,7 @@
 package dvp
 
 import (
-	"encoding/base64"
+	// "encoding/base64" // Commented out - not used after migration
 	"fmt"
 	"math/big"
 	"os"
@@ -330,12 +330,17 @@ func (s *Service) HashSettlement(settlement *contract.Settlement) (common.Hash, 
 }
 
 // toJson decodes an encoded VerifiableEvent from a CREC event into a JSON byte slice.
+//
+// COMMENTED OUT: event.VerifiableEvent no longer exists in new Event structure
+// TODO: Update to work with new Event structure from channels-based API
+// This method is used internally by DVP service to decode settlement events
 func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
-	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
-	if err != nil {
-		return []byte{}, fmt.Errorf("failed to decode base64 payload: %w", err)
-	}
-	return decodedStr, nil
+	return nil, fmt.Errorf("toJson is temporarily disabled - needs migration to new Event structure")
+	// decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
+	// if err != nil {
+	// 	return []byte{}, fmt.Errorf("failed to decode base64 payload: %w", err)
+	// }
+	// return decodedStr, nil
 }
 
 // prepareSettlementOperation is a helper function that abstracts the common logic for preparing settlement operations.

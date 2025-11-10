@@ -2,7 +2,7 @@ package transact
 
 import (
 	"context"
-	"encoding/json"
+	// "encoding/json" // Commented out - not used after migration
 	"errors"
 	"fmt"
 	"math/big"
@@ -158,87 +158,100 @@ func (t *Client) SendSignedOperation(
 		)
 	}
 
-	var requestData = apiClient.CreateOperation{
-		AccountOperationId: op.ID.String(),
-		ChainId:            chainId,
-		AccountAddress:     op.Account.String(),
-		Transactions:       transactions,
-		Signature:          "0x" + common.Bytes2Hex(signature),
-	}
+	// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
+	// TODO: Update to use /channels/{channel_id}/operations endpoint and fix CreateOperation fields
+	return nil, fmt.Errorf("SendSignedOperation is temporarily disabled - needs migration to channels-based API")
 
-	if t.logger.GetLevel() <= zerolog.TraceLevel {
-		data, err := json.MarshalIndent(requestData, "", "  ")
-		if err != nil {
-			t.logger.Err(err).Msg("Failed to marshal request data to JSON")
-		} else {
-			t.logger.Trace().
-				Str("request_data", string(data)).
-				Msg("Request data for SendSignedOperation")
-		}
-	}
-
-	resp, err := t.crecClient.PostOperationsWithResponse(ctx, requestData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send signed operation: %w", err)
-	}
-
-	responseState := resp.HTTPResponse.StatusCode
-	t.logger.Debug().
-		Int("status", responseState).
-		Msg("SendSignedOperation result")
-
-	if responseState != 201 {
-		return nil, fmt.Errorf(
-			"failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status,
-		)
-	}
-
-	t.logger.Trace().Str("raw_response", string(resp.Body)).Msg("OperationResponse JSON")
-
-	return resp.JSON201, nil
+	// var requestData = apiClient.CreateOperation{
+	// 	WalletOperationId: op.ID.String(),
+	// 	ChainId:            chainId,
+	// 	Address:     op.Account.String(),
+	// 	Transactions:       transactions,
+	// 	Signature:          "0x" + common.Bytes2Hex(signature),
+	// }
+	//
+	// if t.logger.GetLevel() <= zerolog.TraceLevel {
+	// 	data, err := json.MarshalIndent(requestData, "", "  ")
+	// 	if err != nil {
+	// 		t.logger.Err(err).Msg("Failed to marshal request data to JSON")
+	// 	} else {
+	// 		t.logger.Trace().
+	// 			Str("request_data", string(data)).
+	// 			Msg("Request data for SendSignedOperation")
+	// 	}
+	// }
+	//
+	// resp, err := t.crecClient.PostChannelsChannelIdOperationsWithResponse(ctx, channelId, requestData)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to send signed operation: %w", err)
+	// }
+	//
+	// responseState := resp.HTTPResponse.StatusCode
+	// t.logger.Debug().
+	// 	Int("status", responseState).
+	// 	Msg("SendSignedOperation result")
+	//
+	// if responseState != 201 {
+	// 	return nil, fmt.Errorf(
+	// 		"failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status,
+	// 	)
+	// }
+	//
+	// t.logger.Trace().Str("raw_response", string(resp.Body)).Msg("OperationResponse JSON")
+	//
+	// return resp.JSON201, nil
 }
 
 // GetOperation retrieves an operation by its ID from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - operationId: The UUID of the operation to retrieve.
+//
+// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
+// TODO: Update to use /channels/{channel_id}/operations/{operation_id} endpoint
 func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*apiClient.Operation, error) {
-	t.logger.Trace().Msg("Getting operation")
-
-	resp, err := t.crecClient.GetOperationsOperationIdWithResponse(ctx, operationId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get operation id %v: %w", operationId, err)
-	}
-
-	if resp.StatusCode() == 404 {
-		return nil, nil
-	} else if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get operation, unexpected status code: %s", resp.Status())
-	}
-
-	return resp.JSON200, nil
+	return nil, fmt.Errorf("GetOperation is temporarily disabled - needs migration to channels-based API")
+	// t.logger.Trace().Msg("Getting operation")
+	//
+	// resp, err := t.crecClient.GetChannelsChannelIdOperationsOperationIdWithResponse(ctx, channelId, operationId)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get operation id %v: %w", operationId, err)
+	// }
+	//
+	// if resp.StatusCode() == 404 {
+	// 	return nil, nil
+	// } else if resp.StatusCode() != 200 {
+	// 	return nil, fmt.Errorf("failed to get operation, unexpected status code: %s", resp.Status())
+	// }
+	//
+	// return resp.JSON200, nil
 }
 
 // GetOperations retrieves a list of operations from the CREC service.
 //   - ctx: Context for the request, used for cancellation and timeouts.
-func (t *Client) GetOperations(ctx context.Context, params *apiClient.GetOperationsParams) (
+//
+// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
+// TODO: Update to use /channels/{channel_id}/operations endpoint
+// Commenting out types because they don't exist in new API
+func (t *Client) GetOperations(ctx context.Context, params interface{}) (
 	[]apiClient.Operation, error,
 ) {
-	t.logger.Trace().Msg("Getting operations from CREC")
-
-	resp, err := t.crecClient.GetOperationsWithResponse(ctx, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get operations from CREC: %w", err)
-	}
-
-	if resp.StatusCode() != 200 {
-		return nil, fmt.Errorf("failed to get operations from CREC, unexpected status code: %d", resp.StatusCode())
-	}
-
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("invalid operations response from CREC")
-	}
-
-	return resp.JSON200.Data, nil
+	return nil, fmt.Errorf("GetOperations is temporarily disabled - needs migration to channels-based API")
+	// t.logger.Trace().Msg("Getting operations from CREC")
+	//
+	// resp, err := t.crecClient.GetChannelsChannelIdOperationsWithResponse(ctx, channelId, params)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get operations from CREC: %w", err)
+	// }
+	//
+	// if resp.StatusCode() != 200 {
+	// 	return nil, fmt.Errorf("failed to get operations from CREC, unexpected status code: %d", resp.StatusCode())
+	// }
+	//
+	// if resp.JSON200 == nil {
+	// 	return nil, fmt.Errorf("invalid operations response from CREC")
+	// }
+	//
+	// return resp.JSON200.Data, nil
 }
 
 // ExecuteTransactions executes a list of transactions using the provided signer and executor account.

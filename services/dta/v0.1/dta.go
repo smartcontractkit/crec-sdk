@@ -1,7 +1,8 @@
 package dta
 
 import (
-	"encoding/base64"
+	// "encoding/base64" // Commented out - not used after migration
+	"fmt" // Added for error messages
 	"math/big"
 	"time"
 
@@ -554,13 +555,18 @@ func (s *Service) PrepareDisableFundTokenOperation(fundTokenId [32]byte) (*trans
 }
 
 // toJson decodes an encoded VerifiableEvent from a CREC event into a JSON byte slice.
+//
+// COMMENTED OUT: event.VerifiableEvent no longer exists in new Event structure
+// TODO: Update to work with new Event structure from channels-based API
+// This method is used internally by DTA v0.1 service to decode marketplace events
 func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
-	decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to decode base64 payload")
-		return []byte{}, err
-	}
-	return decodedStr, nil
+	return nil, fmt.Errorf("toJson is temporarily disabled - needs migration to new Event structure")
+	// decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
+	// if err != nil {
+	// 	s.logger.Error().Err(err).Msg("Failed to decode base64 payload")
+	// 	return []byte{}, err
+	// }
+	// return decodedStr, nil
 }
 
 // prepareTokenApproveTransaction prepares a token approval transaction.

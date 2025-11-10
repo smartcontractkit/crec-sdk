@@ -2,7 +2,7 @@ package dta
 
 import (
 	"context"
-	"encoding/base64"
+	// "encoding/base64" // Commented out - not used after migration
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -421,18 +421,23 @@ func (v *VerifiableEvent) UnmarshalJSON(b []byte) error {
 }
 
 // Decode parses a base64-encoded JSON string from the event and unmarshals it into a VerifiableEvent. It returns an error if decoding or unmarshalling fails.
+//
+// COMMENTED OUT: event.VerifiableEvent no longer exists in new Event structure
+// TODO: Update to work with new Event structure from channels-based API
+// This function is used to decode DTA marketplace events (v0.1)
 func Decode(ctx context.Context, event apiClient.Event) (VerifiableEvent, error) {
-	decodedBytes, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
-	if err != nil {
-		return VerifiableEvent{}, err
-	}
-
-	var verifiableEvent VerifiableEvent
-	if err = json.Unmarshal(decodedBytes, &verifiableEvent); err != nil {
-		return VerifiableEvent{}, err
-	}
-
-	return verifiableEvent, nil
+	return VerifiableEvent{}, fmt.Errorf("Decode is temporarily disabled - needs migration to new Event structure")
+	// decodedBytes, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
+	// if err != nil {
+	// 	return VerifiableEvent{}, err
+	// }
+	//
+	// var verifiableEvent VerifiableEvent
+	// if err = json.Unmarshal(decodedBytes, &verifiableEvent); err != nil {
+	// 	return VerifiableEvent{}, err
+	// }
+	//
+	// return verifiableEvent, nil
 }
 
 // EventName determines and returns the event name from the workflow attributes or outer event name; defaults to EventUnknown if not resolvable.

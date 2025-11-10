@@ -445,6 +445,12 @@ github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/smartcontractkit/crec-api-go v0.3.1 h1:xyJUk/ZIJ++w2z40oLiAbjCxk0qhTWNIW8rtJGlCFys=
 github.com/smartcontractkit/crec-api-go v0.3.1/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
+github.com/smartcontractkit/crec-api-go v0.3.4 h1:n1anDS/cFXDGE1zvBfFYzcmqYfEtnwvAbdlxrvh1FAw=
+github.com/smartcontractkit/crec-api-go v0.3.4/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
+github.com/smartcontractkit/crec-api-go v0.3.5 h1:MyMBEqqSzm20bREtbePF5OofTnick7iUizaWGbAXs7A=
+github.com/smartcontractkit/crec-api-go v0.3.5/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
+github.com/smartcontractkit/crec-api-go v0.3.6 h1:ko2DLV4SFoYGF0fKlKOGsAiQm0qgilIa0avMtX4863Q=
+github.com/smartcontractkit/crec-api-go v0.3.6/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
 github.com/spf13/afero v1.12.0 h1:UcOPyRBYczmFn6yvphxkn9ZEOY65cpwGKb5mL36mrqs=
