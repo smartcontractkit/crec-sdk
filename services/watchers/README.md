@@ -151,6 +151,8 @@ Creates a new watcher with a custom event ABI. Use this when monitoring contract
 - `Events`: List of event names to watch for
 - `ABI`: Array of event ABI definitions
 
+> **Note on ABI Types**: The SDK currently only supports event types. The `EventABI.Type` field **must be set to `"event"`**. The SDK validates this and will return an error if you provide any other value (e.g., `"function"`, `"error"`). Support for other ABI types may be added in future versions.
+
 **Returns:**
 
 - `*apiClient.Watcher`: The created watcher with ID and status
@@ -167,8 +169,8 @@ watcher, err := watchersService.CreateWatcherWithABI(ctx, channelID, watchers.Cr
     Events:        []string{"Transfer"},
     ABI: []watchers.EventABI{
         {
-            Type: "event",
             Name: "Transfer",
+            Type: "event",  // Required: must be "event" (validated by SDK)
             Inputs: []watchers.EventABIInput{
                 {
                     Name:         "from",
@@ -538,8 +540,8 @@ func createERC20Watcher(ctx context.Context, service *watchers.Service, channelI
         Events:        []string{"Transfer", "Approval"},
         ABI: []watchers.EventABI{
             {
-                Type: "event",
                 Name: "Transfer",
+                Type: "event",
                 Inputs: []watchers.EventABIInput{
                     {Name: "from", Type: "address", InternalType: "address", Indexed: true},
                     {Name: "to", Type: "address", InternalType: "address", Indexed: true},
@@ -547,8 +549,8 @@ func createERC20Watcher(ctx context.Context, service *watchers.Service, channelI
                 },
             },
             {
-                Type: "event",
                 Name: "Approval",
+                Type: "event",
                 Inputs: []watchers.EventABIInput{
                     {Name: "owner", Type: "address", InternalType: "address", Indexed: true},
                     {Name: "spender", Type: "address", InternalType: "address", Indexed: true},
@@ -621,59 +623,116 @@ fmt.Printf("Found %d watchers monitoring Transfer events\n", len(transferWatcher
 
 ## Error Handling
 
-The Watchers Service returns descriptive errors for various failure scenarios:
+The Watchers Service provides typed sentinel errors for robust error handling using Go's `errors.Is()` pattern.
 
-### Common Errors
+### Typed Errors
 
-| Error | Description | HTTP Status |
-|-------|-------------|-------------|
-| `channel_id cannot be empty` | Channel ID not provided | N/A (validation) |
-| `chain_selector is required` | Chain selector not provided | N/A (validation) |
-| `address is required` | Contract address not provided | N/A (validation) |
-| `domain is required` | Domain not provided (for domain watchers) | N/A (validation) |
-| `events list cannot be empty` | No events specified | N/A (validation) |
-| `abi cannot be empty` | No ABI provided (for ABI watchers) | N/A (validation) |
-| `name is required` | Name not provided for update | N/A (validation) |
-| `channel not found: <id>` | Channel with specified ID doesn't exist | 404 |
-| `watcher not found: <id>` | Watcher with specified ID doesn't exist | 404 |
-| `watcher deployment failed` | Watcher failed to deploy | N/A |
-| `timeout waiting for watcher to become active` | Watcher didn't activate within timeout | N/A |
-| `failed to delete watcher` | Watcher deletion failed | Various |
-| `unexpected status code: 400` | Invalid request (e.g., duplicate event) | 400 |
-| `unexpected status code: 500` | Internal server error | 500 |
+The service defines the following sentinel errors that can be checked using `errors.Is()`:
+
+#### Validation Errors
+| Error | Description |
+|-------|-------------|
+| `ErrChannelIDRequired` | Channel ID parameter is empty or nil |
+| `ErrWatcherIDRequired` | Watcher ID parameter is empty or nil |
+| `ErrNameRequired` | Name field is required but not provided |
+| `ErrDomainRequired` | Domain field is required but not provided |
+| `ErrAddressRequired` | Contract address is required but not provided |
+| `ErrEventsRequired` | Events list is empty |
+| `ErrABIRequired` | ABI list is empty for ABI-based watcher |
+| `ErrServiceOptionsRequired` | ServiceOptions is nil when creating service |
+| `ErrCRECClientRequired` | CRECClient is nil in ServiceOptions |
+| `ErrChainSelectorRequired` | ChainSelector is 0 (invalid) |
+| `ErrInvalidABIType` | ABI Type is not "event" (only event types supported) |
+
+#### Watcher State Errors
+| Error | Description |
+|-------|-------------|
+| `ErrWatcherNotFound` | Watcher with specified ID doesn't exist (404) |
+| `ErrWatcherDeploymentFailed` | Watcher deployment failed (status = "failed") |
+| `ErrWatcherIsDeleting` | Watcher is being deleted and cannot become active |
+| `ErrWatcherAlreadyDeleted` | Watcher has been deleted |
+| `ErrWatcherDeletionFailed` | Watcher deletion process failed |
+
+#### Timeout Errors
+| Error | Description |
+|-------|-------------|
+| `ErrWaitForActiveTimeout` | Watcher didn't activate within timeout period |
+| `ErrWaitForDeletedTimeout` | Watcher wasn't deleted within timeout period |
+
+#### API Response Errors
+| Error | Description |
+|-------|-------------|
+| `ErrEmptyResponse` | API returned an unexpected empty response |
+| `ErrUnexpectedStatus` | Watcher is in an unexpected status |
+| `ErrUnexpectedStatusCode` | API returned an unexpected HTTP status code |
+
+#### API Operation Errors (base errors for wrapping)
+| Error | Description |
+|-------|-------------|
+| `ErrCreateWatcherRequest` | Failed to create watcher request payload |
+| `ErrCreateWatcherDomain` | Failed to create domain-based watcher |
+| `ErrCreateWatcherABI` | Failed to create ABI-based watcher |
+| `ErrFindWatchers` | Failed to find/list watchers |
+| `ErrFindWatcher` | Failed to find specific watcher by ID |
+| `ErrUpdateWatcher` | Failed to update watcher |
+| `ErrDeleteWatcher` | Failed to delete watcher |
+| `ErrCheckWatcherStatus` | Failed to check watcher status during polling |
 
 ### Error Handling Best Practices
 
-1. **Always check for errors**: Never ignore error returns
-2. **Log errors with context**: Include watcher IDs and channel IDs in error logs
-3. **Handle deployment failures**: Check watcher status after creation
-4. **Implement timeouts**: Use reasonable timeouts when waiting for activation
-5. **Validate inputs**: Check parameters before making API calls
+1. **Use `errors.Is()` for typed error checking**: Check for specific error types using `errors.Is()`
+2. **Always check for errors**: Never ignore error returns
+3. **Log errors with context**: Include watcher IDs and channel IDs in error logs
+4. **Handle deployment failures**: Check watcher status after creation
+5. **Implement timeouts**: Use reasonable timeouts when waiting for activation
+6. **Validate inputs**: The SDK validates inputs, but pre-validation can improve UX
+
+#### Example: Checking for Specific Errors
 
 ```go
-watcher, err := watchersService.CreateWatcherWithDomain(ctx, channelID, input)
+import (
+    "errors"
+    "github.com/smartcontractkit/crec-sdk/services/watchers"
+)
+
+// Check for not found errors
+watcher, err := watchersService.FindWatcherByID(ctx, channelID, watcherID)
 if err != nil {
-    if strings.Contains(err.Error(), "channel not found") {
-        // Handle not found case
-        log.Warn().Str("channel_id", channelID.String()).Msg("Channel not found")
-        return nil
-    }
-    if strings.Contains(err.Error(), "duplicate event") {
-        // Handle duplicate event case
-        log.Warn().Msg("Watcher already exists for this event")
+    if errors.Is(err, watchers.ErrWatcherNotFound) {
+        // Handle not found case gracefully
+        log.Warn().Str("watcher_id", watcherID.String()).Msg("Watcher not found")
         return nil
     }
     // Handle other errors
-    log.Error().Err(err).Msg("Failed to create watcher")
+    log.Error().Err(err).Msg("Failed to find watcher")
     return err
 }
 
-// Wait for activation with error handling
-activeWatcher, err := watchersService.WaitForActive(ctx, channelID, watcher.WatcherId, 2*time.Minute)
+// Check for deployment failures
+activeWatcher, err := watchersService.WaitForActive(ctx, channelID, watcher.WatcherId, 5*time.Minute)
 if err != nil {
-    if strings.Contains(err.Error(), "deployment failed") {
-        log.Error().Str("watcher_id", watcher.WatcherId.String()).Msg("Watcher deployment failed")
+    if errors.Is(err, watchers.ErrWatcherDeploymentFailed) {
         // Handle deployment failure
+        log.Error().Str("watcher_id", watcher.WatcherId.String()).Msg("Watcher deployment failed")
+        // Maybe delete the failed watcher
+        _ = watchersService.DeleteWatcher(ctx, channelID, watcher.WatcherId)
+        return err
+    }
+    if errors.Is(err, watchers.ErrWaitForActiveTimeout) {
+        // Handle timeout
+        log.Warn().Str("watcher_id", watcher.WatcherId.String()).Msg("Timeout waiting for watcher")
+        return err
+    }
+    return err
+}
+
+// Check for validation errors
+watcher, err = watchersService.CreateWatcherWithDomain(ctx, uuid.Nil, input)
+if err != nil {
+    if errors.Is(err, watchers.ErrChannelIDRequired) {
+        // Handle missing channel ID
+        log.Error().Msg("Channel ID is required")
+        return err
     }
     return err
 }
