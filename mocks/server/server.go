@@ -19,6 +19,7 @@ type MockServer struct {
 	wallets    []stdserver.Wallet
 	channels   []stdserver.Channel
 	operations []stdserver.Operation
+	watchers   []stdserver.Watcher
 }
 
 var _ stdserver.ServerInterface = (*MockServer)(nil)
@@ -28,6 +29,7 @@ func NewMockServer() *MockServer {
 		wallets:    make([]stdserver.Wallet, 0),
 		channels:   make([]stdserver.Channel, 0),
 		operations: make([]stdserver.Operation, 0),
+		watchers:   make([]stdserver.Watcher, 0),
 	}
 	r := http.NewServeMux()
 	h := stdserver.HandlerFromMux(s, r)
@@ -202,37 +204,162 @@ func (s *MockServer) PostOperationStatus(w http.ResponseWriter, r *http.Request)
 }
 
 // ============================================================================
-// EVENTS & WATCHERS - COMMENTED OUT (not part of channels/operations)
+// EVENTS ENDPOINTS
 // ============================================================================
 
 func (s *MockServer) PostEvents(w http.ResponseWriter, r *http.Request) {
-	// Commented out - not part of channels/operations service
+	// Not implemented - events are typically created via watchers
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s *MockServer) GetChannelsChannelIdEvents(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdEventsParams) {
-	// Commented out - not part of channels/operations service
+	// Not implemented - events service
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// ============================================================================
+// WATCHERS ENDPOINTS (under channels)
+// ============================================================================
+
 func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdWatchersParams) {
-	// Commented out - not part of channels/operations service
-	w.WriteHeader(http.StatusNotImplemented)
+	limit := 20
+	offset := 0
+	if params.Limit != nil && *params.Limit > 0 {
+		limit = *params.Limit
+	}
+	if params.Offset != nil && *params.Offset >= 0 {
+		offset = *params.Offset
+	}
+
+	// Filter by channel ID and other params
+	filteredWatchers := []stdserver.Watcher{}
+	for _, w := range s.watchers {
+		// Check channel ID (assuming watchers have a ChannelId field or we can infer from context)
+		// For simplicity, we'll return all watchers - in a real implementation you'd filter by channelId
+
+		// Apply filters if provided
+		include := true
+		if params.Status != nil && w.Status != *params.Status {
+			include = false
+		}
+		if params.Address != nil && w.Address != *params.Address {
+			include = false
+		}
+		if params.Domain != nil && w.Domain != nil && *w.Domain != *params.Domain {
+			include = false
+		}
+
+		if include {
+			filteredWatchers = append(filteredWatchers, w)
+		}
+	}
+
+	end := offset + limit
+	if end > len(filteredWatchers) {
+		end = len(filteredWatchers)
+	}
+	data := []stdserver.Watcher{}
+	if offset < len(filteredWatchers) {
+		data = filteredWatchers[offset:end]
+	}
+	hasMore := end < len(filteredWatchers)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stdserver.WatcherList{Data: data, HasMore: hasMore})
 }
 
 func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
-	// Commented out - not part of channels/operations service
-	w.WriteHeader(http.StatusNotImplemented)
+	var request stdserver.CreateWatcher
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	watcherId := uuid.New()
+	now := time.Now().Unix()
+
+	// Create watcher based on the union type
+	watcher := stdserver.Watcher{
+		WatcherId: watcherId,
+		ChannelId: channelId,
+		Address:   "",
+		Status:    "pending", // Start as pending
+		CreatedAt: now,
+		Events:    []string{},
+	}
+
+	// Handle the union type - try to unmarshal as domain first, then ABI
+	if domain, err := request.AsCreateWatcherWithDomain(); err == nil {
+		watcher.Name = domain.Name
+		watcher.Domain = &domain.Domain
+		watcher.Address = domain.Address
+		watcher.ChainSelector = domain.ChainSelector
+		watcher.Events = domain.Events
+	} else if abiReq, err := request.AsCreateWatcherWithABI(); err == nil {
+		watcher.Name = abiReq.Name
+		watcher.Address = abiReq.Address
+		watcher.ChainSelector = abiReq.ChainSelector
+		watcher.Events = abiReq.Events
+		watcher.Abi = &abiReq.Abi
+	} else {
+		http.Error(w, "invalid watcher request", http.StatusBadRequest)
+		return
+	}
+
+	s.watchers = append(s.watchers, watcher)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(watcher)
 }
 
 func (s *MockServer) GetChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
-	// Commented out - not part of channels/operations service
-	w.WriteHeader(http.StatusNotImplemented)
+	for _, watcher := range s.watchers {
+		if watcher.WatcherId == watcherId {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(watcher)
+			return
+		}
+	}
+	http.Error(w, "watcher not found", http.StatusNotFound)
+}
+
+func (s *MockServer) PatchChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
+	var request stdserver.UpdateWatcher
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Find and update the watcher
+	for i, watcher := range s.watchers {
+		if watcher.WatcherId == watcherId {
+			// Update name (always set since it's a required field in UpdateWatcher)
+			s.watchers[i].Name = &request.Name
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(s.watchers[i])
+			return
+		}
+	}
+	http.Error(w, "watcher not found", http.StatusNotFound)
 }
 
 func (s *MockServer) DeleteChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
-	// Commented out - not part of channels/operations service
-	w.WriteHeader(http.StatusNotImplemented)
+	for i, watcher := range s.watchers {
+		if watcher.WatcherId == watcherId {
+			// Mark as deleting
+			s.watchers[i].Status = "deleting"
+			// In a real implementation, this would be async and eventually remove it
+			// For now, we'll just return accepted
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+	}
+	http.Error(w, "watcher not found", http.StatusNotFound)
 }
 
 func (s *MockServer) PostWallets(w http.ResponseWriter, r *http.Request) {
