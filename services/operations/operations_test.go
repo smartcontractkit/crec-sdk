@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -62,7 +63,7 @@ func TestNewService(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, service)
-		assert.Contains(t, err.Error(), "ServiceOptions is required")
+		assert.True(t, errors.Is(err, ErrServiceOptionsRequired), "Expected ErrServiceOptionsRequired, got: %v", err)
 	})
 
 	t.Run("NilCRECClient", func(t *testing.T) {
@@ -74,7 +75,7 @@ func TestNewService(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, service)
-		assert.Contains(t, err.Error(), "CRECClient is required")
+		assert.True(t, errors.Is(err, ErrCRECClientRequired), "Expected ErrCRECClientRequired, got: %v", err)
 	})
 
 	t.Run("DefaultLogger", func(t *testing.T) {
@@ -161,7 +162,7 @@ func TestService_CreateOperation(t *testing.T) {
 		testCases := []struct {
 			name          string
 			input         CreateOperationInput
-			expectedError string
+			expectedError error
 		}{
 			{
 				name: "EmptyChannelID",
@@ -173,7 +174,7 @@ func TestService_CreateOperation(t *testing.T) {
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
 					Signature:         "0xsig",
 				},
-				expectedError: "channel_id is required",
+				expectedError: ErrChannelIDRequired,
 			},
 			{
 				name: "EmptyChainSelector",
@@ -185,7 +186,7 @@ func TestService_CreateOperation(t *testing.T) {
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
 					Signature:         "0xsig",
 				},
-				expectedError: "chain_selector is required",
+				expectedError: ErrChainSelectorRequired,
 			},
 			{
 				name: "EmptyAddress",
@@ -197,7 +198,7 @@ func TestService_CreateOperation(t *testing.T) {
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
 					Signature:         "0xsig",
 				},
-				expectedError: "address is required",
+				expectedError: ErrAddressRequired,
 			},
 			{
 				name: "EmptyWalletOperationID",
@@ -209,7 +210,7 @@ func TestService_CreateOperation(t *testing.T) {
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
 					Signature:         "0xsig",
 				},
-				expectedError: "wallet_operation_id is required",
+				expectedError: ErrWalletOperationIDRequired,
 			},
 			{
 				name: "EmptyTransactions",
@@ -221,7 +222,7 @@ func TestService_CreateOperation(t *testing.T) {
 					Transactions:      []TransactionRequest{},
 					Signature:         "0xsig",
 				},
-				expectedError: "at least one transaction is required",
+				expectedError: ErrAtLeastOneTransactionRequired,
 			},
 			{
 				name: "EmptySignature",
@@ -233,7 +234,7 @@ func TestService_CreateOperation(t *testing.T) {
 					Transactions:      []TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
 					Signature:         "",
 				},
-				expectedError: "signature is required",
+				expectedError: ErrSignatureRequired,
 			},
 		}
 
@@ -243,7 +244,7 @@ func TestService_CreateOperation(t *testing.T) {
 
 				require.Error(t, err)
 				assert.Nil(t, opID)
-				assert.Contains(t, err.Error(), tc.expectedError)
+				assert.True(t, errors.Is(err, tc.expectedError), "Expected %v, got: %v", tc.expectedError, err)
 			})
 		}
 	})
@@ -275,7 +276,7 @@ func TestService_CreateOperation(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, opID)
-		assert.Contains(t, err.Error(), "channel not found")
+		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
 	})
 
 	t.Run("BadRequest", func(t *testing.T) {
@@ -305,7 +306,8 @@ func TestService_CreateOperation(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, opID)
-		assert.Contains(t, err.Error(), "unexpected status code: 400")
+		assert.True(t, errors.Is(err, ErrCreateOperation), "Expected ErrCreateOperation, got: %v", err)
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
 
@@ -370,7 +372,7 @@ func TestService_GetOperation(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, operation)
-		assert.Contains(t, err.Error(), "operation not found")
+		assert.True(t, errors.Is(err, ErrOperationNotFound), "Expected ErrOperationNotFound, got: %v", err)
 	})
 
 	t.Run("ServerError", func(t *testing.T) {
@@ -392,7 +394,8 @@ func TestService_GetOperation(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, operation)
-		assert.Contains(t, err.Error(), "unexpected status code: 500")
+		assert.True(t, errors.Is(err, ErrGetOperation), "Expected ErrGetOperation, got: %v", err)
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
 
@@ -616,7 +619,7 @@ func TestService_ListOperations(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, operations)
 		assert.False(t, hasMore)
-		assert.Contains(t, err.Error(), "channel_id is required")
+		assert.True(t, errors.Is(err, ErrChannelIDRequired), "Expected ErrChannelIDRequired, got: %v", err)
 	})
 
 	t.Run("ChannelNotFound", func(t *testing.T) {
@@ -640,7 +643,7 @@ func TestService_ListOperations(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, operations)
 		assert.False(t, hasMore)
-		assert.Contains(t, err.Error(), "channel not found")
+		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
 	})
 
 	t.Run("ServerError", func(t *testing.T) {
@@ -664,6 +667,7 @@ func TestService_ListOperations(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, operations)
 		assert.False(t, hasMore)
-		assert.Contains(t, err.Error(), "unexpected status code: 500")
+		assert.True(t, errors.Is(err, ErrListOperations), "Expected ErrListOperations, got: %v", err)
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
