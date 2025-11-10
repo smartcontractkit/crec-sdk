@@ -441,6 +441,41 @@ func (s *Service) WaitForActive(ctx context.Context, channelID uuid.UUID, watche
 	}
 }
 
+// DeleteWatcher deletes a watcher from a channel
+func (s *Service) DeleteWatcher(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) error {
+	s.logger.Debug().
+		Str("channel_id", channelID.String()).
+		Str("watcher_id", watcherID.String()).
+		Msg("Deleting watcher")
+
+	if channelID == uuid.Nil {
+		return fmt.Errorf("channel_id cannot be empty")
+	}
+	if watcherID == uuid.Nil {
+		return fmt.Errorf("watcher_id cannot be empty")
+	}
+
+	resp, err := s.crecClient.DeleteChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to delete watcher")
+		return fmt.Errorf("failed to delete watcher: %w", err)
+	}
+
+	if resp.StatusCode() != 204 {
+		s.logger.Error().
+			Int("status_code", resp.StatusCode()).
+			Str("body", string(resp.Body)).
+			Msg("Failed to delete watcher - unexpected status code")
+		return fmt.Errorf("failed to delete watcher: status code %d", resp.StatusCode())
+	}
+
+	s.logger.Info().
+		Str("watcher_id", watcherID.String()).
+		Msg("Watcher deleted successfully")
+
+	return nil
+}
+
 // convertUint64PtrToStringPtr converts a pointer to uint64 to a pointer to string
 func convertUint64PtrToStringPtr(val *uint64) *string {
 	if val == nil {

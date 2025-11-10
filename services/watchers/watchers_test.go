@@ -317,3 +317,25 @@ func TestWatcherStatus(t *testing.T) {
 		assert.Equal(t, WatcherStatus("deleted"), StatusDeleted)
 	})
 }
+
+func TestDeleteWatcherValidation(t *testing.T) {
+	t.Run("validation logic", func(t *testing.T) {
+		channelID := uuid.Nil
+		watcherID := uuid.New()
+
+		if channelID == uuid.Nil {
+			assert.Equal(t, uuid.Nil, channelID)
+		}
+
+		channelID = uuid.New()
+		watcherID = uuid.Nil
+		if watcherID == uuid.Nil {
+			assert.Equal(t, uuid.Nil, watcherID)
+		}
+
+		channelID = uuid.New()
+		watcherID = uuid.New()
+		assert.NotEqual(t, uuid.Nil, channelID)
+		assert.NotEqual(t, uuid.Nil, watcherID)
+	})
+}

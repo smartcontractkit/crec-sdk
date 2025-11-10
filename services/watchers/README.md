@@ -45,11 +45,13 @@ graph TD
     B --> B4[FindWatcherByID]
     B --> B5[UpdateWatcher]
     B --> B6[WaitForActive]
+    B --> B7[DeleteWatcher]
 
     C --> C1[POST /channels/:id/watchers]
     C --> C2[GET /channels/:id/watchers]
     C --> C3[GET /channels/:id/watchers/:watcher_id]
     C --> C4[PATCH /channels/:id/watchers/:watcher_id]
+    C --> C5[DELETE /channels/:id/watchers/:watcher_id]
 
     D --> D1[Channel Validation]
     D --> D2[Event Filtering]
@@ -341,6 +343,30 @@ if err != nil {
 fmt.Printf("Watcher is now active: %s\n", activeWatcher.WatcherId)
 ```
 
+### DeleteWatcher
+
+Deletes a watcher from a channel. The watcher will stop monitoring events and be removed from the system.
+
+**Input Parameters:**
+
+- `channelID`: UUID of the channel containing the watcher
+- `watcherID`: UUID of the watcher to delete
+
+**Returns:**
+
+- `error`: Error if the watcher is not found or the operation fails
+
+**Example:**
+
+```go
+err := watchersService.DeleteWatcher(ctx, channelID, watcherID)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Watcher deleted successfully")
+```
+
 ## Usage Examples
 
 ### Complete Workflow: Creating and Monitoring a Watcher
@@ -442,6 +468,14 @@ func main() {
     for _, w := range watchersList.Data {
         fmt.Printf("  - %s: %s (Address: %s)\n", w.WatcherId, w.Status, w.Address)
     }
+
+    // 8. Delete the watcher (cleanup)
+    fmt.Println("\nCleaning up...")
+    err = watchersService.DeleteWatcher(ctx, channel.ChannelId, watcher.WatcherId)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("✓ Deleted watcher: %s\n", watcher.WatcherId)
 }
 ```
 
@@ -558,6 +592,7 @@ The Watchers Service returns descriptive errors for various failure scenarios:
 | `watcher not found: <id>` | Watcher with specified ID doesn't exist | 404 |
 | `watcher deployment failed` | Watcher failed to deploy | N/A |
 | `timeout waiting for watcher to become active` | Watcher didn't activate within timeout | N/A |
+| `failed to delete watcher` | Watcher deletion failed | Various |
 | `unexpected status code: 400` | Invalid request (e.g., duplicate event) | 400 |
 | `unexpected status code: 500` | Internal server error | 500 |
 
