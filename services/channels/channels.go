@@ -2,6 +2,7 @@ package channels
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -13,8 +14,32 @@ import (
 )
 
 const (
-	ServiceName          = "channels"
 	MaxChannelNameLength = 255
+	MaxLogBodyLength     = 200
+)
+
+// Sentinel errors
+var (
+	// ErrChannelNotFound is returned when a channel is not found (404 response)
+	ErrChannelNotFound = errors.New("channel not found")
+
+	// Service initialization errors
+	ErrServiceOptionsRequired = errors.New("ServiceOptions is required")
+	ErrCRECClientRequired     = errors.New("CRECClient is required")
+
+	// Validation errors
+	ErrChannelNameRequired = errors.New("channel name is required")
+	ErrChannelNameTooLong  = errors.New("channel name too long")
+
+	// API operation errors
+	ErrCreateChannel = errors.New("failed to create channel")
+	ErrGetChannel    = errors.New("failed to get channel")
+	ErrListChannels  = errors.New("failed to list channels")
+	ErrDeleteChannel = errors.New("failed to delete channel")
+
+	// Response errors
+	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	ErrNilResponseBody      = errors.New("unexpected nil response body")
 )
 
 // ServiceOptions defines the options for creating a new CREC Channels service.
@@ -38,11 +63,11 @@ type Service struct {
 //   - opts: Options for configuring the CREC Channels service, see ServiceOptions for details.
 func NewService(opts *ServiceOptions) (*Service, error) {
 	if opts == nil {
-		return nil, fmt.Errorf("ServiceOptions is required")
+		return nil, ErrServiceOptionsRequired
 	}
 
 	if opts.CRECClient == nil {
-		return nil, fmt.Errorf("CRECClient is required")
+		return nil, ErrCRECClientRequired
 	}
 
 	logger := opts.Logger
@@ -57,6 +82,16 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 		logger:     logger,
 		crecClient: opts.CRECClient,
 	}, nil
+}
+
+// truncateBody truncates a response body to MaxLogBodyLength characters to avoid
+// logging sensitive data or creating overly verbose logs.
+func truncateBody(body []byte) string {
+	bodyStr := string(body)
+	if len(bodyStr) <= MaxLogBodyLength {
+		return bodyStr
+	}
+	return bodyStr[:MaxLogBodyLength] + "... (truncated)"
 }
 
 // CreateChannelInput defines the input parameters for creating a new channel.
@@ -78,11 +113,11 @@ func (s *Service) CreateChannel(ctx context.Context, input CreateChannelInput) (
 		Msg("Creating channel")
 
 	if input.Name == "" {
-		return nil, fmt.Errorf("channel name is required")
+		return nil, ErrChannelNameRequired
 	}
 
 	if len(input.Name) > MaxChannelNameLength {
-		return nil, fmt.Errorf("channel name cannot exceed %d characters", MaxChannelNameLength)
+		return nil, fmt.Errorf("%w: cannot exceed %d characters", ErrChannelNameTooLong, MaxChannelNameLength)
 	}
 
 	createChannelReq := apiClient.CreateChannel{
@@ -92,19 +127,19 @@ func (s *Service) CreateChannel(ctx context.Context, input CreateChannelInput) (
 	resp, err := s.crecClient.PostChannelsWithResponse(ctx, createChannelReq)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to create channel")
-		return nil, fmt.Errorf("failed to create channel: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateChannel, err)
 	}
 
 	if resp.StatusCode() != 201 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Unexpected status code when creating channel")
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateChannel, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON201 == nil {
-		return nil, fmt.Errorf("unexpected nil response body")
+		return nil, fmt.Errorf("%w: %w", ErrCreateChannel, ErrNilResponseBody)
 	}
 
 	s.logger.Info().
@@ -130,26 +165,26 @@ func (s *Service) GetChannel(ctx context.Context, channelID uuid.UUID) (*apiClie
 	resp, err := s.crecClient.GetChannelsChannelIdWithResponse(ctx, channelID)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to get channel")
-		return nil, fmt.Errorf("failed to get channel: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrGetChannel, err)
 	}
 
 	if resp.StatusCode() == 404 {
 		s.logger.Warn().
 			Str("channel_id", channelID.String()).
 			Msg("Channel not found")
-		return nil, fmt.Errorf("channel not found: %s", channelID.String())
+		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
 	}
 
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Unexpected status code when getting channel")
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetChannel, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("unexpected nil response body")
+		return nil, fmt.Errorf("%w: %w", ErrGetChannel, ErrNilResponseBody)
 	}
 
 	s.logger.Debug().
@@ -191,19 +226,19 @@ func (s *Service) ListChannels(ctx context.Context, input ListChannelsInput) ([]
 	resp, err := s.crecClient.GetChannelsWithResponse(ctx, &params)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to list channels")
-		return nil, false, fmt.Errorf("failed to list channels: %w", err)
+		return nil, false, fmt.Errorf("%w: %w", ErrListChannels, err)
 	}
 
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Unexpected status code when listing channels")
-		return nil, false, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListChannels, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, false, fmt.Errorf("unexpected nil response body")
+		return nil, false, fmt.Errorf("%w: %w", ErrListChannels, ErrNilResponseBody)
 	}
 
 	s.logger.Debug().
@@ -229,22 +264,22 @@ func (s *Service) DeleteChannel(ctx context.Context, channelID uuid.UUID) error 
 	resp, err := s.crecClient.DeleteChannelsChannelIdWithResponse(ctx, channelID)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to delete channel")
-		return fmt.Errorf("failed to delete channel: %w", err)
+		return fmt.Errorf("%w: %w", ErrDeleteChannel, err)
 	}
 
 	if resp.StatusCode() == 404 {
 		s.logger.Warn().
 			Str("channel_id", channelID.String()).
 			Msg("Channel not found")
-		return fmt.Errorf("channel not found: %s", channelID.String())
+		return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
 	}
 
 	if resp.StatusCode() != 202 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Unexpected status code when deleting channel")
-		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return fmt.Errorf("%w: %w (status code %d)", ErrDeleteChannel, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	s.logger.Info().

@@ -3,6 +3,7 @@ package channels
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -62,7 +63,7 @@ func TestNewService(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, service)
-		assert.Contains(t, err.Error(), "ServiceOptions is required")
+		assert.True(t, errors.Is(err, ErrServiceOptionsRequired), "Expected ErrServiceOptionsRequired, got: %v", err)
 	})
 
 	t.Run("NilCRECClient", func(t *testing.T) {
@@ -74,7 +75,7 @@ func TestNewService(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, service)
-		assert.Contains(t, err.Error(), "CRECClient is required")
+		assert.True(t, errors.Is(err, ErrCRECClientRequired), "Expected ErrCRECClientRequired, got: %v", err)
 	})
 
 	t.Run("DefaultLogger", func(t *testing.T) {
@@ -154,7 +155,7 @@ func TestService_CreateChannel(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, channel)
-		assert.Contains(t, err.Error(), "channel name is required")
+		assert.True(t, errors.Is(err, ErrChannelNameRequired), "Expected ErrChannelNameRequired, got: %v", err)
 	})
 
 	t.Run("NameTooLong", func(t *testing.T) {
@@ -176,7 +177,7 @@ func TestService_CreateChannel(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, channel)
-		assert.Contains(t, err.Error(), "cannot exceed 255 characters")
+		assert.True(t, errors.Is(err, ErrChannelNameTooLong), "Expected ErrChannelNameTooLong, got: %v", err)
 	})
 
 	t.Run("BadRequest", func(t *testing.T) {
@@ -197,7 +198,8 @@ func TestService_CreateChannel(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, channel)
-		assert.Contains(t, err.Error(), "unexpected status code: 400")
+		assert.True(t, errors.Is(err, ErrCreateChannel), "Expected ErrCreateChannel, got: %v", err)
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 
 	t.Run("AlreadyExists", func(t *testing.T) {
@@ -218,7 +220,8 @@ func TestService_CreateChannel(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, channel)
-		assert.Contains(t, err.Error(), "unexpected status code: 409")
+		assert.True(t, errors.Is(err, ErrCreateChannel), "Expected ErrCreateChannel, got: %v", err)
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
 
@@ -273,7 +276,7 @@ func TestService_GetChannel(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, channel)
-		assert.Contains(t, err.Error(), "channel not found")
+		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
 	})
 
 	t.Run("ServerError", func(t *testing.T) {
@@ -294,7 +297,8 @@ func TestService_GetChannel(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, channel)
-		assert.Contains(t, err.Error(), "unexpected status code: 500")
+		assert.True(t, errors.Is(err, ErrGetChannel), "Expected ErrGetChannel, got: %v", err)
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
 
@@ -441,7 +445,8 @@ func TestService_ListChannels(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, channels)
 		assert.False(t, hasMore)
-		assert.Contains(t, err.Error(), "unexpected status code: 500")
+		assert.True(t, errors.Is(err, ErrListChannels), "Expected ErrListChannels, got: %v", err)
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
 
@@ -482,7 +487,7 @@ func TestService_DeleteChannel(t *testing.T) {
 		err := service.DeleteChannel(context.Background(), channelID)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "channel not found")
+		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
 	})
 
 	t.Run("ServerError", func(t *testing.T) {
@@ -502,6 +507,7 @@ func TestService_DeleteChannel(t *testing.T) {
 		err := service.DeleteChannel(context.Background(), channelID)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unexpected status code: 500")
+		assert.True(t, errors.Is(err, ErrDeleteChannel), "Expected ErrDeleteChannel, got: %v", err)
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 }

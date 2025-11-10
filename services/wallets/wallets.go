@@ -2,6 +2,7 @@ package wallets
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -15,8 +16,23 @@ import (
 	transactTypes "github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-const (
-	ServiceName = "wallets"
+// Sentinel errors
+var (
+	// Service initialization errors
+	ErrServiceOptionsRequired = errors.New("ServiceOptions is required")
+
+	// ABI encoding errors
+	ErrCreateAddressArrayType = errors.New("failed to create address array ABI type")
+	ErrCreateRSAKeyArrayType  = errors.New("failed to create RSA key array ABI type")
+	ErrEncodeSignerAddresses  = errors.New("failed to encode signer addresses")
+	ErrEncodeRSAKeys          = errors.New("failed to encode RSA keys")
+	ErrGetWalletABI           = errors.New("failed to get wallet ABI")
+	ErrPackWalletData         = errors.New("failed to pack wallet data")
+
+	// Operation preparation errors
+	ErrPrepareDeployECDSA = errors.New("failed to prepare deploy ECDSA wallet operation")
+	ErrPrepareDeployRSA   = errors.New("failed to prepare deploy RSA wallet operation")
+	ErrGenerateWalletID   = errors.New("failed to generate wallet ID")
 )
 
 // ServiceOptions defines the options for creating a new CREC Accounts service.
@@ -50,7 +66,7 @@ type Service struct {
 //   - opts: Options for configuring the CREC Wallets service, see ServiceOptions for details.
 func NewService(opts *ServiceOptions) (*Service, error) {
 	if opts == nil {
-		return nil, fmt.Errorf("ServiceOptions is required")
+		return nil, ErrServiceOptionsRequired
 	}
 
 	logger := opts.Logger
@@ -95,12 +111,12 @@ func (s *Service) PrepareDeployNewECDSAWalletOperation(
 
 	addressArrayType, err := abi.NewType("address[]", "", nil)
 	if err != nil {
-		return nil, common.Address{}, fmt.Errorf("failed to create address array ABI type: %w", err)
+		return nil, common.Address{}, fmt.Errorf("%w: %w", ErrCreateAddressArrayType, err)
 	}
 
 	initializationConfigData, err := abi.Arguments{{Type: addressArrayType}}.Pack(signerAddresses)
 	if err != nil {
-		return nil, common.Address{}, fmt.Errorf("failed to encode allowed signers: %w", err)
+		return nil, common.Address{}, fmt.Errorf("%w: %w", ErrEncodeSignerAddresses, err)
 	}
 
 	return s.createWalletOperation(
@@ -159,12 +175,12 @@ func (s *Service) PrepareDeployNewRSAWalletOperation(
 		},
 	)
 	if err != nil {
-		return nil, common.Address{}, fmt.Errorf("failed to create RSAKey array ABI type: %w", err)
+		return nil, common.Address{}, fmt.Errorf("%w: %w", ErrCreateRSAKeyArrayType, err)
 	}
 
 	initializationConfigData, err := abi.Arguments{{Type: rsaKeyType}}.Pack(abiKeys)
 	if err != nil {
-		return nil, common.Address{}, fmt.Errorf("failed to encode RSA keys: %w", err)
+		return nil, common.Address{}, fmt.Errorf("%w: %w", ErrEncodeRSAKeys, err)
 	}
 
 	return s.createWalletOperation(
@@ -188,8 +204,7 @@ func (s *Service) createWalletOperation(
 ) (*transactTypes.Operation, common.Address, error) {
 	abiEncoder, err := accounts.AccountsMetaData.GetAbi()
 	if err != nil {
-		return nil, common.Address{}, fmt.Errorf("failed to get wallet factory ABI: %w", err)
-
+		return nil, common.Address{}, fmt.Errorf("%w: %w", ErrGetWalletABI, err)
 	}
 	walletIdBytes32 := crypto.Keccak256Hash([]byte(walletId))
 
@@ -208,8 +223,7 @@ func (s *Service) createWalletOperation(
 	)
 
 	if err != nil {
-		// TODO: Update this to the correct function selector when renaming to createWallet
-		return nil, common.Address{}, fmt.Errorf("failed to pack createAccount calldata: %w", err)
+		return nil, common.Address{}, fmt.Errorf("%w: %w", ErrPackWalletData, err)
 	}
 
 	return &transactTypes.Operation{
