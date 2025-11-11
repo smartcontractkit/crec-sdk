@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -150,6 +151,23 @@ func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *h
 	}
 
 	operationId := uuid.New()
+	now := time.Now().Unix()
+
+	operation := stdserver.Operation{
+		OperationId:       operationId,
+		ChannelId:         &channelId,
+		Status:            "pending",
+		ChainSelector:     request.ChainSelector,
+		Address:           request.Address,
+		WalletOperationId: request.WalletOperationId,
+		Transactions:      request.Transactions,
+		Signature:         request.Signature,
+		CreatedAt:         now,
+	}
+
+	// Store the operation so it can be retrieved later
+	s.operations = append(s.operations, operation)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(stdserver.OperationResponse{
@@ -167,8 +185,37 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 		offset = *params.Offset
 	}
 
+	// Filter operations by channelId and optional query params
 	filteredOps := []stdserver.Operation{}
 	for _, op := range s.operations {
+		// Filter by channel - operations must belong to the requested channel
+		if op.ChannelId == nil || *op.ChannelId != channelId {
+			continue
+		}
+
+		// Filter by status if provided
+		if params.Status != nil && op.Status != *params.Status {
+			continue
+		}
+
+		// Filter by chainSelector if provided
+		if params.ChainSelector != nil {
+			// Parse the string chain_selector to uint64 for comparison
+			if chainSelectorUint, err := strconv.ParseUint(*params.ChainSelector, 10, 64); err == nil {
+				if op.ChainSelector != chainSelectorUint {
+					continue
+				}
+			}
+		}
+
+		// Filter by address if provided
+		if params.Address != nil && op.Address != *params.Address {
+			continue
+		}
+
+		// Note: WalletId filter is not implemented as Operation doesn't have a direct WalletId field
+		// in the current schema. If needed, this would require additional schema changes.
+
 		filteredOps = append(filteredOps, op)
 	}
 
@@ -190,9 +237,15 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 func (s *MockServer) GetChannelsChannelIdOperationsOperationId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
 	for _, op := range s.operations {
 		if op.OperationId == operationId {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(op)
+			// Verify the operation belongs to the requested channel
+			if op.ChannelId != nil && *op.ChannelId == channelId {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_ = json.NewEncoder(w).Encode(op)
+				return
+			}
+			// Operation exists but belongs to a different channel
+			http.Error(w, "operation not found", http.StatusNotFound)
 			return
 		}
 	}
@@ -231,27 +284,54 @@ func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http
 		offset = *params.Offset
 	}
 
-	// Filter by channel ID and other params
+	// Filter by channel ID and query parameters
 	filteredWatchers := []stdserver.Watcher{}
-	for _, w := range s.watchers {
-		// Check channel ID (assuming watchers have a ChannelId field or we can infer from context)
-		// For simplicity, we'll return all watchers - in a real implementation you'd filter by channelId
-
-		// Apply filters if provided
-		include := true
-		if params.Status != nil && w.Status != *params.Status {
-			include = false
-		}
-		if params.Address != nil && w.Address != *params.Address {
-			include = false
-		}
-		if params.Domain != nil && w.Domain != nil && *w.Domain != *params.Domain {
-			include = false
+	for _, watcher := range s.watchers {
+		// First, filter by channelId - only return watchers from this channel
+		if watcher.ChannelId != channelId {
+			continue
 		}
 
-		if include {
-			filteredWatchers = append(filteredWatchers, w)
+		// Apply optional query filters
+		if params.Status != nil && watcher.Status != *params.Status {
+			continue
 		}
+		if params.Address != nil && watcher.Address != *params.Address {
+			continue
+		}
+		if params.Domain != nil {
+			if watcher.Domain == nil || *watcher.Domain != *params.Domain {
+				continue
+			}
+		}
+		if params.Name != nil {
+			if watcher.Name == nil || *watcher.Name != *params.Name {
+				continue
+			}
+		}
+		if params.ChainSelector != nil {
+			// ChainSelector is a string in params but uint64 in Watcher
+			if chainSelectorUint, err := strconv.ParseUint(*params.ChainSelector, 10, 64); err == nil {
+				if watcher.ChainSelector != chainSelectorUint {
+					continue
+				}
+			}
+		}
+		if params.EventName != nil {
+			// Check if the watcher monitors this event
+			eventFound := false
+			for _, event := range watcher.Events {
+				if event == *params.EventName {
+					eventFound = true
+					break
+				}
+			}
+			if !eventFound {
+				continue
+			}
+		}
+
+		filteredWatchers = append(filteredWatchers, watcher)
 	}
 
 	end := offset + limit
@@ -317,6 +397,11 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 func (s *MockServer) GetChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
 	for _, watcher := range s.watchers {
 		if watcher.WatcherId == watcherId {
+			// Validate that the watcher belongs to the requested channel
+			if watcher.ChannelId != channelId {
+				http.Error(w, "watcher not found", http.StatusNotFound)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(watcher)
@@ -336,6 +421,12 @@ func (s *MockServer) PatchChannelsChannelIdWatchersWatcherId(w http.ResponseWrit
 	// Find and update the watcher
 	for i, watcher := range s.watchers {
 		if watcher.WatcherId == watcherId {
+			// Validate that the watcher belongs to the requested channel
+			if watcher.ChannelId != channelId {
+				http.Error(w, "watcher not found", http.StatusNotFound)
+				return
+			}
+
 			// Update name (always set since it's a required field in UpdateWatcher)
 			s.watchers[i].Name = &request.Name
 
@@ -351,10 +442,27 @@ func (s *MockServer) PatchChannelsChannelIdWatchersWatcherId(w http.ResponseWrit
 func (s *MockServer) DeleteChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
 	for i, watcher := range s.watchers {
 		if watcher.WatcherId == watcherId {
-			// Mark as deleting
+			// Validate that the watcher belongs to the requested channel
+			if watcher.ChannelId != channelId {
+				http.Error(w, "watcher not found", http.StatusNotFound)
+				return
+			}
+
+			// Mark as deleting to simulate async deletion
 			s.watchers[i].Status = "deleting"
-			// In a real implementation, this would be async and eventually remove it
-			// For now, we'll just return accepted
+
+			// Schedule automatic transition to "deleted" after a brief delay
+			// Tests can also manually advance the state using helper methods
+			scheduleStatusTransition(
+				watcherId,
+				"deleting",
+				"deleted",
+				50*time.Millisecond,
+				func(id uuid.UUID, from, to string) bool {
+					return s.updateWatcherStatusConditional(id, from, to)
+				},
+			)
+
 			w.WriteHeader(http.StatusAccepted)
 			return
 		}
@@ -438,4 +546,29 @@ func (s *MockServer) PatchWalletsWalletId(w http.ResponseWriter, r *http.Request
 		}
 	}
 	http.Error(w, "wallet not found", http.StatusNotFound)
+}
+
+// ============================================================================
+// HELPER METHODS (INTERNAL)
+// ============================================================================
+
+// scheduleStatusTransition is a generic helper to simulate async state transitions.
+// It schedules a status change after a delay, checking the current status before updating.
+func scheduleStatusTransition(id uuid.UUID, fromStatus, toStatus string, delay time.Duration, updateFn func(uuid.UUID, string, string) bool) {
+	go func() {
+		time.Sleep(delay)
+		updateFn(id, fromStatus, toStatus)
+	}()
+}
+
+// updateWatcherStatusConditional updates a watcher's status only if it matches the expected current status.
+// Returns true if the update was successful.
+func (s *MockServer) updateWatcherStatusConditional(watcherID uuid.UUID, fromStatus, toStatus string) bool {
+	for i, w := range s.watchers {
+		if w.WatcherId == watcherID && w.Status == fromStatus {
+			s.watchers[i].Status = toStatus
+			return true
+		}
+	}
+	return false
 }

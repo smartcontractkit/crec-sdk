@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +33,7 @@ var (
 	ErrCRECClientRequired     = errors.New("CRECClient is required")
 	ErrChainSelectorRequired  = errors.New("chain_selector is required")
 	ErrInvalidABIType         = errors.New("invalid ABI type, only 'event' is currently supported")
+	ErrEventNotInABI          = errors.New("event not found in provided ABI")
 
 	// Timeout errors
 	ErrWaitForActiveTimeout  = errors.New("timeout waiting for watcher to become active")
@@ -57,6 +59,10 @@ var (
 	ErrDeleteWatcher        = errors.New("failed to delete watcher")
 	ErrCheckWatcherStatus   = errors.New("failed to check watcher status")
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+)
+
+const (
+	MaxLogBodyLength = 200
 )
 
 type WatcherStatus string
@@ -114,26 +120,25 @@ type WatcherFilters struct {
 	EventName     *string        `url:"event_name,omitempty"`
 }
 
-const (
-	ServiceName = "watchers"
-)
-
 // ServiceOptions defines the options for creating a new CREC Watchers service.
 //   - Logger: Optional logger instance.
 //   - CRECClient: The CREC API client instance.
 //   - PollInterval: Optional polling interval for WaitForActive. Defaults to 2 seconds if not set.
+//   - EventualConsistencyWindow: Optional duration to tolerate 404 errors after creation due to eventual consistency. Defaults to 2 seconds if not set.
 type ServiceOptions struct {
-	Logger       *zerolog.Logger
-	CRECClient   *client.CRECClient
-	PollInterval time.Duration
+	Logger                    *zerolog.Logger
+	CRECClient                *client.CRECClient
+	PollInterval              time.Duration
+	EventualConsistencyWindow time.Duration
 }
 
 // Service provides operations for managing CREC watchers.
 // Watchers monitor blockchain events on specific smart contracts and trigger workflows.
 type Service struct {
-	logger       *zerolog.Logger
-	crecClient   *client.CRECClient
-	pollInterval time.Duration
+	logger                    *zerolog.Logger
+	crecClient                *client.CRECClient
+	pollInterval              time.Duration
+	eventualConsistencyWindow time.Duration
 }
 
 // NewService creates a new CREC Watchers service with the provided options.
@@ -159,14 +164,21 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 		pollInterval = 2 * time.Second
 	}
 
+	eventualConsistencyWindow := opts.EventualConsistencyWindow
+	if eventualConsistencyWindow == 0 {
+		eventualConsistencyWindow = 2 * time.Second
+	}
+
 	logger.Debug().
 		Dur("poll_interval", pollInterval).
+		Dur("eventual_consistency_window", eventualConsistencyWindow).
 		Msg("Creating CREC Watchers service")
 
 	return &Service{
-		logger:       logger,
-		crecClient:   opts.CRECClient,
-		pollInterval: pollInterval,
+		logger:                    logger,
+		crecClient:                opts.CRECClient,
+		pollInterval:              pollInterval,
+		eventualConsistencyWindow: eventualConsistencyWindow,
 	}, nil
 }
 
@@ -217,7 +229,7 @@ func (s *Service) CreateWatcherWithDomain(ctx context.Context, channelID uuid.UU
 	if resp.StatusCode() != 201 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Failed to create watcher with domain - unexpected status code")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWatcherDomain, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -269,6 +281,22 @@ func (s *Service) CreateWatcherWithABI(ctx context.Context, channelID uuid.UUID,
 		}
 	}
 
+	// Validate that all requested events exist in the provided ABI
+	abiEventMap := make(map[string]bool)
+	for _, abi := range input.ABI {
+		abiEventMap[abi.Name] = true
+	}
+
+	for _, eventName := range input.Events {
+		if !abiEventMap[eventName] {
+			s.logger.Error().
+				Str("event_name", eventName).
+				Int("abi_count", len(input.ABI)).
+				Msg("Requested event not found in provided ABI")
+			return nil, fmt.Errorf("%w: event '%s' not found in ABI definitions", ErrEventNotInABI, eventName)
+		}
+	}
+
 	abiList := make([]apiClient.EventABI, len(input.ABI))
 	for i, abi := range input.ABI {
 		inputs := make([]apiClient.EventABIInput, len(abi.Inputs))
@@ -311,7 +339,7 @@ func (s *Service) CreateWatcherWithABI(ctx context.Context, channelID uuid.UUID,
 	if resp.StatusCode() != 201 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Failed to create watcher with ABI - unexpected status code")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWatcherABI, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -361,7 +389,7 @@ func (s *Service) FindWatchersByChannel(ctx context.Context, channelID uuid.UUID
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Failed to find watchers - unexpected status code")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrFindWatchers, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -400,7 +428,7 @@ func (s *Service) FindWatcherByID(ctx context.Context, channelID uuid.UUID, watc
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Failed to find watcher - unexpected status code")
 
 		if resp.StatusCode() == 404 {
@@ -448,7 +476,7 @@ func (s *Service) UpdateWatcher(ctx context.Context, channelID uuid.UUID, watche
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Failed to update watcher - unexpected status code")
 
 		if resp.StatusCode() == 404 {
@@ -475,6 +503,7 @@ func (s *Service) WaitForActive(ctx context.Context, channelID uuid.UUID, watche
 		Str("channel_id", channelID.String()).
 		Str("watcher_id", watcherID.String()).
 		Dur("max_wait_time", maxWaitTime).
+		Dur("eventual_consistency_window", s.eventualConsistencyWindow).
 		Msg("Waiting for watcher to become active")
 
 	if err := validateChannelID(channelID); err != nil {
@@ -484,6 +513,7 @@ func (s *Service) WaitForActive(ctx context.Context, channelID uuid.UUID, watche
 		return nil, ErrWatcherIDRequired
 	}
 
+	startTime := time.Now()
 	timeout := time.After(maxWaitTime)
 	ticker := time.NewTicker(s.pollInterval)
 	defer ticker.Stop()
@@ -498,6 +528,24 @@ func (s *Service) WaitForActive(ctx context.Context, channelID uuid.UUID, watche
 		case <-ticker.C:
 			watcher, err := s.FindWatcherByID(ctx, channelID, watcherID)
 			if err != nil {
+				// During the eventual consistency window, tolerate 404 errors
+				// This handles the case where a watcher was just created but isn't immediately visible
+				if errors.Is(err, ErrWatcherNotFound) {
+					elapsedTime := time.Since(startTime)
+					if elapsedTime < s.eventualConsistencyWindow {
+						s.logger.Debug().
+							Dur("elapsed", elapsedTime).
+							Dur("window", s.eventualConsistencyWindow).
+							Msg("Watcher not found yet, retrying (eventual consistency)")
+						continue
+					}
+					// After the window, 404 is a permanent error
+					s.logger.Error().
+						Dur("elapsed", elapsedTime).
+						Msg("Watcher not found after eventual consistency window")
+					return nil, fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
+				}
+
 				// Check if error is transient (network issues, 5xx, etc.)
 				if isTransientError(err) {
 					s.logger.Warn().
@@ -560,7 +608,7 @@ func (s *Service) DeleteWatcher(ctx context.Context, channelID uuid.UUID, watche
 	if resp.StatusCode() != 202 && resp.StatusCode() != 204 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Failed to delete watcher - unexpected status code")
 
 		if resp.StatusCode() == 404 {
@@ -660,7 +708,18 @@ func validateChannelID(channelID uuid.UUID) error {
 	return nil
 }
 
-// isTransientError determines if an error is transient and should be retried during polling
+// truncateBody truncates a response body to MaxLogBodyLength characters to avoid
+// logging sensitive data or creating overly verbose logs.
+func truncateBody(body []byte) string {
+	bodyStr := string(body)
+	if len(bodyStr) <= MaxLogBodyLength {
+		return bodyStr
+	}
+	return bodyStr[:MaxLogBodyLength] + "... (truncated)"
+}
+
+// isTransientError determines if an error is transient and should be retried during polling.
+// It checks for known transient HTTP status codes and network errors.
 func isTransientError(err error) bool {
 	// Validation errors are permanent
 	if errors.Is(err, ErrChannelIDRequired) ||
@@ -673,21 +732,39 @@ func isTransientError(err error) bool {
 		return false
 	}
 
+	// Context cancellation errors are permanent
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
 
-	// Network errors and 5xx are typically transient
-	// If the error message contains common transient indicators, consider it transient
 	errMsg := err.Error()
+
+	// First, try to extract HTTP status code from error message
+	statusCodePattern := regexp.MustCompile(`status code:?\s*(\d{3})`)
+	if matches := statusCodePattern.FindStringSubmatch(errMsg); len(matches) > 1 {
+		if statusCode, err := strconv.Atoi(matches[1]); err == nil {
+			// Check if status code indicates a transient error
+			if isTransientStatusCode(statusCode) {
+				return true
+			}
+			// 4xx errors (except 429) are typically permanent
+			if statusCode >= 400 && statusCode < 500 {
+				return false
+			}
+		}
+	}
+
+	// Fallback: Check for network error indicators in the message
+	// These typically don't have HTTP status codes
 	transientIndicators := []string{
 		"connection refused",
 		"connection reset",
 		"timeout",
 		"temporary failure",
-		"status code 5", // Covers 500, 502, 503, etc.
 		"EOF",
 		"broken pipe",
+		"no such host",
+		"network is unreachable",
 	}
 
 	for _, indicator := range transientIndicators {
@@ -698,6 +775,19 @@ func isTransientError(err error) bool {
 
 	// By default, treat unknown errors as permanent to fail fast
 	return false
+}
+
+// isTransientStatusCode determines if an HTTP status code represents a transient error
+// that should be retried.
+func isTransientStatusCode(statusCode int) bool {
+	switch {
+	case statusCode == 429: // Too Many Requests (rate limiting)
+		return true
+	case statusCode >= 500 && statusCode < 600: // 5xx Server Errors
+		return true
+	default:
+		return false
+	}
 }
 
 // convertUint64PtrToStringPtr converts a pointer to uint64 to a pointer to string

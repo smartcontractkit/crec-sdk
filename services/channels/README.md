@@ -198,6 +198,8 @@ if err != nil {
 
 Deletes a channel. Once deleted, the channel and its associated resources will no longer be accessible.
 
+**Async Support:** This operation can be either synchronous (204 No Content) or asynchronous (202 Accepted) depending on the backend state and resources involved.
+
 **Input Parameters:**
 
 - `channelID`: The UUID of the channel to delete

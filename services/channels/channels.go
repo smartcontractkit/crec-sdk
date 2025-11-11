@@ -267,24 +267,31 @@ func (s *Service) DeleteChannel(ctx context.Context, channelID uuid.UUID) error 
 		return fmt.Errorf("%w: %w", ErrDeleteChannel, err)
 	}
 
-	if resp.StatusCode() == 404 {
-		s.logger.Warn().
-			Str("channel_id", channelID.String()).
-			Msg("Channel not found")
-		return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
-	}
-
-	if resp.StatusCode() != 202 {
+	if resp.StatusCode() != 202 && resp.StatusCode() != 204 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
 			Str("body", truncateBody(resp.Body)).
 			Msg("Unexpected status code when deleting channel")
+
+		if resp.StatusCode() == 404 {
+			s.logger.Warn().
+				Str("channel_id", channelID.String()).
+				Msg("Channel not found")
+			return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+		}
+
 		return fmt.Errorf("%w: %w (status code %d)", ErrDeleteChannel, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
-	s.logger.Info().
-		Str("channel_id", channelID.String()).
-		Msg("Channel deleted successfully")
+	if resp.StatusCode() == 202 {
+		s.logger.Info().
+			Str("channel_id", channelID.String()).
+			Msg("Channel deletion initiated (async)")
+	} else {
+		s.logger.Info().
+			Str("channel_id", channelID.String()).
+			Msg("Channel deleted successfully (sync)")
+	}
 
 	return nil
 }

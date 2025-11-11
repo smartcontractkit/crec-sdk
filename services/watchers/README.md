@@ -643,6 +643,7 @@ The service defines the following sentinel errors that can be checked using `err
 | `ErrCRECClientRequired` | CRECClient is nil in ServiceOptions |
 | `ErrChainSelectorRequired` | ChainSelector is 0 (invalid) |
 | `ErrInvalidABIType` | ABI Type is not "event" (only event types supported) |
+| `ErrEventNotInABI` | Requested event name not found in provided ABI definitions |
 
 #### Watcher State Errors
 | Error | Description |
@@ -736,7 +737,91 @@ if err != nil {
     }
     return err
 }
+
+// Check for ABI validation errors
+watcher, err = watchersService.CreateWatcherWithABI(ctx, channelID, abiInput)
+if err != nil {
+    if errors.Is(err, watchers.ErrEventNotInABI) {
+        // Handle event not found in ABI
+        log.Error().Err(err).Msg("Requested event not found in provided ABI definitions")
+        // Maybe fix the ABI or remove the event from the Events list
+        return err
+    }
+    if errors.Is(err, watchers.ErrInvalidABIType) {
+        // Handle invalid ABI type (must be "event")
+        log.Error().Err(err).Msg("Invalid ABI type, only 'event' is supported")
+        return err
+    }
+    return err
+}
 ```
+
+### Resilience and Automatic Retry Behavior
+
+The watchers service includes intelligent retry logic for transient errors during polling operations (`WaitForActive` and `WaitForDeleted`). The SDK automatically distinguishes between transient and permanent errors:
+
+#### Transient Errors (Automatically Retried)
+
+The following errors are considered transient and will be retried automatically:
+
+**HTTP Status Codes:**
+- **5xx** (500-599): Server errors like Internal Server Error, Bad Gateway, Service Unavailable, Gateway Timeout
+- **429**: Rate limiting (Too Many Requests)
+
+**Network Errors:**
+- Connection refused
+- Connection reset
+- Timeouts
+- Broken pipe
+- EOF (End of File)
+- No such host
+- Network unreachable
+
+When a transient error occurs, the SDK will:
+1. Log a warning message
+2. Continue polling according to the configured `PollInterval`
+3. Retry until the operation succeeds or the timeout is reached
+
+#### Permanent Errors (Fail Fast)
+
+The following errors are considered permanent and will cause immediate failure:
+
+**Validation Errors:**
+- Missing required fields (channel ID, watcher ID, etc.)
+- Invalid configuration
+
+**HTTP Status Codes:**
+- **4xx** (except 429): Client errors like Bad Request (400), Not Found (404), Conflict (409)
+
+**Context Errors:**
+- Context cancelled
+- Context deadline exceeded
+
+When a permanent error occurs, the SDK will:
+1. Log an error message
+2. Return the error immediately without retrying
+
+#### Example: Handling Transient vs Permanent Errors
+
+```go
+// This will automatically retry on transient errors (5xx, network issues)
+activeWatcher, err := watchersService.WaitForActive(ctx, channelID, watcherID, 5*time.Minute)
+if err != nil {
+    if errors.Is(err, watchers.ErrWaitForActiveTimeout) {
+        // Timeout after retrying transient errors
+        log.Error().Msg("Watcher didn't become active after 5 minutes of retries")
+    } else if errors.Is(err, watchers.ErrWatcherNotFound) {
+        // Permanent error - watcher doesn't exist
+        log.Error().Msg("Watcher not found (permanent error)")
+    } else if errors.Is(err, watchers.ErrWatcherDeploymentFailed) {
+        // Permanent error - deployment failed
+        log.Error().Msg("Watcher deployment failed (permanent error)")
+    }
+    return err
+}
+```
+
+**Note:** The retry behavior is transparent to the caller. You don't need to implement retry logic yourself - the SDK handles it automatically based on the error type.
 
 ## Watcher Lifecycle
 
@@ -810,4 +895,6 @@ for _, event := range events {
 9. **Organize by Channel**: Group related watchers in the same channel for better organization
 
 10. **Validate ABIs**: When providing custom ABIs, ensure all required fields are populated and correctly typed
+
+11. **Event-ABI Alignment**: When using `CreateWatcherWithABI`, the SDK automatically validates that all requested events exist in the provided ABI definitions. This fail-fast validation catches configuration mistakes before sending requests to the API. Ensure your `Events` list only contains event names present in your `ABI` definitions
 

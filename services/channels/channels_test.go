@@ -451,7 +451,7 @@ func TestService_ListChannels(t *testing.T) {
 }
 
 func TestService_DeleteChannel(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
+	t.Run("SuccessAsync", func(t *testing.T) {
 		channelID := uuid.New()
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
@@ -459,7 +459,26 @@ func TestService_DeleteChannel(t *testing.T) {
 			assert.Equal(t, "DELETE", r.Method)
 			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
 
-			w.WriteHeader(http.StatusAccepted)
+			w.WriteHeader(http.StatusAccepted) // 202 for async deletion
+		}
+
+		service, server := setupTestService(t, handler)
+		defer server.Close()
+
+		err := service.DeleteChannel(context.Background(), channelID)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("SuccessSync", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/channels/"+channelID.String(), r.URL.Path)
+			assert.Equal(t, "DELETE", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			w.WriteHeader(http.StatusNoContent) // 204 for sync deletion
 		}
 
 		service, server := setupTestService(t, handler)
