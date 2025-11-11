@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -12,8 +13,37 @@ import (
 	"github.com/smartcontractkit/crec-sdk/client"
 )
 
+// Sentinel errors
+var (
+	// Service initialization errors
+	ErrServiceOptionsRequired = errors.New("ServiceOptions is required")
+	ErrCRECClientRequired     = errors.New("CRECClient is required")
+
+	// Validation errors
+	ErrChannelIDRequired             = errors.New("channel_id is required")
+	ErrChainSelectorRequired         = errors.New("chain_selector is required")
+	ErrAddressRequired               = errors.New("address is required")
+	ErrWalletOperationIDRequired     = errors.New("wallet_operation_id is required")
+	ErrAtLeastOneTransactionRequired = errors.New("at least one transaction is required")
+	ErrSignatureRequired             = errors.New("signature is required")
+
+	// Not found errors
+	ErrChannelNotFound   = errors.New("channel not found")
+	ErrOperationNotFound = errors.New("operation not found")
+
+	// API operation errors
+	ErrCreateOperation = errors.New("failed to create operation")
+	ErrGetOperation    = errors.New("failed to get operation")
+	ErrListOperations  = errors.New("failed to list operations")
+
+	// Response errors
+	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	ErrNilResponseBody      = errors.New("unexpected nil response body")
+)
+
 const (
-	ServiceName = "operations"
+	ServiceName      = "operations"
+	MaxLogBodyLength = 200
 )
 
 // ServiceOptions defines the options for creating a new CREC Operations service.
@@ -37,11 +67,11 @@ type Service struct {
 //   - opts: Options for configuring the CREC Operations service, see ServiceOptions for details.
 func NewService(opts *ServiceOptions) (*Service, error) {
 	if opts == nil {
-		return nil, fmt.Errorf("ServiceOptions is required")
+		return nil, ErrServiceOptionsRequired
 	}
 
 	if opts.CRECClient == nil {
-		return nil, fmt.Errorf("CRECClient is required")
+		return nil, ErrCRECClientRequired
 	}
 
 	logger := opts.Logger
@@ -103,22 +133,22 @@ func (s *Service) CreateOperation(ctx context.Context, input CreateOperationInpu
 
 	// Validate input
 	if input.ChannelID == uuid.Nil {
-		return nil, fmt.Errorf("channel_id is required")
+		return nil, ErrChannelIDRequired
 	}
 	if input.ChainSelector == 0 {
-		return nil, fmt.Errorf("chain_selector is required")
+		return nil, ErrChainSelectorRequired
 	}
 	if input.Address == "" {
-		return nil, fmt.Errorf("address is required")
+		return nil, ErrAddressRequired
 	}
 	if input.WalletOperationID == "" {
-		return nil, fmt.Errorf("wallet_operation_id is required")
+		return nil, ErrWalletOperationIDRequired
 	}
 	if len(input.Transactions) == 0 {
-		return nil, fmt.Errorf("at least one transaction is required")
+		return nil, ErrAtLeastOneTransactionRequired
 	}
 	if input.Signature == "" {
-		return nil, fmt.Errorf("signature is required")
+		return nil, ErrSignatureRequired
 	}
 
 	// Convert transactions
@@ -142,26 +172,26 @@ func (s *Service) CreateOperation(ctx context.Context, input CreateOperationInpu
 	resp, err := s.crecClient.PostChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, createOperationReq)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to create operation")
-		return nil, fmt.Errorf("failed to create operation: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, err)
 	}
 
 	if resp.StatusCode() == 404 {
 		s.logger.Warn().
 			Str("channel_id", input.ChannelID.String()).
 			Msg("Channel not found")
-		return nil, fmt.Errorf("channel not found: %s", input.ChannelID.String())
+		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
 	}
 
 	if resp.StatusCode() != 201 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Unexpected status code when creating operation")
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateOperation, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON201 == nil {
-		return nil, fmt.Errorf("unexpected nil response body")
+		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, ErrNilResponseBody)
 	}
 
 	operationID := resp.JSON201.OperationId
@@ -192,7 +222,7 @@ func (s *Service) GetOperation(ctx context.Context, channelID uuid.UUID, operati
 	resp, err := s.crecClient.GetChannelsChannelIdOperationsOperationIdWithResponse(ctx, channelID, operationID)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to get operation")
-		return nil, fmt.Errorf("failed to get operation: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrGetOperation, err)
 	}
 
 	if resp.StatusCode() == 404 {
@@ -200,19 +230,19 @@ func (s *Service) GetOperation(ctx context.Context, channelID uuid.UUID, operati
 			Str("channel_id", channelID.String()).
 			Str("operation_id", operationID.String()).
 			Msg("Operation not found")
-		return nil, fmt.Errorf("operation not found: %s in channel %s", operationID.String(), channelID.String())
+		return nil, fmt.Errorf("%w: operation ID %s in channel %s", ErrOperationNotFound, operationID.String(), channelID.String())
 	}
 
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Unexpected status code when getting operation")
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetOperation, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("unexpected nil response body")
+		return nil, fmt.Errorf("%w: %w", ErrGetOperation, ErrNilResponseBody)
 	}
 
 	s.logger.Debug().
@@ -255,7 +285,7 @@ func (s *Service) ListOperations(ctx context.Context, input ListOperationsInput)
 		Msg("Listing operations")
 
 	if input.ChannelID == uuid.Nil {
-		return nil, false, fmt.Errorf("channel_id is required")
+		return nil, false, ErrChannelIDRequired
 	}
 
 	params := apiClient.GetChannelsChannelIdOperationsParams{
@@ -270,26 +300,26 @@ func (s *Service) ListOperations(ctx context.Context, input ListOperationsInput)
 	resp, err := s.crecClient.GetChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, &params)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to list operations")
-		return nil, false, fmt.Errorf("failed to list operations: %w", err)
+		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, err)
 	}
 
 	if resp.StatusCode() == 404 {
 		s.logger.Warn().
 			Str("channel_id", input.ChannelID.String()).
 			Msg("Channel not found")
-		return nil, false, fmt.Errorf("channel not found: %s", input.ChannelID.String())
+		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
 	}
 
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
+			Str("body", truncateBody(resp.Body)).
 			Msg("Unexpected status code when listing operations")
-		return nil, false, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListOperations, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, false, fmt.Errorf("unexpected nil response body")
+		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, ErrNilResponseBody)
 	}
 
 	s.logger.Debug().
@@ -298,4 +328,13 @@ func (s *Service) ListOperations(ctx context.Context, input ListOperationsInput)
 		Msg("Operations listed successfully")
 
 	return resp.JSON200.Data, resp.JSON200.HasMore, nil
+}
+
+// truncateBody truncates a response body to MaxLogBodyLength for logging purposes.
+func truncateBody(body []byte) string {
+	bodyStr := string(body)
+	if len(bodyStr) <= MaxLogBodyLength {
+		return bodyStr
+	}
+	return bodyStr[:MaxLogBodyLength] + "... (truncated)"
 }
