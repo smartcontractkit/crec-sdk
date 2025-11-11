@@ -2,7 +2,7 @@ package dta
 
 import (
 	"context"
-	// "encoding/base64" // Commented out - not used after migration
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/big"

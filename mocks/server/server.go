@@ -155,7 +155,6 @@ func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *h
 
 	operation := stdserver.Operation{
 		OperationId:       operationId,
-		ChannelId:         &channelId,
 		Status:            "pending",
 		ChainSelector:     request.ChainSelector,
 		Address:           request.Address,
@@ -185,14 +184,10 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 		offset = *params.Offset
 	}
 
-	// Filter operations by channelId and optional query params
+	// Filter operations by optional query params
+	// Note: Operations don't have a ChannelId field in the schema, so we return all operations
 	filteredOps := []stdserver.Operation{}
 	for _, op := range s.operations {
-		// Filter by channel - operations must belong to the requested channel
-		if op.ChannelId == nil || *op.ChannelId != channelId {
-			continue
-		}
-
 		// Filter by status if provided
 		if params.Status != nil && op.Status != *params.Status {
 			continue
@@ -212,9 +207,6 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 		if params.Address != nil && op.Address != *params.Address {
 			continue
 		}
-
-		// Note: WalletId filter is not implemented as Operation doesn't have a direct WalletId field
-		// in the current schema. If needed, this would require additional schema changes.
 
 		filteredOps = append(filteredOps, op)
 	}
@@ -237,15 +229,11 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 func (s *MockServer) GetChannelsChannelIdOperationsOperationId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
 	for _, op := range s.operations {
 		if op.OperationId == operationId {
-			// Verify the operation belongs to the requested channel
-			if op.ChannelId != nil && *op.ChannelId == channelId {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				_ = json.NewEncoder(w).Encode(op)
-				return
-			}
-			// Operation exists but belongs to a different channel
-			http.Error(w, "operation not found", http.StatusNotFound)
+			// Note: Operations don't have a ChannelId field in the schema
+			// This is a simplified mock that returns the operation if it exists, regardless of channel
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(op)
 			return
 		}
 	}
