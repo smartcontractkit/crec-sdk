@@ -1,15 +1,12 @@
 package dta
 
 import (
-	// "encoding/base64" // Commented out - not used after migration
-	"fmt" // Added for error messages
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 
-	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/services/dta/gen/dtarequestmanagement"
 	"github.com/smartcontractkit/crec-api-go/services/dta/gen/dtarequestsettlement"
 	"github.com/smartcontractkit/crec-sdk/interfaces/erc20"
@@ -528,21 +525,6 @@ func (s *Service) PrepareForceAllowDistributorForTokenOperation(
 			},
 		},
 	}, nil
-}
-
-// toJson decodes an encoded VerifiableEvent from a CREC event into a JSON byte slice.
-//
-// COMMENTED OUT: event.VerifiableEvent no longer exists in new Event structure
-// TODO: Update to work with new Event structure from channels-based API
-// This method is used internally by DTA v1.0 service to decode request management events
-func (s *Service) toJson(event *apiClient.Event) ([]byte, error) {
-	return nil, fmt.Errorf("toJson is temporarily disabled - needs migration to new Event structure")
-	// decodedStr, err := base64.StdEncoding.DecodeString(event.VerifiableEvent)
-	// if err != nil {
-	// 	s.logger.Error().Err(err).Msg("Failed to decode base64 payload")
-	// 	return []byte{}, err
-	// }
-	// return decodedStr, nil
 }
 
 // prepareTokenApproveTransaction prepares a token approval transaction.
