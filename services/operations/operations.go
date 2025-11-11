@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -264,7 +265,7 @@ func (s *Service) GetOperation(ctx context.Context, channelID uuid.UUID, operati
 type ListOperationsInput struct {
 	ChannelID     uuid.UUID
 	Status        *string
-	ChainSelector *string
+	ChainSelector *uint64
 	Address       *string
 	WalletID      *uuid.UUID
 	Limit         *int
@@ -290,7 +291,7 @@ func (s *Service) ListOperations(ctx context.Context, input ListOperationsInput)
 
 	params := apiClient.GetChannelsChannelIdOperationsParams{
 		Status:        input.Status,
-		ChainSelector: input.ChainSelector,
+		ChainSelector: convertUint64PtrToStringPtr(input.ChainSelector),
 		Address:       input.Address,
 		WalletId:      input.WalletID,
 		Limit:         input.Limit,
@@ -337,4 +338,14 @@ func truncateBody(body []byte) string {
 		return bodyStr
 	}
 	return bodyStr[:MaxLogBodyLength] + "... (truncated)"
+}
+
+// convertUint64PtrToStringPtr converts a pointer to uint64 to a pointer to string
+// for API compatibility. Returns nil if the input is nil.
+func convertUint64PtrToStringPtr(val *uint64) *string {
+	if val == nil {
+		return nil
+	}
+	str := strconv.FormatUint(*val, 10)
+	return &str
 }

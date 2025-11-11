@@ -472,7 +472,7 @@ func TestService_ListOperations(t *testing.T) {
 		operationID := uuid.New()
 		createdAt := time.Now().Unix()
 		status := "pending"
-		chainSelector := "1337"
+		chainSelector := uint64(1337)
 		address := "0x1234"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
@@ -481,7 +481,7 @@ func TestService_ListOperations(t *testing.T) {
 			// Check query parameters
 			query := r.URL.Query()
 			assert.Equal(t, status, query.Get("status"))
-			assert.Equal(t, chainSelector, query.Get("chain_selector"))
+			assert.Equal(t, "1337", query.Get("chain_selector"))
 			assert.Equal(t, address, query.Get("address"))
 
 			w.Header().Set("Content-Type", "application/json")
