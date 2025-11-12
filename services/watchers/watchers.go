@@ -53,8 +53,8 @@ var (
 	ErrCreateWatcherRequest = errors.New("failed to create watcher request")
 	ErrCreateWatcherDomain  = errors.New("failed to create watcher with domain")
 	ErrCreateWatcherABI     = errors.New("failed to create watcher with ABI")
-	ErrFindWatchers         = errors.New("failed to find watchers")
-	ErrFindWatcher          = errors.New("failed to find watcher")
+	ErrListWatchers         = errors.New("failed to list watchers")
+	ErrGetWatcher           = errors.New("failed to get watcher")
 	ErrUpdateWatcher        = errors.New("failed to update watcher")
 	ErrDeleteWatcher        = errors.New("failed to delete watcher")
 	ErrCheckWatcherStatus   = errors.New("failed to check watcher status")
@@ -351,11 +351,11 @@ func (s *Service) CreateWatcherWithABI(ctx context.Context, channelID uuid.UUID,
 	return resp.JSON201, nil
 }
 
-// FindWatchersByChannel retrieves watchers for a specific channel with optional filters
-func (s *Service) FindWatchersByChannel(ctx context.Context, channelID uuid.UUID, filters WatcherFilters) (*apiClient.WatcherList, error) {
+// ListWatchers retrieves watchers for a specific channel with optional filters
+func (s *Service) ListWatchers(ctx context.Context, channelID uuid.UUID, filters WatcherFilters) (*apiClient.WatcherList, error) {
 	s.logger.Debug().
 		Str("channel_id", channelID.String()).
-		Msg("Finding watchers by channel")
+		Msg("Listing watchers")
 
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
@@ -378,16 +378,16 @@ func (s *Service) FindWatchersByChannel(ctx context.Context, channelID uuid.UUID
 
 	resp, err := s.crecClient.GetChannelsChannelIdWatchersWithResponse(ctx, channelID, params)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to find watchers")
-		return nil, fmt.Errorf("%w: %w", ErrFindWatchers, err)
+		s.logger.Error().Err(err).Msg("Failed to list watchers")
+		return nil, fmt.Errorf("%w: %w", ErrListWatchers, err)
 	}
 
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
 			Str("body", string(resp.Body)).
-			Msg("Failed to find watchers - unexpected status code")
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrFindWatchers, ErrUnexpectedStatusCode, resp.StatusCode())
+			Msg("Failed to list watchers - unexpected status code")
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrListWatchers, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
@@ -396,17 +396,17 @@ func (s *Service) FindWatchersByChannel(ctx context.Context, channelID uuid.UUID
 
 	s.logger.Debug().
 		Int("count", len(resp.JSON200.Data)).
-		Msg("Watchers found")
+		Msg("Watchers listed successfully")
 
 	return resp.JSON200, nil
 }
 
-// FindWatcherByID retrieves a specific watcher by channel and watcher ID
-func (s *Service) FindWatcherByID(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) (*apiClient.Watcher, error) {
+// GetWatcher retrieves a specific watcher by channel and watcher ID
+func (s *Service) GetWatcher(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) (*apiClient.Watcher, error) {
 	s.logger.Debug().
 		Str("channel_id", channelID.String()).
 		Str("watcher_id", watcherID.String()).
-		Msg("Finding watcher by ID")
+		Msg("Getting watcher")
 
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
@@ -417,21 +417,21 @@ func (s *Service) FindWatcherByID(ctx context.Context, channelID uuid.UUID, watc
 
 	resp, err := s.crecClient.GetChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to find watcher")
-		return nil, fmt.Errorf("%w: %w", ErrFindWatcher, err)
+		s.logger.Error().Err(err).Msg("Failed to get watcher")
+		return nil, fmt.Errorf("%w: %w", ErrGetWatcher, err)
 	}
 
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
 			Str("body", string(resp.Body)).
-			Msg("Failed to find watcher - unexpected status code")
+			Msg("Failed to get watcher - unexpected status code")
 
 		if resp.StatusCode() == 404 {
 			return nil, fmt.Errorf("%w (status code %d)", ErrWatcherNotFound, resp.StatusCode())
 		}
 
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrFindWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
@@ -522,7 +522,7 @@ func (s *Service) WaitForActive(ctx context.Context, channelID uuid.UUID, watche
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
-			watcher, err := s.FindWatcherByID(ctx, channelID, watcherID)
+			watcher, err := s.GetWatcher(ctx, channelID, watcherID)
 			if err != nil {
 				// During the eventual consistency window, tolerate 404 errors
 				// This handles the case where a watcher was just created but isn't immediately visible
@@ -655,7 +655,7 @@ func (s *Service) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watch
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			watcher, err := s.FindWatcherByID(ctx, channelID, watcherID)
+			watcher, err := s.GetWatcher(ctx, channelID, watcherID)
 			if err != nil {
 				// If watcher is not found (404), it's been deleted
 				if errors.Is(err, ErrWatcherNotFound) {

@@ -1,6 +1,6 @@
 # Channels Service
 
-The Channels Service provides a comprehensive Go SDK for managing channels in the CREC platform. Channels are logical groupings that allow customers to organize their watchers, events, and operations. Each channel is scoped to an organization and provides isolation and organization for blockchain monitoring and transaction workflows.
+The Channels Service provides a comprehensive Go SDK for managing channels in the CREC platform. Channels are logical groupings that allow you to organize your watchers, events, and operations. Each channel is associated with your account and provides isolation and structure for blockchain monitoring and transaction workflows.
 
 ## Table of Contents
 
@@ -13,7 +13,7 @@ The Channels Service provides a comprehensive Go SDK for managing channels in th
 
 ## Overview
 
-The Channels Service is an **organizational service** that helps structure your CREC resources. Channels act as containers for:
+The Channels Service is a **structuring service** that helps organize your CREC resources. Channels act as containers for:
 
 - **Watchers**: Blockchain event monitors that detect on-chain activity
 - **Events**: Detected blockchain events captured by watchers
@@ -23,10 +23,10 @@ Think of channels as **"workspaces"** or **"projects"** that group related block
 
 ### Key Benefits
 
-- ✅ **Logical Organization** - Group related watchers and operations by business context
+- ✅ **Logical Grouping** - Group related watchers and operations by business context
 - ✅ **Isolation** - Separate different workflows or environments (dev, staging, prod)
-- ✅ **Scoped Access** - All channels are automatically scoped to your organization
-- ✅ **Unique Naming** - Channel names must be unique within your organization
+- ✅ **Scoped Access** - All channels are automatically scoped to your account
+- ✅ **Unique Naming** - Channel names must be unique
 - ✅ **Soft Deletion** - Deleted channels are logically removed but preserved in the backend
 
 ## Architecture
@@ -35,7 +35,7 @@ Think of channels as **"workspaces"** or **"projects"** that group related block
 graph TD
     A[Channels Service Architecture] --> B[Service Layer - Go SDK]
     A --> C[CREC API Backend]
-    A --> D[Organization Scoping]
+    A --> D[Account Scoping]
 
     B --> B1[CreateChannel]
     B --> B2[GetChannel]
@@ -47,7 +47,7 @@ graph TD
     C --> C3[GET /channels]
     C --> C4[DELETE /channels/:id]
 
-    D --> D1[Automatic Org Filtering]
+    D --> D1[Automatic Account Filtering]
     D --> D2[Unique Name Validation]
     D --> D3[Logical Deletion]
 ```
@@ -92,11 +92,11 @@ if err != nil {
 
 ### CreateChannel
 
-Creates a new channel in your organization. Channel names must be unique within the organization.
+Creates a new channel. Channel names must be unique.
 
 **Input Parameters:**
 
-- `Name`: The channel name (required, must be unique within the organization)
+- `Name`: The channel name (required, must be unique)
 
 **Returns:**
 
@@ -144,7 +144,7 @@ fmt.Printf("Channel: %s (Created: %d)\n", channel.Name, channel.CreatedAt)
 
 ### ListChannels
 
-Retrieves a list of channels for your organization with optional filtering and pagination.
+Retrieves a list of channels with optional filtering and pagination.
 
 **Input Parameters:**
 
@@ -388,7 +388,7 @@ The Channels Service returns descriptive errors for various failure scenarios:
 | `channel name is required` | Empty channel name provided | N/A (validation) |
 | `channel not found: <id>` | Channel with specified ID doesn't exist | 404 |
 | `unexpected status code: 400` | Invalid request (e.g., invalid name format) | 400 |
-| `unexpected status code: 409` | Channel name already exists in organization | 409 |
+| `unexpected status code: 409` | Channel name already exists | 409 |
 | `unexpected status code: 500` | Internal server error | 500 |
 
 ### Error Handling Best Practices
@@ -464,5 +464,5 @@ events, err := eventsService.ListEvents(ctx, channel.ChannelId, filters)
 
 6. **Cache Channel IDs**: Once you create a channel, cache its ID to avoid repeated lookups
 
-7. **Monitor Channel Usage**: Regularly list channels to understand your organization's structure and clean up unused channels
+7. **Monitor Channel Usage**: Regularly list channels to understand your workspace structure and clean up unused channels
 

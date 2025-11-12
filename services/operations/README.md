@@ -27,7 +27,7 @@ Think of operations as **"transaction intents"** that you submit to the CREC net
 - ✅ **Atomic Execution** - Multiple transactions execute together or not at all
 - ✅ **Gas Abstraction** - No need to hold native tokens for gas
 - ✅ **Status Tracking** - Monitor operations through their lifecycle
-- ✅ **Channel Organization** - Operations are grouped by channel
+- ✅ **Channel Grouping** - Operations are grouped by channel for better structure
 - ✅ **Filtering & Pagination** - Easily query operations with various filters
 
 ## Architecture

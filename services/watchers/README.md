@@ -29,7 +29,7 @@ Think of watchers as **"event listeners"** that continuously monitor blockchain 
 - ✅ **Custom Events** - Define any event structure with custom ABIs
 - ✅ **Automatic Deployment** - Watchers are deployed automatically after creation
 - ✅ **Status Tracking** - Monitor watcher deployment and health status
-- ✅ **Channel Organization** - Watchers are scoped to channels for better organization
+- ✅ **Channel Grouping** - Watchers are scoped to channels for better structure
 
 ## Architecture
 
@@ -41,8 +41,8 @@ graph TD
 
     B --> B1[CreateWatcherWithDomain]
     B --> B2[CreateWatcherWithABI]
-    B --> B3[FindWatchersByChannel]
-    B --> B4[FindWatcherByID]
+    B --> B3[ListWatchers]
+    B --> B4[GetWatcher]
     B --> B5[UpdateWatcher]
     B --> B6[WaitForActive]
     B --> B7[DeleteWatcher]
@@ -201,7 +201,7 @@ if err != nil {
 fmt.Printf("Created watcher: %s\n", watcher.WatcherId)
 ```
 
-### FindWatchersByChannel
+### ListWatchers
 
 Retrieves a list of watchers for a channel with optional filtering and pagination.
 
@@ -227,7 +227,7 @@ Retrieves a list of watchers for a channel with optional filtering and paginatio
 
 ```go
 // List all watchers with default pagination
-watchersList, err := watchersService.FindWatchersByChannel(ctx, channelID, watchers.WatcherFilters{})
+watchersList, err := watchersService.ListWatchers(ctx, channelID, watchers.WatcherFilters{})
 if err != nil {
     log.Fatal(err)
 }
@@ -250,7 +250,7 @@ status := watchers.StatusActive
 chainSelector := uint64(1)
 limit := 10
 
-watchersList, err := watchersService.FindWatchersByChannel(ctx, channelID, watchers.WatcherFilters{
+watchersList, err := watchersService.ListWatchers(ctx, channelID, watchers.WatcherFilters{
     Status:        &status,
     ChainSelector: &chainSelector,
     Limit:         &limit,
@@ -262,7 +262,7 @@ if err != nil {
 fmt.Printf("Found %d active watchers on Ethereum\n", len(watchersList.Data))
 ```
 
-### FindWatcherByID
+### GetWatcher
 
 Retrieves a specific watcher by its ID within a channel.
 
@@ -279,7 +279,7 @@ Retrieves a specific watcher by its ID within a channel.
 **Example:**
 
 ```go
-watcher, err := watchersService.FindWatcherByID(ctx, channelID, watcherID)
+watcher, err := watchersService.GetWatcher(ctx, channelID, watcherID)
 if err != nil {
     log.Fatal(err)
 }
@@ -500,7 +500,7 @@ func main() {
     // 7. List all active watchers
     fmt.Println("\nAll active watchers:")
     status := watchers.StatusActive
-    watchersList, err := watchersService.FindWatchersByChannel(ctx, channel.ChannelId, watchers.WatcherFilters{
+    watchersList, err := watchersService.ListWatchers(ctx, channel.ChannelId, watchers.WatcherFilters{
         Status: &status,
     })
     if err != nil {
@@ -577,7 +577,7 @@ func listAllWatchers(ctx context.Context, service *watchers.Service, channelID u
     offset := 0
 
     for {
-        watchersList, err := service.FindWatchersByChannel(ctx, channelID, watchers.WatcherFilters{
+        watchersList, err := service.ListWatchers(ctx, channelID, watchers.WatcherFilters{
             Limit:  &limit,
             Offset: &offset,
         })
@@ -602,7 +602,7 @@ func listAllWatchers(ctx context.Context, service *watchers.Service, channelID u
 
 ```go
 func findWatchersMonitoringEvent(ctx context.Context, service *watchers.Service, channelID uuid.UUID, eventName string) ([]apiClient.Watcher, error) {
-    watchersList, err := service.FindWatchersByChannel(ctx, channelID, watchers.WatcherFilters{
+    watchersList, err := service.ListWatchers(ctx, channelID, watchers.WatcherFilters{
         EventName: &eventName,
     })
     if err != nil {
@@ -673,8 +673,8 @@ The service defines the following sentinel errors that can be checked using `err
 | `ErrCreateWatcherRequest` | Failed to create watcher request payload |
 | `ErrCreateWatcherDomain` | Failed to create domain-based watcher |
 | `ErrCreateWatcherABI` | Failed to create ABI-based watcher |
-| `ErrFindWatchers` | Failed to find/list watchers |
-| `ErrFindWatcher` | Failed to find specific watcher by ID |
+| `ErrListWatchers` | Failed to list watchers |
+| `ErrGetWatcher` | Failed to get specific watcher by ID |
 | `ErrUpdateWatcher` | Failed to update watcher |
 | `ErrDeleteWatcher` | Failed to delete watcher |
 | `ErrCheckWatcherStatus` | Failed to check watcher status during polling |
@@ -697,7 +697,7 @@ import (
 )
 
 // Check for not found errors
-watcher, err := watchersService.FindWatcherByID(ctx, channelID, watcherID)
+watcher, err := watchersService.GetWatcher(ctx, channelID, watcherID)
 if err != nil {
     if errors.Is(err, watchers.ErrWatcherNotFound) {
         // Handle not found case gracefully
@@ -840,7 +840,7 @@ Watchers go through several states during their lifecycle:
 
 Watchers integrate with other CREC services to provide end-to-end blockchain monitoring:
 
-1. **Channels**: Watchers are created within channels for organization
+1. **Channels**: Watchers are created within channels for grouping and isolation
 2. **Events**: Detected blockchain events are stored and accessible via the Events service
 3. **Operations**: Watchers can trigger operation workflows based on detected events
 
@@ -892,7 +892,7 @@ for _, event := range events {
 
 8. **Monitor Watcher Health**: Regularly check watcher status to ensure they remain active
 
-9. **Organize by Channel**: Group related watchers in the same channel for better organization
+9. **Group by Channel**: Group related watchers in the same channel for better management
 
 10. **Validate ABIs**: When providing custom ABIs, ensure all required fields are populated and correctly typed
 

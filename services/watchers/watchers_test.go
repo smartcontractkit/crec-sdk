@@ -292,7 +292,7 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
-		assert.Contains(t, err.Error(), "failed to create watcher with domain")
+		assert.True(t, errors.Is(err, ErrCreateWatcherDomain), "Expected ErrCreateWatcherDomain, got: %v", err)
 	})
 }
 
@@ -494,7 +494,7 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 	})
 }
 
-func TestService_FindWatchersByChannel(t *testing.T) {
+func TestService_ListWatchers(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		watcher1ID := uuid.New()
@@ -541,7 +541,7 @@ func TestService_FindWatchersByChannel(t *testing.T) {
 
 		limit := 10
 		offset := 0
-		result, err := service.FindWatchersByChannel(context.Background(), channelID, WatcherFilters{
+		result, err := service.ListWatchers(context.Background(), channelID, WatcherFilters{
 			Limit:  &limit,
 			Offset: &offset,
 		})
@@ -589,7 +589,7 @@ func TestService_FindWatchersByChannel(t *testing.T) {
 		service, server := setupTestService(t, handler)
 		defer server.Close()
 
-		result, err := service.FindWatchersByChannel(context.Background(), channelID, WatcherFilters{
+		result, err := service.ListWatchers(context.Background(), channelID, WatcherFilters{
 			Name:   &name,
 			Status: &status,
 		})
@@ -610,7 +610,7 @@ func TestService_FindWatchersByChannel(t *testing.T) {
 		service, server := setupTestService(t, handler)
 		defer server.Close()
 
-		result, err := service.FindWatchersByChannel(context.Background(), uuid.Nil, WatcherFilters{})
+		result, err := service.ListWatchers(context.Background(), uuid.Nil, WatcherFilters{})
 
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -631,15 +631,15 @@ func TestService_FindWatchersByChannel(t *testing.T) {
 		service, server := setupTestService(t, handler)
 		defer server.Close()
 
-		result, err := service.FindWatchersByChannel(context.Background(), channelID, WatcherFilters{})
+		result, err := service.ListWatchers(context.Background(), channelID, WatcherFilters{})
 
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "failed to find watchers")
+		assert.True(t, errors.Is(err, ErrListWatchers), "Expected ErrListWatchers, got: %v", err)
 	})
 }
 
-func TestService_FindWatcherByID(t *testing.T) {
+func TestService_GetWatcher(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -666,7 +666,7 @@ func TestService_FindWatcherByID(t *testing.T) {
 		service, server := setupTestService(t, handler)
 		defer server.Close()
 
-		watcher, err := service.FindWatcherByID(context.Background(), channelID, watcherID)
+		watcher, err := service.GetWatcher(context.Background(), channelID, watcherID)
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
@@ -684,7 +684,7 @@ func TestService_FindWatcherByID(t *testing.T) {
 		service, server := setupTestService(t, handler)
 		defer server.Close()
 
-		watcher, err := service.FindWatcherByID(context.Background(), uuid.Nil, uuid.New())
+		watcher, err := service.GetWatcher(context.Background(), uuid.Nil, uuid.New())
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -699,7 +699,7 @@ func TestService_FindWatcherByID(t *testing.T) {
 		service, server := setupTestService(t, handler)
 		defer server.Close()
 
-		watcher, err := service.FindWatcherByID(context.Background(), uuid.New(), uuid.Nil)
+		watcher, err := service.GetWatcher(context.Background(), uuid.New(), uuid.Nil)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -721,7 +721,7 @@ func TestService_FindWatcherByID(t *testing.T) {
 		service, server := setupTestService(t, handler)
 		defer server.Close()
 
-		watcher, err := service.FindWatcherByID(context.Background(), channelID, watcherID)
+		watcher, err := service.GetWatcher(context.Background(), channelID, watcherID)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -962,7 +962,7 @@ func TestService_DeleteWatcher(t *testing.T) {
 		err := service.DeleteWatcher(context.Background(), channelID, watcherID)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to delete watcher")
+		assert.True(t, errors.Is(err, ErrDeleteWatcher), "Expected ErrDeleteWatcher, got: %v", err)
 	})
 }
 
@@ -1300,7 +1300,7 @@ func TestService_WaitForActive(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, watcher)
 		assert.Equal(t, 1, attemptCount, "Should NOT retry permanent errors")
-		assert.Contains(t, err.Error(), "failed to check watcher status")
+		assert.True(t, errors.Is(err, ErrCheckWatcherStatus), "Expected ErrCheckWatcherStatus, got: %v", err)
 	})
 
 	t.Run("TransientError500_Retry_EventuallySucceeds", func(t *testing.T) {
@@ -1695,7 +1695,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		assert.Equal(t, "active", active.Status)
 
 		// Step 3: Find the watcher
-		found, err := service.FindWatcherByID(ctx, channelID, watcherID)
+		found, err := service.GetWatcher(ctx, channelID, watcherID)
 		require.NoError(t, err)
 		assert.Equal(t, watcherID, found.WatcherId)
 		assert.Equal(t, watcherName, *found.Name)
@@ -1709,7 +1709,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		assert.Equal(t, updatedName, *updated.Name)
 
 		// Step 5: Verify update
-		found, err = service.FindWatcherByID(ctx, channelID, watcherID)
+		found, err = service.GetWatcher(ctx, channelID, watcherID)
 		require.NoError(t, err)
 		assert.Equal(t, updatedName, *found.Name)
 
@@ -1817,7 +1817,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 
 		// Step 3: List all watchers in the channel
 		filters := WatcherFilters{}
-		list, err := service.FindWatchersByChannel(ctx, channelID, filters)
+		list, err := service.ListWatchers(ctx, channelID, filters)
 		require.NoError(t, err)
 		assert.Len(t, list.Data, 1)
 		assert.Equal(t, watcherID, list.Data[0].WatcherId)
@@ -1910,7 +1910,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		// Wait for active - should fail because watcher deployment failed
 		_, err = service.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "watcher deployment failed")
+		assert.True(t, errors.Is(err, ErrWatcherDeploymentFailed), "Expected ErrWatcherDeploymentFailed, got: %v", err)
 	})
 
 	t.Run("WatcherIsDeleted_WhileWaitingForActive", func(t *testing.T) {
@@ -1970,7 +1970,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		// Wait for active - should fail because watcher was deleted
 		_, err = service.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "watcher has been deleted and cannot become active")
+		assert.True(t, errors.Is(err, ErrWatcherAlreadyDeleted), "Expected ErrWatcherAlreadyDeleted, got: %v", err)
 	})
 
 	t.Run("UpdateNonExistentWatcher", func(t *testing.T) {
@@ -2115,7 +2115,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 			Offset:        &offset,
 		}
 
-		list, err := service.FindWatchersByChannel(ctx, channelID, filters)
+		list, err := service.ListWatchers(ctx, channelID, filters)
 		require.NoError(t, err)
 		assert.Len(t, list.Data, 1)
 	})
@@ -2167,7 +2167,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 				Limit:  &limit,
 				Offset: &offset,
 			}
-			list, err := service.FindWatchersByChannel(ctx, channelID, filters)
+			list, err := service.ListWatchers(ctx, channelID, filters)
 			require.NoError(t, err)
 			allWatchers = append(allWatchers, list.Data...)
 
