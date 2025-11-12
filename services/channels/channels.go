@@ -15,7 +15,6 @@ import (
 
 const (
 	MaxChannelNameLength = 255
-	MaxLogBodyLength     = 200
 )
 
 // Sentinel errors
@@ -84,16 +83,6 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 	}, nil
 }
 
-// truncateBody truncates a response body to MaxLogBodyLength characters to avoid
-// logging sensitive data or creating overly verbose logs.
-func truncateBody(body []byte) string {
-	bodyStr := string(body)
-	if len(bodyStr) <= MaxLogBodyLength {
-		return bodyStr
-	}
-	return bodyStr[:MaxLogBodyLength] + "... (truncated)"
-}
-
 // CreateChannelInput defines the input parameters for creating a new channel.
 //   - Name: The name of the channel. Must be unique.
 type CreateChannelInput struct {
@@ -133,7 +122,7 @@ func (s *Service) CreateChannel(ctx context.Context, input CreateChannelInput) (
 	if resp.StatusCode() != 201 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Unexpected status code when creating channel")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateChannel, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -178,7 +167,7 @@ func (s *Service) GetChannel(ctx context.Context, channelID uuid.UUID) (*apiClie
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Unexpected status code when getting channel")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetChannel, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -232,7 +221,7 @@ func (s *Service) ListChannels(ctx context.Context, input ListChannelsInput) ([]
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Unexpected status code when listing channels")
 		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListChannels, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -270,7 +259,7 @@ func (s *Service) DeleteChannel(ctx context.Context, channelID uuid.UUID) error 
 	if resp.StatusCode() != 202 && resp.StatusCode() != 204 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Unexpected status code when deleting channel")
 
 		if resp.StatusCode() == 404 {

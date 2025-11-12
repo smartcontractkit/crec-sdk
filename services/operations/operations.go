@@ -43,8 +43,7 @@ var (
 )
 
 const (
-	ServiceName      = "operations"
-	MaxLogBodyLength = 200
+	ServiceName = "operations"
 )
 
 // ServiceOptions defines the options for creating a new CREC Operations service.
@@ -186,7 +185,7 @@ func (s *Service) CreateOperation(ctx context.Context, input CreateOperationInpu
 	if resp.StatusCode() != 201 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Unexpected status code when creating operation")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateOperation, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -237,7 +236,7 @@ func (s *Service) GetOperation(ctx context.Context, channelID uuid.UUID, operati
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Unexpected status code when getting operation")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetOperation, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -314,7 +313,7 @@ func (s *Service) ListOperations(ctx context.Context, input ListOperationsInput)
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Unexpected status code when listing operations")
 		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListOperations, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -329,15 +328,6 @@ func (s *Service) ListOperations(ctx context.Context, input ListOperationsInput)
 		Msg("Operations listed successfully")
 
 	return resp.JSON200.Data, resp.JSON200.HasMore, nil
-}
-
-// truncateBody truncates a response body to MaxLogBodyLength for logging purposes.
-func truncateBody(body []byte) string {
-	bodyStr := string(body)
-	if len(bodyStr) <= MaxLogBodyLength {
-		return bodyStr
-	}
-	return bodyStr[:MaxLogBodyLength] + "... (truncated)"
 }
 
 // convertUint64PtrToStringPtr converts a pointer to uint64 to a pointer to string

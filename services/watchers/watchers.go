@@ -61,10 +61,6 @@ var (
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 )
 
-const (
-	MaxLogBodyLength = 200
-)
-
 type WatcherStatus string
 
 const (
@@ -229,7 +225,7 @@ func (s *Service) CreateWatcherWithDomain(ctx context.Context, channelID uuid.UU
 	if resp.StatusCode() != 201 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Failed to create watcher with domain - unexpected status code")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWatcherDomain, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -339,7 +335,7 @@ func (s *Service) CreateWatcherWithABI(ctx context.Context, channelID uuid.UUID,
 	if resp.StatusCode() != 201 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Failed to create watcher with ABI - unexpected status code")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWatcherABI, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -389,7 +385,7 @@ func (s *Service) FindWatchersByChannel(ctx context.Context, channelID uuid.UUID
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Failed to find watchers - unexpected status code")
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrFindWatchers, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
@@ -428,7 +424,7 @@ func (s *Service) FindWatcherByID(ctx context.Context, channelID uuid.UUID, watc
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Failed to find watcher - unexpected status code")
 
 		if resp.StatusCode() == 404 {
@@ -476,7 +472,7 @@ func (s *Service) UpdateWatcher(ctx context.Context, channelID uuid.UUID, watche
 	if resp.StatusCode() != 200 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Failed to update watcher - unexpected status code")
 
 		if resp.StatusCode() == 404 {
@@ -608,7 +604,7 @@ func (s *Service) DeleteWatcher(ctx context.Context, channelID uuid.UUID, watche
 	if resp.StatusCode() != 202 && resp.StatusCode() != 204 {
 		s.logger.Error().
 			Int("status_code", resp.StatusCode()).
-			Str("body", truncateBody(resp.Body)).
+			Str("body", string(resp.Body)).
 			Msg("Failed to delete watcher - unexpected status code")
 
 		if resp.StatusCode() == 404 {
@@ -706,16 +702,6 @@ func validateChannelID(channelID uuid.UUID) error {
 		return ErrChannelIDRequired
 	}
 	return nil
-}
-
-// truncateBody truncates a response body to MaxLogBodyLength characters to avoid
-// logging sensitive data or creating overly verbose logs.
-func truncateBody(body []byte) string {
-	bodyStr := string(body)
-	if len(bodyStr) <= MaxLogBodyLength {
-		return bodyStr
-	}
-	return bodyStr[:MaxLogBodyLength] + "... (truncated)"
 }
 
 // isTransientError determines if an error is transient and should be retried during polling.
