@@ -62,9 +62,10 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 
 // HashOperation computes the EIP-712 digest of the given operation.
 //   - op: The operation to hash.
-//   - chainId: The chain ID of the blockchain network in which the operation is being executed.
+//   - chainSelector: chainSelector of the blockchain network in which the operation is being executed.
+//
+// Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
 func (t *Client) HashOperation(op *types.Operation, chainSelector string) (common.Hash, error) {
-	// Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
 	chainSelectorUint, err := strconv.ParseUint(chainSelector, 10, 64)
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("failed to parse chain selector: %w", err)
@@ -98,6 +99,7 @@ func (t *Client) HashOperation(op *types.Operation, chainSelector string) (commo
 //   - ctx: The context for the request.
 //   - op: The operation to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
+//   - chainSelector: chainSelector of the blockchain network in which the operation is being executed.
 //
 // Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
 func (t *Client) SignOperation(

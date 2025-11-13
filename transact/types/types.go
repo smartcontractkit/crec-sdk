@@ -83,15 +83,6 @@ func (op *Operation) EIP712Message() apitypes.TypedDataMessage {
 // ChainId is parsed as int64 because go-ethereum's apitypes.TypedDataDomain
 // uses math.HexOrDecimal256 type for ChainID, whose constructor accepts
 // only int64.
-//
-// -------------------------------
-// Non-EVM Chains Compatibility
-// -------------------------------
-//
-// ChainId being int64 instead of string, makes this EIP-712 domain
-// incompatible with non-EVM chains and we'll need to explore other methods
-// to encode Operations, generate hash and sign them for Solana, Cosmos
-// Aptos and Sui chain families.
 func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
 	chainIdInt, err := strconv.ParseInt(chainId, 10, 64)
 	if err != nil {
@@ -126,15 +117,6 @@ func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
 //
 // ChainId is int64 because go-ethereum's apitypes.TypedDataDomain uses uses
 // math.HexOrDecimal256 type for ChainID, whose constructor accepts only int64.
-//
-// -------------------------------
-// Non-EVM Chains Compatibility
-// -------------------------------
-//
-// ChainId being int64 instead of string makes this EIP-712 domain
-// incompatible with non-EVM chains, and we'll need to explore other methods
-// to encode Operations, generate hashes, and sign them for Solana, Cosmos,
-// Aptos, and Sui chain families.
 type EIP712Domain struct {
 	Name              string         `json:"name"`
 	Version           string         `json:"version"`
