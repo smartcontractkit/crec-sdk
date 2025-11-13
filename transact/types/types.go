@@ -81,7 +81,8 @@ func (op *Operation) EIP712Message() apitypes.TypedDataMessage {
 // ---------------------
 //
 // ChainId is parsed as int64 because go-ethereum's apitypes.TypedDataDomain
-// uses int64 for ChainID.
+// uses math.HexOrDecimal256 type for ChainID, whose constructor accepts
+// only int64.
 //
 // -------------------------------
 // Non-EVM Chains Compatibility
@@ -123,8 +124,8 @@ func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
 // ChainID Constraint
 // ---------------------
 //
-// ChainId is int64 because go-ethereum's apitypes.TypedDataDomain uses
-// int64 for ChainID.
+// ChainId is int64 because go-ethereum's apitypes.TypedDataDomain uses uses
+// math.HexOrDecimal256 type for ChainID, whose constructor accepts only int64.
 //
 // -------------------------------
 // Non-EVM Chains Compatibility
