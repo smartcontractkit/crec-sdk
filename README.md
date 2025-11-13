@@ -335,6 +335,8 @@ The following packages are available in CRELib:
 - [`events`](./events): Provides functionality for receiving and decoding verifiable events from CRE Connect.
 - [`transact`](./transact): Provides functionality for sending onchain operations using the account abstraction model.
 - [`services`](./services): Helper services that simplify interaction with specific Chainlink systems. The following services are available:
+  - [`services/channels`](./services/channels): Provides the Channels service for organizing watchers, events, and operations.
+  - [`services/operations`](./services/operations): Provides the Operations service for managing transaction execution requests.
   - [`services/dvp`](./services/dvp): Provides the DvP (Delivery vs Payment) service for asset and payment exchange.
   - [`services/ccip`](./services/ccip): Provides the CCIP (Cross Chain Interoperability Protocol) service for cross-chain token transfers and messaging.
 
@@ -342,6 +344,28 @@ The following packages are available in CRELib:
 
 CRELib includes helper services to simplify interaction with specific Chainlink systems. These packages wrap the generic `events` and `transact` clients to
 provide a more straightforward API for common use cases.
+
+#### Channels service
+
+The Channels service provides a way to organize and manage your CREC resources. Channels act as logical containers for watchers, events, and operations, allowing you to:
+
+- Create and manage channels for different environments (dev, staging, production)
+- Organize resources by business context (e.g., separate channels for DvP vs DTA workflows)
+- List and filter channels with pagination support
+- Perform logical deletion of channels for audit trails
+
+For more details, see the [Channels Service README](./services/channels/README.md).
+
+#### Operations service
+
+The Operations service manages transaction execution requests in the CREC platform. Operations represent atomic transaction bundles that are executed on-chain using account abstraction. The service provides:
+
+- Create operations with multiple transactions to execute atomically
+- Monitor operation status from pending to confirmed
+- List and filter operations by status, chain, and address
+- Track operation lifecycle with pagination support
+
+For more details, see the [Operations Service README](./services/operations/README.md).
 
 #### DvP service
 
@@ -391,6 +415,8 @@ To view the complete code documentation for every function and type, you can run
    - [client](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/client/) - Main CREC client
    - [events](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/events/) - Event processing
    - [transact](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/transact/) - Transaction operations
+   - [services/channels](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/channels/) - Channels service
+   - [services/operations](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/operations/) - Operations service
    - [services/dvp](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/dvp/) - DvP service
    - [services/ccip](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/ccip/) - CCIP service
 

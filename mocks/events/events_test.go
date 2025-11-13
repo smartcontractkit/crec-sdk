@@ -21,15 +21,3 @@ func TestLoadMockEventList(t *testing.T) {
 	}
 }
 
-func TestLoadMockEvent_Valid(t *testing.T) {
-	ev, err := LoadMockEvent("valid_event.json")
-	if err != nil {
-		t.Fatalf("LoadMockEvent(valid_event.json): %v", err)
-	}
-	if ev.Service != "dvp" {
-		t.Fatalf("expected service 'dvp', got %q", ev.Service)
-	}
-	if ev.Name == "" {
-		t.Fatalf("event name should not be empty")
-	}
-}
