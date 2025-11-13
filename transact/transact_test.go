@@ -176,6 +176,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 
 	// Set up the same test scenario as TestSignOperation
 	chainId := "31337"
+	chainSelector := "7759470850252068959"
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
@@ -222,7 +223,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test signing the operation
-	_, sig, err := transact.SignOperation(context.Background(), operation, vaultSigner, chainId)
+	_, sig, err := transact.SignOperation(context.Background(), operation, vaultSigner, chainSelector)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig)
 
@@ -251,7 +252,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err, "Vault signature should be valid")
 
 	// Test that we can sign the same operation multiple times
-	opHash, sig2, err := transact.SignOperation(context.Background(), operation, vaultSigner, chainId)
+	opHash, sig2, err := transact.SignOperation(context.Background(), operation, vaultSigner, chainSelector)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig2)
 
