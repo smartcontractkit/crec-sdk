@@ -2,11 +2,11 @@
   <img src="assets/chainlink-logo.svg" alt="Chainlink" width="300" height="130"/>
 </div>
 
-# Chainlink Runtime Environment Client Library (CRELib)
+# CRE Connect SDK (Formerly known as CRELib)
 
 Build the next generation of verifiable applications with secure, blockchain-agnostic event processing and transaction execution — powered by the Chainlink Runtime Environment and Verifiable Network.
 
-## What problem does CRELib solve?
+## What problem does CRE Connect SDK solve?
 
 Building reliable blockchain applications requires handling:
 
@@ -22,11 +22,11 @@ Building reliable blockchain applications requires handling:
 - Supporting various signature algorithms beyond traditional ECDSA
 - Abstracting away account management while maintaining security
 
-## How CRELib solves it: An overview
+## How CRE Connect SDK solves it: An overview
 
-CRELib is a client library for the Chainlink Runtime Environment (CRE), designed to facilitate the development of applications that interact with onchain data and services.
+CRE Connect SDK is a client library for the Chainlink Runtime Environment (CRE), designed to facilitate the development of applications that interact with onchain data and services.
 
-The CRELib integrates with the following capabilities of CRE Connect:
+The CRE Connect SDK integrates with the following capabilities of CRE Connect:
 
 - **Receiving verifiable events** from the blockchain with high assurance of the event's authenticity. Events can come from well-known services where they are decoded and decorated with extensive metadata, or they can be received from any smart contract, with decoding handled by the application.
 - **Sending operations** to the blockchain using an account abstraction model. This allows an operation to contain a batch of transactions, have gas sponsorship, and use a wider variety of signature algorithms.
@@ -45,7 +45,7 @@ The library also includes a number of [helper services](#services-helpers-for-co
 **Quick start:**
 
 - [Installation & basic examples](#example-usage) - Get up and running in minutes
-- [Complete example application](#complete-example-application) - See CRELib in action with a demo payment processor
+- [Complete example application](#complete-example-application) - See CRE Connect SDK in action with a demo payment processor
 
 **For specific use cases:**
 
@@ -81,11 +81,11 @@ A network of independent nodes that reach consensus on event authenticity and co
 
 ## Core workflows
 
-CRELib is built around two primary workflows that map directly to the core capabilities of the CRE Connect: **listening for verifiable events** and **sending signed operations**.
+CRE Connect SDK is built around two primary workflows that map directly to the core capabilities of the CRE Connect: **listening for verifiable events** and **sending signed operations**.
 
 ### Workflow 1: Listening for verifiable events
 
-This workflow allows your application to securely react to onchain events. Instead of trusting a single source, CRELib leverages Chainlink's decentralized network to achieve consensus that an event truly happened.
+This workflow allows your application to securely react to onchain events. Instead of trusting a single source, CRE Connect SDK leverages Chainlink's decentralized network to achieve consensus that an event truly happened.
 
 **Here's how the verification process works:**
 
@@ -102,7 +102,7 @@ graph LR
     end
 
     subgraph Your Application
-        E[CRELib: Events Client]
+        E[CRE Connect SDK: Events Client]
         F[Verify Signatures]
         G[Your Custom Logic]
     end
@@ -126,7 +126,7 @@ graph LR
     subgraph Your Application
         A[Build Operation]
         B[Sign with Private Key]
-        C[CRELib: Transact Client]
+        C[CRE Connect SDK: Transact Client]
     end
 
     subgraph CRE Connect
@@ -161,7 +161,7 @@ Before diving into the examples, here's what you need to get started.
 
 ### Installation
 
-Install CRELib by running the following `go get` command in your terminal:
+Install CRE Connect SDK by running the following `go get` command in your terminal:
 
 ```bash
 go get github.com/smartcontractkit/crec-sdk
@@ -169,7 +169,7 @@ go get github.com/smartcontractkit/crec-sdk
 
 ### Usage guides
 
-These guides walk through the most common use cases for CRELib.
+These guides walk through the most common use cases for CRE Connect SDK.
 
 ### 🔍 Receiving and verifying events
 
@@ -329,7 +329,7 @@ The `local.NewSigner` implementation handles signing with a standard ECDSA priva
 
 ### Packages
 
-The following packages are available in CRELib:
+The following packages are available in CRE Connect SDK:
 
 - [`client`](./client): The main client package for interacting with CRE Connect.
 - [`events`](./events): Provides functionality for receiving and decoding verifiable events from CRE Connect.
@@ -342,7 +342,7 @@ The following packages are available in CRELib:
 
 ### Services: Helpers for common protocols
 
-CRELib includes helper services to simplify interaction with specific Chainlink systems. These packages wrap the generic `events` and `transact` clients to
+CRE Connect SDK includes helper services to simplify interaction with specific Chainlink systems. These packages wrap the generic `events` and `transact` clients to
 provide a more straightforward API for common use cases.
 
 #### Channels service
@@ -422,7 +422,7 @@ To view the complete code documentation for every function and type, you can run
 
 ### Complete example application
 
-An example application using CRELib can be found in the [crec-example-payment-processor](https://github.com/smartcontractkit/crec-example-payment-processor) repository.
+An example application using CRE Connect SDK can be found in the [crec-example-payment-processor](https://github.com/smartcontractkit/crec-example-payment-processor) repository.
 
 ## Glossary
 
@@ -440,7 +440,7 @@ An example application using CRELib can be found in the [crec-example-payment-pr
 
 ### Technical terms
 
-**EIP-712**: Ethereum standard for typed structured data hashing and signing, used for operation signatures in CRELib.
+**EIP-712**: Ethereum standard for typed structured data hashing and signing, used for operation signatures in CRE Connect SDK.
 
 **Operation**: A wrapper containing one or more transactions to be executed atomically by a smart account.
 
