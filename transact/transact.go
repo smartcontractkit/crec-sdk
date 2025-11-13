@@ -2,12 +2,13 @@ package transact
 
 import (
 	"context"
+	"strconv"
+
 	// "encoding/json" // Commented out - not used after migration
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
+	chainselectors "github.com/smartcontractkit/chain-selectors"
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
 	"github.com/smartcontractkit/crec-sdk/client"
@@ -62,11 +64,7 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 //   - op: The operation to hash.
 //   - chainId: The chain ID of the blockchain network in which the operation is being executed.
 func (t *Client) HashOperation(op *types.Operation, chainId string) (common.Hash, error) {
-	chainIdInt, err := strconv.ParseUint(chainId, 10, 64)
-	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to parse chain ID: %w", err)
-	}
-	typedData, err := op.TypedData(chainIdInt)
+	typedData, err := op.TypedData(chainId)
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("failed to create typed data for operation: %w", err)
 	}
@@ -83,12 +81,31 @@ func (t *Client) HashOperation(op *types.Operation, chainId string) (common.Hash
 //   - ctx: The context for the request.
 //   - op: The operation to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
+//
+// Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
 func (t *Client) SignOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signer signer.Signer,
-	chainId string,
+	chainSelector string,
 ) (common.Hash, []byte, error) {
+	// Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
+	chainSelectorUint, err := strconv.ParseUint(chainSelector, 10, 64)
+	if err != nil {
+		return common.Hash{}, nil, fmt.Errorf("failed to parse chain selector: %w", err)
+	}
+	chainFamily, err := chainselectors.GetSelectorFamily(chainSelectorUint)
+	if err != nil {
+		return common.Hash{}, nil, fmt.Errorf("failed to get chain family: %w", err)
+	}
+	if chainFamily != chainselectors.FamilyEVM {
+		return common.Hash{}, nil, fmt.Errorf("chain family %s is not supported", chainFamily)
+	}
+	chainId, err := chainselectors.GetChainIDFromSelector(chainSelectorUint)
+	if err != nil {
+		return common.Hash{}, nil, fmt.Errorf("failed to compute EIP-712 digest of the given operation: %w", err)
+	}
+
 	hash, err := t.HashOperation(op, chainId)
 	if err != nil {
 		return common.Hash{}, nil, fmt.Errorf("failed to hash operation: %w", err)
@@ -98,7 +115,7 @@ func (t *Client) SignOperation(
 		return common.Hash{}, nil, fmt.Errorf("failed to sign operation: %w", err)
 	}
 	t.logger.Debug().
-		Str("chain_id", chainId).
+		Str("chain_selector", chainSelector).
 		Str("operation_id", op.ID.String()).
 		Str("hash", hash.Hex()).
 		Str("signature", common.Bytes2Hex(sig)).
