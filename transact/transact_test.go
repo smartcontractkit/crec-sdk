@@ -25,7 +25,8 @@ import (
 
 func TestHashOperation(t *testing.T) {
 	// changing these will change the expected hash at the end of this test
-	chainId := "31337"
+	// chainId := "31337"
+	chainSelector := "7759470850252068959"
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
@@ -62,7 +63,7 @@ func TestHashOperation(t *testing.T) {
 		},
 	}
 
-	hash, err := transact.HashOperation(operation, chainId)
+	hash, err := transact.HashOperation(operation, chainSelector)
 	if err != nil {
 		t.Fatalf("Failed to hash operation: %v", err)
 	}
@@ -73,7 +74,8 @@ func TestHashOperation(t *testing.T) {
 
 func TestSignOperation(t *testing.T) {
 	// changing these will change the expected hash at the end of this test
-	chainId := "31337"
+	// chainId := "31337"
+	chainSelector := "7759470850252068959"
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
@@ -110,7 +112,7 @@ func TestSignOperation(t *testing.T) {
 	require.NoError(t, err)
 
 	localSigner := local.NewSigner(privateKey)
-	opHash, sig, err := transact.SignOperation(context.Background(), operation, localSigner, chainId)
+	opHash, sig, err := transact.SignOperation(context.Background(), operation, localSigner, chainSelector)
 	require.NoError(t, err)
 
 	// check for pre-computed signature for the operation based on the above to/account and private key
@@ -175,7 +177,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set up the same test scenario as TestSignOperation
-	chainId := "31337"
+	// chainId := "31337"
 	chainSelector := "7759470850252068959"
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
@@ -244,7 +246,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NotNil(t, rsaPubKey)
 
 	// Get the operation hash for verification
-	operationHash, err := transact.HashOperation(operation, chainId)
+	operationHash, err := transact.HashOperation(operation, chainSelector)
 	require.NoError(t, err)
 
 	// Verify the signature using the public key

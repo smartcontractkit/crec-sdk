@@ -63,7 +63,24 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 // HashOperation computes the EIP-712 digest of the given operation.
 //   - op: The operation to hash.
 //   - chainId: The chain ID of the blockchain network in which the operation is being executed.
-func (t *Client) HashOperation(op *types.Operation, chainId string) (common.Hash, error) {
+func (t *Client) HashOperation(op *types.Operation, chainSelector string) (common.Hash, error) {
+	// Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
+	chainSelectorUint, err := strconv.ParseUint(chainSelector, 10, 64)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to parse chain selector: %w", err)
+	}
+	chainFamily, err := chainselectors.GetSelectorFamily(chainSelectorUint)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to get chain family: %w", err)
+	}
+	if chainFamily != chainselectors.FamilyEVM {
+		return common.Hash{}, fmt.Errorf("chain family %s is not supported", chainFamily)
+	}
+	chainId, err := chainselectors.GetChainIDFromSelector(chainSelectorUint)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to compute EIP-712 digest of the given operation: %w", err)
+	}
+
 	typedData, err := op.TypedData(chainId)
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("failed to create typed data for operation: %w", err)
@@ -89,24 +106,7 @@ func (t *Client) SignOperation(
 	signer signer.Signer,
 	chainSelector string,
 ) (common.Hash, []byte, error) {
-	// Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
-	chainSelectorUint, err := strconv.ParseUint(chainSelector, 10, 64)
-	if err != nil {
-		return common.Hash{}, nil, fmt.Errorf("failed to parse chain selector: %w", err)
-	}
-	chainFamily, err := chainselectors.GetSelectorFamily(chainSelectorUint)
-	if err != nil {
-		return common.Hash{}, nil, fmt.Errorf("failed to get chain family: %w", err)
-	}
-	if chainFamily != chainselectors.FamilyEVM {
-		return common.Hash{}, nil, fmt.Errorf("chain family %s is not supported", chainFamily)
-	}
-	chainId, err := chainselectors.GetChainIDFromSelector(chainSelectorUint)
-	if err != nil {
-		return common.Hash{}, nil, fmt.Errorf("failed to compute EIP-712 digest of the given operation: %w", err)
-	}
-
-	hash, err := t.HashOperation(op, chainId)
+	hash, err := t.HashOperation(op, chainSelector)
 	if err != nil {
 		return common.Hash{}, nil, fmt.Errorf("failed to hash operation: %w", err)
 	}
