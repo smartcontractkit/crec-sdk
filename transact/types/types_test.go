@@ -14,7 +14,7 @@ func TestTypedData_NoTransactionsError(t *testing.T) {
 		Account:      common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
 		Transactions: nil, // no txs
 	}
-	td, err := op.TypedData(31337)
+	td, err := op.TypedData("31337")
 	require.Error(t, err)
 	require.Nil(t, td)
 }
@@ -32,7 +32,7 @@ func TestTypedData_DomainAndMessage(t *testing.T) {
 			},
 		},
 	}
-	td, err := op.TypedData(31337)
+	td, err := op.TypedData("31337")
 	require.NoError(t, err)
 	require.NotNil(t, td)
 
@@ -54,5 +54,5 @@ func TestSignatureVerifyingAccountEIP712Domain(t *testing.T) {
 	require.Equal(t, EIP712DomainName, d.Name)
 	require.Equal(t, EIP712DomainVersion, d.Version)
 	require.Equal(t, acc, d.VerifyingContract)
-	require.Equal(t, big.NewInt(1337).Int64(), d.ChainId.Int64())
+	require.Equal(t, int64(1337), d.ChainId)
 }

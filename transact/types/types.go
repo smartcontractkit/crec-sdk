@@ -2,7 +2,9 @@ package types
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -71,8 +73,22 @@ func (op *Operation) EIP712Message() apitypes.TypedDataMessage {
 	}
 }
 
-func (op *Operation) TypedData(chainId uint64) (*apitypes.TypedData, error) {
-	domain := SignatureVerifyingAccountEIP712Domain(chainId, op.Account)
+// Creates the EIP-712 typed data for the operation to be hashed and
+// signed.
+//
+// ---------------------
+// ChainID Constraint
+// ---------------------
+//
+// ChainId is parsed as int64 because go-ethereum's apitypes.TypedDataDomain
+// uses math.HexOrDecimal256 type for ChainID, whose constructor accepts
+// only int64.
+func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
+	chainIdInt, err := strconv.ParseInt(chainId, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse chain ID: %w", err)
+	}
+	domain := SignatureVerifyingAccountEIP712Domain(chainIdInt, op.Account)
 	message := op.EIP712Message()
 
 	if len(op.Transactions) == 0 {
@@ -91,10 +107,20 @@ func (op *Operation) TypedData(chainId uint64) (*apitypes.TypedData, error) {
 	}, nil
 }
 
+// EIP712Domain represents the EIP-712 domain for the Signature Verifying Account.
+// It contains chainID and version metadata of the Signature Verifying Account
+// contract, which are used for generating the EIP-712 typed data hash and for signing.
+//
+// ---------------------
+// ChainID Constraint
+// ---------------------
+//
+// ChainId is int64 because go-ethereum's apitypes.TypedDataDomain uses uses
+// math.HexOrDecimal256 type for ChainID, whose constructor accepts only int64.
 type EIP712Domain struct {
 	Name              string         `json:"name"`
 	Version           string         `json:"version"`
-	ChainId           *big.Int       `json:"chainId"`
+	ChainId           int64          `json:"chainId"`
 	VerifyingContract common.Address `json:"verifyingContract"`
 }
 
@@ -116,17 +142,17 @@ func (d *EIP712Domain) TypedData() apitypes.TypedDataDomain {
 	domain := apitypes.TypedDataDomain{
 		Name:              d.Name,
 		Version:           d.Version,
-		ChainId:           math.NewHexOrDecimal256(d.ChainId.Int64()),
+		ChainId:           math.NewHexOrDecimal256(d.ChainId),
 		VerifyingContract: d.VerifyingContract.String(),
 	}
 	return domain
 }
 
-func SignatureVerifyingAccountEIP712Domain(chainId uint64, account common.Address) *EIP712Domain {
+func SignatureVerifyingAccountEIP712Domain(chainId int64, account common.Address) *EIP712Domain {
 	return &EIP712Domain{
 		Name:              EIP712DomainName,
 		Version:           EIP712DomainVersion,
-		ChainId:           new(big.Int).SetUint64(chainId),
+		ChainId:           chainId,
 		VerifyingContract: account,
 	}
 }
