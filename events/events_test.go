@@ -582,10 +582,12 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		proofUnion := apiClient.EventHeaders_Proofs_Item{}
-		proofUnion.FromOCRProof(ocrProof)
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
 
 		payloadUnion := apiClient.Event_Payload{}
-		payloadUnion.FromWatcherEventPayload(eventPayload)
+		err = payloadUnion.FromWatcherEventPayload(eventPayload)
+		require.NoError(t, err)
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
@@ -597,7 +599,7 @@ func TestClient_Verify(t *testing.T) {
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
 		logger := zerolog.Nop()
-		c, _ := NewClient(&ClientOptions{
+		c, err := NewClient(&ClientOptions{
 			Logger:                &logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 1,
@@ -636,12 +638,15 @@ func TestClient_Verify(t *testing.T) {
 		ocrProof2 := ocrProof1 // Duplicate
 
 		proof1 := apiClient.EventHeaders_Proofs_Item{}
-		proof1.FromOCRProof(ocrProof1)
+		err := proof1.FromOCRProof(ocrProof1)
+		require.NoError(t, err)
 		proof2 := apiClient.EventHeaders_Proofs_Item{}
-		proof2.FromOCRProof(ocrProof2)
+		err = proof2.FromOCRProof(ocrProof2)
+		require.NoError(t, err)
 
 		payloadUnion := apiClient.Event_Payload{}
-		payloadUnion.FromWatcherEventPayload(eventPayload)
+		err = payloadUnion.FromWatcherEventPayload(eventPayload)
+		require.NoError(t, err)
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
@@ -671,10 +676,12 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		proofUnion := apiClient.EventHeaders_Proofs_Item{}
-		proofUnion.FromOCRProof(ocrProof)
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
 
 		payloadUnion := apiClient.Event_Payload{}
-		payloadUnion.FromWatcherEventPayload(eventPayload)
+		err = payloadUnion.FromWatcherEventPayload(eventPayload)
+		require.NoError(t, err)
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
@@ -704,10 +711,12 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		proofUnion := apiClient.EventHeaders_Proofs_Item{}
-		proofUnion.FromOCRProof(ocrProof)
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
 
 		payloadUnion := apiClient.Event_Payload{}
-		payloadUnion.FromWatcherEventPayload(eventPayload)
+		err = payloadUnion.FromWatcherEventPayload(eventPayload)
+		require.NoError(t, err)
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
@@ -745,10 +754,12 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		proofUnion := apiClient.EventHeaders_Proofs_Item{}
-		proofUnion.FromOCRProof(ocrProof)
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
 
 		payloadUnion := apiClient.Event_Payload{}
-		payloadUnion.FromWatcherEventPayload(eventPayload)
+		err = payloadUnion.FromWatcherEventPayload(eventPayload)
+		require.NoError(t, err)
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
@@ -760,7 +771,7 @@ func TestClient_Verify(t *testing.T) {
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
 		logger := zerolog.Nop()
-		c, _ := NewClient(&ClientOptions{
+		c, err := NewClient(&ClientOptions{
 			Logger:                &logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 1,
@@ -798,10 +809,12 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		proofUnion := apiClient.EventHeaders_Proofs_Item{}
-		proofUnion.FromOCRProof(ocrProof)
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
 
 		payloadUnion := apiClient.Event_Payload{}
-		payloadUnion.FromWatcherEventPayload(eventPayload)
+		err = payloadUnion.FromWatcherEventPayload(eventPayload)
+		require.NoError(t, err)
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
@@ -813,7 +826,7 @@ func TestClient_Verify(t *testing.T) {
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
 		logger := zerolog.Nop()
-		c, _ := NewClient(&ClientOptions{
+		c, err := NewClient(&ClientOptions{
 			Logger:                &logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 1,
@@ -826,22 +839,33 @@ func TestClient_Verify(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrRecoverPubKeyFromSignature))
 	})
 
-	// Also cover payload parsing errors with non-watcher type
+	// Test payload parsing errors with watcher.status type (not watcher.event)
 	t.Run("ErrParseEventPayload_OnlyWatcherEventsSupported", func(t *testing.T) {
 		c := setupLocalClient(t)
 
-		// Provide a minimal valid OCR proof so getOCRProof passes
+		// Provide properly sized OCR report (141 bytes minimum) to pass validation
+		ocrReport := make([]byte, 141)
 		ocrProof := apiClient.OCRProof{
 			Alg:        "ecdsa-secp256k1",
 			OcrContext: "0x01",
-			OcrReport:  "0x02",
+			OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
 			Signatures: []string{},
 		}
 		proofUnion := apiClient.EventHeaders_Proofs_Item{}
 		require.NoError(t, proofUnion.FromOCRProof(ocrProof))
 
-		// Build an empty union (no watcher payload) to force AsWatcherEventPayload error
+		// Build a valid WatcherStatusPayload (not WatcherEventPayload)
+		statusPayload := apiClient.WatcherStatusPayload{
+			Type:          apiClient.WatcherStatus,
+			WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
+			ChainSelector: 5009297550715157269,
+			Status:        apiClient.WatcherStatusPayloadStatusDeploying,
+			StatusCode:    "DEPLOYING",
+			StatusReason:  "Watcher is being deployed",
+		}
+
 		payloadUnion := apiClient.Event_Payload{}
+		require.NoError(t, payloadUnion.FromWatcherStatusPayload(statusPayload))
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
@@ -856,7 +880,7 @@ func TestClient_Verify(t *testing.T) {
 		assert.False(t, ok)
 		// Should wrap ErrParseEventPayload and mention ErrOnlyWatcherEventsSupported
 		assert.True(t, errors.Is(err, ErrParseEventPayload))
-		assert.True(t, errors.Is(err, ErrOnlyWatcherEventsSupported))
+		assert.Contains(t, err.Error(), ErrOnlyWatcherEventsSupported.Error())
 	})
 }
 

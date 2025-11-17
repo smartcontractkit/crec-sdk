@@ -178,18 +178,25 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
+
+	// Check the payload discriminator type to ensure it's a watcher event
+	expectedDiscriminator, err := getExpectedWatcherEventDiscriminator()
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
+	}
+
+	discriminator, err := event.Payload.Discriminator()
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
+	}
+	if discriminator != expectedDiscriminator {
+		return false, fmt.Errorf("%w - (expected type: %s, got: %s)", ErrOnlyWatcherEventsSupported, expectedDiscriminator, discriminator)
+	}
+
 	eventPayload, err := event.Payload.AsWatcherEventPayload()
 	if err != nil {
-		return false, fmt.Errorf("%w - %w: %w", ErrParseEventPayload, ErrOnlyWatcherEventsSupported, err)
+		return false, fmt.Errorf("%w - %w: %w", ErrParseEventPayload, err)
 	}
-	c.logger.Trace().
-		Str("event_address", eventPayload.Address).
-		Str("event_watcher_id", eventPayload.WatcherId).
-		Str("event_domain", *eventPayload.Event.Domain).
-		Str("event_name", eventPayload.Event.EventName).
-		Str("ocr_report", ocrProof.OcrReport).
-		Str("ocr_context", ocrProof.OcrContext).
-		Msg("Verifying event")
 
 	ocrReport, err := common.ParseHexOrString(ocrProof.OcrReport)
 	if err != nil {
@@ -203,6 +210,15 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 	if len(ocrReport) < ocrReportPayloadOffset+32 { // 32 bytes for event hash
 		return false, ErrOCRReportTooShort
 	}
+
+	c.logger.Trace().
+		Str("event_address", eventPayload.Address).
+		Str("event_watcher_id", eventPayload.WatcherId).
+		Str("event_domain", *eventPayload.Event.Domain).
+		Str("event_name", eventPayload.Event.EventName).
+		Str("ocr_report", ocrProof.OcrReport).
+		Str("ocr_context", ocrProof.OcrContext).
+		Msg("Verifying event")
 
 	// compute the event hash from the event data
 	eventHash, err := c.EventHash(&eventPayload)
@@ -344,4 +360,20 @@ func getOCRProof(event *apiClient.Event) (apiClient.OCRProof, error) {
 	default:
 		return ocrProofs[0], nil
 	}
+}
+
+// getExpectedWatcherEventDiscriminator returns the expected discriminator value for WatcherEventPayload
+// by programmatically creating a temporary instance and checking its discriminator value
+func getExpectedWatcherEventDiscriminator() (string, error) {
+	// Create a minimal WatcherEventPayload instance
+	emptyPayload := apiClient.WatcherEventPayload{}
+
+	// Convert it to Event_Payload to get the discriminator
+	var eventPayload apiClient.Event_Payload
+	if err := eventPayload.FromWatcherEventPayload(emptyPayload); err != nil {
+		return "", err
+	}
+
+	// Get the discriminator value that the generated code uses
+	return eventPayload.Discriminator()
 }
