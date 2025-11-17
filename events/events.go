@@ -182,12 +182,12 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 	// Check the payload discriminator type to ensure it's a watcher event
 	expectedDiscriminator, err := getExpectedWatcherEventDiscriminator()
 	if err != nil {
-		return false, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
+		return false, err
 	}
 
 	discriminator, err := event.Payload.Discriminator()
 	if err != nil {
-		return false, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
+		return false, err
 	}
 	if discriminator != expectedDiscriminator {
 		return false, fmt.Errorf("%w - (expected type: %s, got: %s)", ErrOnlyWatcherEventsSupported, expectedDiscriminator, discriminator)
@@ -195,7 +195,7 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 
 	eventPayload, err := event.Payload.AsWatcherEventPayload()
 	if err != nil {
-		return false, fmt.Errorf("%w - %w: %w", ErrParseEventPayload, err)
+		return false, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
 	}
 
 	ocrReport, err := common.ParseHexOrString(ocrProof.OcrReport)
