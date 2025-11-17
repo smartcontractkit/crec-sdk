@@ -20,6 +20,11 @@ import (
 
 const (
 	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
+
+	// watcherEventPayloadDiscriminator is the discriminator value that the generated API client
+	// uses for WatcherEventPayload types. The generated code's FromWatcherEventPayload() method
+	// sets the Type field to this value (the Go type name, not the JSON type field value).
+	watcherEventPayloadDiscriminator = "WatcherEventPayload"
 )
 
 var (
@@ -180,17 +185,12 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 	}
 
 	// Check the payload discriminator type to ensure it's a watcher event
-	expectedDiscriminator, err := getExpectedWatcherEventDiscriminator()
-	if err != nil {
-		return false, err
-	}
-
 	discriminator, err := event.Payload.Discriminator()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
 	}
-	if discriminator != expectedDiscriminator {
-		return false, fmt.Errorf("%w: (expected type: %s, got: %s)", ErrOnlyWatcherEventsSupported, expectedDiscriminator, discriminator)
+	if discriminator != watcherEventPayloadDiscriminator {
+		return false, fmt.Errorf("%w (expected: %s, got: %s)", ErrOnlyWatcherEventsSupported, watcherEventPayloadDiscriminator, discriminator)
 	}
 
 	eventPayload, err := event.Payload.AsWatcherEventPayload()
@@ -359,20 +359,4 @@ func getOCRProof(event *apiClient.Event) (apiClient.OCRProof, error) {
 	default:
 		return ocrProofs[0], nil
 	}
-}
-
-// getExpectedWatcherEventDiscriminator returns the expected discriminator value for WatcherEventPayload
-// by programmatically creating a temporary instance and checking its discriminator value
-func getExpectedWatcherEventDiscriminator() (string, error) {
-	// Create a minimal WatcherEventPayload instance
-	emptyPayload := apiClient.WatcherEventPayload{}
-
-	// Convert it to Event_Payload to get the discriminator
-	var eventPayload apiClient.Event_Payload
-	if err := eventPayload.FromWatcherEventPayload(emptyPayload); err != nil {
-		return "", err
-	}
-
-	// Get the discriminator value that the generated code uses
-	return eventPayload.Discriminator()
 }
