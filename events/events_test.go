@@ -24,161 +24,6 @@ import (
 
 const testAPIKey = "test-api-key"
 
-func newCRECClient(t *testing.T, baseURL string) *client.CRECClient {
-	t.Helper()
-	crecClient, err := client.NewCRECClient(&client.ClientOptions{
-		BaseURL: baseURL,
-		APIKey:  testAPIKey,
-	})
-	require.NoError(t, err)
-	return crecClient
-}
-
-// newTestClient creates a CREC events Client with defaults and allows optional modifications.
-func newTestClient(t *testing.T, baseURL string, modify ...func(*ClientOptions)) *Client {
-	crecClient := newCRECClient(t, baseURL)
-	logger := zerolog.Nop()
-	opts := &ClientOptions{
-		Logger:                &logger,
-		CRECClient:            crecClient,
-		MinRequiredSignatures: 1,
-		ValidSigners:          []string{"0x742d35Cc6634C0532925a3b844Bc454e4438f44e"},
-	}
-	for _, m := range modify {
-		m(opts)
-	}
-	c, err := NewClient(opts)
-	require.NoError(t, err)
-	return c
-}
-
-// setupTestClient spins up a test HTTP server and returns a client bound to it.
-func setupTestClient(t *testing.T, handler http.HandlerFunc, modify ...func(*ClientOptions)) (*Client, *httptest.Server) {
-	server := httptest.NewServer(handler)
-	c := newTestClient(t, server.URL, modify...)
-	return c, server
-}
-
-// setupLocalClient creates a client pointing to a local (non-started) endpoint.
-func setupLocalClient(t *testing.T, modify ...func(*ClientOptions)) *Client {
-	return newTestClient(t, "http://localhost:8080", modify...)
-}
-
-// generateTestKeys generates test private keys and returns them with their addresses
-func generateTestKeys(t *testing.T, count int) ([]*ecdsa.PrivateKey, []string) {
-	t.Helper()
-	var keys []*ecdsa.PrivateKey
-	var addresses []string
-
-	for i := 0; i < count; i++ {
-		privKey, err := crypto.GenerateKey()
-		require.NoError(t, err)
-		keys = append(keys, privKey)
-		address := crypto.PubkeyToAddress(privKey.PublicKey)
-		addresses = append(addresses, address.Hex())
-	}
-
-	return keys, addresses
-}
-
-// mustParseTime parses time string or fails the test
-func mustParseTime(t *testing.T, timeStr string) time.Time {
-	t.Helper()
-	parsedTime, err := time.Parse(time.RFC3339, timeStr)
-	require.NoError(t, err)
-	return parsedTime
-}
-
-// createTestEventPayload creates a standard test event payload
-func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
-	t.Helper()
-
-	domain := "dvp"
-	metadata := map[string]interface{}{
-		"block_number": 12345678,
-		"block_hash":   "0xabcdef1234567890",
-	}
-
-	return apiClient.WatcherEventPayload{
-		Type:          apiClient.WatcherEventPayloadType("watcher.event"),
-		WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
-		Address:       "0x1234567890123456789012345678901234567890",
-		ChainSelector: 5009297550715157269,
-		Event: apiClient.WatcherEvent{
-			EventName: "Transfer",
-			TopicHash: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-			Timestamp: mustParseTime(t, "2024-01-01T00:00:00Z"),
-			LogIndex:  42,
-			Domain:    &domain,
-			Data: map[string]interface{}{
-				"from":  "0x0000000000000000000000000000000000000000",
-				"to":    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-				"value": "1000000000000000000",
-			},
-			Metadata: &metadata,
-		},
-	}
-}
-
-// createValidEventWithSignatures creates a valid event with proper OCR report and signatures
-func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKey, eventPayload *apiClient.WatcherEventPayload) *apiClient.Event {
-	t.Helper()
-
-	// Create a valid OCR report with the proper structure (141 bytes minimum)
-	ocrReport := make([]byte, 141)
-	ocrReport[0] = 0x01 // version
-
-	// Compute event hash using base64 encoding (same as EventHash method)
-	dataBytes, err := json.Marshal(eventPayload.Event.Data)
-	require.NoError(t, err)
-	dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-	eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
-
-	// Place event hash at offset 109
-	copy(ocrReport[109:], eventHash.Bytes())
-
-	ocrContext := []byte("test-context-data")
-
-	// Generate report hash for signing
-	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
-
-	// Generate signatures
-	var signatures []string
-	for _, privKey := range privateKeys {
-		sig, err := crypto.Sign(reportHash.Bytes(), privKey)
-		require.NoError(t, err)
-		sig[64] += 27 // Adjust v value for Ethereum format
-		signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
-	}
-
-	// Create OCR proof
-	ocrProof := apiClient.OCRProof{
-		Alg:        "ecdsa-secp256k1",
-		OcrContext: "0x" + common.Bytes2Hex(ocrContext),
-		OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
-		Signatures: signatures,
-	}
-
-	proofUnion := apiClient.EventHeaders_Proofs_Item{}
-	err = proofUnion.FromOCRProof(ocrProof)
-	require.NoError(t, err)
-
-	// Create event payload union
-	payloadUnion := apiClient.Event_Payload{}
-	err = payloadUnion.FromWatcherEventPayload(*eventPayload)
-	require.NoError(t, err)
-
-	event := &apiClient.Event{
-		Headers: apiClient.EventHeaders{
-			Offset: "12345",
-			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
-		},
-		Payload: payloadUnion,
-	}
-
-	return event
-}
-
 func TestNewClient(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		crecClient := newCRECClient(t, "http://localhost:8080")
@@ -878,9 +723,7 @@ func TestClient_Verify(t *testing.T) {
 		ok, err := c.Verify(event)
 		require.Error(t, err)
 		assert.False(t, ok)
-		// Should wrap ErrParseEventPayload and mention ErrOnlyWatcherEventsSupported
-		assert.True(t, errors.Is(err, ErrParseEventPayload))
-		assert.Contains(t, err.Error(), ErrOnlyWatcherEventsSupported.Error())
+		assert.True(t, errors.Is(err, ErrOnlyWatcherEventsSupported))
 	})
 }
 
@@ -928,4 +771,159 @@ func TestClient_ToJson(t *testing.T) {
 		err = json.Unmarshal(jsonBytes, &decoded)
 		require.NoError(t, err)
 	})
+}
+
+func newCRECClient(t *testing.T, baseURL string) *client.CRECClient {
+	t.Helper()
+	crecClient, err := client.NewCRECClient(&client.ClientOptions{
+		BaseURL: baseURL,
+		APIKey:  testAPIKey,
+	})
+	require.NoError(t, err)
+	return crecClient
+}
+
+// newTestClient creates a CREC events Client with defaults and allows optional modifications.
+func newTestClient(t *testing.T, baseURL string, modify ...func(*ClientOptions)) *Client {
+	crecClient := newCRECClient(t, baseURL)
+	logger := zerolog.Nop()
+	opts := &ClientOptions{
+		Logger:                &logger,
+		CRECClient:            crecClient,
+		MinRequiredSignatures: 1,
+		ValidSigners:          []string{"0x742d35Cc6634C0532925a3b844Bc454e4438f44e"},
+	}
+	for _, m := range modify {
+		m(opts)
+	}
+	c, err := NewClient(opts)
+	require.NoError(t, err)
+	return c
+}
+
+// setupTestClient spins up a test HTTP server and returns a client bound to it.
+func setupTestClient(t *testing.T, handler http.HandlerFunc, modify ...func(*ClientOptions)) (*Client, *httptest.Server) {
+	server := httptest.NewServer(handler)
+	c := newTestClient(t, server.URL, modify...)
+	return c, server
+}
+
+// setupLocalClient creates a client pointing to a local (non-started) endpoint.
+func setupLocalClient(t *testing.T, modify ...func(*ClientOptions)) *Client {
+	return newTestClient(t, "http://localhost:8080", modify...)
+}
+
+// generateTestKeys generates test private keys and returns them with their addresses
+func generateTestKeys(t *testing.T, count int) ([]*ecdsa.PrivateKey, []string) {
+	t.Helper()
+	var keys []*ecdsa.PrivateKey
+	var addresses []string
+
+	for i := 0; i < count; i++ {
+		privKey, err := crypto.GenerateKey()
+		require.NoError(t, err)
+		keys = append(keys, privKey)
+		address := crypto.PubkeyToAddress(privKey.PublicKey)
+		addresses = append(addresses, address.Hex())
+	}
+
+	return keys, addresses
+}
+
+// mustParseTime parses time string or fails the test
+func mustParseTime(t *testing.T, timeStr string) time.Time {
+	t.Helper()
+	parsedTime, err := time.Parse(time.RFC3339, timeStr)
+	require.NoError(t, err)
+	return parsedTime
+}
+
+// createTestEventPayload creates a standard test event payload
+func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
+	t.Helper()
+
+	domain := "dvp"
+	metadata := map[string]interface{}{
+		"block_number": 12345678,
+		"block_hash":   "0xabcdef1234567890",
+	}
+
+	return apiClient.WatcherEventPayload{
+		Type:          apiClient.WatcherEventPayloadType("watcher.event"),
+		WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
+		Address:       "0x1234567890123456789012345678901234567890",
+		ChainSelector: 5009297550715157269,
+		Event: apiClient.WatcherEvent{
+			EventName: "Transfer",
+			TopicHash: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+			Timestamp: mustParseTime(t, "2024-01-01T00:00:00Z"),
+			LogIndex:  42,
+			Domain:    &domain,
+			Data: map[string]interface{}{
+				"from":  "0x0000000000000000000000000000000000000000",
+				"to":    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+				"value": "1000000000000000000",
+			},
+			Metadata: &metadata,
+		},
+	}
+}
+
+// createValidEventWithSignatures creates a valid event with proper OCR report and signatures
+func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKey, eventPayload *apiClient.WatcherEventPayload) *apiClient.Event {
+	t.Helper()
+
+	// Create a valid OCR report with the proper structure (141 bytes minimum)
+	ocrReport := make([]byte, 141)
+	ocrReport[0] = 0x01 // version
+
+	// Compute event hash using base64 encoding (same as EventHash method)
+	dataBytes, err := json.Marshal(eventPayload.Event.Data)
+	require.NoError(t, err)
+	dataStr := base64.StdEncoding.EncodeToString(dataBytes)
+	eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
+
+	// Place event hash at offset 109
+	copy(ocrReport[109:], eventHash.Bytes())
+
+	ocrContext := []byte("test-context-data")
+
+	// Generate report hash for signing
+	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+	// Generate signatures
+	var signatures []string
+	for _, privKey := range privateKeys {
+		sig, err := crypto.Sign(reportHash.Bytes(), privKey)
+		require.NoError(t, err)
+		sig[64] += 27 // Adjust v value for Ethereum format
+		signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
+	}
+
+	// Create OCR proof
+	ocrProof := apiClient.OCRProof{
+		Alg:        "ecdsa-secp256k1",
+		OcrContext: "0x" + common.Bytes2Hex(ocrContext),
+		OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+		Signatures: signatures,
+	}
+
+	proofUnion := apiClient.EventHeaders_Proofs_Item{}
+	err = proofUnion.FromOCRProof(ocrProof)
+	require.NoError(t, err)
+
+	// Create event payload union
+	payloadUnion := apiClient.Event_Payload{}
+	err = payloadUnion.FromWatcherEventPayload(*eventPayload)
+	require.NoError(t, err)
+
+	event := &apiClient.Event{
+		Headers: apiClient.EventHeaders{
+			Offset: "12345",
+			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+		},
+		Payload: payloadUnion,
+	}
+
+	return event
 }

@@ -190,7 +190,7 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 		return false, err
 	}
 	if discriminator != expectedDiscriminator {
-		return false, fmt.Errorf("%w - (expected type: %s, got: %s)", ErrOnlyWatcherEventsSupported, expectedDiscriminator, discriminator)
+		return false, fmt.Errorf("%w: (expected type: %s, got: %s)", ErrOnlyWatcherEventsSupported, expectedDiscriminator, discriminator)
 	}
 
 	eventPayload, err := event.Payload.AsWatcherEventPayload()
@@ -278,13 +278,12 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 			Int("required_signatures", c.minRequiredSignatures).
 			Msg("Event verified successfully")
 		return true, nil
-	} else {
-		c.logger.Warn().
-			Int("valid_signatures", validSigCount).
-			Int("required_signatures", c.minRequiredSignatures).
-			Msg("Not enough valid signatures")
-		return false, nil
 	}
+	c.logger.Warn().
+		Int("valid_signatures", validSigCount).
+		Int("required_signatures", c.minRequiredSignatures).
+		Msg("Not enough valid signatures")
+	return false, nil
 }
 
 // Decode decodes a verifiable event into a specified payload structure.
