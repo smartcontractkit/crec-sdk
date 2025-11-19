@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,11 +19,6 @@ import (
 
 const (
 	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
-
-	// watcherEventPayloadDiscriminator is the discriminator value that the generated API client
-	// uses for WatcherEventPayload types. The generated code's FromWatcherEventPayload() method
-	// sets the Type field to this value (the Go type name, not the JSON type field value).
-	watcherEventPayloadDiscriminator = "WatcherEventPayload"
 )
 
 var (
@@ -34,11 +28,12 @@ var (
 	ErrCRECClientRequired    = errors.New("a valid CRECClient must be provided")
 
 	// API operation errors
-	ErrChannelNotFound = errors.New("channel not found")
-	ErrListEvents      = errors.New("failed to list events")
-	ErrGetEvents       = errors.New("failed to get events")
-	ErrVerifyEvent     = errors.New("failed to verify event")
-	ErrDecodeEvent     = errors.New("failed to decode event")
+	ErrChannelNotFound  = errors.New("channel not found")
+	ErrListEvents       = errors.New("failed to list events")
+	ErrGetEvents        = errors.New("failed to get events")
+	ErrVerifyEvent      = errors.New("failed to verify event")
+	ErrDecodeEvent      = errors.New("failed to decode event")
+	ErrEventDomainIsNil = errors.New("event domain is nil")
 
 	// Parsing errors
 	ErrParseSignature             = errors.New("failed to parse signature")
@@ -71,7 +66,6 @@ var (
 type ClientOptions struct {
 	Logger                *zerolog.Logger
 	CRECClient            *client.CRECClient
-	EventsAfter           int64
 	MinRequiredSignatures int
 	ValidSigners          []string
 }
@@ -79,11 +73,8 @@ type ClientOptions struct {
 type Client struct {
 	crecClient            *client.CRECClient
 	logger                *zerolog.Logger
-	eventsAfter           int64
 	minRequiredSignatures int
 	validSigners          []string
-	lastReadTimestamp     int64
-	lastReadEventId       uuid.UUID
 }
 
 // NewClient creates a new CREC events client with the provided CREC client and options.
@@ -106,19 +97,11 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 
 	logger.Debug().Msg("Creating CREC events client")
 
-	eventsAfter := opts.EventsAfter
-	if eventsAfter == 0 {
-		eventsAfter = time.Now().Unix()
-	}
-
 	return &Client{
 		crecClient:            opts.CRECClient,
 		logger:                logger,
-		eventsAfter:           eventsAfter,
 		minRequiredSignatures: opts.MinRequiredSignatures,
 		validSigners:          opts.ValidSigners,
-		lastReadTimestamp:     0,
-		lastReadEventId:       uuid.Nil,
 	}, nil
 }
 
@@ -167,14 +150,6 @@ func (c *Client) ListEvents(ctx context.Context, channelID uuid.UUID, params *ap
 	return resp.JSON200, nil
 }
 
-// Reset resets the internal state of the CREC events service.
-// It clears the last read timestamp and event ID, allowing the service to start reading events from scratch.
-func (c *Client) Reset() {
-	c.logger.Debug().Msg("Resetting event reader state")
-	c.lastReadTimestamp = 0
-	c.lastReadEventId = uuid.Nil
-}
-
 // Verify verifies the authenticity of a given event.
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
@@ -184,18 +159,15 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
-	// Check the payload discriminator type to ensure it's a watcher event
-	discriminator, err := event.Payload.Discriminator()
+	// Check the payload type to ensure it's a watcher event
+	payloadValue, err := event.Payload.ValueByDiscriminator()
 	if err != nil {
 		return false, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
-	}
-	if discriminator != watcherEventPayloadDiscriminator {
-		return false, fmt.Errorf("%w (expected: %s, got: %s)", ErrOnlyWatcherEventsSupported, watcherEventPayloadDiscriminator, discriminator)
 	}
 
-	eventPayload, err := event.Payload.AsWatcherEventPayload()
-	if err != nil {
-		return false, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
+	eventPayload, ok := payloadValue.(apiClient.WatcherEventPayload)
+	if !ok {
+		return false, ErrOnlyWatcherEventsSupported
 	}
 
 	ocrReport, err := common.ParseHexOrString(ocrProof.OcrReport)
@@ -214,7 +186,6 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 	c.logger.Trace().
 		Str("event_address", eventPayload.Address).
 		Str("event_watcher_id", eventPayload.WatcherId).
-		Str("event_domain", *eventPayload.Event.Domain).
 		Str("event_name", eventPayload.Event.EventName).
 		Str("ocr_report", ocrProof.OcrReport).
 		Str("ocr_context", ocrProof.OcrContext).
@@ -310,6 +281,9 @@ func (c *Client) ToJson(event apiClient.Event) ([]byte, error) {
 
 // EventHash computes the "EventHash" of an event used for verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
+	if event.Event.Domain == nil {
+		return common.Hash{}, ErrEventDomainIsNil
+	}
 	dataBytes, err := json.Marshal(event.Event.Data)
 	if err != nil {
 		return common.Hash{}, err

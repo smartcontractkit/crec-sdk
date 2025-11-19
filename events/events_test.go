@@ -50,12 +50,11 @@ func TestNewClient(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrCRECClientRequired))
 	})
 
-	t.Run("DefaultLoggerAndEventsAfter", func(t *testing.T) {
+	t.Run("DefaultLogger", func(t *testing.T) {
 		crecClient := newCRECClient(t, "http://localhost:8080")
 		c, err := NewClient(&ClientOptions{CRECClient: crecClient})
 		require.NoError(t, err)
 		assert.NotNil(t, c.logger)
-		assert.NotZero(t, c.eventsAfter)
 	})
 }
 
@@ -175,17 +174,6 @@ func TestClient_ListEvents(t *testing.T) {
 	})
 }
 
-func TestClient_Reset(t *testing.T) {
-	c := setupLocalClient(t)
-	c.lastReadTimestamp = 123456
-	c.lastReadEventId = uuid.New()
-
-	c.Reset()
-
-	assert.Equal(t, int64(0), c.lastReadTimestamp)
-	assert.Equal(t, uuid.Nil, c.lastReadEventId)
-}
-
 func TestClient_EventHash(t *testing.T) {
 	crecClient := newCRECClient(t, "http://localhost:8080")
 	logger := zerolog.Nop()
@@ -279,6 +267,16 @@ func TestClient_EventHash(t *testing.T) {
 		expectedHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
 
 		assert.Equal(t, expectedHash, hash, "hash should match expected Keccak256 computation")
+	})
+
+	t.Run("ErrEventDomainIsNil", func(t *testing.T) {
+		eventPayload := createTestEventPayload(t)
+		eventPayload.Event.Domain = nil // Set domain to nil
+
+		hash, err := c.EventHash(&eventPayload)
+		require.Error(t, err)
+		assert.Equal(t, common.Hash{}, hash, "hash should be empty when domain is nil")
+		assert.True(t, errors.Is(err, ErrEventDomainIsNil))
 	})
 }
 
