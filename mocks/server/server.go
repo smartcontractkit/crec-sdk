@@ -467,9 +467,9 @@ func (s *MockServer) PostWallets(w http.ResponseWriter, r *http.Request) {
 	id := uuid.New()
 	wallet := stdserver.Wallet{
 		WalletId:      id,
-		Address:       in.Address,
+		Address:       in.WalletOwnerAddress,
 		ChainSelector: in.ChainSelector,
-		Name:          in.Name,
+		Name:          &in.Name,
 	}
 	s.wallets = append(s.wallets, wallet)
 
