@@ -42,9 +42,9 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 	testWalletName := "Test Wallet"
 	wallet, err := c.PostWalletsWithResponse(
 		context.Background(), apiClient.CreateWallet{
-			Address:       "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-			ChainSelector: 1337,
-			Name:          &testWalletName,
+			WalletOwnerAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+			ChainSelector:      1337,
+			Name:               testWalletName,
 		},
 	)
 	if err != nil {
