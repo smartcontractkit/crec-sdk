@@ -144,7 +144,7 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 		watcherID := uuid.New()
 		watcherName := "test-watcher"
 		domain := "dvp"
-		chainSelector := uint64(1337)
+		chainSelector := "1337"
 		address := "0x1234567890abcdef"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
@@ -213,7 +213,7 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 		watcher, err := service.CreateWatcherWithDomain(context.Background(), uuid.Nil, CreateWatcherWithDomainInput{
 			Name:          &name,
 			Domain:        "dvp",
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
 		})
@@ -235,7 +235,7 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 		watcher, err := service.CreateWatcherWithDomain(context.Background(), uuid.New(), CreateWatcherWithDomainInput{
 			Name:          &name,
 			Domain:        "",
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
 		})
@@ -257,7 +257,7 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 		watcher, err := service.CreateWatcherWithDomain(context.Background(), uuid.New(), CreateWatcherWithDomainInput{
 			Name:          &name,
 			Domain:        "dvp",
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "",
 			Events:        []string{"TestEvent"},
 		})
@@ -285,7 +285,7 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 		watcher, err := service.CreateWatcherWithDomain(context.Background(), channelID, CreateWatcherWithDomainInput{
 			Name:          &name,
 			Domain:        "dvp",
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
 		})
@@ -301,7 +301,7 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 		watcherName := "test-watcher-abi"
-		chainSelector := uint64(1337)
+		chainSelector := "1337"
 		address := "0x1234567890abcdef"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
@@ -394,7 +394,7 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 		name := "test-watcher"
 		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.Nil, CreateWatcherWithABIInput{
 			Name:          &name,
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
 			ABI:           []EventABI{},
@@ -412,7 +412,7 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 		name := "test-watcher"
 		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.New(), CreateWatcherWithABIInput{
 			Name:          &name,
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
 			ABI:           []EventABI{},
@@ -430,7 +430,7 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 		name := "test-watcher"
 		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.New(), CreateWatcherWithABIInput{
 			Name:          &name,
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestFunction"},
 			ABI: []EventABI{
@@ -459,7 +459,7 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 		name := "test-watcher"
 		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.New(), CreateWatcherWithABIInput{
 			Name:          &name,
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"Transfer", "Approval", "MissingEvent"}, // MissingEvent not in ABI
 			ABI: []EventABI{
@@ -519,14 +519,14 @@ func TestService_ListWatchers(t *testing.T) {
 					{
 						WatcherId:     watcher1ID,
 						Name:          &name1,
-						ChainSelector: 1337,
+						ChainSelector: "1337",
 						Address:       "0x1111",
 						Status:        "active",
 					},
 					{
 						WatcherId:     watcher2ID,
 						Name:          &name2,
-						ChainSelector: 1337,
+						ChainSelector: "1337",
 						Address:       "0x2222",
 						Status:        "active",
 					},
@@ -576,7 +576,7 @@ func TestService_ListWatchers(t *testing.T) {
 					{
 						WatcherId:     watcherID,
 						Name:          &name,
-						ChainSelector: 1337,
+						ChainSelector: "1337",
 						Address:       "0x1111",
 						Status:        string(status),
 					},
@@ -656,7 +656,7 @@ func TestService_GetWatcher(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "active",
 			}
@@ -755,7 +755,7 @@ func TestService_UpdateWatcher(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &newName,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "active",
 			}
@@ -978,7 +978,7 @@ func TestService_WaitForActive(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "active",
 			}
@@ -1016,7 +1016,7 @@ func TestService_WaitForActive(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        status,
 			}
@@ -1045,7 +1045,7 @@ func TestService_WaitForActive(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "failed",
 			}
@@ -1073,7 +1073,7 @@ func TestService_WaitForActive(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "pending",
 			}
@@ -1131,7 +1131,7 @@ func TestService_WaitForActive(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "deleting",
 			}
@@ -1159,7 +1159,7 @@ func TestService_WaitForActive(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "deleted",
 			}
@@ -1188,7 +1188,7 @@ func TestService_WaitForActive(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "pending",
 			}
@@ -1237,7 +1237,7 @@ func TestService_WaitForActive(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "active",
 			}
@@ -1325,7 +1325,7 @@ func TestService_WaitForActive(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "active",
 			}
@@ -1356,7 +1356,7 @@ func TestService_WaitForDeleted(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "deleted",
 			}
@@ -1392,7 +1392,7 @@ func TestService_WaitForDeleted(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        status,
 			}
@@ -1439,7 +1439,7 @@ func TestService_WaitForDeleted(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "deleting",
 			}
@@ -1468,7 +1468,7 @@ func TestService_WaitForDeleted(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "deleting",
 			}
@@ -1506,7 +1506,7 @@ func TestService_WaitForDeleted(t *testing.T) {
 			response := apiClient.Watcher{
 				WatcherId:     watcherID,
 				Name:          &name,
-				ChainSelector: 1337,
+				ChainSelector: "1337",
 				Address:       "0x1234",
 				Status:        "active", // Unexpected status while waiting for deletion
 			}
@@ -1624,7 +1624,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &watcherName,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x1234",
 					Status:        "pending",
 				}
@@ -1644,7 +1644,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &name,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x1234",
 					Status:        status,
 				}
@@ -1656,7 +1656,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &updatedName,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x1234",
 					Status:        "active",
 				}
@@ -1679,7 +1679,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		// Step 1: Create watcher with domain
 		createInput := CreateWatcherWithDomainInput{
 			Name:          &watcherName,
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Domain:        "dvp",
 			Events:        []string{"TestEvent"},
@@ -1738,7 +1738,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &watcherName,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x5678",
 					Status:        "pending",
 				}
@@ -1750,7 +1750,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &watcherName,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x5678",
 					Status:        "active",
 				}
@@ -1764,7 +1764,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 						{
 							WatcherId:     watcherID,
 							Name:          &watcherName,
-							ChainSelector: 1337,
+							ChainSelector: "1337",
 							Address:       "0x5678",
 							Status:        "active",
 						},
@@ -1790,7 +1790,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		// Step 1: Create watcher with custom ABI
 		createInput := CreateWatcherWithABIInput{
 			Name:          &watcherName,
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x5678",
 			Events:        []string{"Transfer"},
 			ABI: []EventABI{
@@ -1849,7 +1849,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 
 		// Try to create with invalid data
 		createInput := CreateWatcherWithDomainInput{
-			ChainSelector: 0, // Invalid
+			ChainSelector: "0", // Invalid
 			Address:       "0x1234",
 			Domain:        "dvp",
 			Events:        []string{"TestEvent"},
@@ -1872,7 +1872,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &watcherName,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x1234",
 					Status:        "pending",
 				}
@@ -1883,7 +1883,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &watcherName,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x1234",
 					Status:        "failed",
 				}
@@ -1899,7 +1899,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		// Create watcher
 		createInput := CreateWatcherWithDomainInput{
 			Name:          &watcherName,
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Domain:        "dvp",
 			Events:        []string{"TestEvent"},
@@ -1928,7 +1928,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &watcherName,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x1234",
 					Status:        "pending",
 				}
@@ -1943,7 +1943,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &watcherName,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x1234",
 					Status:        status,
 				}
@@ -1959,7 +1959,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		// Create watcher
 		createInput := CreateWatcherWithDomainInput{
 			Name:          &watcherName,
-			ChainSelector: 1337,
+			ChainSelector: "1337",
 			Address:       "0x1234",
 			Domain:        "dvp",
 			Events:        []string{"TestEvent"},
@@ -2018,7 +2018,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					response := apiClient.Watcher{
 						WatcherId:     watcherID,
 						Name:          &name,
-						ChainSelector: 1337,
+						ChainSelector: "1337",
 						Address:       "0x1234",
 						Status:        "deleting",
 					}
@@ -2029,7 +2029,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					response := apiClient.Watcher{
 						WatcherId:     watcherID,
 						Name:          &name,
-						ChainSelector: 1337,
+						ChainSelector: "1337",
 						Address:       "0x1234",
 						Status:        "deleted",
 					}
@@ -2081,7 +2081,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 					{
 						WatcherId:     uuid.New(),
 						Name:          &name,
-						ChainSelector: 1337,
+						ChainSelector: "1337",
 						Address:       "0x1234",
 						Status:        "active",
 					},
@@ -2097,7 +2097,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 		ctx := context.Background()
 
 		// Search with all filters
-		chainSelector := uint64(1337)
+		chainSelector := "1337"
 		name := "my-watcher"
 		address := "0x1234"
 		domain := "dvp"
@@ -2140,7 +2140,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 				watchers = append(watchers, apiClient.Watcher{
 					WatcherId:     uuid.New(),
 					Name:          &name,
-					ChainSelector: 1337,
+					ChainSelector: "1337",
 					Address:       "0x1234",
 					Status:        "active",
 				})

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -195,11 +194,8 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 
 		// Filter by chainSelector if provided
 		if params.ChainSelector != nil {
-			// Parse the string chain_selector to uint64 for comparison
-			if chainSelectorUint, err := strconv.ParseUint(*params.ChainSelector, 10, 64); err == nil {
-				if op.ChainSelector != chainSelectorUint {
-					continue
-				}
+			if op.ChainSelector != *params.ChainSelector {
+				continue
 			}
 		}
 
@@ -298,11 +294,8 @@ func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http
 			}
 		}
 		if params.ChainSelector != nil {
-			// ChainSelector is a string in params but uint64 in Watcher
-			if chainSelectorUint, err := strconv.ParseUint(*params.ChainSelector, 10, 64); err == nil {
-				if watcher.ChainSelector != chainSelectorUint {
-					continue
-				}
+			if watcher.ChainSelector != *params.ChainSelector {
+				continue
 			}
 		}
 		if params.EventName != nil {

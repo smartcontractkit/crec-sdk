@@ -43,7 +43,7 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 	wallet, err := c.PostWalletsWithResponse(
 		context.Background(), apiClient.CreateWallet{
 			WalletOwnerAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-			ChainSelector:      1337,
+			ChainSelector:      "1337",
 			Name:               testWalletName,
 		},
 	)

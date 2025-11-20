@@ -87,7 +87,7 @@ type EventABI struct {
 
 type CreateWatcherWithDomainInput struct {
 	Name          *string  `json:"name,omitempty"`
-	ChainSelector uint64   `json:"chain_selector"`
+	ChainSelector string   `json:"chain_selector"`
 	Address       string   `json:"address"`
 	Domain        string   `json:"domain"`
 	Events        []string `json:"events"`
@@ -95,7 +95,7 @@ type CreateWatcherWithDomainInput struct {
 
 type CreateWatcherWithABIInput struct {
 	Name          *string    `json:"name,omitempty"`
-	ChainSelector uint64     `json:"chain_selector"`
+	ChainSelector string     `json:"chain_selector"`
 	Address       string     `json:"address"`
 	Events        []string   `json:"events"`
 	ABI           []EventABI `json:"abi"`
@@ -110,7 +110,7 @@ type WatcherFilters struct {
 	Offset        *int           `url:"offset,omitempty"`
 	Name          *string        `url:"name,omitempty"`
 	Status        *WatcherStatus `url:"status,omitempty"`
-	ChainSelector *uint64        `url:"chain_selector,omitempty"`
+	ChainSelector *string        `url:"chain_selector,omitempty"`
 	Address       *string        `url:"address,omitempty"`
 	Domain        *string        `url:"domain,omitempty"`
 	EventName     *string        `url:"event_name,omitempty"`
@@ -189,7 +189,7 @@ func (s *Service) CreateWatcherWithDomain(ctx context.Context, channelID uuid.UU
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
 	}
-	if input.ChainSelector == 0 {
+	if input.ChainSelector == "" || input.ChainSelector == "0" {
 		return nil, ErrChainSelectorRequired
 	}
 	if input.Address == "" {
@@ -252,7 +252,7 @@ func (s *Service) CreateWatcherWithABI(ctx context.Context, channelID uuid.UUID,
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
 	}
-	if input.ChainSelector == 0 {
+	if input.ChainSelector == "" || input.ChainSelector == "0" {
 		return nil, ErrChainSelectorRequired
 	}
 	if input.Address == "" {
@@ -365,7 +365,7 @@ func (s *Service) ListWatchers(ctx context.Context, channelID uuid.UUID, filters
 		Limit:         filters.Limit,
 		Offset:        filters.Offset,
 		Name:          filters.Name,
-		ChainSelector: convertUint64PtrToStringPtr(filters.ChainSelector),
+		ChainSelector: filters.ChainSelector,
 		Address:       filters.Address,
 		Domain:        filters.Domain,
 		EventName:     filters.EventName,
@@ -774,13 +774,4 @@ func isTransientStatusCode(statusCode int) bool {
 	default:
 		return false
 	}
-}
-
-// convertUint64PtrToStringPtr converts a pointer to uint64 to a pointer to string
-func convertUint64PtrToStringPtr(val *uint64) *string {
-	if val == nil {
-		return nil
-	}
-	str := strconv.FormatUint(*val, 10)
-	return &str
 }
