@@ -86,7 +86,7 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		resp, err := c.ListEvents(context.Background(), channelID, nil)
+		resp, err := c.PollEvents(context.Background(), channelID, nil)
 		require.NoError(t, err)
 		assert.Len(t, *resp, 3)
 	})
@@ -120,14 +120,14 @@ func TestClient_ListEvents(t *testing.T) {
 			EventName: &eventName,
 			Type:      &typeVal,
 		}
-		resp, err := c.ListEvents(context.Background(), channelID, params)
+		resp, err := c.PollEvents(context.Background(), channelID, params)
 		require.NoError(t, err)
 		assert.Len(t, *resp, 2)
 	})
 
 	t.Run("NilChannelID", func(t *testing.T) {
 		c := setupLocalClient(t)
-		resp, err := c.ListEvents(context.Background(), uuid.Nil, nil)
+		resp, err := c.PollEvents(context.Background(), uuid.Nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.True(t, errors.Is(err, ErrChannelIDRequired))
@@ -140,7 +140,7 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		resp, err := c.ListEvents(context.Background(), channelID, nil)
+		resp, err := c.PollEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.True(t, errors.Is(err, ErrChannelNotFound))
@@ -153,10 +153,10 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		resp, err := c.ListEvents(context.Background(), channelID, nil)
+		resp, err := c.PollEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.True(t, errors.Is(err, ErrListEvents))
+		assert.True(t, errors.Is(err, ErrPollEvents))
 		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
 	})
 
@@ -167,7 +167,7 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		resp, err := c.ListEvents(context.Background(), channelID, nil)
+		resp, err := c.PollEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.True(t, errors.Is(err, ErrNilResponseBody))

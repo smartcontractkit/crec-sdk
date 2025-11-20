@@ -29,7 +29,7 @@ var (
 
 	// API operation errors
 	ErrChannelNotFound  = errors.New("channel not found")
-	ErrListEvents       = errors.New("failed to list events")
+	ErrPollEvents       = errors.New("failed to poll events")
 	ErrGetEvents        = errors.New("failed to get events")
 	ErrVerifyEvent      = errors.New("failed to verify event")
 	ErrDecodeEvent      = errors.New("failed to decode event")
@@ -105,15 +105,15 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 	}, nil
 }
 
-// ListEvents retrieves events from the CREC service for a specific channel.
+// PollEvents retrieves events from the CREC service for a specific channel.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - channelID: The UUID of the channel to retrieve events from.
 //   - params: parameters for filtering events, see client.GetChannelsChannelIdEventsParams for details.
-func (c *Client) ListEvents(ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsParams) (*[]apiClient.Event, error) {
+func (c *Client) PollEvents(ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsParams) (*[]apiClient.Event, error) {
 	c.logger.Debug().
 		Str("channel_id", channelID.String()).
 		Interface("filter", params).
-		Msg("Listing events by channel")
+		Msg("Polling events by channel")
 
 	if channelID == uuid.Nil {
 		return nil, ErrChannelIDRequired
@@ -136,16 +136,16 @@ func (c *Client) ListEvents(ctx context.Context, channelID uuid.UUID, params *ap
 			Int("status_code", resp.StatusCode()).
 			Str("body", string(resp.Body)).
 			Msg("Failed to get events - unexpected status code")
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrListEvents, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrPollEvents, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrListEvents, ErrNilResponseBody)
+		return nil, fmt.Errorf("%w: %w", ErrPollEvents, ErrNilResponseBody)
 	}
 
 	c.logger.Debug().
 		Int("count", len(*resp.JSON200)).
-		Msg("Events listed successfully")
+		Msg("Events polled successfully")
 
 	return resp.JSON200, nil
 }
