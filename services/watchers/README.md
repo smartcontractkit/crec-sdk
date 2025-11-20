@@ -247,7 +247,7 @@ if watchersList.HasMore {
 ```go
 // Filter active watchers on Ethereum mainnet
 status := watchers.StatusActive
-chainSelector := uint64(1)
+chainSelector := "1"
 limit := 10
 
 watchersList, err := watchersService.ListWatchers(ctx, channelID, watchers.WatcherFilters{

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -107,7 +106,7 @@ type TransactionRequest struct {
 //   - Signature: EIP-712 signature of the operation.
 type CreateOperationInput struct {
 	ChannelID         uuid.UUID
-	ChainSelector     uint64
+	ChainSelector     string
 	Address           string
 	WalletOperationID string
 	Transactions      []TransactionRequest
@@ -126,7 +125,7 @@ func (s *Service) CreateOperation(ctx context.Context, input CreateOperationInpu
 	s.logger.Debug().
 		Str("channel_id", input.ChannelID.String()).
 		Str("wallet_operation_id", input.WalletOperationID).
-		Uint64("chain_selector", input.ChainSelector).
+		Str("chain_selector", input.ChainSelector).
 		Str("address", input.Address).
 		Int("num_transactions", len(input.Transactions)).
 		Msg("Creating operation")
@@ -135,7 +134,7 @@ func (s *Service) CreateOperation(ctx context.Context, input CreateOperationInpu
 	if input.ChannelID == uuid.Nil {
 		return nil, ErrChannelIDRequired
 	}
-	if input.ChainSelector == 0 {
+	if input.ChainSelector == "" || input.ChainSelector == "0" {
 		return nil, ErrChainSelectorRequired
 	}
 	if input.Address == "" {
@@ -264,7 +263,7 @@ func (s *Service) GetOperation(ctx context.Context, channelID uuid.UUID, operati
 type ListOperationsInput struct {
 	ChannelID     uuid.UUID
 	Status        *string
-	ChainSelector *uint64
+	ChainSelector *string
 	Address       *string
 	WalletID      *uuid.UUID
 	Limit         *int
@@ -290,7 +289,7 @@ func (s *Service) ListOperations(ctx context.Context, input ListOperationsInput)
 
 	params := apiClient.GetChannelsChannelIdOperationsParams{
 		Status:        input.Status,
-		ChainSelector: convertUint64PtrToStringPtr(input.ChainSelector),
+		ChainSelector: input.ChainSelector,
 		Address:       input.Address,
 		WalletId:      input.WalletID,
 		Limit:         input.Limit,
@@ -328,14 +327,4 @@ func (s *Service) ListOperations(ctx context.Context, input ListOperationsInput)
 		Msg("Operations listed successfully")
 
 	return resp.JSON200.Data, resp.JSON200.HasMore, nil
-}
-
-// convertUint64PtrToStringPtr converts a pointer to uint64 to a pointer to string
-// for API compatibility. Returns nil if the input is nil.
-func convertUint64PtrToStringPtr(val *uint64) *string {
-	if val == nil {
-		return nil
-	}
-	str := strconv.FormatUint(*val, 10)
-	return &str
 }
