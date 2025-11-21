@@ -712,7 +712,7 @@ func TestClient_Verify(t *testing.T) {
 		statusPayload := apiClient.WatcherStatusPayload{
 			Type:          apiClient.WatcherStatus,
 			WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
-			ChainSelector: 5009297550715157269,
+			ChainSelector: "5009297550715157269",
 			Status:        apiClient.WatcherStatusPayloadStatusDeploying,
 			StatusCode:    "DEPLOYING",
 			StatusReason:  "Watcher is being deployed",
@@ -861,7 +861,7 @@ func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
 		Type:          apiClient.WatcherEventPayloadType("watcher.event"),
 		WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
 		Address:       "0x1234567890123456789012345678901234567890",
-		ChainSelector: 5009297550715157269,
+		ChainSelector: "5009297550715157269",
 		Event: apiClient.WatcherEvent{
 			EventName: "Transfer",
 			TopicHash: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
