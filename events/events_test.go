@@ -60,13 +60,15 @@ func TestNewClient(t *testing.T) {
 
 func TestClient_ListEvents(t *testing.T) {
 	// Helper to create test events programmatically
-	createTestEvents := func(t *testing.T, count int) []apiClient.Event {
+	privKeys, addresses := generateTestKeys(t, 2)
+
+	// Helper to create test events with specific keys
+	createTestEventsWithKeys := func(t *testing.T, count int, keys []*ecdsa.PrivateKey) []apiClient.Event {
 		t.Helper()
-		privKeys, _ := generateTestKeys(t, 2)
 		events := make([]apiClient.Event, count)
 		for i := 0; i < count; i++ {
 			eventPayload := createTestEventPayload(t)
-			event := createValidEventWithSignatures(t, privKeys, &eventPayload)
+			event := createValidEventWithSignatures(t, keys, &eventPayload)
 			events[i] = *event
 		}
 		return events
@@ -75,7 +77,8 @@ func TestClient_ListEvents(t *testing.T) {
 	channelID := uuid.New()
 
 	t.Run("Success", func(t *testing.T) {
-		events := createTestEvents(t, 3)
+
+		events := createTestEventsWithKeys(t, 3, privKeys)
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/channels/"+channelID.String()+"/events", r.URL.Path)
 			assert.Equal(t, "GET", r.Method)
@@ -83,16 +86,24 @@ func TestClient_ListEvents(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(events)
 		}
-		c, server := setupTestClient(t, handler)
+		c, server := setupTestClient(t, handler, func(opts *ClientOptions) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
 		defer server.Close()
 
 		resp, err := c.PollEvents(context.Background(), channelID, nil)
 		require.NoError(t, err)
 		assert.Len(t, *resp, 3)
+		respEvents := *resp
+
+		isEventVerified, err := c.Verify(&respEvents[0])
+		require.NoError(t, err)
+		require.True(t, isEventVerified)
 	})
 
 	t.Run("WithParams", func(t *testing.T) {
-		events := createTestEvents(t, 2)
+		events := createTestEventsWithKeys(t, 2, privKeys)
 		limit := 2
 		offset := "10"
 		domain := "dvp"
