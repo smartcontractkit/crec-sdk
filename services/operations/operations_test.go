@@ -451,7 +451,7 @@ func TestService_ListOperations(t *testing.T) {
 		defer server.Close()
 
 		limit := 20
-		offset := 0
+		offset := int64(0)
 		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID: channelID,
 			Limit:     &limit,
@@ -592,7 +592,7 @@ func TestService_ListOperations(t *testing.T) {
 		defer server.Close()
 
 		limit := 10
-		offset := 5
+		offset := int64(5)
 		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID: channelID,
 			Limit:     &limit,

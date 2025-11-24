@@ -86,7 +86,7 @@ func (s *MockServer) GetChannels(w http.ResponseWriter, r *http.Request, params 
 		limit = *params.Limit
 	}
 	if params.Offset != nil && *params.Offset >= 0 {
-		offset = *params.Offset
+		offset = int(*params.Offset)
 	}
 
 	filteredChannels := s.channels
@@ -180,7 +180,7 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 		limit = *params.Limit
 	}
 	if params.Offset != nil && *params.Offset >= 0 {
-		offset = *params.Offset
+		offset = int(*params.Offset)
 	}
 
 	// Filter operations by optional query params
@@ -265,7 +265,7 @@ func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http
 		limit = *params.Limit
 	}
 	if params.Offset != nil && *params.Offset >= 0 {
-		offset = *params.Offset
+		offset = int(*params.Offset)
 	}
 
 	// Filter by channel ID and query parameters
@@ -479,7 +479,7 @@ func (s *MockServer) GetWallets(w http.ResponseWriter, r *http.Request, params s
 		limit = *params.Limit
 	}
 	if params.Offset != nil && *params.Offset >= 0 {
-		offset = *params.Offset
+		offset = int(*params.Offset)
 	}
 
 	end := offset + limit

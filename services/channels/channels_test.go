@@ -342,7 +342,7 @@ func TestService_ListChannels(t *testing.T) {
 		defer server.Close()
 
 		limit := 20
-		offset := 0
+		offset := int64(0)
 		channels, hasMore, err := service.ListChannels(context.Background(), ListChannelsInput{
 			Limit:  &limit,
 			Offset: &offset,
@@ -417,7 +417,7 @@ func TestService_ListChannels(t *testing.T) {
 		defer server.Close()
 
 		limit := 10
-		offset := 5
+		offset := int64(5)
 		channels, hasMore, err := service.ListChannels(context.Background(), ListChannelsInput{
 			Limit:  &limit,
 			Offset: &offset,

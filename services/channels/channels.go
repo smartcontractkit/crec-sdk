@@ -191,7 +191,7 @@ func (s *Service) GetChannel(ctx context.Context, channelID uuid.UUID) (*apiClie
 type ListChannelsInput struct {
 	Name   *string
 	Limit  *int
-	Offset *int
+	Offset *int64
 }
 
 // ListChannels retrieves a list of channels.
