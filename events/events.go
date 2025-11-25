@@ -152,6 +152,7 @@ func (c *Client) PollEvents(ctx context.Context, channelID uuid.UUID, params *ap
 }
 
 // Verify verifies the authenticity of a given event.
+// It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
 func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 	ocrProof, err := getOCRProof(event)
