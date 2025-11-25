@@ -540,7 +540,7 @@ func TestService_ListWatchers(t *testing.T) {
 		defer server.Close()
 
 		limit := 10
-		offset := 0
+		offset := int64(0)
 		result, err := service.ListWatchers(context.Background(), channelID, WatcherFilters{
 			Limit:  &limit,
 			Offset: &offset,
@@ -2103,7 +2103,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 		domain := "dvp"
 		status := StatusActive
 		limit := 10
-		offset := 5
+		offset := int64(5)
 
 		filters := WatcherFilters{
 			Name:          &name,
@@ -2162,7 +2162,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 
 		// Fetch pages
 		allWatchers := []apiClient.Watcher{}
-		for offset := 0; offset < 15; offset += 5 {
+		for offset := int64(0); offset < 15; offset += 5 {
 			filters := WatcherFilters{
 				Limit:  &limit,
 				Offset: &offset,

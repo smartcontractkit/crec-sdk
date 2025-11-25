@@ -107,7 +107,7 @@ type UpdateWatcherInput struct {
 
 type WatcherFilters struct {
 	Limit         *int           `url:"limit,omitempty"`
-	Offset        *int           `url:"offset,omitempty"`
+	Offset        *int64         `url:"offset,omitempty"`
 	Name          *string        `url:"name,omitempty"`
 	Status        *WatcherStatus `url:"status,omitempty"`
 	ChainSelector *string        `url:"chain_selector,omitempty"`

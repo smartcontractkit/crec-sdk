@@ -109,26 +109,26 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - channelID: The UUID of the channel to retrieve events from.
 //   - params: parameters for filtering events, see client.GetChannelsChannelIdEventsParams for details.
-func (c *Client) PollEvents(ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsParams) (*[]apiClient.Event, error) {
+func (c *Client) PollEvents(ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsParams) ([]apiClient.Event, bool, error) {
 	c.logger.Debug().
 		Str("channel_id", channelID.String()).
 		Interface("filter", params).
 		Msg("Polling events by channel")
 
 	if channelID == uuid.Nil {
-		return nil, ErrChannelIDRequired
+		return nil, false, ErrChannelIDRequired
 	}
 
 	resp, err := c.crecClient.GetChannelsChannelIdEventsWithResponse(ctx, channelID, params)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrGetEvents, err)
+		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, err)
 	}
 
 	if resp.StatusCode() == 404 {
 		c.logger.Warn().
 			Str("channel_id", channelID.String()).
 			Msg("Channel not found")
-		return nil, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
+		return nil, false, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
 	}
 
 	if resp.StatusCode() != 200 {
@@ -136,18 +136,19 @@ func (c *Client) PollEvents(ctx context.Context, channelID uuid.UUID, params *ap
 			Int("status_code", resp.StatusCode()).
 			Str("body", string(resp.Body)).
 			Msg("Failed to get events - unexpected status code")
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrPollEvents, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrPollEvents, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrPollEvents, ErrNilResponseBody)
+		return nil, false, fmt.Errorf("%w: %w", ErrPollEvents, ErrNilResponseBody)
 	}
 
 	c.logger.Debug().
-		Int("count", len(*resp.JSON200)).
+		Int("count", len(resp.JSON200.Events)).
+		Bool("has_more", resp.JSON200.HasMore).
 		Msg("Events polled successfully")
 
-	return resp.JSON200, nil
+	return resp.JSON200.Events, resp.JSON200.HasMore, nil
 }
 
 // Verify verifies the authenticity of a given event.

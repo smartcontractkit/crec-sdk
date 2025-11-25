@@ -267,7 +267,7 @@ type ListOperationsInput struct {
 	Address       *string
 	WalletID      *uuid.UUID
 	Limit         *int
-	Offset        *int
+	Offset        *int64
 }
 
 // ListOperations retrieves a list of operations for a channel.

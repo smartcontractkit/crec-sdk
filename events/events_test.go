@@ -84,7 +84,12 @@ func TestClient_ListEvents(t *testing.T) {
 			assert.Equal(t, "GET", r.Method)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(events)
+			// Server returns apiClient.EventList with events and has_more
+			response := apiClient.EventList{
+				Events:  events,
+				HasMore: false,
+			}
+			_ = json.NewEncoder(w).Encode(response)
 		}
 		c, server := setupTestClient(t, handler, func(opts *ClientOptions) {
 			opts.MinRequiredSignatures = 2
@@ -92,12 +97,12 @@ func TestClient_ListEvents(t *testing.T) {
 		})
 		defer server.Close()
 
-		resp, err := c.PollEvents(context.Background(), channelID, nil)
+		eventsList, hasMore, err := c.PollEvents(context.Background(), channelID, nil)
 		require.NoError(t, err)
-		assert.Len(t, *resp, 3)
-		respEvents := *resp
+		assert.Len(t, eventsList, 3)
+		assert.False(t, hasMore)
 
-		isEventVerified, err := c.Verify(&respEvents[0])
+		isEventVerified, err := c.Verify(&eventsList[0])
 		require.NoError(t, err)
 		require.True(t, isEventVerified)
 	})
@@ -105,7 +110,7 @@ func TestClient_ListEvents(t *testing.T) {
 	t.Run("WithParams", func(t *testing.T) {
 		events := createTestEventsWithKeys(t, 2, privKeys)
 		limit := 2
-		offset := "10"
+		offset := int64(10)
 		domain := "dvp"
 		eventName := "Transfer"
 		typeVal := apiClient.GetChannelsChannelIdEventsParamsTypeWatcherEvent
@@ -119,28 +124,35 @@ func TestClient_ListEvents(t *testing.T) {
 			assert.Equal(t, "watcher.event", q.Get("type"))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(events)
+			// Server returns apiClient.EventList
+			response := apiClient.EventList{
+				Events:  events,
+				HasMore: false,
+			}
+			_ = json.NewEncoder(w).Encode(response)
 		}
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		params := &apiClient.GetChannelsChannelIdEventsParams{
 			Limit:     &limit,
-			Offset:    &offset,
+			Offset:    offset,
 			Domain:    &domain,
 			EventName: &eventName,
 			Type:      &typeVal,
 		}
-		resp, err := c.PollEvents(context.Background(), channelID, params)
+		eventsList, hasMore, err := c.PollEvents(context.Background(), channelID, params)
 		require.NoError(t, err)
-		assert.Len(t, *resp, 2)
+		// response unpacked
+		assert.Len(t, eventsList, 2)
+		assert.False(t, hasMore)
 	})
 
 	t.Run("NilChannelID", func(t *testing.T) {
 		c := setupLocalClient(t)
-		resp, err := c.PollEvents(context.Background(), uuid.Nil, nil)
+		_, _, err := c.PollEvents(context.Background(), uuid.Nil, nil)
 		require.Error(t, err)
-		assert.Nil(t, resp)
+		// nil response checked
 		assert.True(t, errors.Is(err, ErrChannelIDRequired))
 	})
 
@@ -151,9 +163,9 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		resp, err := c.PollEvents(context.Background(), channelID, nil)
+		_, _, err := c.PollEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.Nil(t, resp)
+		// nil response checked
 		assert.True(t, errors.Is(err, ErrChannelNotFound))
 	})
 
@@ -164,9 +176,9 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		resp, err := c.PollEvents(context.Background(), channelID, nil)
+		_, _, err := c.PollEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.Nil(t, resp)
+		// nil response checked
 		assert.True(t, errors.Is(err, ErrPollEvents))
 		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
 	})
@@ -178,10 +190,41 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		resp, err := c.PollEvents(context.Background(), channelID, nil)
+		_, _, err := c.PollEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.Nil(t, resp)
 		assert.True(t, errors.Is(err, ErrNilResponseBody))
+	})
+
+	t.Run("WithPagination", func(t *testing.T) {
+		events := createTestEventsWithKeys(t, 2, privKeys)
+		limit := 10
+		offset := int64(5)
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			assert.Equal(t, "10", q.Get("limit"))
+			assert.Equal(t, "5", q.Get("offset"))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.EventList{
+				Events:  events,
+				HasMore: true,
+			}
+			_ = json.NewEncoder(w).Encode(response)
+		}
+
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		params := &apiClient.GetChannelsChannelIdEventsParams{
+			Limit:  &limit,
+			Offset: offset,
+		}
+		eventsList, hasMore, err := c.PollEvents(context.Background(), channelID, params)
+		require.NoError(t, err)
+		assert.Len(t, eventsList, 2)
+		assert.True(t, hasMore)
 	})
 }
 
@@ -362,7 +405,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Offset: "12345",
+				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{},
 			},
 			Payload: payloadUnion,
@@ -400,7 +443,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Offset: "12345",
+				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
 			Payload: payloadUnion,
@@ -445,7 +488,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Offset: "12345",
+				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
 			Payload: payloadUnion,
@@ -504,7 +547,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Offset: "12345",
+				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proof1, proof2}, // Multiple proofs
 			},
 			Payload: payloadUnion,
@@ -539,7 +582,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Offset: "12345",
+				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
 			Payload: payloadUnion,
@@ -574,7 +617,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Offset: "12345",
+				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
 			Payload: payloadUnion,
@@ -617,7 +660,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Offset: "12345",
+				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
 			Payload: payloadUnion,
@@ -672,7 +715,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Offset: "12345",
+				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
 			Payload: payloadUnion,
@@ -723,7 +766,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Offset: "12345",
+				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
 			Payload: payloadUnion,
@@ -928,7 +971,7 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 
 	event := &apiClient.Event{
 		Headers: apiClient.EventHeaders{
-			Offset: "12345",
+			Offset: int64(12345),
 			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 		},
 		Payload: payloadUnion,
