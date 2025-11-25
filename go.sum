@@ -447,8 +447,8 @@ github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/smartcontractkit/chain-selectors v1.0.82 h1:YCBn0HquAhH2jNVai32zQDFyC3XkrMHrBqWhH8W1hzo=
 github.com/smartcontractkit/chain-selectors v1.0.82/go.mod h1:xsKM0aN3YGcQKTPRPDDtPx2l4mlTN1Djmg0VVXV40b8=
-github.com/smartcontractkit/crec-api-go v0.3.7-0.20251125170703-a4af1317f8eb h1:jXiUf4tM+SM5iVRHVAQ9OTUIyTjvO+EWW9rTAIsOiVI=
-github.com/smartcontractkit/crec-api-go v0.3.7-0.20251125170703-a4af1317f8eb/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
+github.com/smartcontractkit/crec-api-go v0.3.7-0.20251125185111-95197465fc11 h1:NSSChUl7tkhbQ+FnnXOCGjxVpr2DZozMuDz9N2pllEU=
+github.com/smartcontractkit/crec-api-go v0.3.7-0.20251125185111-95197465fc11/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
 github.com/spf13/afero v1.12.0 h1:UcOPyRBYczmFn6yvphxkn9ZEOY65cpwGKb5mL36mrqs=
