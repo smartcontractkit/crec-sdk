@@ -2,7 +2,7 @@
   <img src="assets/chainlink-logo.svg" alt="Chainlink" width="300" height="130"/>
 </div>
 
-# CRE Connect SDK (Formerly known as CRELib)
+# CRE Connect SDK
 
 Build the next generation of verifiable applications with secure, blockchain-agnostic event processing and transaction execution — powered by the Chainlink Runtime Environment and Verifiable Network.
 
@@ -46,11 +46,6 @@ The library also includes a number of [helper services](#services-helpers-for-co
 
 - [Installation & basic examples](#example-usage) - Get up and running in minutes
 - [Complete example application](#complete-example-application) - See CRE Connect SDK in action with a demo payment processor
-
-**For specific use cases:**
-
-- [DvP service](#dvp-service) - Asset and payment exchange
-- [CCIP service](#ccip-service) - Cross-chain token transfers
 
 **Deep dive:**
 
@@ -337,8 +332,6 @@ The following packages are available in CRE Connect SDK:
 - [`services`](./services): Helper services that simplify interaction with specific Chainlink systems. The following services are available:
   - [`services/channels`](./services/channels): Provides the Channels service for organizing watchers, events, and operations.
   - [`services/operations`](./services/operations): Provides the Operations service for managing transaction execution requests.
-  - [`services/dvp`](./services/dvp): Provides the DvP (Delivery vs Payment) service for asset and payment exchange.
-  - [`services/ccip`](./services/ccip): Provides the CCIP (Cross Chain Interoperability Protocol) service for cross-chain token transfers and messaging.
 
 ### Services: Helpers for common protocols
 
@@ -366,24 +359,6 @@ The Operations service manages transaction execution requests in the CREC platfo
 - Track operation lifecycle with pagination support
 
 For more details, see the [Operations Service README](./services/operations/README.md).
-
-#### DvP service
-
-The DvP (Delivery vs. Payment) service allows for the secure and trustless transfer of assets between parties. The helper service supports:
-
-- Proposing a settlement as the seller of an asset token.
-- Accepting a settlement as the buyer of an asset token.
-- Executing a settlement as a designated third party (e.g., an offchain payment network).
-- Optionally including token approval/hold transactions in the settlement operations.
-
-For more details, see the [DVP Service README](./services/dvp/README.md).
-
-#### CCIP service
-
-The CCIP (Cross-Chain Interoperability Protocol) service allows for transferring tokens and sending messages between different blockchains. The helper can optionally
-include the necessary token approvals for the assets attached to the CCIP message.
-
-For implementation details, see the [CCIP service package](./services/ccip).
 
 ### Full API reference & documentation
 
@@ -417,12 +392,15 @@ To view the complete code documentation for every function and type, you can run
    - [transact](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/transact/) - Transaction operations
    - [services/channels](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/channels/) - Channels service
    - [services/operations](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/operations/) - Operations service
-   - [services/dvp](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/dvp/) - DvP service
-   - [services/ccip](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/ccip/) - CCIP service
 
 ### Complete example application
 
 An example application using CRE Connect SDK can be found in the [crec-example-payment-processor](https://github.com/smartcontractkit/crec-example-payment-processor) repository.
+
+## Extensions
+- [crec-sdk-ext-ccip](https://github.com/smartcontractkit/crec-sdk-ext-ccip)
+- [crec-sdk-ext-dvp](https://github.com/smartcontractkit/crec-sdk-ext-dvp)
+- [crec-sdk-ext-dta](https://github.com/smartcontractkit/crec-sdk-ext-dta)
 
 ## Glossary
 
@@ -451,3 +429,4 @@ An example application using CRE Connect SDK can be found in the [crec-example-p
 **Settlement**: In the DvP service, an atomic exchange of assets between parties with cryptographic guarantees.
 
 **CCIP**: Cross-Chain Interoperability Protocol for transferring tokens and messages between different blockchains.
+
