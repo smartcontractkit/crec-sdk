@@ -21,5 +21,6 @@
 
 list.md
 out_o.md
+vendor/
 .vscode/
 .cursor/
