@@ -154,7 +154,7 @@ func (c *Client) PollEvents(ctx context.Context, channelID uuid.UUID, params *ap
 // Verify verifies the authenticity of a given event.
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
-func (c *Client) Verify(event *apiClient.Event) (bool, error) {
+func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error) {
 	ocrProof, err := getOCRProof(event)
 	if err != nil {
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
@@ -199,7 +199,7 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 	}
 
 	// ensure locally computed event hash matches the one in the report
-	eventHashValid := c.verifyEventHash(ocrReport, eventHash)
+	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowId)
 	if !eventHashValid {
 		return false, ErrInvalidEventHash
 	}
@@ -293,7 +293,7 @@ func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, e
 	return crypto.Keccak256Hash([]byte(*event.Event.Domain + "." + event.Event.EventName + "." + dataStr)), nil
 }
 
-func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash) bool {
+func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowId string) bool {
 
 	// OCR report layout:
 	// version                offset   0, size  1
@@ -306,6 +306,15 @@ func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash) bool {
 	// workflow_owner         offset  87, size 20
 	// report_id              offset 107, size  2
 	// payload			      offset 109, size  ... <- event hash
+
+	reportWorkflowCid := common.BytesToHash(ocrReport[45:77])
+	if reportWorkflowCid.String() != workflowId {
+		c.logger.Warn().
+			Str("report_workflow_cid", reportWorkflowCid.String()).
+			Str("workflow_id", workflowId).
+			Msg("Workflow CID mismatch")
+		return false
+	}
 
 	reportEventHash := common.BytesToHash(ocrReport[ocrReportPayloadOffset:])
 	c.logger.Trace().
