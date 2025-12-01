@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -14,131 +15,123 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
-	"github.com/smartcontractkit/crec-sdk/client"
 )
 
-func setupTestService(t *testing.T, handler http.HandlerFunc) (*Service, *httptest.Server) {
+func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Server) {
 	server := httptest.NewServer(handler)
 
-	crecClient, err := client.NewCRECClient(&client.ClientOptions{
-		BaseURL: server.URL,
-		APIKey:  "test-api-key",
-	})
+	// Add API key header to all requests
+	apiKeyEditor := func(ctx context.Context, req *http.Request) error {
+		req.Header.Set("Api-Key", "test-api-key")
+		return nil
+	}
+
+	crecAPIClient, err := apiClient.NewClientWithResponses(
+		server.URL,
+		apiClient.WithRequestEditorFn(apiKeyEditor),
+	)
 	require.NoError(t, err)
 
-	logger := zerolog.Nop()
-	service, err := NewService(&ServiceOptions{
-		Logger:       &logger,
-		CRECClient:   crecClient,
+	logger := slog.New(slog.DiscardHandler)
+	client, err := NewClient(&Options{
+		Logger:       logger,
+		APIClient:    crecAPIClient,
 		PollInterval: 10 * time.Millisecond, // Fast polling for tests
 	})
 	require.NoError(t, err)
 
-	return service, server
+	return client, server
 }
 
-func TestNewService(t *testing.T) {
+func TestNewClient(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		crecClient, err := client.NewCRECClient(&client.ClientOptions{
-			BaseURL: "http://localhost:8080",
-			APIKey:  "test-api-key",
-		})
+		crecAPIClient, err := apiClient.NewClientWithResponses("http://localhost:8080")
 		require.NoError(t, err)
 
-		logger := zerolog.Nop()
-		service, err := NewService(&ServiceOptions{
-			Logger:     &logger,
-			CRECClient: crecClient,
+		logger := slog.New(slog.DiscardHandler)
+		client, err := NewClient(&Options{
+			Logger:    logger,
+			APIClient: crecAPIClient,
 		})
 
 		require.NoError(t, err)
-		assert.NotNil(t, service)
-		assert.NotNil(t, service.logger)
-		assert.NotNil(t, service.crecClient)
+		assert.NotNil(t, client)
+		assert.NotNil(t, client.logger)
+		assert.NotNil(t, client.apiClient)
 	})
 
 	t.Run("NilOptions", func(t *testing.T) {
-		service, err := NewService(nil)
+		client, err := NewClient(nil)
 
 		require.Error(t, err)
-		assert.Nil(t, service)
-		assert.True(t, errors.Is(err, ErrServiceOptionsRequired), "Expected ErrServiceOptionsRequired, got: %v", err)
+		assert.Nil(t, client)
+		assert.True(t, errors.Is(err, ErrOptionsRequired), "Expected ErrOptionsRequired, got: %v", err)
 	})
 
-	t.Run("NilCRECClient", func(t *testing.T) {
-		logger := zerolog.Nop()
-		service, err := NewService(&ServiceOptions{
-			Logger:     &logger,
-			CRECClient: nil,
+	t.Run("NilAPIClient", func(t *testing.T) {
+		logger := slog.New(slog.DiscardHandler)
+		client, err := NewClient(&Options{
+			Logger:    logger,
+			APIClient: nil,
 		})
 
 		require.Error(t, err)
-		assert.Nil(t, service)
-		assert.True(t, errors.Is(err, ErrCRECClientRequired), "Expected ErrCRECClientRequired, got: %v", err)
+		assert.Nil(t, client)
+		assert.True(t, errors.Is(err, ErrAPIClientRequired), "Expected ErrAPIClientRequired, got: %v", err)
 	})
 
 	t.Run("DefaultLogger", func(t *testing.T) {
-		crecClient, err := client.NewCRECClient(&client.ClientOptions{
-			BaseURL: "http://localhost:8080",
-			APIKey:  "test-api-key",
-		})
+		crecAPIClient, err := apiClient.NewClientWithResponses("http://localhost:8080")
 		require.NoError(t, err)
 
-		service, err := NewService(&ServiceOptions{
-			Logger:     nil,
-			CRECClient: crecClient,
+		client, err := NewClient(&Options{
+			Logger:    nil,
+			APIClient: crecAPIClient,
 		})
 
 		require.NoError(t, err)
-		assert.NotNil(t, service)
-		assert.NotNil(t, service.logger)
+		assert.NotNil(t, client)
+		assert.NotNil(t, client.logger)
 	})
 
 	t.Run("DefaultPollInterval", func(t *testing.T) {
-		crecClient, err := client.NewCRECClient(&client.ClientOptions{
-			BaseURL: "http://localhost:8080",
-			APIKey:  "test-api-key",
-		})
+		crecAPIClient, err := apiClient.NewClientWithResponses("http://localhost:8080")
 		require.NoError(t, err)
 
-		logger := zerolog.Nop()
-		service, err := NewService(&ServiceOptions{
-			Logger:     &logger,
-			CRECClient: crecClient,
+		logger := slog.New(slog.DiscardHandler)
+		client, err := NewClient(&Options{
+			Logger:    logger,
+			APIClient: crecAPIClient,
 		})
 
 		require.NoError(t, err)
-		assert.NotNil(t, service)
-		assert.Equal(t, 2*time.Second, service.pollInterval)
+		assert.NotNil(t, client)
+		assert.Equal(t, 2*time.Second, client.pollInterval)
 	})
 
 	t.Run("CustomPollInterval", func(t *testing.T) {
-		crecClient, err := client.NewCRECClient(&client.ClientOptions{
-			BaseURL: "http://localhost:8080",
-			APIKey:  "test-api-key",
-		})
+		crecAPIClient, err := apiClient.NewClientWithResponses("http://localhost:8080")
 		require.NoError(t, err)
 
-		logger := zerolog.Nop()
+		logger := slog.New(slog.DiscardHandler)
 		customInterval := 500 * time.Millisecond
-		service, err := NewService(&ServiceOptions{
-			Logger:       &logger,
-			CRECClient:   crecClient,
+		client, err := NewClient(&Options{
+			Logger:       logger,
+			APIClient:    crecAPIClient,
 			PollInterval: customInterval,
 		})
 
 		require.NoError(t, err)
-		assert.NotNil(t, service)
-		assert.Equal(t, customInterval, service.pollInterval)
+		assert.NotNil(t, client)
+		assert.Equal(t, customInterval, client.pollInterval)
 	})
 }
 
-func TestService_CreateWatcherWithDomain(t *testing.T) {
+func TestClient_CreateWithDomain(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -180,10 +173,10 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.CreateWatcherWithDomain(context.Background(), channelID, CreateWatcherWithDomainInput{
+		watcher, err := client.CreateWithDomain(context.Background(), channelID, CreateWithDomainInput{
 			Name:          &watcherName,
 			Domain:        domain,
 			ChainSelector: chainSelector,
@@ -206,11 +199,11 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 			t.Fatal("Should not make request with empty channel ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := service.CreateWatcherWithDomain(context.Background(), uuid.Nil, CreateWatcherWithDomainInput{
+		watcher, err := client.CreateWithDomain(context.Background(), uuid.Nil, CreateWithDomainInput{
 			Name:          &name,
 			Domain:        "dvp",
 			ChainSelector: "1337",
@@ -228,11 +221,11 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 			t.Fatal("Should not make request with empty domain")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := service.CreateWatcherWithDomain(context.Background(), uuid.New(), CreateWatcherWithDomainInput{
+		watcher, err := client.CreateWithDomain(context.Background(), uuid.New(), CreateWithDomainInput{
 			Name:          &name,
 			Domain:        "",
 			ChainSelector: "1337",
@@ -250,11 +243,11 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 			t.Fatal("Should not make request with empty address")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := service.CreateWatcherWithDomain(context.Background(), uuid.New(), CreateWatcherWithDomainInput{
+		watcher, err := client.CreateWithDomain(context.Background(), uuid.New(), CreateWithDomainInput{
 			Name:          &name,
 			Domain:        "dvp",
 			ChainSelector: "1337",
@@ -278,11 +271,11 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := service.CreateWatcherWithDomain(context.Background(), channelID, CreateWatcherWithDomainInput{
+		watcher, err := client.CreateWithDomain(context.Background(), channelID, CreateWithDomainInput{
 			Name:          &name,
 			Domain:        "dvp",
 			ChainSelector: "1337",
@@ -296,7 +289,7 @@ func TestService_CreateWatcherWithDomain(t *testing.T) {
 	})
 }
 
-func TestService_CreateWatcherWithABI(t *testing.T) {
+func TestClient_CreateWithABI(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -339,10 +332,10 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.CreateWatcherWithABI(context.Background(), channelID, CreateWatcherWithABIInput{
+		watcher, err := client.CreateWithABI(context.Background(), channelID, CreateWithABIInput{
 			Name:          &watcherName,
 			ChainSelector: chainSelector,
 			Address:       address,
@@ -388,11 +381,11 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 			t.Fatal("Should not make request with empty channel ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.Nil, CreateWatcherWithABIInput{
+		watcher, err := client.CreateWithABI(context.Background(), uuid.Nil, CreateWithABIInput{
 			Name:          &name,
 			ChainSelector: "1337",
 			Address:       "0x1234",
@@ -406,11 +399,11 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 	})
 
 	t.Run("EmptyABI", func(t *testing.T) {
-		service, server := setupTestService(t, nil)
+		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.New(), CreateWatcherWithABIInput{
+		watcher, err := client.CreateWithABI(context.Background(), uuid.New(), CreateWithABIInput{
 			Name:          &name,
 			ChainSelector: "1337",
 			Address:       "0x1234",
@@ -424,11 +417,11 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 	})
 
 	t.Run("InvalidABIType", func(t *testing.T) {
-		service, server := setupTestService(t, nil)
+		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.New(), CreateWatcherWithABIInput{
+		watcher, err := client.CreateWithABI(context.Background(), uuid.New(), CreateWithABIInput{
 			Name:          &name,
 			ChainSelector: "1337",
 			Address:       "0x1234",
@@ -453,11 +446,11 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 	})
 
 	t.Run("EventNotInABI", func(t *testing.T) {
-		service, server := setupTestService(t, nil)
+		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := service.CreateWatcherWithABI(context.Background(), uuid.New(), CreateWatcherWithABIInput{
+		watcher, err := client.CreateWithABI(context.Background(), uuid.New(), CreateWithABIInput{
 			Name:          &name,
 			ChainSelector: "1337",
 			Address:       "0x1234",
@@ -494,7 +487,7 @@ func TestService_CreateWatcherWithABI(t *testing.T) {
 	})
 }
 
-func TestService_ListWatchers(t *testing.T) {
+func TestClient_List(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		watcher1ID := uuid.New()
@@ -536,12 +529,12 @@ func TestService_ListWatchers(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		limit := 10
 		offset := int64(0)
-		result, err := service.ListWatchers(context.Background(), channelID, WatcherFilters{
+		result, err := client.List(context.Background(), channelID, ListFilters{
 			Limit:  &limit,
 			Offset: &offset,
 		})
@@ -586,10 +579,10 @@ func TestService_ListWatchers(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		result, err := service.ListWatchers(context.Background(), channelID, WatcherFilters{
+		result, err := client.List(context.Background(), channelID, ListFilters{
 			Name:   &name,
 			Status: &status,
 		})
@@ -607,10 +600,10 @@ func TestService_ListWatchers(t *testing.T) {
 			t.Fatal("Should not make request with empty channel ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		result, err := service.ListWatchers(context.Background(), uuid.Nil, WatcherFilters{})
+		result, err := client.List(context.Background(), uuid.Nil, ListFilters{})
 
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -628,10 +621,10 @@ func TestService_ListWatchers(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		result, err := service.ListWatchers(context.Background(), channelID, WatcherFilters{})
+		result, err := client.List(context.Background(), channelID, ListFilters{})
 
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -639,7 +632,7 @@ func TestService_ListWatchers(t *testing.T) {
 	})
 }
 
-func TestService_GetWatcher(t *testing.T) {
+func TestClient_Get(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -663,10 +656,10 @@ func TestService_GetWatcher(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.GetWatcher(context.Background(), channelID, watcherID)
+		watcher, err := client.Get(context.Background(), channelID, watcherID)
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
@@ -681,10 +674,10 @@ func TestService_GetWatcher(t *testing.T) {
 			t.Fatal("Should not make request with empty channel ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.GetWatcher(context.Background(), uuid.Nil, uuid.New())
+		watcher, err := client.Get(context.Background(), uuid.Nil, uuid.New())
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -696,10 +689,10 @@ func TestService_GetWatcher(t *testing.T) {
 			t.Fatal("Should not make request with empty watcher ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.GetWatcher(context.Background(), uuid.New(), uuid.Nil)
+		watcher, err := client.Get(context.Background(), uuid.New(), uuid.Nil)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -718,10 +711,10 @@ func TestService_GetWatcher(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.GetWatcher(context.Background(), channelID, watcherID)
+		watcher, err := client.Get(context.Background(), channelID, watcherID)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -729,7 +722,7 @@ func TestService_GetWatcher(t *testing.T) {
 	})
 }
 
-func TestService_UpdateWatcher(t *testing.T) {
+func TestClient_Update(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -762,10 +755,10 @@ func TestService_UpdateWatcher(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.UpdateWatcher(context.Background(), channelID, watcherID, UpdateWatcherInput{
+		watcher, err := client.Update(context.Background(), channelID, watcherID, UpdateInput{
 			Name: newName,
 		})
 
@@ -781,10 +774,10 @@ func TestService_UpdateWatcher(t *testing.T) {
 			t.Fatal("Should not make request with empty channel ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.UpdateWatcher(context.Background(), uuid.Nil, uuid.New(), UpdateWatcherInput{
+		watcher, err := client.Update(context.Background(), uuid.Nil, uuid.New(), UpdateInput{
 			Name: "new-name",
 		})
 
@@ -798,10 +791,10 @@ func TestService_UpdateWatcher(t *testing.T) {
 			t.Fatal("Should not make request with empty watcher ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.UpdateWatcher(context.Background(), uuid.New(), uuid.Nil, UpdateWatcherInput{
+		watcher, err := client.Update(context.Background(), uuid.New(), uuid.Nil, UpdateInput{
 			Name: "new-name",
 		})
 
@@ -815,10 +808,10 @@ func TestService_UpdateWatcher(t *testing.T) {
 			t.Fatal("Should not make request with empty name")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.UpdateWatcher(context.Background(), uuid.New(), uuid.New(), UpdateWatcherInput{
+		watcher, err := client.Update(context.Background(), uuid.New(), uuid.New(), UpdateInput{
 			Name: "",
 		})
 
@@ -839,10 +832,10 @@ func TestService_UpdateWatcher(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.UpdateWatcher(context.Background(), channelID, watcherID, UpdateWatcherInput{
+		watcher, err := client.Update(context.Background(), channelID, watcherID, UpdateInput{
 			Name: "new-name",
 		})
 
@@ -852,7 +845,7 @@ func TestService_UpdateWatcher(t *testing.T) {
 	})
 }
 
-func TestService_DeleteWatcher(t *testing.T) {
+func TestClient_Delete(t *testing.T) {
 	t.Run("SuccessSync", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -866,10 +859,10 @@ func TestService_DeleteWatcher(t *testing.T) {
 			w.WriteHeader(http.StatusNoContent)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteWatcher(context.Background(), channelID, watcherID)
+		err := client.Delete(context.Background(), channelID, watcherID)
 
 		require.NoError(t, err)
 	})
@@ -887,10 +880,10 @@ func TestService_DeleteWatcher(t *testing.T) {
 			w.WriteHeader(http.StatusAccepted) // 202 for async deletion
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteWatcher(context.Background(), channelID, watcherID)
+		err := client.Delete(context.Background(), channelID, watcherID)
 
 		require.NoError(t, err)
 	})
@@ -900,10 +893,10 @@ func TestService_DeleteWatcher(t *testing.T) {
 			t.Fatal("Should not make request with empty channel ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteWatcher(context.Background(), uuid.Nil, uuid.New())
+		err := client.Delete(context.Background(), uuid.Nil, uuid.New())
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrChannelIDRequired), "Expected ErrChannelIDRequired, got: %v", err)
@@ -914,10 +907,10 @@ func TestService_DeleteWatcher(t *testing.T) {
 			t.Fatal("Should not make request with empty watcher ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteWatcher(context.Background(), uuid.New(), uuid.Nil)
+		err := client.Delete(context.Background(), uuid.New(), uuid.Nil)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWatcherIDRequired), "Expected ErrWatcherIDRequired, got: %v", err)
@@ -935,10 +928,10 @@ func TestService_DeleteWatcher(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteWatcher(context.Background(), channelID, watcherID)
+		err := client.Delete(context.Background(), channelID, watcherID)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWatcherNotFound), "Expected ErrWatcherNotFound, got: %v", err)
@@ -956,17 +949,17 @@ func TestService_DeleteWatcher(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteWatcher(context.Background(), channelID, watcherID)
+		err := client.Delete(context.Background(), channelID, watcherID)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrDeleteWatcher), "Expected ErrDeleteWatcher, got: %v", err)
 	})
 }
 
-func TestService_WaitForActive(t *testing.T) {
+func TestClient_WaitForActive(t *testing.T) {
 	t.Run("SuccessImmediatelyActive", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -985,10 +978,10 @@ func TestService_WaitForActive(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
@@ -1023,10 +1016,10 @@ func TestService_WaitForActive(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 10*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 10*time.Second)
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
@@ -1052,10 +1045,10 @@ func TestService_WaitForActive(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -1080,10 +1073,10 @@ func TestService_WaitForActive(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 100*time.Millisecond)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 100*time.Millisecond)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -1095,10 +1088,10 @@ func TestService_WaitForActive(t *testing.T) {
 			t.Fatal("Should not make request with empty channel ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), uuid.Nil, uuid.New(), 5*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), uuid.Nil, uuid.New(), 5*time.Second)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -1110,10 +1103,10 @@ func TestService_WaitForActive(t *testing.T) {
 			t.Fatal("Should not make request with empty watcher ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), uuid.New(), uuid.Nil, 5*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), uuid.New(), uuid.Nil, 5*time.Second)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -1138,10 +1131,10 @@ func TestService_WaitForActive(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -1166,10 +1159,10 @@ func TestService_WaitForActive(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -1195,7 +1188,7 @@ func TestService_WaitForActive(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		// Create a context that will be cancelled
@@ -1207,7 +1200,7 @@ func TestService_WaitForActive(t *testing.T) {
 			cancel()
 		}()
 
-		watcher, err := service.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
+		watcher, err := client.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -1244,10 +1237,10 @@ func TestService_WaitForActive(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
@@ -1268,10 +1261,10 @@ func TestService_WaitForActive(t *testing.T) {
 			w.Write([]byte(`{"error": "service temporarily unavailable"}`))
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 200*time.Millisecond)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 200*time.Millisecond)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -1292,10 +1285,10 @@ func TestService_WaitForActive(t *testing.T) {
 			w.Write([]byte(`{"error": "bad request"}`))
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
@@ -1332,10 +1325,10 @@ func TestService_WaitForActive(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := service.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
+		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
@@ -1344,7 +1337,7 @@ func TestService_WaitForActive(t *testing.T) {
 	})
 }
 
-func TestService_WaitForDeleted(t *testing.T) {
+func TestClient_WaitForDeleted(t *testing.T) {
 	t.Run("SuccessImmediatelyDeleted", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -1363,10 +1356,10 @@ func TestService_WaitForDeleted(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.NoError(t, err)
 	})
@@ -1399,10 +1392,10 @@ func TestService_WaitForDeleted(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, callCount, 3)
@@ -1420,10 +1413,10 @@ func TestService_WaitForDeleted(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.NoError(t, err) // 404 means it's been deleted
 	})
@@ -1446,11 +1439,11 @@ func TestService_WaitForDeleted(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		// Use a very short timeout to test timeout behavior
-		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 100*time.Millisecond)
+		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 100*time.Millisecond)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWaitForDeletedTimeout), "Expected ErrWaitForDeletedTimeout, got: %v", err)
@@ -1475,7 +1468,7 @@ func TestService_WaitForDeleted(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		// Create a context that will be cancelled
@@ -1487,7 +1480,7 @@ func TestService_WaitForDeleted(t *testing.T) {
 			cancel()
 		}()
 
-		err := service.WaitForDeleted(ctx, channelID, watcherID, 5*time.Second)
+		err := client.WaitForDeleted(ctx, channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
 		// The error should be either context.Canceled directly or wrapped
@@ -1513,10 +1506,10 @@ func TestService_WaitForDeleted(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWatcherDeletionFailed), "Expected ErrWatcherDeletionFailed, got: %v", err)
@@ -1528,10 +1521,10 @@ func TestService_WaitForDeleted(t *testing.T) {
 			t.Fatal("Should not make request with empty channel ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.WaitForDeleted(context.Background(), uuid.Nil, uuid.New(), 5*time.Second)
+		err := client.WaitForDeleted(context.Background(), uuid.Nil, uuid.New(), 5*time.Second)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrChannelIDRequired), "Expected ErrChannelIDRequired, got: %v", err)
@@ -1542,10 +1535,10 @@ func TestService_WaitForDeleted(t *testing.T) {
 			t.Fatal("Should not make request with empty watcher ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.WaitForDeleted(context.Background(), uuid.New(), uuid.Nil, 5*time.Second)
+		err := client.WaitForDeleted(context.Background(), uuid.New(), uuid.Nil, 5*time.Second)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWatcherIDRequired), "Expected ErrWatcherIDRequired, got: %v", err)
@@ -1572,10 +1565,10 @@ func TestService_WaitForDeleted(t *testing.T) {
 			w.Write([]byte(`{"error": "not found"}`))
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, attemptCount, 3, "Should have retried after transient errors")
@@ -1594,10 +1587,10 @@ func TestService_WaitForDeleted(t *testing.T) {
 			w.Write([]byte(`{"error": "internal server error"}`))
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.WaitForDeleted(context.Background(), channelID, watcherID, 200*time.Millisecond)
+		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 200*time.Millisecond)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWaitForDeletedTimeout), "Expected timeout error, got: %v", err)
@@ -1671,50 +1664,50 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 			}
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		ctx := context.Background()
 
 		// Step 1: Create watcher with domain
-		createInput := CreateWatcherWithDomainInput{
+		createInput := CreateWithDomainInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Domain:        "dvp",
 			Events:        []string{"TestEvent"},
 		}
-		created, err := service.CreateWatcherWithDomain(ctx, channelID, createInput)
+		created, err := client.CreateWithDomain(ctx, channelID, createInput)
 		require.NoError(t, err)
 		assert.Equal(t, watcherID, created.WatcherId)
 		assert.Equal(t, "pending", created.Status)
 
 		// Step 2: Wait for watcher to become active
-		active, err := service.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
+		active, err := client.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, "active", active.Status)
 
 		// Step 3: Find the watcher
-		found, err := service.GetWatcher(ctx, channelID, watcherID)
+		found, err := client.Get(ctx, channelID, watcherID)
 		require.NoError(t, err)
 		assert.Equal(t, watcherID, found.WatcherId)
 		assert.Equal(t, watcherName, *found.Name)
 
 		// Step 4: Update the watcher
-		updateInput := UpdateWatcherInput{
+		updateInput := UpdateInput{
 			Name: updatedName,
 		}
-		updated, err := service.UpdateWatcher(ctx, channelID, watcherID, updateInput)
+		updated, err := client.Update(ctx, channelID, watcherID, updateInput)
 		require.NoError(t, err)
 		assert.Equal(t, updatedName, *updated.Name)
 
 		// Step 5: Verify update
-		found, err = service.GetWatcher(ctx, channelID, watcherID)
+		found, err = client.Get(ctx, channelID, watcherID)
 		require.NoError(t, err)
 		assert.Equal(t, updatedName, *found.Name)
 
 		// Step 6: Delete the watcher
-		err = service.DeleteWatcher(ctx, channelID, watcherID)
+		err = client.Delete(ctx, channelID, watcherID)
 		require.NoError(t, err)
 
 		// Verify we made all expected calls
@@ -1782,13 +1775,13 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 			}
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		ctx := context.Background()
 
 		// Step 1: Create watcher with custom ABI
-		createInput := CreateWatcherWithABIInput{
+		createInput := CreateWithABIInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
 			Address:       "0x5678",
@@ -1806,24 +1799,24 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				},
 			},
 		}
-		created, err := service.CreateWatcherWithABI(ctx, channelID, createInput)
+		created, err := client.CreateWithABI(ctx, channelID, createInput)
 		require.NoError(t, err)
 		assert.Equal(t, watcherID, created.WatcherId)
 
 		// Step 2: Wait for active
-		active, err := service.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
+		active, err := client.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, "active", active.Status)
 
 		// Step 3: List all watchers in the channel
-		filters := WatcherFilters{}
-		list, err := service.ListWatchers(ctx, channelID, filters)
+		filters := ListFilters{}
+		list, err := client.List(ctx, channelID, filters)
 		require.NoError(t, err)
 		assert.Len(t, list.Data, 1)
 		assert.Equal(t, watcherID, list.Data[0].WatcherId)
 
 		// Step 4: Delete the watcher (async)
-		err = service.DeleteWatcher(ctx, channelID, watcherID)
+		err = client.Delete(ctx, channelID, watcherID)
 		require.NoError(t, err)
 
 		assert.Equal(t, 4, callCount, "Should have made 4 API calls")
@@ -1842,19 +1835,19 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 			}
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		ctx := context.Background()
 
 		// Try to create with invalid data
-		createInput := CreateWatcherWithDomainInput{
+		createInput := CreateWithDomainInput{
 			ChainSelector: "0", // Invalid
 			Address:       "0x1234",
 			Domain:        "dvp",
 			Events:        []string{"TestEvent"},
 		}
-		_, err := service.CreateWatcherWithDomain(ctx, channelID, createInput)
+		_, err := client.CreateWithDomain(ctx, channelID, createInput)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrChainSelectorRequired), "Expected ErrChainSelectorRequired, got: %v", err)
 	})
@@ -1891,24 +1884,24 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 			}
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		ctx := context.Background()
 
 		// Create watcher
-		createInput := CreateWatcherWithDomainInput{
+		createInput := CreateWithDomainInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Domain:        "dvp",
 			Events:        []string{"TestEvent"},
 		}
-		created, err := service.CreateWatcherWithDomain(ctx, channelID, createInput)
+		created, err := client.CreateWithDomain(ctx, channelID, createInput)
 		require.NoError(t, err)
 
 		// Wait for active - should fail because watcher deployment failed
-		_, err = service.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
+		_, err = client.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWatcherDeploymentFailed), "Expected ErrWatcherDeploymentFailed, got: %v", err)
 	})
@@ -1951,24 +1944,24 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 			}
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		ctx := context.Background()
 
 		// Create watcher
-		createInput := CreateWatcherWithDomainInput{
+		createInput := CreateWithDomainInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Domain:        "dvp",
 			Events:        []string{"TestEvent"},
 		}
-		created, err := service.CreateWatcherWithDomain(ctx, channelID, createInput)
+		created, err := client.CreateWithDomain(ctx, channelID, createInput)
 		require.NoError(t, err)
 
 		// Wait for active - should fail because watcher was deleted
-		_, err = service.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
+		_, err = client.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWatcherAlreadyDeleted), "Expected ErrWatcherAlreadyDeleted, got: %v", err)
 	})
@@ -1984,16 +1977,16 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 			}
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		ctx := context.Background()
 
 		// Try to update non-existent watcher
-		updateInput := UpdateWatcherInput{
+		updateInput := UpdateInput{
 			Name: "new-name",
 		}
-		_, err := service.UpdateWatcher(ctx, channelID, watcherID, updateInput)
+		_, err := client.Update(ctx, channelID, watcherID, updateInput)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWatcherNotFound), "Expected ErrWatcherNotFound, got: %v", err)
 	})
@@ -2038,17 +2031,17 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 			}
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		ctx := context.Background()
 
 		// Delete watcher (async)
-		err := service.DeleteWatcher(ctx, channelID, watcherID)
+		err := client.Delete(ctx, channelID, watcherID)
 		require.NoError(t, err)
 
 		// Wait for deletion to complete
-		err = service.WaitForDeleted(ctx, channelID, watcherID, 5*time.Second)
+		err = client.WaitForDeleted(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
 	})
 }
@@ -2091,7 +2084,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		ctx := context.Background()
@@ -2105,7 +2098,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 		limit := 10
 		offset := int64(5)
 
-		filters := WatcherFilters{
+		filters := ListFilters{
 			Name:          &name,
 			ChainSelector: &chainSelector,
 			Address:       &address,
@@ -2115,7 +2108,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 			Offset:        &offset,
 		}
 
-		list, err := service.ListWatchers(ctx, channelID, filters)
+		list, err := client.List(ctx, channelID, filters)
 		require.NoError(t, err)
 		assert.Len(t, list.Data, 1)
 	})
@@ -2154,7 +2147,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		ctx := context.Background()
@@ -2163,11 +2156,11 @@ func TestEndToEnd_Filtering(t *testing.T) {
 		// Fetch pages
 		allWatchers := []apiClient.Watcher{}
 		for offset := int64(0); offset < 15; offset += 5 {
-			filters := WatcherFilters{
+			filters := ListFilters{
 				Limit:  &limit,
 				Offset: &offset,
 			}
-			list, err := service.ListWatchers(ctx, channelID, filters)
+			list, err := client.List(ctx, channelID, filters)
 			require.NoError(t, err)
 			allWatchers = append(allWatchers, list.Data...)
 

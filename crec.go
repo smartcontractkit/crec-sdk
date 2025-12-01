@@ -1,0 +1,178 @@
+// Package crec provides a unified SDK for interacting with the CREC system.
+//
+// The SDK follows a resource-oriented design with sub-clients for each domain:
+//
+//	client, err := crec.NewClient("https://api.crec.example.com", "your-api-key")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Create a channel
+//	channel, err := client.Channels.Create(ctx, channels.CreateInput{Name: "my-channel"})
+//
+//	// Sign and send an operation
+//	op, err := client.Transact.ExecuteOperation(ctx, signer, operation, chainSelector)
+//
+//	// Poll for events
+//	events, hasMore, err := client.Events.Poll(ctx, channelID, params)
+package crec
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
+
+	"github.com/smartcontractkit/crec-sdk/channels"
+	"github.com/smartcontractkit/crec-sdk/events"
+	"github.com/smartcontractkit/crec-sdk/transact"
+	"github.com/smartcontractkit/crec-sdk/watchers"
+)
+
+// Client initialization errors
+var (
+	// ErrBaseURLRequired is returned when the base URL is empty.
+	ErrBaseURLRequired = errors.New("base URL is required")
+
+	// ErrAPIKeyRequired is returned when the API key is empty.
+	ErrAPIKeyRequired = errors.New("API key is required")
+
+	// ErrInvalidEventVerificationConfig is returned when event verification is misconfigured.
+	ErrInvalidEventVerificationConfig = errors.New("minRequiredSignatures must be > 0 when validSigners are provided")
+)
+
+// Client is the main entry point for the CREC SDK.
+// It provides access to all sub-clients for interacting with different parts of the CREC system.
+type Client struct {
+	// Channels provides operations for managing CREC channels.
+	Channels *channels.Client
+
+	// Events provides operations for polling and verifying events from CREC.
+	Events *events.Client
+
+	// Transact provides operations for signing and sending operations to CREC.
+	Transact *transact.Client
+
+	// Watchers provides operations for managing CREC watchers.
+	Watchers *watchers.Client
+
+	// apiClient is the underlying CREC API client
+	apiClient *apiClient.ClientWithResponses
+
+	// logger is used for logging throughout the SDK
+	logger *slog.Logger
+}
+
+// NewClient creates a new CREC SDK client with the provided base URL and API key.
+//
+// Parameters:
+//   - baseURL: The base URL of the CREC API (e.g., "https://api.crec.example.com")
+//   - apiKey: The API key for authenticating with the CREC API
+//   - opts: Optional configuration options (see Option for available options)
+//
+// Returns a configured Client or an error if initialization fails.
+func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
+	if baseURL == "" {
+		return nil, ErrBaseURLRequired
+	}
+	if apiKey == "" {
+		return nil, ErrAPIKeyRequired
+	}
+
+	// Apply default configuration
+	cfg := &clientConfig{
+		httpClient: http.DefaultClient,
+	}
+
+	// Apply provided options
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	// Validate event verification configuration
+	if len(cfg.validSigners) > 0 && cfg.minRequiredSignatures <= 0 {
+		return nil, ErrInvalidEventVerificationConfig
+	}
+
+	// Create the API client
+	apiKeyHeaderEditor := func(ctx context.Context, req *http.Request) error {
+		req.Header.Set("Api-Key", apiKey)
+		return nil
+	}
+
+	api, err := apiClient.NewClientWithResponses(
+		baseURL,
+		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
+		apiClient.WithHTTPClient(cfg.httpClient),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	logger := cfg.logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	client := &Client{
+		apiClient: api,
+		logger:    logger,
+	}
+
+	// Initialize sub-clients
+	if err := client.initSubClients(cfg); err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+// initSubClients initializes all sub-clients with the appropriate configuration.
+func (c *Client) initSubClients(cfg *clientConfig) error {
+	var err error
+
+	// Initialize Channels client
+	c.Channels, err = channels.NewClient(&channels.Options{
+		Logger:    c.logger,
+		APIClient: c.apiClient,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create channels client: %w", err)
+	}
+
+	// Initialize Events client
+	c.Events, err = events.NewClient(&events.Options{
+		Logger:                c.logger,
+		CRECClient:            c.apiClient,
+		MinRequiredSignatures: cfg.minRequiredSignatures,
+		ValidSigners:          cfg.validSigners,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create events client: %w", err)
+	}
+
+	// Initialize Transact client
+	c.Transact, err = transact.NewClient(&transact.Options{
+		Logger:     c.logger,
+		CRECClient: c.apiClient,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create transact client: %w", err)
+	}
+
+	// Initialize Watchers client
+	c.Watchers, err = watchers.NewClient(&watchers.Options{
+		Logger:                    c.logger,
+		APIClient:                 c.apiClient,
+		PollInterval:              cfg.watcherPollInterval,
+		EventualConsistencyWindow: cfg.watcherEventualConsistencyWindow,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create watchers client: %w", err)
+	}
+
+	return nil
+}

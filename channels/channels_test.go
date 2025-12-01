@@ -5,98 +5,97 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
-	"github.com/smartcontractkit/crec-sdk/client"
 )
 
-func setupTestService(t *testing.T, handler http.HandlerFunc) (*Service, *httptest.Server) {
+func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Server) {
 	server := httptest.NewServer(handler)
 
-	crecClient, err := client.NewCRECClient(&client.ClientOptions{
-		BaseURL: server.URL,
-		APIKey:  "test-api-key",
+	// Add API key header to all requests
+	apiKeyEditor := func(ctx context.Context, req *http.Request) error {
+		req.Header.Set("Api-Key", "test-api-key")
+		return nil
+	}
+
+	crecAPIClient, err := apiClient.NewClientWithResponses(
+		server.URL,
+		apiClient.WithRequestEditorFn(apiKeyEditor),
+	)
+	require.NoError(t, err)
+
+	logger := slog.New(slog.DiscardHandler)
+	client, err := NewClient(&Options{
+		Logger:    logger,
+		APIClient: crecAPIClient,
 	})
 	require.NoError(t, err)
 
-	logger := zerolog.Nop()
-	service, err := NewService(&ServiceOptions{
-		Logger:     &logger,
-		CRECClient: crecClient,
-	})
-	require.NoError(t, err)
-
-	return service, server
+	return client, server
 }
 
-func TestNewService(t *testing.T) {
+func TestNewClient(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		crecClient, err := client.NewCRECClient(&client.ClientOptions{
-			BaseURL: "http://localhost:8080",
-			APIKey:  "test-api-key",
-		})
+		crecAPIClient, err := apiClient.NewClientWithResponses("http://localhost:8080")
 		require.NoError(t, err)
 
-		logger := zerolog.Nop()
-		service, err := NewService(&ServiceOptions{
-			Logger:     &logger,
-			CRECClient: crecClient,
+		logger := slog.New(slog.DiscardHandler)
+		client, err := NewClient(&Options{
+			Logger:    logger,
+			APIClient: crecAPIClient,
 		})
 
 		require.NoError(t, err)
-		assert.NotNil(t, service)
-		assert.NotNil(t, service.logger)
-		assert.NotNil(t, service.crecClient)
+		assert.NotNil(t, client)
+		assert.NotNil(t, client.logger)
+		assert.NotNil(t, client.apiClient)
 	})
 
 	t.Run("NilOptions", func(t *testing.T) {
-		service, err := NewService(nil)
+		client, err := NewClient(nil)
 
 		require.Error(t, err)
-		assert.Nil(t, service)
-		assert.True(t, errors.Is(err, ErrServiceOptionsRequired), "Expected ErrServiceOptionsRequired, got: %v", err)
+		assert.Nil(t, client)
+		assert.True(t, errors.Is(err, ErrOptionsRequired), "Expected ErrOptionsRequired, got: %v", err)
 	})
 
-	t.Run("NilCRECClient", func(t *testing.T) {
-		logger := zerolog.Nop()
-		service, err := NewService(&ServiceOptions{
-			Logger:     &logger,
-			CRECClient: nil,
+	t.Run("NilAPIClient", func(t *testing.T) {
+		logger := slog.New(slog.DiscardHandler)
+		client, err := NewClient(&Options{
+			Logger:    logger,
+			APIClient: nil,
 		})
 
 		require.Error(t, err)
-		assert.Nil(t, service)
-		assert.True(t, errors.Is(err, ErrCRECClientRequired), "Expected ErrCRECClientRequired, got: %v", err)
+		assert.Nil(t, client)
+		assert.True(t, errors.Is(err, ErrAPIClientRequired), "Expected ErrAPIClientRequired, got: %v", err)
 	})
 
 	t.Run("DefaultLogger", func(t *testing.T) {
-		crecClient, err := client.NewCRECClient(&client.ClientOptions{
-			BaseURL: "http://localhost:8080",
-			APIKey:  "test-api-key",
-		})
+		crecAPIClient, err := apiClient.NewClientWithResponses("http://localhost:8080")
 		require.NoError(t, err)
 
-		service, err := NewService(&ServiceOptions{
-			Logger:     nil,
-			CRECClient: crecClient,
+		client, err := NewClient(&Options{
+			Logger:    nil,
+			APIClient: crecAPIClient,
 		})
 
 		require.NoError(t, err)
-		assert.NotNil(t, service)
-		assert.NotNil(t, service.logger)
+		assert.NotNil(t, client)
+		assert.NotNil(t, client.logger)
 	})
 }
 
-func TestService_CreateChannel(t *testing.T) {
+func TestClient_Create(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		channelName := "test-channel"
@@ -127,10 +126,10 @@ func TestService_CreateChannel(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		channel, err := service.CreateChannel(context.Background(), CreateChannelInput{
+		channel, err := client.Create(context.Background(), CreateInput{
 			Name: channelName,
 		})
 
@@ -146,10 +145,10 @@ func TestService_CreateChannel(t *testing.T) {
 			t.Fatal("Should not make request with empty name")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		channel, err := service.CreateChannel(context.Background(), CreateChannelInput{
+		channel, err := client.Create(context.Background(), CreateInput{
 			Name: "",
 		})
 
@@ -163,7 +162,7 @@ func TestService_CreateChannel(t *testing.T) {
 			t.Fatal("Should not make request with name too long")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		longName := make([]byte, MaxChannelNameLength+1)
@@ -171,7 +170,7 @@ func TestService_CreateChannel(t *testing.T) {
 			longName[i] = 'a'
 		}
 
-		channel, err := service.CreateChannel(context.Background(), CreateChannelInput{
+		channel, err := client.Create(context.Background(), CreateInput{
 			Name: string(longName),
 		})
 
@@ -189,10 +188,10 @@ func TestService_CreateChannel(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		channel, err := service.CreateChannel(context.Background(), CreateChannelInput{
+		channel, err := client.Create(context.Background(), CreateInput{
 			Name: "test-channel",
 		})
 
@@ -211,10 +210,10 @@ func TestService_CreateChannel(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		channel, err := service.CreateChannel(context.Background(), CreateChannelInput{
+		channel, err := client.Create(context.Background(), CreateInput{
 			Name: "existing-channel",
 		})
 
@@ -225,7 +224,7 @@ func TestService_CreateChannel(t *testing.T) {
 	})
 }
 
-func TestService_GetChannel(t *testing.T) {
+func TestClient_Get(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		channelName := "test-channel"
@@ -246,10 +245,10 @@ func TestService_GetChannel(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		channel, err := service.GetChannel(context.Background(), channelID)
+		channel, err := client.Get(context.Background(), channelID)
 
 		require.NoError(t, err)
 		assert.NotNil(t, channel)
@@ -269,10 +268,10 @@ func TestService_GetChannel(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		channel, err := service.GetChannel(context.Background(), channelID)
+		channel, err := client.Get(context.Background(), channelID)
 
 		require.Error(t, err)
 		assert.Nil(t, channel)
@@ -290,10 +289,10 @@ func TestService_GetChannel(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		channel, err := service.GetChannel(context.Background(), channelID)
+		channel, err := client.Get(context.Background(), channelID)
 
 		require.Error(t, err)
 		assert.Nil(t, channel)
@@ -302,7 +301,7 @@ func TestService_GetChannel(t *testing.T) {
 	})
 }
 
-func TestService_ListChannels(t *testing.T) {
+func TestClient_List(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channel1ID := uuid.New()
 		channel2ID := uuid.New()
@@ -338,12 +337,12 @@ func TestService_ListChannels(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		limit := 20
 		offset := int64(0)
-		channels, hasMore, err := service.ListChannels(context.Background(), ListChannelsInput{
+		channels, hasMore, err := client.List(context.Background(), ListInput{
 			Limit:  &limit,
 			Offset: &offset,
 		})
@@ -385,10 +384,10 @@ func TestService_ListChannels(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		channels, hasMore, err := service.ListChannels(context.Background(), ListChannelsInput{
+		channels, hasMore, err := client.List(context.Background(), ListInput{
 			Name: &filterName,
 		})
 
@@ -413,12 +412,12 @@ func TestService_ListChannels(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		limit := 10
 		offset := int64(5)
-		channels, hasMore, err := service.ListChannels(context.Background(), ListChannelsInput{
+		channels, hasMore, err := client.List(context.Background(), ListInput{
 			Limit:  &limit,
 			Offset: &offset,
 		})
@@ -437,10 +436,10 @@ func TestService_ListChannels(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		channels, hasMore, err := service.ListChannels(context.Background(), ListChannelsInput{})
+		channels, hasMore, err := client.List(context.Background(), ListInput{})
 
 		require.Error(t, err)
 		assert.Nil(t, channels)
@@ -450,7 +449,7 @@ func TestService_ListChannels(t *testing.T) {
 	})
 }
 
-func TestService_DeleteChannel(t *testing.T) {
+func TestClient_Delete(t *testing.T) {
 	t.Run("SuccessAsync", func(t *testing.T) {
 		channelID := uuid.New()
 
@@ -462,10 +461,10 @@ func TestService_DeleteChannel(t *testing.T) {
 			w.WriteHeader(http.StatusAccepted) // 202 for async deletion
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteChannel(context.Background(), channelID)
+		err := client.Delete(context.Background(), channelID)
 
 		require.NoError(t, err)
 	})
@@ -481,10 +480,10 @@ func TestService_DeleteChannel(t *testing.T) {
 			w.WriteHeader(http.StatusNoContent) // 204 for sync deletion
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteChannel(context.Background(), channelID)
+		err := client.Delete(context.Background(), channelID)
 
 		require.NoError(t, err)
 	})
@@ -500,10 +499,10 @@ func TestService_DeleteChannel(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteChannel(context.Background(), channelID)
+		err := client.Delete(context.Background(), channelID)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
@@ -520,10 +519,10 @@ func TestService_DeleteChannel(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := service.DeleteChannel(context.Background(), channelID)
+		err := client.Delete(context.Background(), channelID)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrDeleteChannel), "Expected ErrDeleteChannel, got: %v", err)

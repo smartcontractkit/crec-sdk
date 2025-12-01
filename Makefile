@@ -12,3 +12,23 @@ generate:
 .PHONY: test
 test:
 	go test ./...
+
+.PHONY: coverage
+coverage:
+	go test ./... -cover
+
+.PHONY: coverage-report
+coverage-report:
+	go test ./... -coverprofile=coverage.out -covermode=atomic
+	go tool cover -func=coverage.out
+
+.PHONY: vendor
+vendor:
+	go mod tidy
+	go mod download
+	go mod vendor
+
+.PHONY: docs
+docs:
+	@echo "Docs server running at http://localhost:8080/github.com/smartcontractkit/crec-sdk"
+	pkgsite -http :8080

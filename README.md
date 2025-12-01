@@ -22,411 +22,155 @@ Building reliable blockchain applications requires handling:
 - Supporting various signature algorithms beyond traditional ECDSA
 - Abstracting away account management while maintaining security
 
-## How CRE Connect SDK solves it: An overview
+## How CRE Connect SDK solves it
 
 CRE Connect SDK is a client library for the Chainlink Runtime Environment (CRE), designed to facilitate the development of applications that interact with onchain data and services.
 
-The CRE Connect SDK integrates with the following capabilities of CRE Connect:
-
-- **Receiving verifiable events** from the blockchain with high assurance of the event's authenticity. Events can come from well-known services where they are decoded and decorated with extensive metadata, or they can be received from any smart contract, with decoding handled by the application.
-- **Sending operations** to the blockchain using an account abstraction model. This allows an operation to contain a batch of transactions, have gas sponsorship, and use a wider variety of signature algorithms.
-
-The library also includes a number of [helper services](#services-helpers-for-common-protocols) to simplify interaction with specific Chainlink onchain systems.
+- **Receiving verifiable events** from the blockchain with high assurance of authenticity
+- **Sending operations** to the blockchain using account abstraction with gas sponsorship
 
 ## Key Features
 
 - **🔐 Cryptographically Secure**: Multi-signature verification ensures event authenticity
-- **⛽ Account Abstraction**: Batch transactions, gas sponsorship, and support for multiple signatures
-- **🛠️ Developer-Friendly**: Rich, helper services for common blockchain operations
-- **🧱 Modular Design**: Use individual components, combine, or extend them for complex use cases
+- **⛽ Account Abstraction**: Batch transactions, gas sponsorship, and multiple signature support
+- **🛠️ Developer-Friendly**: Rich helper services for common blockchain operations
+- **🧱 Modular Design**: Use individual components or combine them for complex use cases
 
-## What's in this README
-
-**Quick start:**
-
-- [Installation & basic examples](#example-usage) - Get up and running in minutes
-- [Complete example application](#complete-example-application) - See CRE Connect SDK in action with a demo payment processor
-
-**Deep dive:**
-
-- [Core concepts](#core-concepts) - Understand the fundamentals
-- [Core workflows](#core-workflows) - Architecture and data flow
-- [Full API reference](#full-api-reference--documentation) - Complete documentation
-
-## Core concepts
-
-Before diving into the workflows, let's understand the key concepts:
-
-### CRE Connect (CREC)
-
-#####TODO: Correct this docs.
-The CREConnect is a decentralized network that provides cryptographic proof of event authenticity through consensus among Decentralized Oracle Network (DON) members.
-
-### Verifiable Events
-
-Events from the blockchain that include cryptographic signatures from multiple DON members, allowing applications to verify their authenticity without trusting a single source. See the [`events` package](./events) for implementation details.
-
-### Account Abstraction
-
-A transaction model where operations can contain multiple transactions executed atomically by a smart account, with gas fees sponsored by the network and support for various signature algorithms. See the [`transact` package](./transact) for implementation details.
-
-### DON (Decentralized Oracle Network)
-
-A network of independent nodes that reach consensus on event authenticity and collectively sign verifiable events.
-
-## Core workflows
-
-CRE Connect SDK is built around two primary workflows that map directly to the core capabilities of the CRE Connect: **listening for verifiable events** and **sending signed operations**.
-
-### Workflow 1: Listening for verifiable events
-
-This workflow allows your application to securely react to onchain events. Instead of trusting a single source, CRE Connect SDK leverages Chainlink's decentralized network to achieve consensus that an event truly happened.
-
-**Here's how the verification process works:**
-
-```mermaid
-graph LR
-    subgraph Onchain
-        A[Smart Contract Event]
-    end
-
-    subgraph CRE Connect
-        B(DON Consensus)
-        C(Event Signing)
-        D{CREC API}
-    end
-
-    subgraph Your Application
-        E[CRE Connect SDK: Events Client]
-        F[Verify Signatures]
-        G[Your Custom Logic]
-    end
-
-    A --> B --> C --> D --> E --> F --> G
-```
-
-1. **Event Occurs:** A relevant event is emitted by a smart contract on the blockchain.
-2. **Consensus & Signing:** A Decentralized Oracle Network (DON) observes the event, comes to a consensus, and collectively signs it.
-3. **Fetch & Verify:** The `events` client fetches this signed event from the CREC API. It then cryptographically verifies that the signatures are authentic and from the trusted DON members.
-4. **Trigger Your Logic:** Once verified, you can confidently use the event data to trigger your application's logic. For example, upon receiving a verified `PaymentReceived` event, an e-commerce platform could check its internal database and then use the `transact` client to trigger the on-chain delivery of the purchased digital asset.
-
-### Workflow 2: Sending signed operations (gas-less)
-
-This workflow allows your application to execute onchain actions without requiring the signer to hold tokens for gas fees. It uses an account abstraction model where an authorized signer signs an _intent_ (the operation), and the network takes care of the execution and gas costs.
-
-**Here's how gasless transaction execution works:**
-
-```mermaid
-graph LR
-    subgraph Your Application
-        A[Build Operation]
-        B[Sign with Private Key]
-        C[CRE Connect SDK: Transact Client]
-    end
-
-    subgraph CRE Connect
-        D{CREC API}
-        E[Pays Gas & Relays]
-    end
-
-    subgraph Onchain
-        F[Smart Account]
-        G[Executes Operation]
-    end
-
-    A --> B --> C --> D --> E --> F --> G
-```
-
-1. **Build & Sign:** Your application constructs an `Operation`, which is a list of one or more transactions to be executed atomically. You then use the `transact` client to sign this operation with an authorized private key.
-2. **Send to CREC:** The library sends the signed operation to the CREC API.
-3. **Relay & Execute:** The Chainlink network takes the operation, pays the necessary gas fees, and relays it to a designated onchain smart account for execution.
-4. **Operation Executed:** The smart account verifies the signature on the operation and executes the bundled transactions.
-
-## Example usage
-
-Before diving into the examples, here's what you need to get started.
-
-**Note**: For a complete working example, see the [example payment processor application](https://github.com/smartcontractkit/crec-example-payment-processor).
+## Quick Start
 
 ### Prerequisites
 
-- **Go 1.24 or higher** - Check your version with `go version`. If you need to upgrade, see [the Go installation guide](https://go.dev/doc/install).
-- **Basic Go programming knowledge** - Familiarity with Go syntax, structs, interfaces, and error handling
-- **Basic blockchain knowledge** - Understanding of transactions, events, and smart contracts
+- **Go 1.24 or higher** - Check with `go version`
+- **Basic Go and blockchain knowledge**
 
 ### Installation
-
-Install CRE Connect SDK by running the following `go get` command in your terminal:
 
 ```bash
 go get github.com/smartcontractkit/crec-sdk
 ```
 
-### Usage guides
-
-These guides walk through the most common use cases for CRE Connect SDK.
-
-### 🔍 Receiving and verifying events
-
-This guide shows you how to use the `events` client to fetch, verify, and decode verifiable events from the CREC.
-
-#### Step 1: Initialize the `events` client
-
-First, you need an `events.Client`. This requires an existing `client.CRECClient` to be supplied with a set of `ClientOptions`. The options are critical for defining your security parameters.
+### Initialize the Client
 
 ```go
-import (
-    "context"
-    "fmt"
+import "github.com/smartcontractkit/crec-sdk"
 
-    "github.com/smartcontractkit/crec-sdk/client"
-    "github.com/smartcontractkit/crec-sdk/events"
-)
-
-// create a CREC client pointed to the CRE Connect URL and with your API key
-crecClient, _ := client.NewCRECClient(crecURL, crecApiKey)
-
-// Create CREC events client with trusted signers
-crecEventsClient, _ := events.NewClient(
-    &events.ClientOptions{
-		CRECClient: crecClient,
-        MinRequiredSignatures: 3,
-
-        // A list of the public addresses of the trusted DON members
-        // who are authorized to sign events.
-        ValidSigners: []string{
-            "0x5db070ceabcf97e45d96b4f951a1df050ddb5559",
-            "0xadebb9657c04692275973230b06adfabacc899bc",
-            "0xc868bbb5d93e97b9d780fc93811a00ca7c016751",
-            "0x1804f720c6c42b8075d03f3ddda8bd3cf49960de",
-            "0xf191da826a7757ea2e3a8a5e147ddb378d6d0efe",
-        },
-    },
+client, err := crec.NewClient(
+    "https://api.crec.chainlink.com",
+    "your-api-key",
+    crec.WithEventVerification(3, []string{
+        "0x5db070ceabcf97e45d96b4f951a1df050ddb5559",
+        "0xadebb9657c04692275973230b06adfabacc899bc",
+        "0xc868bbb5d93e97b9d780fc93811a00ca7c016751",
+    }),
 )
 ```
 
-#### Step 2: Get events from the CREC
-
-Use the `GetEvents` method to fetch a list of recent events. The client automatically tracks the last event you read, so you won't get duplicates on subsequent calls.
+The unified client provides access to all sub-clients:
 
 ```go
-// Get a list of events from the CREC
-eventList, _ := crecEventsClient.GetEvents(context.Background())
+client.Channels   // Channel CRUD operations
+client.Events     // Event polling and verification
+client.Transact   // Operation signing and sending
+client.Watchers   // Watcher CRUD operations
 ```
 
-#### Step 3: Loop, verify, and decode
+## Core Workflows
 
-For each event in the list, you must perform two crucial actions:
+### 🔍 Receiving and Verifying Events
 
-1.  **Verify():** This is the most important step. It checks the event's signatures against your list of `ValidSigners`. If the number of valid signatures meets your `MinRequiredSignatures`, the event is considered authentic. **Never skip this step.**
-2.  **Decode():** Once verified, this method unpacks the event's data into a Go struct you define, making it easy to work with.
+```mermaid
+graph LR
+    A[Smart Contract Event] --> B(DON Consensus) --> C(Event Signing) --> D{CREC API} --> E[SDK: Events Client] --> F[Verify Signatures] --> G[Your Logic]
+```
+
+**Poll and verify events:**
 
 ```go
-for _, event := range eventList {
-    // Verify the event's authenticity and integrity
-    verified, _ := crecEventsClient.Verify(event)
+// Poll events from a channel
+events, hasMore, _ := client.Events.Poll(ctx, channelID, nil)
+
+for _, event := range events {
+    // CRITICAL: Always verify before processing
+    verified, _ := client.Events.Verify(&event)
     if verified {
-        // Decode the event into a structured format
-        var decodedEvent map[string]interface{}
-        crecEventsClient.Decode(event, &decodedEvent)
-
-        handle(decodedEvent) // Handle the decoded event
-    } else {
-        fmt.Println("Event verification failed")
+        var decoded map[string]interface{}
+        client.Events.Decode(&event, &decoded)
+        processEvent(decoded)
     }
 }
 ```
 
-### ⚡ Sending a signed operation
+### ⚡ Sending Signed Operations (Gas-less)
 
-This guide shows you how to use the `transact` client to build an operation, sign it with a local private key, and send it to the CREC for gas-sponsored execution.
+```mermaid
+graph LR
+    A[Build Operation] --> B[Sign] --> C[SDK: Transact Client] --> D{CREC API} --> E[Pays Gas & Relays] --> F[Smart Account Executes]
+```
 
-#### Step 1: Initialize the `transact` client
-
-First, create a `transact.Client`. It needs a `client.CRECClient` and the `ChainId` to be supplied with a set of `ClientOptions` for the network where the operation will be executed.
+**Build and execute an operation:**
 
 ```go
 import (
-    "context"
-    "math/big"
-    "time"
-
-    "github.com/smartcontractkit/crec-sdk/client"
-    "github.com/smartcontractkit/crec-sdk/transact"
-    "github.com/smartcontractkit/crec-sdk/transact/signer"
     "github.com/smartcontractkit/crec-sdk/transact/signer/local"
-    transactTypes "github.com/smartcontractkit/crec-sdk/transact/types"
+    "github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// create a CREC client pointed to the CRE Connect URL and with your API key
-crecClient, _ := client.NewCRECClient(crecURL, crecApiKey)
-
-// Create CREC transact client
-crecTransactClient, _ = transact.NewClient(
-    &transact.ClientOptions{
-		CRECClient: crecClient,
-        ChainId: "1337", // The ID of the target blockchain
-    },
-)
-```
-
-#### Step 2: Build the `operation`
-
-An `Operation` is a wrapper around one or more transactions that you want to execute atomically.
-
-- **ID:** A unique identifier to prevent replay attacks. A simple timestamp is often sufficient.
-- **Account:** The onchain smart account address that will execute this operation.
-- **Transactions:** A slice of one or more transactions. Each includes the target contract (`To`), the `Value` of native currency to send, and the encoded `Data` for the function call.
-
-```go
-// Create a transaction to call a smart contract function
-operation := &transactTypes.Operation{
-    ID: big.NewInt(time.Now().Unix()), // unique ID for the operation to prevent replay attacks
-    Account: accountAddress, // address of the smart account that will perform the operation
-    Transactions: []transactTypes.Transaction { // list of transactions to be executed atomically by the smart account
-        {
-            To:    target, // address of the contract to call
-            Value: big.NewInt(0),
-            Data:  calldata, // encoded calldata for the contract call
-        },
+// Build the operation
+operation := &types.Operation{
+    ID:      big.NewInt(time.Now().Unix()),
+    Account: accountAddress,
+    Transactions: []types.Transaction{
+        {To: target, Value: big.NewInt(0), Data: calldata},
     },
 }
+
+// Create signer and execute
+signer := local.NewSigner(privateKey)
+result, _ := client.Transact.ExecuteOperation(ctx, channelID, signer, operation, chainSelector)
 ```
 
-#### Step 3: Create a signer and sign the `operation`
+## Documentation
 
-The library uses a `Signer` interface to sign operations. The `local.NewSigner` implementation (from the `transact/signer/local` package) handles signing with a standard ECDSA private key. The `SignOperation` method computes the EIP-712 hash of the operation and signs it.
+### API Reference
 
-```go
-// Create a local signer with the private key of an address authorized to sign the operation in the smart account
-operationSigner = local.NewSigner(privateKey)
+For complete API documentation, use Go's built-in documentation tools:
 
-// Sign the operation using the local signer
-opHash, signature, _ := crecTransactClient.SignOperation(context.Background(), operation, operationSigner)
+```bash
+go doc github.com/smartcontractkit/crec-sdk
+go doc github.com/smartcontractkit/crec-sdk/events
+go doc github.com/smartcontractkit/crec-sdk/transact
+go doc github.com/smartcontractkit/crec-sdk/channels
+go doc github.com/smartcontractkit/crec-sdk/watchers
 ```
 
-#### Step 4: Send the signed `operation`
+Or run a local documentation server:
 
-Finally, send the `operation` and its `signature` to the CREC. The network will validate the request, pay the gas fee, and relay it to the blockchain for execution.
-
-```go
-// Send the signed operation to the CRE Connect for relaying onchain
-crecTransactClient.SendSignedOperation(context.Background(), operation, signature)
+```bash
+go install golang.org/x/pkgsite/cmd/pkgsite@latest
+pkgsite -http :8080
+# Navigate to http://localhost:8080/github.com/smartcontractkit/crec-sdk
 ```
 
-#### 🔑 Signing
+### Complete Example
 
-The signing of operations is performed by various implementations of the `Signer` interface. Currently, the library supports signing using a local ECDSA private key, but additional signing methods will be added in the future.
-
-The `local.NewSigner` implementation handles signing with a standard ECDSA private key, and the `SignOperation` method computes the EIP-712 hash of the operation and signs it with cryptographic precision.
-
-## Library reference
-
-### Packages
-
-The following packages are available in CRE Connect SDK:
-
-- [`client`](./client): The main client package for interacting with CRE Connect.
-- [`events`](./events): Provides functionality for receiving and decoding verifiable events from CRE Connect.
-- [`transact`](./transact): Provides functionality for sending onchain operations using the account abstraction model.
-- [`services`](./services): Helper services that simplify interaction with specific Chainlink systems. The following services are available:
-  - [`services/channels`](./services/channels): Provides the Channels service for organizing watchers, events, and operations.
-  - [`services/operations`](./services/operations): Provides the Operations service for managing transaction execution requests.
-
-### Services: Helpers for common protocols
-
-CRE Connect SDK includes helper services to simplify interaction with specific Chainlink systems. These packages wrap the generic `events` and `transact` clients to
-provide a more straightforward API for common use cases.
-
-#### Channels service
-
-The Channels service provides a way to organize and manage your CREC resources. Channels act as logical containers for watchers, events, and operations, allowing you to:
-
-- Create and manage channels for different environments (dev, staging, production)
-- Organize resources by business context (e.g., separate channels for DvP vs DTA workflows)
-- List and filter channels with pagination support
-- Perform logical deletion of channels for audit trails
-
-For more details, see the [Channels Service README](./services/channels/README.md).
-
-#### Operations service
-
-The Operations service manages transaction execution requests in the CREC platform. Operations represent atomic transaction bundles that are executed on-chain using account abstraction. The service provides:
-
-- Create operations with multiple transactions to execute atomically
-- Monitor operation status from pending to confirmed
-- List and filter operations by status, chain, and address
-- Track operation lifecycle with pagination support
-
-For more details, see the [Operations Service README](./services/operations/README.md).
-
-### Full API reference & documentation
-
-To view the complete code documentation for every function and type, you can run a local documentation server.
-
-1. **Install `pkgsite`:**
-   ```bash
-   go install golang.org/x/pkgsite/cmd/pkgsite@latest
-   ```
-2. **Run the server:** You can either add the Go bin directory to your shell's PATH or run `pkgsite` using its full path.
-
-   **Option A (Recommended): Add Go bin to your PATH**
-
-   ```bash
-   export PATH=$PATH:$(go env GOPATH)/bin
-   pkgsite -http :8080
-   ```
-
-   **Option B: Run with the full path**
-
-   ```bash
-   $(go env GOPATH)/bin/pkgsite -http :8080
-   ```
-
-3. **Navigate** to `http://localhost:8080` in your browser.
-
-   You can then explore the documentation for each package:
-
-   - [client](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/client/) - Main CREC client
-   - [events](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/events/) - Event processing
-   - [transact](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/transact/) - Transaction operations
-   - [services/channels](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/channels/) - Channels service
-   - [services/operations](http://localhost:8080/pkg/github.com/smartcontractkit/crec-sdk/services/operations/) - Operations service
-
-### Complete example application
-
-An example application using CRE Connect SDK can be found in the [crec-example-payment-processor](https://github.com/smartcontractkit/crec-example-payment-processor) repository.
+See the [crec-example-payment-processor](https://github.com/smartcontractkit/crec-example-payment-processor) repository for a full working application.
 
 ## Extensions
-- [crec-sdk-ext-ccip](https://github.com/smartcontractkit/crec-sdk-ext-ccip)
-- [crec-sdk-ext-dvp](https://github.com/smartcontractkit/crec-sdk-ext-dvp)
-- [crec-sdk-ext-dta](https://github.com/smartcontractkit/crec-sdk-ext-dta)
+
+Protocol-specific helpers for common Chainlink systems:
+
+- [crec-sdk-ext-ccip](https://github.com/smartcontractkit/crec-sdk-ext-ccip) - Cross-Chain Interoperability Protocol
+- [crec-sdk-ext-dvp](https://github.com/smartcontractkit/crec-sdk-ext-dvp) - Delivery versus Payment
+- [crec-sdk-ext-dta](https://github.com/smartcontractkit/crec-sdk-ext-dta) - Digital Token Assets
 
 ## Glossary
 
-### Core terms
-
-**CREC (CRE Connect)**: A decentralized network that provides cryptographic proof of blockchain event authenticity through consensus among DON members.
-
-**DON (Decentralized Oracle Network)**: A network of independent nodes that observe blockchain events, reach consensus, and collectively sign verifiable events.
-
-**OCR (Off-Chain Reporting)**: The protocol used by DON members to aggregate data and generate consensus reports with cryptographic signatures.
-
-**Verifiable Event**: A blockchain event that includes cryptographic signatures from multiple DON members, allowing applications to verify authenticity without trusting a single source.
-
-**Account Abstraction**: A transaction model where operations can contain multiple transactions executed atomically by a smart account, with gas fees sponsored by the network.
-
-### Technical terms
-
-**EIP-712**: Ethereum standard for typed structured data hashing and signing, used for operation signatures in CRE Connect SDK.
-
-**Operation**: A wrapper containing one or more transactions to be executed atomically by a smart account.
-
-**Smart Account**: An onchain account that can execute operations after verifying signatures and permissions.
-
-**Hold Manager**: A smart contract system for creating token holds/escrows, particularly for ERC3643 tokens. See the [Hold Manager Go bindings](./interfaces/holdmanager) for available methods.
-
-**Settlement**: In the DvP service, an atomic exchange of assets between parties with cryptographic guarantees.
-
-**CCIP**: Cross-Chain Interoperability Protocol for transferring tokens and messages between different blockchains.
-
+| Term                    | Description                                                                             |
+|-------------------------|-----------------------------------------------------------------------------------------|
+| **CREC**                | CRE Connect - decentralized network providing cryptographic proof of event authenticity |
+| **DON**                 | Decentralized Oracle Network - independent nodes that reach consensus and sign events   |
+| **Verifiable Event**    | Blockchain event with cryptographic signatures from DON members                         |
+| **Account Abstraction** | Transaction model with atomic execution, gas sponsorship, and flexible signing          |
+| **Operation**           | Bundle of transactions executed atomically by a smart account                           |
+| **EIP-712**             | Ethereum standard for typed data signing, used for operation signatures                 |
+| **CCIP**                | Cross-Chain Interoperability Protocol for cross-chain transfers                         |
