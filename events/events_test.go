@@ -355,7 +355,7 @@ func TestClient_Verify(t *testing.T) {
 		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
 
 		// Verify should fail because no signers are configured
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
@@ -377,7 +377,7 @@ func TestClient_Verify(t *testing.T) {
 		eventPayload := createTestEventPayload(t)
 		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
@@ -548,9 +548,9 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{
-			Logger:                &logger,
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 1,
 			ValidSigners:          addresses,
