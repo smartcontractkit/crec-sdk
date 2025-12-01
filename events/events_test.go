@@ -22,7 +22,10 @@ import (
 	"github.com/smartcontractkit/crec-sdk/client"
 )
 
-const testAPIKey = "test-api-key"
+const (
+	testAPIKey     = "test-api-key"
+	testWorkflowID = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+)
 
 func TestNewClient(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
@@ -102,7 +105,7 @@ func TestClient_ListEvents(t *testing.T) {
 		assert.Len(t, eventsList, 3)
 		assert.False(t, hasMore)
 
-		isEventVerified, err := c.Verify(&eventsList[0])
+		isEventVerified, err := c.Verify(&eventsList[0], testWorkflowID)
 		require.NoError(t, err)
 		require.True(t, isEventVerified)
 	})
@@ -350,7 +353,7 @@ func TestClient_Verify(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -370,7 +373,7 @@ func TestClient_Verify(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
@@ -391,7 +394,7 @@ func TestClient_Verify(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
@@ -411,7 +414,7 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrVerifyEvent))
@@ -449,19 +452,81 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrOCRReportTooShort))
+	})
+
+	t.Run("ErrInvalidWorkflowCID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+
+		ocrReport := make([]byte, 141)
+		ocrReport[0] = 0x01
+
+		wrongWorkflowCid := common.HexToHash("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+		copy(ocrReport[45:77], wrongWorkflowCid.Bytes())
+
+		dataBytes, _ := json.Marshal(eventPayload.Event.Data)
+		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
+		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
+		copy(ocrReport[109:], eventHash.Bytes())
+
+		ocrContext := []byte("test-context")
+		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+		sig, _ := crypto.Sign(reportHash.Bytes(), privKeys[0])
+		sig[64] += 27
+
+		ocrProof := apiClient.OCRProof{
+			Alg:        "ecdsa-secp256k1",
+			OcrContext: "0x" + common.Bytes2Hex(ocrContext),
+			OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+			Signatures: []string{"0x" + common.Bytes2Hex(sig)},
+		}
+
+		proofUnion := apiClient.EventHeaders_Proofs_Item{}
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
+
+		payloadUnion := apiClient.Event_Payload{}
+		err = payloadUnion.FromWatcherEventPayload(eventPayload)
+		require.NoError(t, err)
+
+		event := &apiClient.Event{
+			Headers: apiClient.EventHeaders{
+				Offset: int64(12345),
+				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+			},
+			Payload: payloadUnion,
+		}
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := zerolog.Nop()
+		c, err := NewClient(&ClientOptions{
+			Logger:                &logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 1,
+			ValidSigners:          addresses,
+		})
+
+		ok, err := c.Verify(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrInvalidEventHash))
 	})
 
 	t.Run("ErrInvalidEventHash", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
 
-		// Create OCR report with WRONG event hash
 		ocrReport := make([]byte, 141)
 		ocrReport[0] = 0x01
+
+		workflowCid := common.HexToHash(testWorkflowID)
+		copy(ocrReport[45:77], workflowCid.Bytes())
+
 		wrongHash := crypto.Keccak256Hash([]byte("wrong-data"))
 		copy(ocrReport[109:], wrongHash.Bytes()) // Wrong hash!
 
@@ -503,7 +568,7 @@ func TestClient_Verify(t *testing.T) {
 			ValidSigners:          addresses,
 		})
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrInvalidEventHash))
@@ -516,6 +581,11 @@ func TestClient_Verify(t *testing.T) {
 
 		// Create two identical OCR proofs
 		ocrReport := make([]byte, 141)
+
+		// Place workflow_cid at offset 45 (32 bytes)
+		workflowCid := common.HexToHash(testWorkflowID)
+		copy(ocrReport[45:77], workflowCid.Bytes())
+
 		ocrContext := []byte("test")
 		dataBytes, _ := json.Marshal(eventPayload.Event.Data)
 		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
@@ -553,7 +623,7 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrVerifyEvent))
@@ -588,7 +658,7 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrParseOCRReport))
@@ -623,7 +693,7 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrParseOCRContext))
@@ -635,6 +705,10 @@ func TestClient_Verify(t *testing.T) {
 
 		// Create valid OCR report
 		ocrReport := make([]byte, 141)
+
+		workflowCid := common.HexToHash(testWorkflowID)
+		copy(ocrReport[45:77], workflowCid.Bytes())
+
 		dataBytes, _ := json.Marshal(eventPayload.Event.Data)
 		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
 		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
@@ -675,7 +749,7 @@ func TestClient_Verify(t *testing.T) {
 			ValidSigners:          addresses,
 		})
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrParseSignature))
@@ -687,6 +761,10 @@ func TestClient_Verify(t *testing.T) {
 
 		// Create valid OCR report
 		ocrReport := make([]byte, 141)
+
+		workflowCid := common.HexToHash(testWorkflowID)
+		copy(ocrReport[45:77], workflowCid.Bytes())
+
 		dataBytes, _ := json.Marshal(eventPayload.Event.Data)
 		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
 		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
@@ -730,7 +808,7 @@ func TestClient_Verify(t *testing.T) {
 			ValidSigners:          addresses,
 		})
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrRecoverPubKeyFromSignature))
@@ -772,7 +850,7 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event)
+		ok, err := c.Verify(event, testWorkflowID)
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrOnlyWatcherEventsSupported))
@@ -928,6 +1006,9 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 	// Create a valid OCR report with the proper structure (141 bytes minimum)
 	ocrReport := make([]byte, 141)
 	ocrReport[0] = 0x01 // version
+
+	workflowCid := common.HexToHash(testWorkflowID)
+	copy(ocrReport[45:77], workflowCid.Bytes())
 
 	// Compute event hash using base64 encoding (same as EventHash method)
 	dataBytes, err := json.Marshal(eventPayload.Event.Data)
