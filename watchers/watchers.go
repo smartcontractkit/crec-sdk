@@ -4,36 +4,38 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
-	"github.com/smartcontractkit/crec-sdk/client"
 )
+
+// statusCodePattern is a compiled regex for extracting HTTP status codes from error messages.
+// Compiled at package level to avoid recompilation on every call to isTransientError.
+var statusCodePattern = regexp.MustCompile(`status code:?\s*(\d{3})`)
 
 var (
 	// ErrWatcherNotFound is returned when a watcher is not found (404 response)
 	ErrWatcherNotFound = errors.New("watcher not found")
 
 	// Validation errors
-	ErrChannelIDRequired      = errors.New("channel_id cannot be empty")
-	ErrWatcherIDRequired      = errors.New("watcher_id cannot be empty")
-	ErrNameRequired           = errors.New("name is required")
-	ErrDomainRequired         = errors.New("domain is required")
-	ErrAddressRequired        = errors.New("address is required")
-	ErrEventsRequired         = errors.New("events list cannot be empty")
-	ErrABIRequired            = errors.New("abi cannot be empty")
-	ErrServiceOptionsRequired = errors.New("ServiceOptions is required")
-	ErrCRECClientRequired     = errors.New("CRECClient is required")
-	ErrChainSelectorRequired  = errors.New("chain_selector is required")
-	ErrInvalidABIType         = errors.New("invalid ABI type, only 'event' is currently supported")
-	ErrEventNotInABI          = errors.New("event not found in provided ABI")
+	ErrChannelIDRequired     = errors.New("channel_id cannot be empty")
+	ErrWatcherIDRequired     = errors.New("watcher_id cannot be empty")
+	ErrNameRequired          = errors.New("name is required")
+	ErrDomainRequired        = errors.New("domain is required")
+	ErrAddressRequired       = errors.New("address is required")
+	ErrEventsRequired        = errors.New("events list cannot be empty")
+	ErrABIRequired           = errors.New("abi cannot be empty")
+	ErrOptionsRequired       = errors.New("Options is required")
+	ErrAPIClientRequired     = errors.New("APIClient is required")
+	ErrChainSelectorRequired = errors.New("chain_selector is required")
+	ErrInvalidABIType        = errors.New("invalid ABI type, only 'event' is currently supported")
+	ErrEventNotInABI         = errors.New("event not found in provided ABI")
 
 	// Timeout errors
 	ErrWaitForActiveTimeout  = errors.New("timeout waiting for watcher to become active")
@@ -61,14 +63,14 @@ var (
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 )
 
-type WatcherStatus string
+type Status string
 
 const (
-	StatusPending  WatcherStatus = "pending"
-	StatusActive   WatcherStatus = "active"
-	StatusFailed   WatcherStatus = "failed"
-	StatusDeleting WatcherStatus = "deleting"
-	StatusDeleted  WatcherStatus = "deleted"
+	StatusPending  Status = "pending"
+	StatusActive   Status = "active"
+	StatusFailed   Status = "failed"
+	StatusDeleting Status = "deleting"
+	StatusDeleted  Status = "deleted"
 )
 
 type EventABIInput struct {
@@ -85,7 +87,7 @@ type EventABI struct {
 	Type      string          `json:"type"`
 }
 
-type CreateWatcherWithDomainInput struct {
+type CreateWithDomainInput struct {
 	Name          *string  `json:"name,omitempty"`
 	ChainSelector string   `json:"chain_selector"`
 	Address       string   `json:"address"`
@@ -93,7 +95,7 @@ type CreateWatcherWithDomainInput struct {
 	Events        []string `json:"events"`
 }
 
-type CreateWatcherWithABIInput struct {
+type CreateWithABIInput struct {
 	Name          *string    `json:"name,omitempty"`
 	ChainSelector string     `json:"chain_selector"`
 	Address       string     `json:"address"`
@@ -101,58 +103,57 @@ type CreateWatcherWithABIInput struct {
 	ABI           []EventABI `json:"abi"`
 }
 
-type UpdateWatcherInput struct {
+type UpdateInput struct {
 	Name string `json:"name"`
 }
 
-type WatcherFilters struct {
-	Limit         *int           `url:"limit,omitempty"`
-	Offset        *int64         `url:"offset,omitempty"`
-	Name          *string        `url:"name,omitempty"`
-	Status        *WatcherStatus `url:"status,omitempty"`
-	ChainSelector *string        `url:"chain_selector,omitempty"`
-	Address       *string        `url:"address,omitempty"`
-	Domain        *string        `url:"domain,omitempty"`
-	EventName     *string        `url:"event_name,omitempty"`
+type ListFilters struct {
+	Limit         *int    `url:"limit,omitempty"`
+	Offset        *int64  `url:"offset,omitempty"`
+	Name          *string `url:"name,omitempty"`
+	Status        *Status `url:"status,omitempty"`
+	ChainSelector *string `url:"chain_selector,omitempty"`
+	Address       *string `url:"address,omitempty"`
+	Domain        *string `url:"domain,omitempty"`
+	EventName     *string `url:"event_name,omitempty"`
 }
 
-// ServiceOptions defines the options for creating a new CREC Watchers service.
+// Options defines the options for creating a new CREC Watchers client.
 //   - Logger: Optional logger instance.
-//   - CRECClient: The CREC API client instance.
+//   - APIClient: The CREC API client instance.
 //   - PollInterval: Optional polling interval for WaitForActive. Defaults to 2 seconds if not set.
 //   - EventualConsistencyWindow: Optional duration to tolerate 404 errors after creation due to eventual consistency. Defaults to 2 seconds if not set.
-type ServiceOptions struct {
-	Logger                    *zerolog.Logger
-	CRECClient                *client.CRECClient
+type Options struct {
+	Logger                    *slog.Logger
+	APIClient                 *apiClient.ClientWithResponses
 	PollInterval              time.Duration
 	EventualConsistencyWindow time.Duration
 }
 
-// Service provides operations for managing CREC watchers.
+// Client provides operations for managing CREC watchers.
 // Watchers monitor blockchain events on specific smart contracts and trigger workflows.
-type Service struct {
-	logger                    *zerolog.Logger
-	crecClient                *client.CRECClient
+type Client struct {
+	logger                    *slog.Logger
+	apiClient                 *apiClient.ClientWithResponses
 	pollInterval              time.Duration
 	eventualConsistencyWindow time.Duration
 }
 
-// NewService creates a new CREC Watchers service with the provided options.
-// Returns a pointer to the Service and an error if any issues occur during initialization.
-//   - opts: Options for configuring the CREC Watchers service, see ServiceOptions for details.
-func NewService(opts *ServiceOptions) (*Service, error) {
+// NewClient creates a new CREC Watchers client with the provided options.
+// Returns a pointer to the Client and an error if any issues occur during initialization.
+//   - opts: Options for configuring the CREC Watchers client, see Options for details.
+func NewClient(opts *Options) (*Client, error) {
 	if opts == nil {
-		return nil, ErrServiceOptionsRequired
+		return nil, ErrOptionsRequired
 	}
 
-	if opts.CRECClient == nil {
-		return nil, ErrCRECClientRequired
+	if opts.APIClient == nil {
+		return nil, ErrAPIClientRequired
 	}
 
 	logger := opts.Logger
 	if logger == nil {
-		lgr := zerolog.New(os.Stdout).With().Timestamp().Logger()
-		logger = &lgr
+		logger = slog.Default()
 	}
 
 	pollInterval := opts.PollInterval
@@ -165,26 +166,24 @@ func NewService(opts *ServiceOptions) (*Service, error) {
 		eventualConsistencyWindow = 2 * time.Second
 	}
 
-	logger.Debug().
-		Dur("poll_interval", pollInterval).
-		Dur("eventual_consistency_window", eventualConsistencyWindow).
-		Msg("Creating CREC Watchers service")
+	logger.Debug("Creating CREC Watchers client",
+		"poll_interval", pollInterval,
+		"eventual_consistency_window", eventualConsistencyWindow)
 
-	return &Service{
+	return &Client{
 		logger:                    logger,
-		crecClient:                opts.CRECClient,
+		apiClient:                 opts.APIClient,
 		pollInterval:              pollInterval,
 		eventualConsistencyWindow: eventualConsistencyWindow,
 	}, nil
 }
 
-// CreateWatcherWithDomain creates a new watcher with a domain (dvp, dta, test_consumer)
-func (s *Service) CreateWatcherWithDomain(ctx context.Context, channelID uuid.UUID, input CreateWatcherWithDomainInput) (*apiClient.Watcher, error) {
-	s.logger.Debug().
-		Str("channel_id", channelID.String()).
-		Str("domain", input.Domain).
-		Str("address", input.Address).
-		Msg("Creating watcher with domain")
+// CreateWithDomain creates a new watcher with a domain (dvp, dta, test_consumer)
+func (c *Client) CreateWithDomain(ctx context.Context, channelID uuid.UUID, input CreateWithDomainInput) (*apiClient.Watcher, error) {
+	c.logger.Debug("Creating watcher with domain",
+		"channel_id", channelID.String(),
+		"domain", input.Domain,
+		"address", input.Address)
 
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
@@ -212,21 +211,20 @@ func (s *Service) CreateWatcherWithDomain(ctx context.Context, channelID uuid.UU
 
 	var createWatcherReq apiClient.CreateWatcher
 	if err := createWatcherReq.FromCreateWatcherWithDomain(createWatcherWithDomain); err != nil {
-		s.logger.Error().Err(err).Msg("Failed to create watcher request")
+		c.logger.Error("Failed to create watcher request", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherRequest, err)
 	}
 
-	resp, err := s.crecClient.PostChannelsChannelIdWatchersWithResponse(ctx, channelID, createWatcherReq)
+	resp, err := c.apiClient.PostChannelsChannelIdWatchersWithResponse(ctx, channelID, createWatcherReq)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to create watcher with domain")
+		c.logger.Error("Failed to create watcher with domain", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherDomain, err)
 	}
 
 	if resp.StatusCode() != 201 {
-		s.logger.Error().
-			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
-			Msg("Failed to create watcher with domain - unexpected status code")
+		c.logger.Error("Failed to create watcher with domain - unexpected status code",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWatcherDomain, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
@@ -234,20 +232,17 @@ func (s *Service) CreateWatcherWithDomain(ctx context.Context, channelID uuid.UU
 		return nil, ErrEmptyResponse
 	}
 
-	s.logger.Info().
-		Str("watcher_id", resp.JSON201.WatcherId.String()).
-		Msg("Watcher created successfully")
+	c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 
 	return resp.JSON201, nil
 }
 
-// CreateWatcherWithABI creates a new watcher with custom event ABI
-func (s *Service) CreateWatcherWithABI(ctx context.Context, channelID uuid.UUID, input CreateWatcherWithABIInput) (*apiClient.Watcher, error) {
-	s.logger.Debug().
-		Str("channel_id", channelID.String()).
-		Str("address", input.Address).
-		Int("abi_count", len(input.ABI)).
-		Msg("Creating watcher with ABI")
+// CreateWithABI creates a new watcher with custom event ABI
+func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input CreateWithABIInput) (*apiClient.Watcher, error) {
+	c.logger.Debug("Creating watcher with ABI",
+		"channel_id", channelID.String(),
+		"address", input.Address,
+		"abi_count", len(input.ABI))
 
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
@@ -268,27 +263,25 @@ func (s *Service) CreateWatcherWithABI(ctx context.Context, channelID uuid.UUID,
 	// Validate that all ABI entries are of type "event"
 	for i, abi := range input.ABI {
 		if abi.Type != "event" {
-			s.logger.Error().
-				Int("abi_index", i).
-				Str("abi_type", abi.Type).
-				Str("abi_name", abi.Name).
-				Msg("Invalid ABI type")
+			c.logger.Error("Invalid ABI type",
+				"abi_index", i,
+				"abi_type", abi.Type,
+				"abi_name", abi.Name)
 			return nil, fmt.Errorf("%w: got '%s' for event '%s' at index %d", ErrInvalidABIType, abi.Type, abi.Name, i)
 		}
 	}
 
 	// Validate that all requested events exist in the provided ABI
-	abiEventMap := make(map[string]bool)
+	abiEventMap := make(map[string]bool, len(input.ABI))
 	for _, abi := range input.ABI {
 		abiEventMap[abi.Name] = true
 	}
 
 	for _, eventName := range input.Events {
 		if !abiEventMap[eventName] {
-			s.logger.Error().
-				Str("event_name", eventName).
-				Int("abi_count", len(input.ABI)).
-				Msg("Requested event not found in provided ABI")
+			c.logger.Error("Requested event not found in provided ABI",
+				"event_name", eventName,
+				"abi_count", len(input.ABI))
 			return nil, fmt.Errorf("%w: event '%s' not found in ABI definitions", ErrEventNotInABI, eventName)
 		}
 	}
@@ -322,21 +315,20 @@ func (s *Service) CreateWatcherWithABI(ctx context.Context, channelID uuid.UUID,
 
 	var createWatcherReq apiClient.CreateWatcher
 	if err := createWatcherReq.FromCreateWatcherWithABI(createWatcherWithABI); err != nil {
-		s.logger.Error().Err(err).Msg("Failed to create watcher request")
+		c.logger.Error("Failed to create watcher request", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherRequest, err)
 	}
 
-	resp, err := s.crecClient.PostChannelsChannelIdWatchersWithResponse(ctx, channelID, createWatcherReq)
+	resp, err := c.apiClient.PostChannelsChannelIdWatchersWithResponse(ctx, channelID, createWatcherReq)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to create watcher with ABI")
+		c.logger.Error("Failed to create watcher with ABI", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherABI, err)
 	}
 
 	if resp.StatusCode() != 201 {
-		s.logger.Error().
-			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
-			Msg("Failed to create watcher with ABI - unexpected status code")
+		c.logger.Error("Failed to create watcher with ABI - unexpected status code",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWatcherABI, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
@@ -344,18 +336,14 @@ func (s *Service) CreateWatcherWithABI(ctx context.Context, channelID uuid.UUID,
 		return nil, ErrEmptyResponse
 	}
 
-	s.logger.Info().
-		Str("watcher_id", resp.JSON201.WatcherId.String()).
-		Msg("Watcher created successfully")
+	c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 
 	return resp.JSON201, nil
 }
 
-// ListWatchers retrieves watchers for a specific channel with optional filters
-func (s *Service) ListWatchers(ctx context.Context, channelID uuid.UUID, filters WatcherFilters) (*apiClient.WatcherList, error) {
-	s.logger.Debug().
-		Str("channel_id", channelID.String()).
-		Msg("Listing watchers")
+// List retrieves watchers for a specific channel with optional filters
+func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilters) (*apiClient.WatcherList, error) {
+	c.logger.Debug("Listing watchers", "channel_id", channelID.String())
 
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
@@ -376,17 +364,16 @@ func (s *Service) ListWatchers(ctx context.Context, channelID uuid.UUID, filters
 		params.Status = &statusStr
 	}
 
-	resp, err := s.crecClient.GetChannelsChannelIdWatchersWithResponse(ctx, channelID, params)
+	resp, err := c.apiClient.GetChannelsChannelIdWatchersWithResponse(ctx, channelID, params)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to list watchers")
+		c.logger.Error("Failed to list watchers", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrListWatchers, err)
 	}
 
 	if resp.StatusCode() != 200 {
-		s.logger.Error().
-			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
-			Msg("Failed to list watchers - unexpected status code")
+		c.logger.Error("Failed to list watchers - unexpected status code",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrListWatchers, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
@@ -394,19 +381,16 @@ func (s *Service) ListWatchers(ctx context.Context, channelID uuid.UUID, filters
 		return nil, ErrEmptyResponse
 	}
 
-	s.logger.Debug().
-		Int("count", len(resp.JSON200.Data)).
-		Msg("Watchers listed successfully")
+	c.logger.Debug("Watchers listed successfully", "count", len(resp.JSON200.Data))
 
 	return resp.JSON200, nil
 }
 
-// GetWatcher retrieves a specific watcher by channel and watcher ID
-func (s *Service) GetWatcher(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) (*apiClient.Watcher, error) {
-	s.logger.Debug().
-		Str("channel_id", channelID.String()).
-		Str("watcher_id", watcherID.String()).
-		Msg("Getting watcher")
+// Get retrieves a specific watcher by channel and watcher ID
+func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) (*apiClient.Watcher, error) {
+	c.logger.Debug("Getting watcher",
+		"channel_id", channelID.String(),
+		"watcher_id", watcherID.String())
 
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
@@ -415,20 +399,19 @@ func (s *Service) GetWatcher(ctx context.Context, channelID uuid.UUID, watcherID
 		return nil, ErrWatcherIDRequired
 	}
 
-	resp, err := s.crecClient.GetChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID)
+	resp, err := c.apiClient.GetChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get watcher")
+		c.logger.Error("Failed to get watcher", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetWatcher, err)
 	}
 
 	if resp.StatusCode() != 200 {
-		s.logger.Error().
-			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
-			Msg("Failed to get watcher - unexpected status code")
+		c.logger.Error("Failed to get watcher - unexpected status code",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
 
 		if resp.StatusCode() == 404 {
-			return nil, fmt.Errorf("%w (status code %d)", ErrWatcherNotFound, resp.StatusCode())
+			return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
 		}
 
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
@@ -441,13 +424,12 @@ func (s *Service) GetWatcher(ctx context.Context, channelID uuid.UUID, watcherID
 	return resp.JSON200, nil
 }
 
-// UpdateWatcher updates a watcher's name
-func (s *Service) UpdateWatcher(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, input UpdateWatcherInput) (*apiClient.Watcher, error) {
-	s.logger.Debug().
-		Str("channel_id", channelID.String()).
-		Str("watcher_id", watcherID.String()).
-		Str("name", input.Name).
-		Msg("Updating watcher")
+// Update updates a watcher's name
+func (c *Client) Update(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, input UpdateInput) (*apiClient.Watcher, error) {
+	c.logger.Debug("Updating watcher",
+		"channel_id", channelID.String(),
+		"watcher_id", watcherID.String(),
+		"name", input.Name)
 
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
@@ -463,20 +445,19 @@ func (s *Service) UpdateWatcher(ctx context.Context, channelID uuid.UUID, watche
 		Name: input.Name,
 	}
 
-	resp, err := s.crecClient.PatchChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID, updateReq)
+	resp, err := c.apiClient.PatchChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID, updateReq)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to update watcher")
+		c.logger.Error("Failed to update watcher", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrUpdateWatcher, err)
 	}
 
 	if resp.StatusCode() != 200 {
-		s.logger.Error().
-			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
-			Msg("Failed to update watcher - unexpected status code")
+		c.logger.Error("Failed to update watcher - unexpected status code",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
 
 		if resp.StatusCode() == 404 {
-			return nil, fmt.Errorf("%w (status code %d)", ErrWatcherNotFound, resp.StatusCode())
+			return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
 		}
 
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrUpdateWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
@@ -486,21 +467,19 @@ func (s *Service) UpdateWatcher(ctx context.Context, channelID uuid.UUID, watche
 		return nil, ErrEmptyResponse
 	}
 
-	s.logger.Info().
-		Str("watcher_id", watcherID.String()).
-		Msg("Watcher updated successfully")
+	c.logger.Info("Watcher updated successfully", "watcher_id", watcherID.String())
 
 	return resp.JSON200, nil
 }
 
-// WaitForActive polls a watcher until it reaches active status or fails
-func (s *Service) WaitForActive(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, maxWaitTime time.Duration) (*apiClient.Watcher, error) {
-	s.logger.Debug().
-		Str("channel_id", channelID.String()).
-		Str("watcher_id", watcherID.String()).
-		Dur("max_wait_time", maxWaitTime).
-		Dur("eventual_consistency_window", s.eventualConsistencyWindow).
-		Msg("Waiting for watcher to become active")
+// WaitForActive polls a watcher until it reaches active status or fails.
+// TODO: Consider extracting status check logic into a helper method for improved readability.
+func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, maxWaitTime time.Duration) (*apiClient.Watcher, error) {
+	c.logger.Debug("Waiting for watcher to become active",
+		"channel_id", channelID.String(),
+		"watcher_id", watcherID.String(),
+		"max_wait_time", maxWaitTime,
+		"eventual_consistency_window", c.eventualConsistencyWindow)
 
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
@@ -511,81 +490,74 @@ func (s *Service) WaitForActive(ctx context.Context, channelID uuid.UUID, watche
 
 	startTime := time.Now()
 	timeout := time.After(maxWaitTime)
-	ticker := time.NewTicker(s.pollInterval)
+	ticker := time.NewTicker(c.pollInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-timeout:
-			s.logger.Error().Msg("Timeout waiting for watcher to become active")
+			c.logger.Error("Timeout waiting for watcher to become active")
 			return nil, ErrWaitForActiveTimeout
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
-			watcher, err := s.GetWatcher(ctx, channelID, watcherID)
+			watcher, err := c.Get(ctx, channelID, watcherID)
 			if err != nil {
 				// During the eventual consistency window, tolerate 404 errors
 				// This handles the case where a watcher was just created but isn't immediately visible
 				if errors.Is(err, ErrWatcherNotFound) {
 					elapsedTime := time.Since(startTime)
-					if elapsedTime < s.eventualConsistencyWindow {
-						s.logger.Debug().
-							Dur("elapsed", elapsedTime).
-							Dur("window", s.eventualConsistencyWindow).
-							Msg("Watcher not found yet, retrying (eventual consistency)")
+					if elapsedTime < c.eventualConsistencyWindow {
+						c.logger.Debug("Watcher not found yet, retrying (eventual consistency)",
+							"elapsed", elapsedTime,
+							"window", c.eventualConsistencyWindow)
 						continue
 					}
 					// After the window, 404 is a permanent error
-					s.logger.Error().
-						Dur("elapsed", elapsedTime).
-						Msg("Watcher not found after eventual consistency window")
+					c.logger.Error("Watcher not found after eventual consistency window",
+						"elapsed", elapsedTime)
 					return nil, fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
 				}
 
 				// Check if error is transient (network issues, 5xx, etc.)
 				if isTransientError(err) {
-					s.logger.Warn().
-						Err(err).
-						Msg("Transient error while checking watcher status, will retry")
+					c.logger.Warn("Transient error while checking watcher status, will retry", "error", err)
 					continue
 				}
 				// Permanent error - fail immediately
 				return nil, fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
 			}
 
-			switch WatcherStatus(watcher.Status) {
+			switch Status(watcher.Status) {
 			case StatusActive:
-				s.logger.Info().Msg("Watcher is now active")
+				c.logger.Info("Watcher is now active")
 				return watcher, nil
 			case StatusFailed:
-				s.logger.Error().Msg("Watcher deployment failed")
+				c.logger.Error("Watcher deployment failed")
 				return nil, ErrWatcherDeploymentFailed
 			case StatusPending:
 				// Continue waiting
-				s.logger.Debug().Msg("Watcher still pending, continuing to wait")
+				c.logger.Debug("Watcher still pending, continuing to wait")
 				continue
 			case StatusDeleting:
-				s.logger.Error().Msg("Watcher is being deleted")
+				c.logger.Error("Watcher is being deleted")
 				return nil, ErrWatcherIsDeleting
 			case StatusDeleted:
-				s.logger.Error().Msg("Watcher has been deleted")
+				c.logger.Error("Watcher has been deleted")
 				return nil, ErrWatcherAlreadyDeleted
 			default:
-				s.logger.Error().
-					Str("status", watcher.Status).
-					Msg("Unexpected watcher status while waiting for active")
+				c.logger.Error("Unexpected watcher status while waiting for active", "status", watcher.Status)
 				return nil, fmt.Errorf("%w: %s", ErrUnexpectedStatus, watcher.Status)
 			}
 		}
 	}
 }
 
-// DeleteWatcher deletes a watcher from a channel
-func (s *Service) DeleteWatcher(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) error {
-	s.logger.Debug().
-		Str("channel_id", channelID.String()).
-		Str("watcher_id", watcherID.String()).
-		Msg("Deleting watcher")
+// Delete deletes a watcher from a channel
+func (c *Client) Delete(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) error {
+	c.logger.Debug("Deleting watcher",
+		"channel_id", channelID.String(),
+		"watcher_id", watcherID.String())
 
 	if err := validateChannelID(channelID); err != nil {
 		return err
@@ -594,34 +566,29 @@ func (s *Service) DeleteWatcher(ctx context.Context, channelID uuid.UUID, watche
 		return ErrWatcherIDRequired
 	}
 
-	resp, err := s.crecClient.DeleteChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID)
+	resp, err := c.apiClient.DeleteChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to delete watcher")
+		c.logger.Error("Failed to delete watcher", "error", err)
 		return fmt.Errorf("%w: %w", ErrDeleteWatcher, err)
 	}
 
 	// Accept both 202 (Accepted - async deletion) and 204 (No Content - sync deletion)
 	if resp.StatusCode() != 202 && resp.StatusCode() != 204 {
-		s.logger.Error().
-			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
-			Msg("Failed to delete watcher - unexpected status code")
+		c.logger.Error("Failed to delete watcher - unexpected status code",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
 
 		if resp.StatusCode() == 404 {
-			return fmt.Errorf("%w (status code %d)", ErrWatcherNotFound, resp.StatusCode())
+			return fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
 		}
 
 		return fmt.Errorf("%w: %w (status code %d)", ErrDeleteWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.StatusCode() == 202 {
-		s.logger.Info().
-			Str("watcher_id", watcherID.String()).
-			Msg("Watcher deletion initiated (async)")
+		c.logger.Info("Watcher deletion initiated (async)", "watcher_id", watcherID.String())
 	} else {
-		s.logger.Info().
-			Str("watcher_id", watcherID.String()).
-			Msg("Watcher deleted successfully (sync)")
+		c.logger.Info("Watcher deleted successfully (sync)", "watcher_id", watcherID.String())
 	}
 
 	return nil
@@ -629,12 +596,11 @@ func (s *Service) DeleteWatcher(ctx context.Context, channelID uuid.UUID, watche
 
 // WaitForDeleted waits for a watcher to be fully deleted.
 // The method polls the watcher status until it reaches "deleted" state or the timeout is reached.
-func (s *Service) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, maxWaitTime time.Duration) error {
-	s.logger.Debug().
-		Str("channel_id", channelID.String()).
-		Str("watcher_id", watcherID.String()).
-		Dur("max_wait_time", maxWaitTime).
-		Msg("Waiting for watcher to be deleted")
+func (c *Client) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, maxWaitTime time.Duration) error {
+	c.logger.Debug("Waiting for watcher to be deleted",
+		"channel_id", channelID.String(),
+		"watcher_id", watcherID.String(),
+		"max_wait_time", maxWaitTime)
 
 	if err := validateChannelID(channelID); err != nil {
 		return err
@@ -644,52 +610,46 @@ func (s *Service) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watch
 	}
 
 	timeout := time.After(maxWaitTime)
-	ticker := time.NewTicker(s.pollInterval)
+	ticker := time.NewTicker(c.pollInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-timeout:
-			s.logger.Error().Msg("Timeout waiting for watcher to be deleted")
+			c.logger.Error("Timeout waiting for watcher to be deleted")
 			return ErrWaitForDeletedTimeout
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			watcher, err := s.GetWatcher(ctx, channelID, watcherID)
+			watcher, err := c.Get(ctx, channelID, watcherID)
 			if err != nil {
 				// If watcher is not found (404), it's been deleted
 				if errors.Is(err, ErrWatcherNotFound) {
-					s.logger.Debug().Msg("Watcher has been deleted (404 not found)")
+					c.logger.Debug("Watcher has been deleted (404 not found)")
 					return nil
 				}
 				// Check if error is transient (network issues, 5xx, etc.)
 				if isTransientError(err) {
-					s.logger.Warn().
-						Err(err).
-						Msg("Transient error while checking watcher deletion status, will retry")
+					c.logger.Warn("Transient error while checking watcher deletion status, will retry", "error", err)
 					continue
 				}
 				// Permanent error - fail immediately
 				return fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
 			}
 
-			switch WatcherStatus(watcher.Status) {
+			switch Status(watcher.Status) {
 			case StatusDeleted:
-				s.logger.Debug().Msg("Watcher is now deleted (status confirmed)")
+				c.logger.Debug("Watcher is now deleted (status confirmed)")
 				return nil
 			case StatusDeleting:
-				s.logger.Debug().Msg("Watcher is being deleted, continuing to wait")
+				c.logger.Debug("Watcher is being deleted, continuing to wait")
 				continue
 			case StatusActive, StatusPending, StatusFailed:
 				// If the watcher is in any other valid state, it means deletion was rolled back or failed
-				s.logger.Error().
-					Str("status", watcher.Status).
-					Msg("Watcher deletion appears to have failed")
+				c.logger.Error("Watcher deletion appears to have failed", "status", watcher.Status)
 				return fmt.Errorf("%w, watcher is in %s state", ErrWatcherDeletionFailed, watcher.Status)
 			default:
-				s.logger.Error().
-					Str("status", watcher.Status).
-					Msg("Unexpected watcher status while waiting for deletion")
+				c.logger.Error("Unexpected watcher status while waiting for deletion", "status", watcher.Status)
 				return fmt.Errorf("%w while waiting for deletion: %s", ErrUnexpectedStatus, watcher.Status)
 			}
 		}
@@ -726,7 +686,6 @@ func isTransientError(err error) bool {
 	errMsg := err.Error()
 
 	// First, try to extract HTTP status code from error message
-	statusCodePattern := regexp.MustCompile(`status code:?\s*(\d{3})`)
 	if matches := statusCodePattern.FindStringSubmatch(errMsg); len(matches) > 1 {
 		if statusCode, err := strconv.Atoi(matches[1]); err == nil {
 			// Check if status code indicates a transient error

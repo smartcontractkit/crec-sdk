@@ -1,102 +1,102 @@
-package operations
+package transact
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
-	"github.com/smartcontractkit/crec-sdk/client"
 )
 
-func setupTestService(t *testing.T, handler http.HandlerFunc) (*Service, *httptest.Server) {
+func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Server) {
 	server := httptest.NewServer(handler)
 
-	crecClient, err := client.NewCRECClient(&client.ClientOptions{
-		BaseURL: server.URL,
-		APIKey:  "test-api-key",
+	// Add API key header to all requests
+	apiKeyEditor := func(ctx context.Context, req *http.Request) error {
+		req.Header.Set("Api-Key", "test-api-key")
+		return nil
+	}
+
+	crecAPIClient, err := apiClient.NewClientWithResponses(
+		server.URL,
+		apiClient.WithRequestEditorFn(apiKeyEditor),
+	)
+	require.NoError(t, err)
+
+	logger := slog.New(slog.DiscardHandler)
+	client, err := NewClient(&Options{
+		Logger:     logger,
+		CRECClient: crecAPIClient,
 	})
 	require.NoError(t, err)
 
-	logger := zerolog.Nop()
-	service, err := NewService(&ServiceOptions{
-		Logger:     &logger,
-		CRECClient: crecClient,
-	})
-	require.NoError(t, err)
-
-	return service, server
+	return client, server
 }
 
-func TestNewService(t *testing.T) {
+func TestNewClient(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		crecClient, err := client.NewCRECClient(&client.ClientOptions{
-			BaseURL: "http://localhost:8080",
-			APIKey:  "test-api-key",
-		})
+		crecAPIClient, err := apiClient.NewClientWithResponses("http://localhost:8080")
 		require.NoError(t, err)
 
-		logger := zerolog.Nop()
-		service, err := NewService(&ServiceOptions{
-			Logger:     &logger,
-			CRECClient: crecClient,
+		logger := slog.New(slog.DiscardHandler)
+		client, err := NewClient(&Options{
+			Logger:     logger,
+			CRECClient: crecAPIClient,
 		})
 
 		require.NoError(t, err)
-		assert.NotNil(t, service)
-		assert.NotNil(t, service.logger)
-		assert.NotNil(t, service.crecClient)
+		assert.NotNil(t, client)
+		assert.NotNil(t, client.logger)
+		assert.NotNil(t, client.crecClient)
 	})
 
 	t.Run("NilOptions", func(t *testing.T) {
-		service, err := NewService(nil)
+		client, err := NewClient(nil)
 
 		require.Error(t, err)
-		assert.Nil(t, service)
-		assert.True(t, errors.Is(err, ErrServiceOptionsRequired), "Expected ErrServiceOptionsRequired, got: %v", err)
+		assert.Nil(t, client)
+		assert.True(t, errors.Is(err, ErrOptionsRequired), "Expected ErrOptionsRequired, got: %v", err)
 	})
 
 	t.Run("NilCRECClient", func(t *testing.T) {
-		logger := zerolog.Nop()
-		service, err := NewService(&ServiceOptions{
-			Logger:     &logger,
+		logger := slog.New(slog.DiscardHandler)
+		// NewClient now requires CRECClient
+		client, err := NewClient(&Options{
+			Logger:     logger,
 			CRECClient: nil,
 		})
 
 		require.Error(t, err)
-		assert.Nil(t, service)
+		assert.Nil(t, client)
 		assert.True(t, errors.Is(err, ErrCRECClientRequired), "Expected ErrCRECClientRequired, got: %v", err)
 	})
 
 	t.Run("DefaultLogger", func(t *testing.T) {
-		crecClient, err := client.NewCRECClient(&client.ClientOptions{
-			BaseURL: "http://localhost:8080",
-			APIKey:  "test-api-key",
-		})
+		crecAPIClient, err := apiClient.NewClientWithResponses("http://localhost:8080")
 		require.NoError(t, err)
 
-		service, err := NewService(&ServiceOptions{
+		client, err := NewClient(&Options{
 			Logger:     nil,
-			CRECClient: crecClient,
+			CRECClient: crecAPIClient,
 		})
 
 		require.NoError(t, err)
-		assert.NotNil(t, service)
-		assert.NotNil(t, service.logger)
+		assert.NotNil(t, client)
+		assert.NotNil(t, client.logger)
 	})
 }
 
-func TestService_CreateOperation(t *testing.T) {
+func TestClient_CreateOperation(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		operationID := uuid.New()
@@ -128,10 +128,10 @@ func TestService_CreateOperation(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		returnedOperationID, err := service.CreateOperation(context.Background(), CreateOperationInput{
+		returnedOperationID, err := client.CreateOperation(context.Background(), CreateOperationInput{
 			ChannelID:         channelID,
 			ChainSelector:     "1337",
 			Address:           "0x1234",
@@ -156,7 +156,7 @@ func TestService_CreateOperation(t *testing.T) {
 			t.Fatal("Should not make request with invalid input")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		testCases := []struct {
@@ -240,7 +240,7 @@ func TestService_CreateOperation(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				opID, err := service.CreateOperation(context.Background(), tc.input)
+				opID, err := client.CreateOperation(context.Background(), tc.input)
 
 				require.Error(t, err)
 				assert.Nil(t, opID)
@@ -260,10 +260,10 @@ func TestService_CreateOperation(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		opID, err := service.CreateOperation(context.Background(), CreateOperationInput{
+		opID, err := client.CreateOperation(context.Background(), CreateOperationInput{
 			ChannelID:         channelID,
 			ChainSelector:     "1337",
 			Address:           "0x1234",
@@ -290,10 +290,10 @@ func TestService_CreateOperation(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		opID, err := service.CreateOperation(context.Background(), CreateOperationInput{
+		opID, err := client.CreateOperation(context.Background(), CreateOperationInput{
 			ChannelID:         channelID,
 			ChainSelector:     "1337",
 			Address:           "0x1234",
@@ -311,7 +311,7 @@ func TestService_CreateOperation(t *testing.T) {
 	})
 }
 
-func TestService_GetOperation(t *testing.T) {
+func TestClient_GetOperation(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		operationID := uuid.New()
@@ -340,10 +340,10 @@ func TestService_GetOperation(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		operation, err := service.GetOperation(context.Background(), channelID, operationID)
+		operation, err := client.GetOperation(context.Background(), channelID, operationID)
 
 		require.NoError(t, err)
 		assert.NotNil(t, operation)
@@ -365,10 +365,10 @@ func TestService_GetOperation(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		operation, err := service.GetOperation(context.Background(), channelID, operationID)
+		operation, err := client.GetOperation(context.Background(), channelID, operationID)
 
 		require.Error(t, err)
 		assert.Nil(t, operation)
@@ -387,10 +387,10 @@ func TestService_GetOperation(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		operation, err := service.GetOperation(context.Background(), channelID, operationID)
+		operation, err := client.GetOperation(context.Background(), channelID, operationID)
 
 		require.Error(t, err)
 		assert.Nil(t, operation)
@@ -399,7 +399,7 @@ func TestService_GetOperation(t *testing.T) {
 	})
 }
 
-func TestService_ListOperations(t *testing.T) {
+func TestClient_ListOperations(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		operation1ID := uuid.New()
@@ -447,12 +447,12 @@ func TestService_ListOperations(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		limit := 20
 		offset := int64(0)
-		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
+		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID: channelID,
 			Limit:     &limit,
 			Offset:    &offset,
@@ -504,10 +504,10 @@ func TestService_ListOperations(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
+		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID:     channelID,
 			Status:        &status,
 			ChainSelector: &chainSelector,
@@ -557,10 +557,10 @@ func TestService_ListOperations(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
+		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID: channelID,
 			WalletID:  &walletID,
 		})
@@ -588,12 +588,12 @@ func TestService_ListOperations(t *testing.T) {
 			json.NewEncoder(w).Encode(response)
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		limit := 10
 		offset := int64(5)
-		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
+		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID: channelID,
 			Limit:     &limit,
 			Offset:    &offset,
@@ -609,10 +609,10 @@ func TestService_ListOperations(t *testing.T) {
 			t.Fatal("Should not make request with empty channel ID")
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
+		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID: uuid.Nil,
 		})
 
@@ -633,10 +633,10 @@ func TestService_ListOperations(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
+		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID: channelID,
 		})
 
@@ -657,10 +657,10 @@ func TestService_ListOperations(t *testing.T) {
 			})
 		}
 
-		service, server := setupTestService(t, handler)
+		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		operations, hasMore, err := service.ListOperations(context.Background(), ListOperationsInput{
+		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID: channelID,
 		})
 

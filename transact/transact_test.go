@@ -6,20 +6,22 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"math/big"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/google/uuid"
 	"github.com/hashicorp/vault/api"
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	vaultcontainer "github.com/testcontainers/testcontainers-go/modules/vault"
 
-	"github.com/smartcontractkit/crec-sdk/client"
 	"github.com/smartcontractkit/crec-sdk/mocks/server"
 	"github.com/smartcontractkit/crec-sdk/transact/signer/local"
-	"github.com/smartcontractkit/crec-sdk/transact/signer/vault"
+	vaultSigner "github.com/smartcontractkit/crec-sdk/transact/signer/vault"
 	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
@@ -34,18 +36,19 @@ func TestHashOperation(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCRECClient(
-		&client.ClientOptions{
-			BaseURL: mockServer.TestServer.URL,
-			APIKey:  "some-api-key",
-		},
+	c, err := apiClient.NewClientWithResponses(
+		mockServer.TestServer.URL,
+		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			req.Header.Set("Api-Key", "some-api-key")
+			return nil
+		}),
 	)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	transact, err := NewClient(
-		&ClientOptions{
+	transactClient, err := NewClient(
+		&Options{
 			CRECClient: c,
 		},
 	)
@@ -63,7 +66,7 @@ func TestHashOperation(t *testing.T) {
 		},
 	}
 
-	hash, err := transact.HashOperation(operation, chainSelector)
+	hash, err := transactClient.HashOperation(operation, chainSelector)
 	if err != nil {
 		t.Fatalf("Failed to hash operation: %v", err)
 	}
@@ -79,18 +82,23 @@ func TestSignOperation(t *testing.T) {
 	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 
-	c, err := client.NewCRECClient(
-		&client.ClientOptions{
-			BaseURL: "http://localhost:8080",
-			APIKey:  "some-api-key",
-		},
+	mockServer := server.NewMockServer()
+	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
+	defer mockServer.Close()
+
+	c, err := apiClient.NewClientWithResponses(
+		mockServer.TestServer.URL,
+		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			req.Header.Set("Api-Key", "some-api-key")
+			return nil
+		}),
 	)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	transact, err := NewClient(
-		&ClientOptions{
+	transactClient, err := NewClient(
+		&Options{
 			CRECClient: c,
 		},
 	)
@@ -112,7 +120,7 @@ func TestSignOperation(t *testing.T) {
 	require.NoError(t, err)
 
 	localSigner := local.NewSigner(privateKey)
-	opHash, sig, err := transact.SignOperation(context.Background(), operation, localSigner, chainSelector)
+	opHash, sig, err := transactClient.SignOperation(context.Background(), operation, localSigner, chainSelector)
 	require.NoError(t, err)
 
 	// check for pre-computed signature for the operation based on the above to/account and private key
@@ -126,6 +134,173 @@ func TestSignOperation(t *testing.T) {
 		"5e1d5b835e963051f75e33bb8d20dd6464afe89268d53cfc06f3223ffcc1357b30f5fe9f75ceddf99792d9e1c877a3824bef0f79d522985723df46f3185ec75f1b",
 		common.Bytes2Hex(sig),
 	)
+}
+
+func TestSendSignedOperation(t *testing.T) {
+	chainSelector := "7759470850252068959"
+	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
+	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
+	channelID := "550e8400-e29b-41d4-a716-446655440000"
+
+	tests := []struct {
+		name        string
+		operation   *types.Operation
+		signature   []byte
+		expectError bool
+		errorIs     error
+	}{
+		{
+			name: "Success",
+			operation: &types.Operation{
+				ID:      big.NewInt(1),
+				Account: account,
+				Transactions: []types.Transaction{
+					{To: to, Value: big.NewInt(0), Data: []byte("")},
+				},
+			},
+			signature:   []byte("test-signature"),
+			expectError: false,
+		},
+		{
+			name:        "NilOperation",
+			operation:   nil,
+			signature:   []byte("test-signature"),
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockServer := server.NewMockServer()
+			defer mockServer.Close()
+
+			c, err := apiClient.NewClientWithResponses(
+				mockServer.TestServer.URL,
+				apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+					req.Header.Set("Api-Key", "some-api-key")
+					return nil
+				}),
+			)
+			require.NoError(t, err)
+
+			transactClient, err := NewClient(&Options{CRECClient: c})
+			require.NoError(t, err)
+
+			parsedChannelID := uuid.MustParse(channelID)
+			op, err := transactClient.SendSignedOperation(
+				context.Background(),
+				parsedChannelID,
+				tt.operation,
+				tt.signature,
+				chainSelector,
+			)
+
+			if tt.expectError {
+				require.Error(t, err)
+				require.Nil(t, op)
+				if tt.errorIs != nil {
+					require.ErrorIs(t, err, tt.errorIs)
+				}
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, op)
+			}
+		})
+	}
+}
+
+func TestExecuteOperation(t *testing.T) {
+	chainSelector := "7759470850252068959"
+	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
+	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
+	channelID := "550e8400-e29b-41d4-a716-446655440000"
+
+	mockServer := server.NewMockServer()
+	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
+	defer mockServer.Close()
+
+	c, err := apiClient.NewClientWithResponses(
+		mockServer.TestServer.URL,
+		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			req.Header.Set("Api-Key", "some-api-key")
+			return nil
+		}),
+	)
+	require.NoError(t, err)
+
+	transactClient, err := NewClient(&Options{CRECClient: c})
+	require.NoError(t, err)
+
+	privateKey, err := ethcrypto.HexToECDSA("165fdaa699776c9bfdc194817c479d0775b1ee9718bfcddb0ccca352ece86066")
+	require.NoError(t, err)
+
+	localSigner := local.NewSigner(privateKey)
+
+	operation := &types.Operation{
+		ID:      big.NewInt(time.Now().Unix()),
+		Account: account,
+		Transactions: []types.Transaction{
+			{To: to, Value: big.NewInt(0), Data: []byte("")},
+		},
+	}
+
+	parsedChannelID := uuid.MustParse(channelID)
+	op, err := transactClient.ExecuteOperation(
+		context.Background(),
+		parsedChannelID,
+		localSigner,
+		operation,
+		chainSelector,
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, op)
+}
+
+func TestExecuteTransactions(t *testing.T) {
+	chainSelector := "7759470850252068959"
+	to := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
+	account := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
+	channelID := "550e8400-e29b-41d4-a716-446655440000"
+
+	mockServer := server.NewMockServer()
+	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
+	defer mockServer.Close()
+
+	c, err := apiClient.NewClientWithResponses(
+		mockServer.TestServer.URL,
+		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			req.Header.Set("Api-Key", "some-api-key")
+			return nil
+		}),
+	)
+	require.NoError(t, err)
+
+	transactClient, err := NewClient(&Options{CRECClient: c})
+	require.NoError(t, err)
+
+	privateKey, err := ethcrypto.HexToECDSA("165fdaa699776c9bfdc194817c479d0775b1ee9718bfcddb0ccca352ece86066")
+	require.NoError(t, err)
+
+	localSigner := local.NewSigner(privateKey)
+
+	txs := []types.Transaction{
+		{To: to, Value: big.NewInt(0), Data: []byte("")},
+		{To: to, Value: big.NewInt(100), Data: []byte("0x1234")},
+	}
+
+	parsedChannelID := uuid.MustParse(channelID)
+	op, err := transactClient.ExecuteTransactions(
+		context.Background(),
+		parsedChannelID,
+		localSigner,
+		account,
+		txs,
+		chainSelector,
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, op)
 }
 
 func TestSignOperationWithVaultTransit(t *testing.T) {
@@ -186,18 +361,19 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	t.Logf("Mock server started at URL: %s", mockServer.TestServer.URL)
 	defer mockServer.Close()
 
-	c, err := client.NewCRECClient(
-		&client.ClientOptions{
-			BaseURL: mockServer.TestServer.URL,
-			APIKey:  "some-api-key",
-		},
+	c, err := apiClient.NewClientWithResponses(
+		mockServer.TestServer.URL,
+		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			req.Header.Set("Api-Key", "some-api-key")
+			return nil
+		}),
 	)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	transact, err := NewClient(
-		&ClientOptions{
+	transactClient, err := NewClient(
+		&Options{
 			CRECClient: c,
 		},
 	)
@@ -216,7 +392,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	}
 
 	// Create our Vault Signer
-	vaultSigner, err := vault.NewSigner(
+	vaultSignerInst, err := vaultSigner.NewSigner(
 		vaultURL,
 		"myroot",
 		"transit",
@@ -225,7 +401,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test signing the operation
-	_, sig, err := transact.SignOperation(context.Background(), operation, vaultSigner, chainSelector)
+	_, sig, err := transactClient.SignOperation(context.Background(), operation, vaultSignerInst, chainSelector)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig)
 
@@ -236,7 +412,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	t.Logf("Vault Transit signature length: %d bytes", len(sig))
 
 	// Get the public key from Vault to verify the signature
-	pubKeyInterface, err := vaultSigner.Public()
+	pubKeyInterface, err := vaultSignerInst.Public()
 	require.NoError(t, err)
 	require.NotNil(t, pubKeyInterface)
 
@@ -246,7 +422,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NotNil(t, rsaPubKey)
 
 	// Get the operation hash for verification
-	operationHash, err := transact.HashOperation(operation, chainSelector)
+	operationHash, err := transactClient.HashOperation(operation, chainSelector)
 	require.NoError(t, err)
 
 	// Verify the signature using the public key
@@ -254,7 +430,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err, "Vault signature should be valid")
 
 	// Test that we can sign the same operation multiple times
-	opHash, sig2, err := transact.SignOperation(context.Background(), operation, vaultSigner, chainSelector)
+	opHash, sig2, err := transactClient.SignOperation(context.Background(), operation, vaultSignerInst, chainSelector)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig2)
 

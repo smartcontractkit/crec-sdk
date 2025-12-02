@@ -2,57 +2,94 @@ package transact
 
 import (
 	"context"
-	"strconv"
-
-	// "encoding/json" // Commented out - not used after migration
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
-	"os"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
-
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
-	"github.com/smartcontractkit/crec-sdk/client"
 	"github.com/smartcontractkit/crec-sdk/transact/signer"
 	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// ClientOptions defines the options for creating a new CREC transact client used to send operations to the CREC system.
+// Sentinel errors
+var (
+	// Client initialization errors
+	ErrOptionsRequired    = errors.New("options is required")
+	ErrCRECClientRequired = errors.New("CRECClient is required")
+
+	// Validation errors
+	ErrChannelIDRequired             = errors.New("channel_id is required")
+	ErrChainSelectorRequired         = errors.New("chain_selector is required")
+	ErrAddressRequired               = errors.New("address is required")
+	ErrWalletOperationIDRequired     = errors.New("wallet_operation_id is required")
+	ErrAtLeastOneTransactionRequired = errors.New("at least one transaction is required")
+	ErrSignatureRequired             = errors.New("signature is required")
+
+	// Not found errors
+	ErrChannelNotFound   = errors.New("channel not found")
+	ErrOperationNotFound = errors.New("operation not found")
+
+	// API operation errors
+	ErrCreateOperation = errors.New("failed to create operation")
+	ErrGetOperation    = errors.New("failed to get operation")
+	ErrListOperations  = errors.New("failed to list operations")
+	ErrSendOperation   = errors.New("failed to send operation")
+
+	// Response errors
+	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	ErrNilResponseBody      = errors.New("unexpected nil response body")
+
+	// Chain/Signing errors
+	ErrParseChainSelector     = errors.New("failed to parse chain selector")
+	ErrGetChainFamily         = errors.New("failed to get chain family")
+	ErrUnsupportedChainFamily = errors.New("chain family is not supported")
+	ErrGetChainID             = errors.New("failed to get chain ID from selector")
+	ErrCreateTypedData        = errors.New("failed to create typed data for operation")
+	ErrComputeOperationHash   = errors.New("failed to compute operation hash")
+	ErrHashOperation          = errors.New("failed to hash operation")
+	ErrSignOperation          = errors.New("failed to sign operation")
+)
+
+// Options defines the options for creating a new CREC transact client used to send operations to the CREC system.
 // It includes a logger for logging messages and a chain ID for the blockchain network.
 //   - Logger: Optional logger instance.
-//   - CRECClient: A client instance for interacting with the CREC system, nil for no direct CREC interaction.
-type ClientOptions struct {
-	Logger     *zerolog.Logger
-	CRECClient *client.CRECClient
+//   - CRECClient: A client instance for interacting with the CREC system (required).
+type Options struct {
+	Logger     *slog.Logger
+	CRECClient *apiClient.ClientWithResponses
 }
 
 type Client struct {
-	logger     *zerolog.Logger
-	crecClient *client.CRECClient
+	logger     *slog.Logger
+	crecClient *apiClient.ClientWithResponses
 }
 
 // NewClient creates a new CREC transact client with the provided CREC client and options.
 // Returns a pointer to the Client and an error if any issues occur during initialization.
-//   - opts: Options for configuring the CREC transact client, see ClientOptions for details.
-func NewClient(opts *ClientOptions) (*Client, error) {
+//   - opts: Options for configuring the CREC transact client, see Options for details.
+func NewClient(opts *Options) (*Client, error) {
 	if opts == nil {
-		return nil, fmt.Errorf("ClientOptions is required")
+		return nil, ErrOptionsRequired
+	}
+
+	if opts.CRECClient == nil {
+		return nil, ErrCRECClientRequired
 	}
 
 	logger := opts.Logger
 	if logger == nil {
-		lgr := zerolog.New(os.Stdout).With().Timestamp().Logger()
-		logger = &lgr
+		logger = slog.Default()
 	}
 
-	logger.Debug().Msg("Creating CREC transact client")
+	logger.Debug("Creating CREC transact client")
 
 	return &Client{
 		logger:     logger,
@@ -65,33 +102,33 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 //   - chainSelector: chainSelector of the blockchain network in which the operation is being executed.
 //
 // Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
-func (t *Client) HashOperation(op *types.Operation, chainSelector string) (common.Hash, error) {
+func (c *Client) HashOperation(op *types.Operation, chainSelector string) (common.Hash, error) {
 	chainSelectorUint, err := strconv.ParseUint(chainSelector, 10, 64)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to parse chain selector: %w", err)
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrParseChainSelector, err)
 	}
 	chainFamily, err := chainselectors.GetSelectorFamily(chainSelectorUint)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to get chain family: %w", err)
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrGetChainFamily, err)
 	}
 	if chainFamily != chainselectors.FamilyEVM {
-		return common.Hash{}, fmt.Errorf("chain family %s is not supported", chainFamily)
+		return common.Hash{}, fmt.Errorf("%w: %s", ErrUnsupportedChainFamily, chainFamily)
 	}
 	chainId, err := chainselectors.GetChainIDFromSelector(chainSelectorUint)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to compute EIP-712 digest of the given operation: %w", err)
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrGetChainID, err)
 	}
 
 	typedData, err := op.TypedData(chainId)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to create typed data for operation: %w", err)
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrCreateTypedData, err)
 	}
 	hashBytes, _, err := apitypes.TypedDataAndHash(*typedData)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to compute operation hash: %w", err)
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrComputeOperationHash, err)
 	}
 	hash := common.BytesToHash(hashBytes)
-	return hash, err
+	return hash, nil
 }
 
 // SignOperation signs the given operation using the provided signer, returning the operation hash and the signature
@@ -102,26 +139,25 @@ func (t *Client) HashOperation(op *types.Operation, chainSelector string) (commo
 //   - chainSelector: chainSelector of the blockchain network in which the operation is being executed.
 //
 // Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
-func (t *Client) SignOperation(
+func (c *Client) SignOperation(
 	ctx context.Context,
 	op *types.Operation,
 	signer signer.Signer,
 	chainSelector string,
 ) (common.Hash, []byte, error) {
-	hash, err := t.HashOperation(op, chainSelector)
+	hash, err := c.HashOperation(op, chainSelector)
 	if err != nil {
-		return common.Hash{}, nil, fmt.Errorf("failed to hash operation: %w", err)
+		return common.Hash{}, nil, fmt.Errorf("%w: %w", ErrHashOperation, err)
 	}
 	sig, err := signer.Sign(ctx, hash.Bytes())
 	if err != nil {
-		return common.Hash{}, nil, fmt.Errorf("failed to sign operation: %w", err)
+		return common.Hash{}, nil, fmt.Errorf("%w: %w", ErrSignOperation, err)
 	}
-	t.logger.Debug().
-		Str("chain_selector", chainSelector).
-		Str("operation_id", op.ID.String()).
-		Str("hash", hash.Hex()).
-		Str("signature", common.Bytes2Hex(sig)).
-		Msg("Signed Operation")
+	c.logger.Debug("Signed Operation",
+		"chain_selector", chainSelector,
+		"operation_id", op.ID.String(),
+		"hash", hash.Hex(),
+		"signature", common.Bytes2Hex(sig))
 	return hash, sig, nil
 }
 
@@ -129,47 +165,160 @@ func (t *Client) SignOperation(
 //   - ctx: The context for the request.
 //   - opHash: The operation hash to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
-func (t *Client) SignOperationHash(
+func (c *Client) SignOperationHash(
 	ctx context.Context,
 	opHash common.Hash,
 	signer signer.Signer,
 ) ([]byte, error) {
 	sig, err := signer.Sign(ctx, opHash.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign operation: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrSignOperation, err)
 	}
-	t.logger.Debug().
-		Str("hash", opHash.Hex()).
-		Str("signature", common.Bytes2Hex(sig)).
-		Msg("Signed Operation hash")
+	c.logger.Debug("Signed Operation hash",
+		"hash", opHash.Hex(),
+		"signature", common.Bytes2Hex(sig))
 	return sig, nil
 }
 
-// SendSignedOperation sends a signed operation to the CREC system.
+// CreateOperationInput defines the input parameters for creating a new operation.
+//   - ChannelID: The UUID of the channel where the operation will be created.
+//   - ChainSelector: The chain selector to identify the chain where the operation will be executed.
+//   - Address: The account address performing the operation.
+//   - WalletOperationID: Unique identifier for the wallet operation.
+//   - Transactions: List of transactions to execute (at least one required).
+//   - Signature: EIP-712 signature of the operation.
+type CreateOperationInput struct {
+	ChannelID         uuid.UUID
+	ChainSelector     string
+	Address           string
+	WalletOperationID string
+	Transactions      []TransactionRequest
+	Signature         string
+}
+
+// TransactionRequest represents a single transaction in an operation.
+//   - To: The target contract address.
+//   - Value: The amount of native currency to send (as string).
+//   - Data: The encoded calldata for the transaction.
+type TransactionRequest struct {
+	To    string
+	Value string
+	Data  string
+}
+
+// CreateOperation creates a new operation in the specified channel.
+// The operation will contain one or more transactions to be executed atomically.
+//
+// Parameters:
 //   - ctx: The context for the request.
-//   - op: The operation to send, which must be signed.
-//   - signature: The signature of the operation, to be verified by the onchain smart account.
-//   - chainId: The chain ID of the blockchain network in which the operation is being executed.
-func (t *Client) SendSignedOperation(
-	ctx context.Context,
-	op *types.Operation,
-	signature []byte,
-	chainId string,
-) (*apiClient.Operation, error) {
-	if t.crecClient == nil {
-		return nil, errors.New("no CRECClient provided, cannot send signed operations")
+//   - input: The operation creation parameters.
+//
+// Returns the operation ID or an error if the operation fails.
+func (c *Client) CreateOperation(ctx context.Context, input CreateOperationInput) (*uuid.UUID, error) {
+	c.logger.Debug("Creating operation",
+		"channel_id", input.ChannelID.String(),
+		"wallet_operation_id", input.WalletOperationID,
+		"chain_selector", input.ChainSelector,
+		"address", input.Address,
+		"num_transactions", len(input.Transactions))
+
+	// Validate input
+	if input.ChannelID == uuid.Nil {
+		return nil, ErrChannelIDRequired
+	}
+	if input.ChainSelector == "" || input.ChainSelector == "0" {
+		return nil, ErrChainSelectorRequired
+	}
+	if input.Address == "" {
+		return nil, ErrAddressRequired
+	}
+	if input.WalletOperationID == "" {
+		return nil, ErrWalletOperationIDRequired
+	}
+	if len(input.Transactions) == 0 {
+		return nil, ErrAtLeastOneTransactionRequired
+	}
+	if input.Signature == "" {
+		return nil, ErrSignatureRequired
 	}
 
-	t.logger.Debug().
-		Str("chain_id", chainId).
-		Str("operation_id", op.ID.String()).
-		Str("signature", common.Bytes2Hex(signature)).
-		Msg("Sending signed operation")
+	// Convert transactions
+	transactions := make([]apiClient.TransactionRequest, 0, len(input.Transactions))
+	for _, tx := range input.Transactions {
+		transactions = append(transactions, apiClient.TransactionRequest{
+			To:    tx.To,
+			Value: tx.Value,
+			Data:  tx.Data,
+		})
+	}
 
-	var transactions []apiClient.TransactionRequest
+	createOperationReq := apiClient.CreateOperation{
+		ChainSelector:     input.ChainSelector,
+		Address:           input.Address,
+		WalletOperationId: input.WalletOperationID,
+		Transactions:      transactions,
+		Signature:         input.Signature,
+	}
+
+	resp, err := c.crecClient.PostChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, createOperationReq)
+	if err != nil {
+		c.logger.Error("Failed to create operation", "error", err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, err)
+	}
+
+	if resp.StatusCode() == 404 {
+		c.logger.Warn("Channel not found", "channel_id", input.ChannelID.String())
+		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+	}
+
+	if resp.StatusCode() != 201 {
+		c.logger.Error("Unexpected status code when creating operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateOperation, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+
+	if resp.JSON201 == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, ErrNilResponseBody)
+	}
+
+	operationID := resp.JSON201.OperationId
+
+	c.logger.Info("Operation created successfully",
+		"operation_id", operationID.String(),
+		"channel_id", input.ChannelID.String(),
+		"wallet_operation_id", input.WalletOperationID)
+
+	return &operationID, nil
+}
+
+// SendSignedOperation sends a signed operation to the CREC system via the specified channel.
+//   - ctx: The context for the request.
+//   - channelID: The UUID of the channel to send the operation to.
+//   - op: The operation to send, which must be signed.
+//   - signature: The signature of the operation, to be verified by the onchain smart account.
+//   - chainSelector: The chain selector of the blockchain network in which the operation is being executed.
+func (c *Client) SendSignedOperation(
+	ctx context.Context,
+	channelID uuid.UUID,
+	op *types.Operation,
+	signature []byte,
+	chainSelector string,
+) (*apiClient.Operation, error) {
+	if op == nil {
+		return nil, errors.New("operation is required")
+	}
+
+	c.logger.Debug("Sending signed operation",
+		"channel_id", channelID.String(),
+		"chain_selector", chainSelector,
+		"operation_id", op.ID.String(),
+		"signature", common.Bytes2Hex(signature))
+
+	var transactions []TransactionRequest
 	for _, tx := range op.Transactions {
 		transactions = append(
-			transactions, apiClient.TransactionRequest{
+			transactions, TransactionRequest{
 				To:    tx.To.String(),
 				Value: tx.Value.String(),
 				Data:  "0x" + common.Bytes2Hex(tx.Data),
@@ -177,115 +326,160 @@ func (t *Client) SendSignedOperation(
 		)
 	}
 
-	// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
-	// TODO: Update to use /channels/{channel_id}/operations endpoint and fix CreateOperation fields
-	return nil, fmt.Errorf("SendSignedOperation is temporarily disabled - needs migration to channels-based API")
+	input := CreateOperationInput{
+		ChannelID:         channelID,
+		ChainSelector:     chainSelector,
+		Address:           op.Account.String(),
+		WalletOperationID: op.ID.String(),
+		Transactions:      transactions,
+		Signature:         "0x" + common.Bytes2Hex(signature),
+	}
 
-	// var requestData = apiClient.CreateOperation{
-	// 	WalletOperationId: op.ID.String(),
-	// 	ChainId:            chainId,
-	// 	Address:     op.Account.String(),
-	// 	Transactions:       transactions,
-	// 	Signature:          "0x" + common.Bytes2Hex(signature),
-	// }
-	//
-	// if t.logger.GetLevel() <= zerolog.TraceLevel {
-	// 	data, err := json.MarshalIndent(requestData, "", "  ")
-	// 	if err != nil {
-	// 		t.logger.Err(err).Msg("Failed to marshal request data to JSON")
-	// 	} else {
-	// 		t.logger.Trace().
-	// 			Str("request_data", string(data)).
-	// 			Msg("Request data for SendSignedOperation")
-	// 	}
-	// }
-	//
-	// resp, err := t.crecClient.PostChannelsChannelIdOperationsWithResponse(ctx, channelId, requestData)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to send signed operation: %w", err)
-	// }
-	//
-	// responseState := resp.HTTPResponse.StatusCode
-	// t.logger.Debug().
-	// 	Int("status", responseState).
-	// 	Msg("SendSignedOperation result")
-	//
-	// if responseState != 201 {
-	// 	return nil, fmt.Errorf(
-	// 		"failed to send signed operation, non-201 response received: %s", resp.HTTPResponse.Status,
-	// 	)
-	// }
-	//
-	// t.logger.Trace().Str("raw_response", string(resp.Body)).Msg("OperationResponse JSON")
-	//
-	// return resp.JSON201, nil
+	opID, err := c.CreateOperation(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrSendOperation, err)
+	}
+
+	// Retrieve the created operation
+	operation, err := c.GetOperation(ctx, channelID, *opID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: created but failed to retrieve: %w", ErrSendOperation, err)
+	}
+
+	return operation, nil
 }
 
-// GetOperation retrieves an operation by its ID from the CREC service.
-//   - ctx: Context for the request, used for cancellation and timeouts.
-//   - operationId: The UUID of the operation to retrieve.
+// GetOperation retrieves a specific operation by its ID within a channel.
 //
-// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
-// TODO: Update to use /channels/{channel_id}/operations/{operation_id} endpoint
-func (t *Client) GetOperation(ctx context.Context, operationId uuid.UUID) (*apiClient.Operation, error) {
-	return nil, fmt.Errorf("GetOperation is temporarily disabled - needs migration to channels-based API")
-	// t.logger.Trace().Msg("Getting operation")
-	//
-	// resp, err := t.crecClient.GetChannelsChannelIdOperationsOperationIdWithResponse(ctx, channelId, operationId)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get operation id %v: %w", operationId, err)
-	// }
-	//
-	// if resp.StatusCode() == 404 {
-	// 	return nil, nil
-	// } else if resp.StatusCode() != 200 {
-	// 	return nil, fmt.Errorf("failed to get operation, unexpected status code: %s", resp.Status())
-	// }
-	//
-	// return resp.JSON200, nil
+// Parameters:
+//   - ctx: The context for the request.
+//   - channelID: The UUID of the channel containing the operation.
+//   - operationID: The UUID of the operation to retrieve.
+//
+// Returns the operation or an error if the operation fails or is not found.
+func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operationID uuid.UUID) (*apiClient.Operation, error) {
+	c.logger.Debug("Getting operation",
+		"channel_id", channelID.String(),
+		"operation_id", operationID.String())
+
+	resp, err := c.crecClient.GetChannelsChannelIdOperationsOperationIdWithResponse(ctx, channelID, operationID)
+	if err != nil {
+		c.logger.Error("Failed to get operation", "error", err)
+		return nil, fmt.Errorf("%w: %w", ErrGetOperation, err)
+	}
+
+	if resp.StatusCode() == 404 {
+		c.logger.Warn("Operation not found",
+			"channel_id", channelID.String(),
+			"operation_id", operationID.String())
+		return nil, fmt.Errorf("%w: operation ID %s in channel %s", ErrOperationNotFound, operationID.String(), channelID.String())
+	}
+
+	if resp.StatusCode() != 200 {
+		c.logger.Error("Unexpected status code when getting operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetOperation, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("%w: %w", ErrGetOperation, ErrNilResponseBody)
+	}
+
+	c.logger.Debug("Operation retrieved successfully",
+		"operation_id", resp.JSON200.OperationId.String(),
+		"status", resp.JSON200.Status)
+
+	return resp.JSON200, nil
 }
 
-// GetOperations retrieves a list of operations from the CREC service.
-//   - ctx: Context for the request, used for cancellation and timeouts.
+// ListOperationsInput defines the input parameters for listing operations.
+//   - ChannelID: The UUID of the channel to list operations from.
+//   - Status: Optional filter for operation status.
+//   - ChainSelector: Optional filter for chain selector.
+//   - Address: Optional filter for account address.
+//   - WalletID: Optional filter for wallet ID.
+//   - Limit: Maximum number of operations to return (1-100, default: 20).
+//   - Offset: Number of operations to skip for pagination (default: 0).
+type ListOperationsInput struct {
+	ChannelID     uuid.UUID
+	Status        *string
+	ChainSelector *string
+	Address       *string
+	WalletID      *uuid.UUID
+	Limit         *int
+	Offset        *int64
+}
+
+// ListOperations retrieves a list of operations for a channel.
 //
-// COMMENTED OUT: This method needs to be updated to work with the new channels-based API
-// TODO: Update to use /channels/{channel_id}/operations endpoint
-// Commenting out types because they don't exist in new API
-func (t *Client) GetOperations(ctx context.Context, params interface{}) (
-	[]apiClient.Operation, error,
-) {
-	return nil, fmt.Errorf("GetOperations is temporarily disabled - needs migration to channels-based API")
-	// t.logger.Trace().Msg("Getting operations from CREC")
-	//
-	// resp, err := t.crecClient.GetChannelsChannelIdOperationsWithResponse(ctx, channelId, params)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get operations from CREC: %w", err)
-	// }
-	//
-	// if resp.StatusCode() != 200 {
-	// 	return nil, fmt.Errorf("failed to get operations from CREC, unexpected status code: %d", resp.StatusCode())
-	// }
-	//
-	// if resp.JSON200 == nil {
-	// 	return nil, fmt.Errorf("invalid operations response from CREC")
-	// }
-	//
-	// return resp.JSON200.Data, nil
+// Parameters:
+//   - ctx: The context for the request.
+//   - input: The list parameters including filters and pagination.
+//
+// Returns a list of operations and a boolean indicating if there are more results.
+func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) ([]apiClient.Operation, bool, error) {
+	c.logger.Debug("Listing operations",
+		"channel_id", input.ChannelID.String(),
+		"filters", input)
+
+	if input.ChannelID == uuid.Nil {
+		return nil, false, ErrChannelIDRequired
+	}
+
+	params := apiClient.GetChannelsChannelIdOperationsParams{
+		Status:        input.Status,
+		ChainSelector: input.ChainSelector,
+		Address:       input.Address,
+		WalletId:      input.WalletID,
+		Limit:         input.Limit,
+		Offset:        input.Offset,
+	}
+
+	resp, err := c.crecClient.GetChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, &params)
+	if err != nil {
+		c.logger.Error("Failed to list operations", "error", err)
+		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, err)
+	}
+
+	if resp.StatusCode() == 404 {
+		c.logger.Warn("Channel not found", "channel_id", input.ChannelID.String())
+		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+	}
+
+	if resp.StatusCode() != 200 {
+		c.logger.Error("Unexpected status code when listing operations",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListOperations, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+
+	if resp.JSON200 == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, ErrNilResponseBody)
+	}
+
+	c.logger.Debug("Operations listed successfully",
+		"count", len(resp.JSON200.Data),
+		"has_more", resp.JSON200.HasMore)
+
+	return resp.JSON200.Data, resp.JSON200.HasMore, nil
 }
 
 // ExecuteTransactions executes a list of transactions using the provided signer and executor account.
-// It bundles the transactions into an operation and executes it.
+// It bundles the transactions into an operation, signs it, and sends it to the CREC system.
 //   - ctx: The context for the request.
+//   - channelID: The UUID of the channel to send the operation to.
 //   - operationSigner: The signer to use for signing the operation.
 //   - executorAccount: The account to use for executing the operation.
 //   - txs: The transactions to execute.
-//   - chainId: The chain ID of the blockchain network in which the transactions are being executed.
-func (t *Client) ExecuteTransactions(
+//   - chainSelector: The chain selector of the blockchain network in which the transactions are being executed.
+func (c *Client) ExecuteTransactions(
 	ctx context.Context,
+	channelID uuid.UUID,
 	operationSigner signer.Signer,
 	executorAccount common.Address,
 	txs []types.Transaction,
-	chainId string,
+	chainSelector string,
 ) (*apiClient.Operation, error) {
 	operation := &types.Operation{
 		ID:           big.NewInt(time.Now().Unix()),
@@ -293,26 +487,32 @@ func (t *Client) ExecuteTransactions(
 		Transactions: txs,
 	}
 
-	return t.ExecuteOperation(ctx, operationSigner, operation, chainId)
+	return c.ExecuteOperation(ctx, channelID, operationSigner, operation, chainSelector)
 }
 
-func (t *Client) ExecuteOperation(
-	ctx context.Context, operationSigner signer.Signer, operation *types.Operation, chainId string,
+// ExecuteOperation signs and sends an operation to the CREC system.
+//   - ctx: The context for the request.
+//   - channelID: The UUID of the channel to send the operation to.
+//   - operationSigner: The signer to use for signing the operation.
+//   - operation: The operation to execute.
+//   - chainSelector: The chain selector of the blockchain network in which the operation is being executed.
+func (c *Client) ExecuteOperation(
+	ctx context.Context, channelID uuid.UUID, operationSigner signer.Signer, operation *types.Operation, chainSelector string,
 ) (*apiClient.Operation, error) {
-	_, sig, err := t.SignOperation(ctx, operation, operationSigner, chainId)
+	_, sig, err := c.SignOperation(ctx, operation, operationSigner, chainSelector)
 	if err != nil {
 		return nil, err
 	}
 
-	opr, err := t.SendSignedOperation(ctx, operation, sig, chainId)
+	opr, err := c.SendSignedOperation(ctx, channelID, operation, sig, chainSelector)
 	if err != nil {
 		return nil, err
 	}
 
-	t.logger.Debug().
-		Str("chainID", chainId).
-		Str("operationID", operation.ID.String()).
-		Str("account", operation.Account.Hex()).
-		Msg("ExecuteOperation: operation sent successfully")
+	c.logger.Debug("ExecuteOperation: operation sent successfully",
+		"channel_id", channelID.String(),
+		"chain_selector", chainSelector,
+		"operation_id", operation.ID.String(),
+		"account", operation.Account.Hex())
 	return opr, nil
 }
