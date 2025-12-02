@@ -30,6 +30,7 @@ var (
 	// API operation errors
 	ErrChannelNotFound  = errors.New("channel not found")
 	ErrPollEvents       = errors.New("failed to poll events")
+	ErrSearchEvents     = errors.New("failed to search events")
 	ErrGetEvents        = errors.New("failed to get events")
 	ErrVerifyEvent      = errors.New("failed to verify event")
 	ErrDecodeEvent      = errors.New("failed to decode event")
@@ -147,6 +148,61 @@ func (c *Client) PollEvents(ctx context.Context, channelID uuid.UUID, params *ap
 		Int("count", len(resp.JSON200.Events)).
 		Bool("has_more", resp.JSON200.HasMore).
 		Msg("Events polled successfully")
+
+	return resp.JSON200.Events, resp.JSON200.HasMore, nil
+}
+
+// SearchEvents queries and searches historical events from a channel with filtering capabilities.
+// Use this method for historical queries and searches. For real-time polling, use PollEvents.
+//   - ctx: Context for the request, used for cancellation and timeouts.
+//   - channelID: The UUID of the channel to search events from.
+//   - params: Parameters for filtering events, see client.GetChannelsChannelIdEventsSearchParams for details.
+func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsSearchParams) ([]apiClient.Event, bool, error) {
+	c.logger.Debug().
+		Str("channel_id", channelID.String()).
+		Interface("filter", params).
+		Msg("Searching historical events by channel")
+
+	if channelID == uuid.Nil {
+		return nil, false, ErrChannelIDRequired
+	}
+
+	resp, err := c.crecClient.GetChannelsChannelIdEventsSearchWithResponse(ctx, channelID, params)
+	if err != nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, err)
+	}
+
+	if resp.StatusCode() == 404 {
+		c.logger.Warn().
+			Str("channel_id", channelID.String()).
+			Msg("Channel not found")
+		return nil, false, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
+	}
+
+	if resp.StatusCode() == 400 {
+		c.logger.Error().
+			Int("status_code", resp.StatusCode()).
+			Str("body", string(resp.Body)).
+			Msg("Failed to search events - bad request")
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrSearchEvents, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+
+	if resp.StatusCode() != 200 {
+		c.logger.Error().
+			Int("status_code", resp.StatusCode()).
+			Str("body", string(resp.Body)).
+			Msg("Failed to search events - unexpected status code")
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrSearchEvents, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+
+	if resp.JSON200 == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, ErrNilResponseBody)
+	}
+
+	c.logger.Debug().
+		Int("count", len(resp.JSON200.Events)).
+		Bool("has_more", resp.JSON200.HasMore).
+		Msg("Events searched successfully")
 
 	return resp.JSON200.Events, resp.JSON200.HasMore, nil
 }

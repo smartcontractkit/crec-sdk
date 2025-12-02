@@ -13,7 +13,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.34.0
 	github.com/smartcontractkit/chain-selectors v1.0.82
-	github.com/smartcontractkit/crec-api-go v0.3.7-0.20251127135003-1a60c574f449
+	github.com/smartcontractkit/crec-api-go v0.3.7-0.20251201151130-e151a85be548
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/vault v0.38.0
@@ -203,3 +203,5 @@ require (
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 tool github.com/vektra/mockery/v2
+
+replace github.com/smartcontractkit/crec-api-go => ../crec-api-go

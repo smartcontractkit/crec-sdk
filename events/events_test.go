@@ -114,17 +114,11 @@ func TestClient_ListEvents(t *testing.T) {
 		events := createTestEventsWithKeys(t, 2, privKeys)
 		limit := 2
 		offset := int64(10)
-		domain := "dvp"
-		eventName := "Transfer"
-		typeVal := apiClient.GetChannelsChannelIdEventsParamsTypeWatcherEvent
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			q := r.URL.Query()
 			assert.Equal(t, "2", q.Get("limit"))
 			assert.Equal(t, "10", q.Get("offset"))
-			assert.Equal(t, "dvp", q.Get("domain"))
-			assert.Equal(t, "Transfer", q.Get("event_name"))
-			assert.Equal(t, "watcher.event", q.Get("type"))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			// Server returns apiClient.EventList
@@ -138,11 +132,8 @@ func TestClient_ListEvents(t *testing.T) {
 		defer server.Close()
 
 		params := &apiClient.GetChannelsChannelIdEventsParams{
-			Limit:     &limit,
-			Offset:    offset,
-			Domain:    &domain,
-			EventName: &eventName,
-			Type:      &typeVal,
+			Limit:  &limit,
+			Offset: offset,
 		}
 		eventsList, hasMore, err := c.PollEvents(context.Background(), channelID, params)
 		require.NoError(t, err)
@@ -225,6 +216,270 @@ func TestClient_ListEvents(t *testing.T) {
 			Offset: offset,
 		}
 		eventsList, hasMore, err := c.PollEvents(context.Background(), channelID, params)
+		require.NoError(t, err)
+		assert.Len(t, eventsList, 2)
+		assert.True(t, hasMore)
+	})
+}
+
+func TestClient_SearchEvents(t *testing.T) {
+	privKeys, addresses := generateTestKeys(t, 2)
+
+	createTestEventsWithKeys := func(t *testing.T, count int, keys []*ecdsa.PrivateKey) []apiClient.Event {
+		t.Helper()
+		events := make([]apiClient.Event, count)
+		for i := 0; i < count; i++ {
+			eventPayload := createTestEventPayload(t)
+			event := createValidEventWithSignatures(t, keys, &eventPayload)
+			events[i] = *event
+		}
+		return events
+	}
+
+	channelID := uuid.New()
+
+	t.Run("Success", func(t *testing.T) {
+		events := createTestEventsWithKeys(t, 3, privKeys)
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/channels/"+channelID.String()+"/events/search", r.URL.Path)
+			assert.Equal(t, "GET", r.Method)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.EventList{
+				Events:  events,
+				HasMore: false,
+			}
+			_ = json.NewEncoder(w).Encode(response)
+		}
+		c, server := setupTestClient(t, handler, func(opts *ClientOptions) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+		defer server.Close()
+
+		eventsList, hasMore, err := c.SearchEvents(context.Background(), channelID, nil)
+		require.NoError(t, err)
+		assert.Len(t, eventsList, 3)
+		assert.False(t, hasMore)
+
+		isEventVerified, err := c.Verify(&eventsList[0], testWorkflowID)
+		require.NoError(t, err)
+		require.True(t, isEventVerified)
+	})
+
+	t.Run("WithAllParams", func(t *testing.T) {
+		events := createTestEventsWithKeys(t, 2, privKeys)
+		limit := 50
+		offset := int64(10)
+		typeVal := apiClient.GetChannelsChannelIdEventsSearchParamsTypeWatcherEvent
+		createdLt := int64(1700000000)
+		createdLte := int64(1700000001)
+		createdGt := int64(1600000000)
+		createdGte := int64(1600000001)
+		chainSelector := "5009297550715157269"
+		status := "confirmed"
+		watcherID := uuid.New()
+		address := "0x1234567890123456789012345678901234567890"
+		walletOperationID := "op-123"
+		eventName := "Transfer"
+		domain := "dvp"
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			assert.Equal(t, "50", q.Get("limit"))
+			assert.Equal(t, "10", q.Get("offset"))
+			assert.Equal(t, "watcher.event", q.Get("type"))
+			assert.Equal(t, "1700000000", q.Get("created.lt"))
+			assert.Equal(t, "1700000001", q.Get("created.lte"))
+			assert.Equal(t, "1600000000", q.Get("created.gt"))
+			assert.Equal(t, "1600000001", q.Get("created.gte"))
+			assert.Equal(t, "5009297550715157269", q.Get("chain_selector"))
+			assert.Equal(t, "confirmed", q.Get("status"))
+			assert.Equal(t, watcherID.String(), q.Get("watcher_id"))
+			assert.Equal(t, "0x1234567890123456789012345678901234567890", q.Get("address"))
+			assert.Equal(t, "op-123", q.Get("wallet_operation_id"))
+			assert.Equal(t, "Transfer", q.Get("event_name"))
+			assert.Equal(t, "dvp", q.Get("domain"))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.EventList{
+				Events:  events,
+				HasMore: true,
+			}
+			_ = json.NewEncoder(w).Encode(response)
+		}
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		params := &apiClient.GetChannelsChannelIdEventsSearchParams{
+			Limit:             &limit,
+			Offset:            &offset,
+			Type:              &typeVal,
+			CreatedLt:         &createdLt,
+			CreatedLte:        &createdLte,
+			CreatedGt:         &createdGt,
+			CreatedGte:        &createdGte,
+			ChainSelector:     &chainSelector,
+			Status:            &status,
+			WatcherId:         &watcherID,
+			Address:           &address,
+			WalletOperationId: &walletOperationID,
+			EventName:         &eventName,
+			Domain:            &domain,
+		}
+		eventsList, hasMore, err := c.SearchEvents(context.Background(), channelID, params)
+		require.NoError(t, err)
+		assert.Len(t, eventsList, 2)
+		assert.True(t, hasMore)
+	})
+
+	t.Run("WithTimestampFilters", func(t *testing.T) {
+		events := createTestEventsWithKeys(t, 1, privKeys)
+		createdGte := int64(1600000000)
+		createdLte := int64(1700000000)
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			assert.Equal(t, "1600000000", q.Get("created.gte"))
+			assert.Equal(t, "1700000000", q.Get("created.lte"))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.EventList{
+				Events:  events,
+				HasMore: false,
+			}
+			_ = json.NewEncoder(w).Encode(response)
+		}
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		params := &apiClient.GetChannelsChannelIdEventsSearchParams{
+			CreatedGte: &createdGte,
+			CreatedLte: &createdLte,
+		}
+		eventsList, hasMore, err := c.SearchEvents(context.Background(), channelID, params)
+		require.NoError(t, err)
+		assert.Len(t, eventsList, 1)
+		assert.False(t, hasMore)
+	})
+
+	t.Run("WithTypeFilter", func(t *testing.T) {
+		events := createTestEventsWithKeys(t, 2, privKeys)
+		typeVal := apiClient.GetChannelsChannelIdEventsSearchParamsTypeOperationStatus
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			assert.Equal(t, "operation.status", q.Get("type"))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.EventList{
+				Events:  events,
+				HasMore: false,
+			}
+			_ = json.NewEncoder(w).Encode(response)
+		}
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		params := &apiClient.GetChannelsChannelIdEventsSearchParams{
+			Type: &typeVal,
+		}
+		eventsList, hasMore, err := c.SearchEvents(context.Background(), channelID, params)
+		require.NoError(t, err)
+		assert.Len(t, eventsList, 2)
+		assert.False(t, hasMore)
+	})
+
+	t.Run("NilChannelID", func(t *testing.T) {
+		c := setupLocalClient(t)
+		_, _, err := c.SearchEvents(context.Background(), uuid.Nil, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrChannelIDRequired))
+	})
+
+	t.Run("ChannelNotFound", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrChannelNotFound))
+	})
+
+	t.Run("BadRequest", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			response := apiClient.ApplicationError{
+				Type:    "Bad request",
+				Message: "Invalid parameter combination",
+			}
+			_ = json.NewEncoder(w).Encode(response)
+		}
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrSearchEvents))
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
+	})
+
+	t.Run("UnexpectedStatusCode", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrSearchEvents))
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
+	})
+
+	t.Run("NilResponseBody", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNilResponseBody))
+	})
+
+	t.Run("WithPagination", func(t *testing.T) {
+		events := createTestEventsWithKeys(t, 2, privKeys)
+		limit := 10
+		offset := int64(5)
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			assert.Equal(t, "10", q.Get("limit"))
+			assert.Equal(t, "5", q.Get("offset"))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.EventList{
+				Events:  events,
+				HasMore: true,
+			}
+			_ = json.NewEncoder(w).Encode(response)
+		}
+
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		params := &apiClient.GetChannelsChannelIdEventsSearchParams{
+			Limit:  &limit,
+			Offset: &offset,
+		}
+		eventsList, hasMore, err := c.SearchEvents(context.Background(), channelID, params)
 		require.NoError(t, err)
 		assert.Len(t, eventsList, 2)
 		assert.True(t, hasMore)
