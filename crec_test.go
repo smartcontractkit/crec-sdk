@@ -417,3 +417,118 @@ func TestNewClient_APIKeyHeader(t *testing.T) {
 	// The request might fail but we don't care - we just want to verify the header was set
 	assert.Equal(t, "my-secret-api-key", apiKeyReceived)
 }
+
+func TestNewAPIClient(t *testing.T) {
+	tests := []struct {
+		name    string
+		baseURL string
+		apiKey  string
+		opts    []crec.Option
+		wantErr error
+	}{
+		{
+			name:    "Success_MinimalConfig",
+			baseURL: "https://api.crec.example.com",
+			apiKey:  "test-api-key",
+			opts:    nil,
+			wantErr: nil,
+		},
+		{
+			name:    "Success_WithHTTPClient",
+			baseURL: "https://api.crec.example.com",
+			apiKey:  "test-api-key",
+			opts: []crec.Option{
+				crec.WithHTTPClient(&http.Client{Timeout: 30 * time.Second}),
+			},
+			wantErr: nil,
+		},
+		{
+			name:    "Error_EmptyBaseURL",
+			baseURL: "",
+			apiKey:  "test-api-key",
+			opts:    nil,
+			wantErr: crec.ErrBaseURLRequired,
+		},
+		{
+			name:    "Error_EmptyAPIKey",
+			baseURL: "https://api.crec.example.com",
+			apiKey:  "",
+			opts:    nil,
+			wantErr: crec.ErrAPIKeyRequired,
+		},
+		{
+			name:    "Error_BothEmpty",
+			baseURL: "",
+			apiKey:  "",
+			opts:    nil,
+			wantErr: crec.ErrBaseURLRequired,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			apiClient, err := crec.NewAPIClient(tt.baseURL, tt.apiKey, tt.opts...)
+
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				assert.True(t, errors.Is(err, tt.wantErr), "Expected error %v, got %v", tt.wantErr, err)
+				assert.Nil(t, apiClient)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, apiClient)
+		})
+	}
+}
+
+func TestNewAPIClient_APIKeyHeader(t *testing.T) {
+	apiKeyReceived := ""
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiKeyReceived = r.Header.Get("Api-Key")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": [], "hasMore": false}`))
+	}))
+	defer server.Close()
+
+	api, err := crec.NewAPIClient(server.URL, "my-secret-api-key")
+	require.NoError(t, err)
+	require.NotNil(t, api)
+
+	// Create a channels sub-client using the API client directly
+	channelsClient, err := channels.NewClient(&channels.Options{APIClient: api})
+	require.NoError(t, err)
+
+	// Make a request to verify the API key is sent
+	_, _, _ = channelsClient.List(context.Background(), channels.ListInput{})
+	assert.Equal(t, "my-secret-api-key", apiKeyReceived)
+}
+
+func TestNewAPIClient_UseWithSubClient(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": [], "hasMore": false}`))
+	}))
+	defer server.Close()
+
+	// Create API client independently
+	api, err := crec.NewAPIClient(server.URL, "test-api-key")
+	require.NoError(t, err)
+	require.NotNil(t, api)
+
+	// Use it to create only the channels sub-client
+	channelsClient, err := channels.NewClient(&channels.Options{
+		APIClient: api,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, channelsClient)
+
+	// Verify it works
+	result, hasMore, err := channelsClient.List(context.Background(), channels.ListInput{})
+	require.NoError(t, err)
+	assert.Empty(t, result)
+	assert.False(t, hasMore)
+}

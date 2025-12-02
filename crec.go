@@ -32,6 +32,11 @@ import (
 	"github.com/smartcontractkit/crec-sdk/watchers"
 )
 
+// APIClient is the underlying HTTP client for the CREC API.
+// This type is exported to allow users to create individual sub-clients
+// without using the full Client.
+type APIClient = apiClient.ClientWithResponses
+
 // Client initialization errors
 var (
 	// ErrBaseURLRequired is returned when the base URL is empty.
@@ -43,6 +48,47 @@ var (
 	// ErrInvalidEventVerificationConfig is returned when event verification is misconfigured.
 	ErrInvalidEventVerificationConfig = errors.New("minRequiredSignatures must be > 0 when validSigners are provided")
 )
+
+// NewAPIClient creates an authenticated CREC API client that can be used
+// to create individual sub-clients without instantiating the full Client.
+//
+// This is useful when you only need a subset of the SDK's functionality.
+//
+// Example:
+//
+//	api, err := crec.NewAPIClient("https://api.crec.example.com", "your-api-key")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Create only the channels sub-client
+//	channelsClient, err := channels.NewClient(&channels.Options{APIClient: api})
+func NewAPIClient(baseURL, apiKey string, opts ...Option) (*APIClient, error) {
+	if baseURL == "" {
+		return nil, ErrBaseURLRequired
+	}
+	if apiKey == "" {
+		return nil, ErrAPIKeyRequired
+	}
+
+	cfg := &clientConfig{
+		httpClient: http.DefaultClient,
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	apiKeyHeaderEditor := func(ctx context.Context, req *http.Request) error {
+		req.Header.Set("Api-Key", apiKey)
+		return nil
+	}
+
+	return apiClient.NewClientWithResponses(
+		baseURL,
+		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
+		apiClient.WithHTTPClient(cfg.httpClient),
+	)
+}
 
 // Client is the main entry point for the CREC SDK.
 // It provides access to all sub-clients for interacting with different parts of the CREC system.
@@ -75,13 +121,6 @@ type Client struct {
 //
 // Returns a configured Client or an error if initialization fails.
 func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
-	if baseURL == "" {
-		return nil, ErrBaseURLRequired
-	}
-	if apiKey == "" {
-		return nil, ErrAPIKeyRequired
-	}
-
 	// Apply default configuration
 	cfg := &clientConfig{
 		httpClient: http.DefaultClient,
@@ -97,17 +136,7 @@ func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
 		return nil, ErrInvalidEventVerificationConfig
 	}
 
-	// Create the API client
-	apiKeyHeaderEditor := func(ctx context.Context, req *http.Request) error {
-		req.Header.Set("Api-Key", apiKey)
-		return nil
-	}
-
-	api, err := apiClient.NewClientWithResponses(
-		baseURL,
-		apiClient.WithRequestEditorFn(apiKeyHeaderEditor),
-		apiClient.WithHTTPClient(cfg.httpClient),
-	)
+	api, err := NewAPIClient(baseURL, apiKey, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
 	}

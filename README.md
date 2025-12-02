@@ -74,6 +74,31 @@ client.Transact   // Operation signing and sending
 client.Watchers   // Watcher CRUD operations
 ```
 
+### Using Individual Sub-Clients
+
+If you only need a subset of the SDK's functionality, create individual sub-clients using `NewAPIClient`:
+
+```go
+import (
+    "github.com/smartcontractkit/crec-sdk"
+    "github.com/smartcontractkit/crec-sdk/channels"
+    "github.com/smartcontractkit/crec-sdk/watchers"
+)
+
+// Create an authenticated API client
+api, err := crec.NewAPIClient(
+    "https://api.crec.chainlink.com",
+    "your-api-key",
+)
+
+// Create only the sub-clients you need
+channelsClient, _ := channels.NewClient(&channels.Options{APIClient: api})
+watchersClient, _ := watchers.NewClient(&watchers.Options{
+    APIClient:    api,
+    PollInterval: 5 * time.Second,
+})
+```
+
 ## Core Workflows
 
 ### 🔍 Receiving and Verifying Events

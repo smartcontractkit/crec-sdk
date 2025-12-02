@@ -97,6 +97,33 @@
 //	    crec.WithWatcherPolling(5*time.Second, 10*time.Second),
 //	)
 //
+// # Using Individual Sub-Clients
+//
+// If you only need a subset of the SDK's functionality, you can create individual
+// sub-clients without instantiating the full [Client]. Use [NewAPIClient] to create
+// an authenticated API client, then pass it to the sub-client you need:
+//
+//	import (
+//	    "github.com/smartcontractkit/crec-sdk"
+//	    "github.com/smartcontractkit/crec-sdk/channels"
+//	    "github.com/smartcontractkit/crec-sdk/watchers"
+//	)
+//
+//	// Create an authenticated API client
+//	api, err := crec.NewAPIClient("https://api.crec.example.com", "your-api-key")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Create only the sub-clients you need
+//	channelsClient, err := channels.NewClient(&channels.Options{APIClient: api})
+//	watchersClient, err := watchers.NewClient(&watchers.Options{APIClient: api})
+//
+// This approach is useful when:
+//   - You want to minimize dependencies in a specific package
+//   - You're building a focused service that only uses one domain
+//   - You need fine-grained control over sub-client configuration
+//
 // # Error Handling
 //
 // All errors are wrapped with context and can be inspected using errors.Is:
