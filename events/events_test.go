@@ -250,7 +250,7 @@ func TestClient_SearchEvents(t *testing.T) {
 			}
 			_ = json.NewEncoder(w).Encode(response)
 		}
-		c, server := setupTestClient(t, handler, func(opts *ClientOptions) {
+		c, server := setupTestClient(t, handler, func(opts *Options) {
 			opts.MinRequiredSignatures = 2
 			opts.ValidSigners = addresses
 		})

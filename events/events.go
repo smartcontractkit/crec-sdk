@@ -155,10 +155,9 @@ func (c *Client) Poll(ctx context.Context, channelID uuid.UUID, params *apiClien
 //   - channelID: The UUID of the channel to search events from.
 //   - params: Parameters for filtering events, see client.GetChannelsChannelIdEventsSearchParams for details.
 func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsSearchParams) ([]apiClient.Event, bool, error) {
-	c.logger.Debug().
-		Str("channel_id", channelID.String()).
-		Interface("filter", params).
-		Msg("Searching historical events by channel")
+	c.logger.Debug("Searching historical events by channel",
+		"channel_id", channelID.String(),
+		"filter", params)
 
 	if channelID == uuid.Nil {
 		return nil, false, ErrChannelIDRequired
@@ -170,25 +169,22 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 	}
 
 	if resp.StatusCode() == 404 {
-		c.logger.Warn().
-			Str("channel_id", channelID.String()).
-			Msg("Channel not found")
+		c.logger.Warn("Channel not found",
+			"channel_id", channelID.String())
 		return nil, false, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
 	}
 
 	if resp.StatusCode() == 400 {
-		c.logger.Error().
-			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
-			Msg("Failed to search events - bad request")
+		c.logger.Error("Failed to search events - bad request",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
 		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrSearchEvents, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.StatusCode() != 200 {
-		c.logger.Error().
-			Int("status_code", resp.StatusCode()).
-			Str("body", string(resp.Body)).
-			Msg("Failed to search events - unexpected status code")
+		c.logger.Error("Failed to search events - unexpected status code",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
 		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrSearchEvents, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
@@ -196,10 +192,9 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, ErrNilResponseBody)
 	}
 
-	c.logger.Debug().
-		Int("count", len(resp.JSON200.Events)).
-		Bool("has_more", resp.JSON200.HasMore).
-		Msg("Events searched successfully")
+	c.logger.Debug("Events searched successfully",
+		"count", len(resp.JSON200.Events),
+		"has_more", resp.JSON200.HasMore)
 
 	return resp.JSON200.Events, resp.JSON200.HasMore, nil
 }
