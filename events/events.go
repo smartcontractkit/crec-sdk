@@ -165,7 +165,7 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 
 	resp, err := c.crecClient.GetChannelsChannelIdEventsSearchWithResponse(ctx, channelID, params)
 	if err != nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, err)
+		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, err)
 	}
 
 	if resp.StatusCode() == 404 {
