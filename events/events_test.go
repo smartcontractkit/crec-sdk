@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,12 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
-	"github.com/smartcontractkit/crec-sdk/client"
 )
 
 const (
@@ -30,24 +29,24 @@ const (
 func TestNewClient(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{Logger: &logger, CRECClient: crecClient})
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{Logger: logger, CRECClient: crecClient})
 		require.NoError(t, err)
 		assert.NotNil(t, c)
 		assert.Equal(t, crecClient, c.crecClient)
-		assert.Equal(t, &logger, c.logger)
+		assert.Equal(t, logger, c.logger)
 	})
 
 	t.Run("NilOptions", func(t *testing.T) {
 		c, err := NewClient(nil)
 		require.Error(t, err)
 		assert.Nil(t, c)
-		assert.True(t, errors.Is(err, ErrClientOptionsRequired))
+		assert.True(t, errors.Is(err, ErrOptionsRequired))
 	})
 
 	t.Run("NilCRECClient", func(t *testing.T) {
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{Logger: &logger})
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{Logger: logger})
 		require.Error(t, err)
 		assert.Nil(t, c)
 		assert.True(t, errors.Is(err, ErrCRECClientRequired))
@@ -55,7 +54,7 @@ func TestNewClient(t *testing.T) {
 
 	t.Run("DefaultLogger", func(t *testing.T) {
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		c, err := NewClient(&ClientOptions{CRECClient: crecClient})
+		c, err := NewClient(&Options{CRECClient: crecClient})
 		require.NoError(t, err)
 		assert.NotNil(t, c.logger)
 	})
@@ -94,13 +93,13 @@ func TestClient_ListEvents(t *testing.T) {
 			}
 			_ = json.NewEncoder(w).Encode(response)
 		}
-		c, server := setupTestClient(t, handler, func(opts *ClientOptions) {
+		c, server := setupTestClient(t, handler, func(opts *Options) {
 			opts.MinRequiredSignatures = 2
 			opts.ValidSigners = addresses
 		})
 		defer server.Close()
 
-		eventsList, hasMore, err := c.PollEvents(context.Background(), channelID, nil)
+		eventsList, hasMore, err := c.Poll(context.Background(), channelID, nil)
 		require.NoError(t, err)
 		assert.Len(t, eventsList, 3)
 		assert.False(t, hasMore)
@@ -135,7 +134,7 @@ func TestClient_ListEvents(t *testing.T) {
 			Limit:  &limit,
 			Offset: offset,
 		}
-		eventsList, hasMore, err := c.PollEvents(context.Background(), channelID, params)
+		eventsList, hasMore, err := c.Poll(context.Background(), channelID, params)
 		require.NoError(t, err)
 		// response unpacked
 		assert.Len(t, eventsList, 2)
@@ -144,7 +143,7 @@ func TestClient_ListEvents(t *testing.T) {
 
 	t.Run("NilChannelID", func(t *testing.T) {
 		c := setupLocalClient(t)
-		_, _, err := c.PollEvents(context.Background(), uuid.Nil, nil)
+		_, _, err := c.Poll(context.Background(), uuid.Nil, nil)
 		require.Error(t, err)
 		// nil response checked
 		assert.True(t, errors.Is(err, ErrChannelIDRequired))
@@ -157,7 +156,7 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		_, _, err := c.PollEvents(context.Background(), channelID, nil)
+		_, _, err := c.Poll(context.Background(), channelID, nil)
 		require.Error(t, err)
 		// nil response checked
 		assert.True(t, errors.Is(err, ErrChannelNotFound))
@@ -170,7 +169,7 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		_, _, err := c.PollEvents(context.Background(), channelID, nil)
+		_, _, err := c.Poll(context.Background(), channelID, nil)
 		require.Error(t, err)
 		// nil response checked
 		assert.True(t, errors.Is(err, ErrPollEvents))
@@ -184,7 +183,7 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		_, _, err := c.PollEvents(context.Background(), channelID, nil)
+		_, _, err := c.Poll(context.Background(), channelID, nil)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrNilResponseBody))
 	})
@@ -215,7 +214,7 @@ func TestClient_ListEvents(t *testing.T) {
 			Limit:  &limit,
 			Offset: offset,
 		}
-		eventsList, hasMore, err := c.PollEvents(context.Background(), channelID, params)
+		eventsList, hasMore, err := c.Poll(context.Background(), channelID, params)
 		require.NoError(t, err)
 		assert.Len(t, eventsList, 2)
 		assert.True(t, hasMore)
@@ -488,9 +487,9 @@ func TestClient_SearchEvents(t *testing.T) {
 
 func TestClient_EventHash(t *testing.T) {
 	crecClient := newCRECClient(t, "http://localhost:8080")
-	logger := zerolog.Nop()
-	c, err := NewClient(&ClientOptions{
-		Logger:     &logger,
+	logger := slog.New(slog.DiscardHandler)
+	c, err := NewClient(&Options{
+		Logger:     logger,
 		CRECClient: crecClient,
 	})
 	require.NoError(t, err)
@@ -593,15 +592,61 @@ func TestClient_EventHash(t *testing.T) {
 }
 
 func TestClient_Verify(t *testing.T) {
+	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
+		// Create client WITHOUT configuring signers
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 0,
+			ValidSigners:          nil, // No signers configured
+		})
+		require.NoError(t, err)
+
+		// Create a valid event
+		privKeys, _ := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
+
+		// Verify should fail because no signers are configured
+		ok, err := c.Verify(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+	})
+
+	t.Run("ErrVerificationNotConfigured_EmptySigners", func(t *testing.T) {
+		// Create client with empty signers slice
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 0,
+			ValidSigners:          []string{}, // Empty signers slice
+		})
+		require.NoError(t, err)
+
+		privKeys, _ := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
+
+		ok, err := c.Verify(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+	})
+
 	t.Run("HappyPath_TwoValidSignatures", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
 		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{
-			Logger:                &logger,
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 2,
 			ValidSigners:          addresses,
@@ -619,9 +664,9 @@ func TestClient_Verify(t *testing.T) {
 		event := createValidEventWithSignatures(t, privKeys[:2], &eventPayload)
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{
-			Logger:                &logger,
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 3,
 			ValidSigners:          addresses,
@@ -640,9 +685,9 @@ func TestClient_Verify(t *testing.T) {
 		event := createValidEventWithSignatures(t, signingKeys, &eventPayload)
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{
-			Logger:                &logger,
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 2,
 			ValidSigners:          validAddresses,
@@ -758,9 +803,9 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{
-			Logger:                &logger,
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 1,
 			ValidSigners:          addresses,
@@ -815,9 +860,9 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{
-			Logger:                &logger,
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 1,
 			ValidSigners:          addresses,
@@ -996,9 +1041,9 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{
-			Logger:                &logger,
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 1,
 			ValidSigners:          addresses,
@@ -1055,9 +1100,9 @@ func TestClient_Verify(t *testing.T) {
 		}
 
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := zerolog.Nop()
-		c, err := NewClient(&ClientOptions{
-			Logger:                &logger,
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
 			CRECClient:            crecClient,
 			MinRequiredSignatures: 1,
 			ValidSigners:          addresses,
@@ -1114,9 +1159,9 @@ func TestClient_Verify(t *testing.T) {
 
 func TestClient_Decode(t *testing.T) {
 	crecClient := newCRECClient(t, "http://localhost:8080")
-	logger := zerolog.Nop()
-	c, err := NewClient(&ClientOptions{
-		Logger:     &logger,
+	logger := slog.New(slog.DiscardHandler)
+	c, err := NewClient(&Options{
+		Logger:     logger,
 		CRECClient: crecClient,
 	})
 	require.NoError(t, err)
@@ -1135,9 +1180,9 @@ func TestClient_Decode(t *testing.T) {
 
 func TestClient_ToJson(t *testing.T) {
 	crecClient := newCRECClient(t, "http://localhost:8080")
-	logger := zerolog.Nop()
-	c, err := NewClient(&ClientOptions{
-		Logger:     &logger,
+	logger := slog.New(slog.DiscardHandler)
+	c, err := NewClient(&Options{
+		Logger:     logger,
 		CRECClient: crecClient,
 	})
 	require.NoError(t, err)
@@ -1147,7 +1192,7 @@ func TestClient_ToJson(t *testing.T) {
 		eventPayload := createTestEventPayload(t)
 		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
 
-		jsonBytes, err := c.ToJson(*event)
+		jsonBytes, err := c.ToJSON(*event)
 		require.NoError(t, err)
 		assert.NotEmpty(t, jsonBytes)
 
@@ -1158,22 +1203,25 @@ func TestClient_ToJson(t *testing.T) {
 	})
 }
 
-func newCRECClient(t *testing.T, baseURL string) *client.CRECClient {
+func newCRECClient(t *testing.T, baseURL string) *apiClient.ClientWithResponses {
 	t.Helper()
-	crecClient, err := client.NewCRECClient(&client.ClientOptions{
-		BaseURL: baseURL,
-		APIKey:  testAPIKey,
-	})
+	crecClient, err := apiClient.NewClientWithResponses(
+		baseURL,
+		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			req.Header.Set("Api-Key", testAPIKey)
+			return nil
+		}),
+	)
 	require.NoError(t, err)
 	return crecClient
 }
 
 // newTestClient creates a CREC events Client with defaults and allows optional modifications.
-func newTestClient(t *testing.T, baseURL string, modify ...func(*ClientOptions)) *Client {
+func newTestClient(t *testing.T, baseURL string, modify ...func(*Options)) *Client {
 	crecClient := newCRECClient(t, baseURL)
-	logger := zerolog.Nop()
-	opts := &ClientOptions{
-		Logger:                &logger,
+	logger := slog.New(slog.DiscardHandler)
+	opts := &Options{
+		Logger:                logger,
 		CRECClient:            crecClient,
 		MinRequiredSignatures: 1,
 		ValidSigners:          []string{"0x742d35Cc6634C0532925a3b844Bc454e4438f44e"},
@@ -1187,14 +1235,14 @@ func newTestClient(t *testing.T, baseURL string, modify ...func(*ClientOptions))
 }
 
 // setupTestClient spins up a test HTTP server and returns a client bound to it.
-func setupTestClient(t *testing.T, handler http.HandlerFunc, modify ...func(*ClientOptions)) (*Client, *httptest.Server) {
+func setupTestClient(t *testing.T, handler http.HandlerFunc, modify ...func(*Options)) (*Client, *httptest.Server) {
 	server := httptest.NewServer(handler)
 	c := newTestClient(t, server.URL, modify...)
 	return c, server
 }
 
 // setupLocalClient creates a client pointing to a local (non-started) endpoint.
-func setupLocalClient(t *testing.T, modify ...func(*ClientOptions)) *Client {
+func setupLocalClient(t *testing.T, modify ...func(*Options)) *Client {
 	return newTestClient(t, "http://localhost:8080", modify...)
 }
 

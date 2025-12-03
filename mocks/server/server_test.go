@@ -8,8 +8,6 @@ import (
 	"github.com/google/uuid"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
-
-	"github.com/smartcontractkit/crec-sdk/client"
 )
 
 func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
@@ -26,14 +24,15 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 	}
 
 	// Use the generated CREC client against the mock server
-	c, err := client.NewCRECClient(
-		&client.ClientOptions{
-			BaseURL: s.TestServer.URL,
-			APIKey:  "test-key",
-		},
+	c, err := apiClient.NewClientWithResponses(
+		s.TestServer.URL,
+		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			req.Header.Set("Api-Key", "test-key")
+			return nil
+		}),
 	)
 	if err != nil {
-		t.Fatalf("NewCRECClient: %v", err)
+		t.Fatalf("NewClientWithResponses: %v", err)
 	}
 
 	_ = uuid.New() // Keep uuid import for future use

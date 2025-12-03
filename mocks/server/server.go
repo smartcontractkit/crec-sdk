@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +15,9 @@ import (
 
 type MockServer struct {
 	TestServer *httptest.Server
+
+	// mu protects concurrent access to the in-memory stores
+	mu sync.RWMutex
 
 	// simple in-memory stores for the mock
 	wallets    []stdserver.Wallet
@@ -72,7 +76,10 @@ func (s *MockServer) PostChannels(w http.ResponseWriter, r *http.Request) {
 		Name:      request.Name,
 		CreatedAt: now,
 	}
+
+	s.mu.Lock()
 	s.channels = append(s.channels, channel)
+	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -89,10 +96,15 @@ func (s *MockServer) GetChannels(w http.ResponseWriter, r *http.Request, params 
 		offset = int(*params.Offset)
 	}
 
-	filteredChannels := s.channels
+	s.mu.RLock()
+	channels := make([]stdserver.Channel, len(s.channels))
+	copy(channels, s.channels)
+	s.mu.RUnlock()
+
+	filteredChannels := channels
 	if params.Name != nil && *params.Name != "" {
 		filtered := []stdserver.Channel{}
-		for _, ch := range s.channels {
+		for _, ch := range channels {
 			if ch.Name == *params.Name {
 				filtered = append(filtered, ch)
 			}
@@ -116,6 +128,9 @@ func (s *MockServer) GetChannels(w http.ResponseWriter, r *http.Request, params 
 }
 
 func (s *MockServer) GetChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	for _, ch := range s.channels {
 		if ch.ChannelId == channelId {
 			w.Header().Set("Content-Type", "application/json")
@@ -128,12 +143,20 @@ func (s *MockServer) GetChannelsChannelId(w http.ResponseWriter, r *http.Request
 }
 
 func (s *MockServer) DeleteChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	s.mu.RLock()
+	found := false
 	for _, ch := range s.channels {
 		if ch.ChannelId == channelId {
-			// Just mark as accepted - in a real implementation would set deleted_at
-			w.WriteHeader(http.StatusAccepted)
-			return
+			found = true
+			break
 		}
+	}
+	s.mu.RUnlock()
+
+	if found {
+		// Just mark as accepted - in a real implementation would set deleted_at
+		w.WriteHeader(http.StatusAccepted)
+		return
 	}
 	http.Error(w, "channel not found", http.StatusNotFound)
 }
@@ -164,7 +187,9 @@ func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *h
 	}
 
 	// Store the operation so it can be retrieved later
+	s.mu.Lock()
 	s.operations = append(s.operations, operation)
+	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -183,10 +208,15 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 		offset = int(*params.Offset)
 	}
 
+	s.mu.RLock()
+	operations := make([]stdserver.Operation, len(s.operations))
+	copy(operations, s.operations)
+	s.mu.RUnlock()
+
 	// Filter operations by optional query params
 	// Note: Operations don't have a ChannelId field in the schema, so we return all operations
 	filteredOps := []stdserver.Operation{}
-	for _, op := range s.operations {
+	for _, op := range operations {
 		// Filter by status if provided
 		if params.Status != nil && op.Status != *params.Status {
 			continue
@@ -223,6 +253,9 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 }
 
 func (s *MockServer) GetChannelsChannelIdOperationsOperationId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	for _, op := range s.operations {
 		if op.OperationId == operationId {
 			// Note: Operations don't have a ChannelId field in the schema
@@ -273,9 +306,14 @@ func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http
 		offset = int(*params.Offset)
 	}
 
+	s.mu.RLock()
+	watchers := make([]stdserver.Watcher, len(s.watchers))
+	copy(watchers, s.watchers)
+	s.mu.RUnlock()
+
 	// Filter by channel ID and query parameters
 	filteredWatchers := []stdserver.Watcher{}
-	for _, watcher := range s.watchers {
+	for _, watcher := range watchers {
 		// First, filter by channelId - only return watchers from this channel
 		if watcher.ChannelId != channelId {
 			continue
@@ -373,7 +411,9 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 		return
 	}
 
+	s.mu.Lock()
 	s.watchers = append(s.watchers, watcher)
+	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -381,6 +421,9 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 }
 
 func (s *MockServer) GetChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	for _, watcher := range s.watchers {
 		if watcher.WatcherId == watcherId {
 			// Validate that the watcher belongs to the requested channel
@@ -404,6 +447,9 @@ func (s *MockServer) PatchChannelsChannelIdWatchersWatcherId(w http.ResponseWrit
 		return
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	// Find and update the watcher
 	for i, watcher := range s.watchers {
 		if watcher.WatcherId == watcherId {
@@ -426,6 +472,9 @@ func (s *MockServer) PatchChannelsChannelIdWatchersWatcherId(w http.ResponseWrit
 }
 
 func (s *MockServer) DeleteChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for i, watcher := range s.watchers {
 		if watcher.WatcherId == watcherId {
 			// Validate that the watcher belongs to the requested channel
@@ -469,7 +518,10 @@ func (s *MockServer) PostWallets(w http.ResponseWriter, r *http.Request) {
 		ChainSelector: in.ChainSelector,
 		Name:          &in.Name,
 	}
+
+	s.mu.Lock()
 	s.wallets = append(s.wallets, wallet)
+	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -487,15 +539,20 @@ func (s *MockServer) GetWallets(w http.ResponseWriter, r *http.Request, params s
 		offset = int(*params.Offset)
 	}
 
+	s.mu.RLock()
+	wallets := make([]stdserver.Wallet, len(s.wallets))
+	copy(wallets, s.wallets)
+	s.mu.RUnlock()
+
 	end := offset + limit
-	if end > len(s.wallets) {
-		end = len(s.wallets)
+	if end > len(wallets) {
+		end = len(wallets)
 	}
 	data := []stdserver.Wallet{}
-	if offset < len(s.wallets) {
-		data = s.wallets[offset:end]
+	if offset < len(wallets) {
+		data = wallets[offset:end]
 	}
-	hasMore := end < len(s.wallets)
+	hasMore := end < len(wallets)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -503,6 +560,9 @@ func (s *MockServer) GetWallets(w http.ResponseWriter, r *http.Request, params s
 }
 
 func (s *MockServer) GetWalletsWalletId(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	for _, wallet := range s.wallets {
 		if wallet.WalletId == walletId {
 			w.Header().Set("Content-Type", "application/json")
@@ -520,6 +580,9 @@ func (s *MockServer) PatchWalletsWalletId(w http.ResponseWriter, r *http.Request
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	// Find and update the wallet
 	for i, wallet := range s.wallets {
@@ -550,6 +613,9 @@ func scheduleStatusTransition(id uuid.UUID, fromStatus, toStatus string, delay t
 // updateWatcherStatusConditional updates a watcher's status only if it matches the expected current status.
 // Returns true if the update was successful.
 func (s *MockServer) updateWatcherStatusConditional(watcherID uuid.UUID, fromStatus, toStatus string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for i, w := range s.watchers {
 		if w.WatcherId == watcherID && w.Status == fromStatus {
 			s.watchers[i].Status = toStatus
