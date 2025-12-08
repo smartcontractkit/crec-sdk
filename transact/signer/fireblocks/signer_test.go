@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -410,7 +411,10 @@ func TestSigner_Sign_Timeout(t *testing.T) {
 	signature, err := signer.Sign(ctx, hash)
 	require.Error(t, err)
 	require.Nil(t, signature)
-	assert.Contains(t, err.Error(), "timeout")
+	// Either "timeout" (from our message) or "deadline exceeded" (from cancelled HTTP request) is valid
+	errMsg := err.Error()
+	assert.True(t, strings.Contains(errMsg, "timeout") || strings.Contains(errMsg, "deadline exceeded"),
+		"expected timeout or deadline exceeded error, got: %s", errMsg)
 	assert.True(t, txCreated)
 }
 

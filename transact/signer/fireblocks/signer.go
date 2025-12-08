@@ -3,7 +3,6 @@ package fireblocks
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -317,7 +316,7 @@ func (s *Signer) waitForTransaction(ctx context.Context, txID string) (*Transact
 		case <-timeoutCtx.Done():
 			return nil, fmt.Errorf("timeout waiting for transaction %s: %w", txID, timeoutCtx.Err())
 		case <-ticker.C:
-			tx, err := s.getTransaction(ctx, txID)
+			tx, err := s.getTransaction(timeoutCtx, txID)
 			if err != nil {
 				return nil, err
 			}
@@ -538,21 +537,5 @@ func GenerateTestPrivateKey() (*rsa.PrivateKey, string, error) {
 	}
 
 	return key, string(pem.EncodeToMemory(pemBlock)), nil
-}
-
-// Verify interface compliance at compile time
-var _ crypto.Signer = (*rsaSignerAdapter)(nil)
-
-// rsaSignerAdapter is not used but demonstrates crypto.Signer compliance
-type rsaSignerAdapter struct {
-	key *rsa.PrivateKey
-}
-
-func (a *rsaSignerAdapter) Public() crypto.PublicKey {
-	return &a.key.PublicKey
-}
-
-func (a *rsaSignerAdapter) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
-	return a.key.Sign(rand, digest, opts)
 }
 
