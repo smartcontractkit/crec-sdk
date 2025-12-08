@@ -7,6 +7,7 @@
 //   - [github.com/smartcontractkit/crec-sdk/transact/signer/vault] - HashiCorp Vault Transit
 //   - [github.com/smartcontractkit/crec-sdk/transact/signer/kms] - AWS KMS
 //   - [github.com/smartcontractkit/crec-sdk/transact/signer/privy] - Privy wallet-as-a-service
+//   - [github.com/smartcontractkit/crec-sdk/transact/signer/fireblocks] - Fireblocks custody
 //
 // # Signer Interface
 //
@@ -37,6 +38,10 @@
 // PrivySigner provides wallet-as-a-service for customer-facing apps:
 //
 //	signer, _ := privy.NewSignerFromEnv()
+//
+// FireblocksSigner provides custody infrastructure:
+//
+//	signer, _ := fireblocks.NewSignerFromEnv()
 //
 // # Integration with Transact Client
 //
