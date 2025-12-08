@@ -54,13 +54,47 @@
 //	    fireblocks.WithBaseURL("https://sandbox-api.fireblocks.io"),
 //	)
 //
-// # Transaction Flow
+// # Signing Flow
 //
-// When Sign is called, the signer:
-//  1. Creates a RAW signing transaction in Fireblocks
-//  2. Polls for transaction completion
+// When Sign is called (raw hash signing), the signer:
+//  1. Creates a RAW signing operation in Fireblocks
+//  2. Polls for operation completion
 //  3. Extracts the ECDSA signature (r, s, v) from the response
 //  4. Returns an Ethereum-compatible 65-byte signature
+//
+// # EIP-712 Typed Data Signing
+//
+// The signer also implements [signer.TypedDataSigner] for EIP-712 typed data:
+//
+//	typedData := &signer.TypedData{
+//	    Types: map[string][]signer.TypedDataField{
+//	        "Permit": {
+//	            {Name: "owner", Type: "address"},
+//	            {Name: "spender", Type: "address"},
+//	            {Name: "value", Type: "uint256"},
+//	            {Name: "nonce", Type: "uint256"},
+//	            {Name: "deadline", Type: "uint256"},
+//	        },
+//	    },
+//	    PrimaryType: "Permit",
+//	    Domain: signer.TypedDataDomain{
+//	        Name:              "MyToken",
+//	        Version:           "1",
+//	        ChainID:           1,
+//	        VerifyingContract: "0x...",
+//	    },
+//	    Message: map[string]any{
+//	        "owner":    "0x...",
+//	        "spender":  "0x...",
+//	        "value":    "1000000000000000000",
+//	        "nonce":    0,
+//	        "deadline": 1893456000,
+//	    },
+//	}
+//	signature, err := signer.SignTypedData(ctx, typedData)
+//
+// This uses Fireblocks' TYPED_MESSAGE operation, which allows Fireblocks
+// to see the full typed data structure for policy enforcement.
 //
 // # Security Considerations
 //
@@ -75,8 +109,8 @@
 // The signer returns detailed errors for common failure cases:
 //   - Invalid or missing credentials
 //   - Network failures
-//   - Transaction rejections or policy violations
-//   - Timeout waiting for transaction completion
+//   - Operation rejections or policy violations
+//   - Timeout waiting for operation completion
 //
 // # Integration with CREC SDK
 //

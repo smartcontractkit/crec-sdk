@@ -20,6 +20,18 @@
 // This allows swapping between signing implementations without changing
 // application code.
 //
+// # TypedDataSigner Interface
+//
+// Some signers also implement [TypedDataSigner] for EIP-712 typed data signing:
+//
+//	type TypedDataSigner interface {
+//	    SignTypedData(ctx context.Context, typedData *TypedData) ([]byte, error)
+//	}
+//
+// This is useful for custody providers that need to see the full typed data
+// structure for policy enforcement. Currently implemented by:
+//   - [github.com/smartcontractkit/crec-sdk/transact/signer/fireblocks]
+//
 // # Choosing a Signer
 //
 // LocalSigner is suitable for development and testing:
