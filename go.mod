@@ -12,7 +12,7 @@ require (
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/pkg/errors v0.9.1
 	github.com/smartcontractkit/chain-selectors v1.0.82
-	github.com/smartcontractkit/crec-api-go v0.3.7-0.20251201151130-e151a85be548
+	github.com/smartcontractkit/crec-api-go v0.3.7-0.20251209120934-f0223b7f01a5
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/vault v0.38.0
