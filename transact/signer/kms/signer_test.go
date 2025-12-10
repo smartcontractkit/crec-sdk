@@ -197,6 +197,18 @@ func TestNewSignerWithClient_EmptyKeyID(t *testing.T) {
 	assert.Contains(t, err.Error(), "keyID cannot be empty")
 }
 
+func TestNewSignerWithConfig_WithClientOption(t *testing.T) {
+	mockClient := mocks.NewKMSClient(t)
+	cfg := aws.Config{
+		Region: "us-west-2",
+	}
+
+	signer, err := NewSignerWithConfig(cfg, testKeyID, WithClient(mockClient))
+	require.NoError(t, err)
+	assert.NotNil(t, signer)
+	assert.Equal(t, mockClient, signer.client)
+}
+
 func TestSigner_Sign_Success(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)

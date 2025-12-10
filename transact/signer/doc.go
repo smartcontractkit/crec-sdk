@@ -7,6 +7,7 @@
 //   - [github.com/smartcontractkit/crec-sdk/transact/signer/vault] - HashiCorp Vault Transit
 //   - [github.com/smartcontractkit/crec-sdk/transact/signer/kms] - AWS KMS
 //   - [github.com/smartcontractkit/crec-sdk/transact/signer/privy] - Privy wallet-as-a-service
+//   - [github.com/smartcontractkit/crec-sdk/transact/signer/fireblocks] - Fireblocks custody
 //
 // # Signer Interface
 //
@@ -18,6 +19,18 @@
 //
 // This allows swapping between signing implementations without changing
 // application code.
+//
+// # TypedDataSigner Interface
+//
+// Some signers also implement [TypedDataSigner] for EIP-712 typed data signing:
+//
+//	type TypedDataSigner interface {
+//	    SignTypedData(ctx context.Context, typedData *TypedData) ([]byte, error)
+//	}
+//
+// This is useful for custody providers that need to see the full typed data
+// structure for policy enforcement. Currently implemented by:
+//   - [github.com/smartcontractkit/crec-sdk/transact/signer/fireblocks]
 //
 // # Choosing a Signer
 //
@@ -37,6 +50,10 @@
 // PrivySigner provides wallet-as-a-service for customer-facing apps:
 //
 //	signer, _ := privy.NewSignerFromEnv()
+//
+// FireblocksSigner provides custody infrastructure:
+//
+//	signer, _ := fireblocks.NewSignerFromEnv()
 //
 // # Integration with Transact Client
 //

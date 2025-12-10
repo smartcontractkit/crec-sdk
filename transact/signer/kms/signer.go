@@ -18,7 +18,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
-	"github.com/pkg/errors"
 	"github.com/smartcontractkit/crec-sdk/transact/signer"
 )
 
@@ -38,10 +37,20 @@ type Signer struct {
 	keyID  string
 }
 
+// Option is a functional option for configuring the Signer
+type Option func(*Signer)
+
+// WithClient sets a custom KMS client (useful for testing)
+func WithClient(client KMSClient) Option {
+	return func(s *Signer) {
+		s.client = client
+	}
+}
+
 // NewSigner creates a new KMS signer with the specified key ID
 // The keyID should be the ARN, key ID, or alias of the KMS key
 // Loads AWS configuration from the AWS CLI environment (see https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html)
-func NewSigner(ctx context.Context, keyID string) (*Signer, error) {
+func NewSigner(ctx context.Context, keyID string, opts ...Option) (*Signer, error) {
 	if keyID == "" {
 		return nil, fmt.Errorf("keyID cannot be empty")
 	}
@@ -51,25 +60,38 @@ func NewSigner(ctx context.Context, keyID string) (*Signer, error) {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
-	return &Signer{
+	s := &Signer{
 		client: kms.NewFromConfig(cfg),
 		keyID:  keyID,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s, nil
 }
 
 // NewSignerWithConfig creates a new KMS signer with custom AWS configuration
-func NewSignerWithConfig(cfg aws.Config, keyID string) (*Signer, error) {
+func NewSignerWithConfig(cfg aws.Config, keyID string, opts ...Option) (*Signer, error) {
 	if keyID == "" {
 		return nil, fmt.Errorf("keyID cannot be empty")
 	}
 
-	return &Signer{
+	s := &Signer{
 		client: kms.NewFromConfig(cfg),
 		keyID:  keyID,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s, nil
 }
 
 // NewSignerWithClient creates a new KMS signer with a custom KMS client (useful for testing)
+// Deprecated: Use NewSigner with WithClient option instead
 func NewSignerWithClient(client KMSClient, keyID string) (*Signer, error) {
 	if keyID == "" {
 		return nil, fmt.Errorf("keyID cannot be empty")
@@ -138,13 +160,13 @@ func getPublicKeyDerBytesFromKMS(ctx context.Context, svc KMSClient, keyId strin
 		KeyId: aws.String(keyId),
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "can not get public key from KMS for KeyId=%s", keyId)
+		return nil, fmt.Errorf("cannot get public key from KMS for KeyId=%s: %w", keyId, err)
 	}
 
 	var asn1pubk asn1EcPublicKey
 	_, err = asn1.Unmarshal(getPubKeyOutput.PublicKey, &asn1pubk)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can not parse asn1 public key for KeyId=%s", keyId)
+		return nil, fmt.Errorf("cannot parse asn1 public key for KeyId=%s: %w", keyId, err)
 	}
 
 	return asn1pubk.PublicKey.Bytes, nil
@@ -191,7 +213,7 @@ func getEthereumSignature(expectedPublicKeyBytes []byte, txHash []byte, r []byte
 		}
 
 		if hex.EncodeToString(recoveredPublicKeyBytes) != hex.EncodeToString(expectedPublicKeyBytes) {
-			return nil, errors.New("can not reconstruct public key from sig")
+			return nil, fmt.Errorf("cannot reconstruct public key from signature")
 		}
 	}
 
@@ -206,7 +228,7 @@ func GetPubKeyCtx(ctx context.Context, svc KMSClient, keyId string) (*ecdsa.Publ
 
 	pubkey, err := crypto.UnmarshalPubkey(pubKeyBytes)
 	if err != nil {
-		return nil, errors.Wrap(err, "can not construct secp256k1 public key from key bytes")
+		return nil, fmt.Errorf("cannot construct secp256k1 public key from key bytes: %w", err)
 	}
 	return pubkey, nil
 }

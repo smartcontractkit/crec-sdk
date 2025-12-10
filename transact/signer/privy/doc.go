@@ -27,7 +27,7 @@
 //	    "your-app-id",
 //	    "your-app-secret",
 //	    "your-wallet-id",
-//	    "https://api.privy.io",
+//	    privy.WithBaseURL("https://custom-api.privy.io"), // optional
 //	)
 //
 // # Signing
@@ -47,10 +47,10 @@
 //
 // For unit testing, inject a custom HTTP client:
 //
-//	signer, err := privy.NewSignerWithCustomClient(
+//	signer, err := privy.NewSigner(
 //	    appID, appSecret, walletID,
-//	    mockHTTPClient,
-//	    "https://api.privy.io",
+//	    privy.WithHTTPClient(mockHTTPClient),
+//	    privy.WithBaseURL("https://api.privy.io"),
 //	)
 //
 // # Use Cases
