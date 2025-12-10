@@ -16,13 +16,40 @@ import (
 
 var _ signer.Signer = &Signer{}
 
+const (
+	// DefaultBaseURL is the default Privy API endpoint
+	DefaultBaseURL = "https://api.privy.io"
+)
+
+// HTTPClient is a narrow interface for HTTP operations needed by the signer
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 // Signer implements signing operations using Privy's wallet API
 type Signer struct {
-	client    *http.Client
+	client    HTTPClient
 	appID     string
 	appSecret string
 	baseURL   string
 	walletID  string
+}
+
+// Option is a functional option for configuring the Signer
+type Option func(*Signer)
+
+// WithHTTPClient sets a custom HTTP client (useful for testing)
+func WithHTTPClient(c HTTPClient) Option {
+	return func(s *Signer) {
+		s.client = c
+	}
+}
+
+// WithBaseURL sets a custom base URL for the Privy API
+func WithBaseURL(url string) Option {
+	return func(s *Signer) {
+		s.baseURL = url
+	}
 }
 
 // RPCRequest represents an RPC request to Privy
@@ -52,31 +79,39 @@ type WalletResponse struct {
 }
 
 // NewSigner creates a new Privy signer with explicit parameters
-func NewSigner(appID, appSecret, walletID, baseURL string) (*Signer, error) {
-	if appID == "" || appSecret == "" || walletID == "" || baseURL == "" {
-		return nil, fmt.Errorf("appID, appSecret, walletID, and baseURL must be set")
+func NewSigner(appID, appSecret, walletID string, opts ...Option) (*Signer, error) {
+	if appID == "" {
+		return nil, fmt.Errorf("appID cannot be empty")
+	}
+	if appSecret == "" {
+		return nil, fmt.Errorf("appSecret cannot be empty")
+	}
+	if walletID == "" {
+		return nil, fmt.Errorf("walletID cannot be empty")
 	}
 
-	return &Signer{
+	s := &Signer{
 		client:    &http.Client{},
 		appID:     appID,
 		appSecret: appSecret,
-		baseURL:   baseURL,
+		baseURL:   DefaultBaseURL,
 		walletID:  walletID,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s, nil
 }
 
 // NewSignerFromEnv creates a new Privy signer using environment variables
 // PRIVY_APP_ID, PRIVY_APP_SECRET, PRIVY_WALLET_ID, and optionally PRIVY_BASE_URL
-func NewSignerFromEnv() (*Signer, error) {
+func NewSignerFromEnv(opts ...Option) (*Signer, error) {
 	appID := os.Getenv("PRIVY_APP_ID")
 	appSecret := os.Getenv("PRIVY_APP_SECRET")
 	walletID := os.Getenv("PRIVY_WALLET_ID")
 	baseURL := os.Getenv("PRIVY_BASE_URL")
-
-	if baseURL == "" {
-		baseURL = "https://api.privy.io"
-	}
 
 	if appID == "" {
 		return nil, fmt.Errorf("PRIVY_APP_ID environment variable not set")
@@ -88,27 +123,15 @@ func NewSignerFromEnv() (*Signer, error) {
 		return nil, fmt.Errorf("PRIVY_WALLET_ID environment variable not set")
 	}
 
-	return NewSigner(appID, appSecret, walletID, baseURL)
-}
-
-// NewSignerWithCustomClient creates a new Privy signer with a custom HTTP client (useful for testing)
-func NewSignerWithCustomClient(appID, appSecret, walletID string, client *http.Client, baseURL string) (*Signer, error) {
-	if appID == "" || appSecret == "" || walletID == "" || baseURL == "" {
-		return nil, fmt.Errorf("appID, appSecret, walletID, and baseURL must be set")
+	allOpts := opts
+	if baseURL != "" {
+		allOpts = append([]Option{WithBaseURL(baseURL)}, opts...)
 	}
 
-	if client == nil {
-		client = &http.Client{}
-	}
-
-	return &Signer{
-		client:    client,
-		appID:     appID,
-		appSecret: appSecret,
-		baseURL:   baseURL,
-		walletID:  walletID,
-	}, nil
+	return NewSigner(appID, appSecret, walletID, allOpts...)
 }
+
+// NewSignerWithCustomClient Deprecated: Use NewSigner with WithHTTPClient and WithBaseURL options instead
 
 func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	hashHex := "0x" + hex.EncodeToString(hash)

@@ -43,7 +43,7 @@
 // For unit testing, inject a mock KMS client:
 //
 //	mockClient := &mocks.KMSClient{}
-//	signer, err := kms.NewSignerWithClient(mockClient, keyID)
+//	signer, err := kms.NewSignerWithConfig(cfg, keyID, kms.WithClient(mockClient))
 //
 // # Features
 //

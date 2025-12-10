@@ -102,15 +102,23 @@ func TestNewSigner(t *testing.T) {
 		appID       string
 		appSecret   string
 		walletID    string
-		baseURL     string
+		opts        []Option
 		expectError bool
+		errContains string
 	}{
 		{
 			name:        "valid parameters",
 			appID:       "test-app-id",
 			appSecret:   "test-app-secret",
 			walletID:    "test-wallet-id",
-			baseURL:     "https://api.privy.io",
+			expectError: false,
+		},
+		{
+			name:        "valid parameters with custom base URL",
+			appID:       "test-app-id",
+			appSecret:   "test-app-secret",
+			walletID:    "test-wallet-id",
+			opts:        []Option{WithBaseURL("https://custom.api.privy.io")},
 			expectError: false,
 		},
 		{
@@ -118,52 +126,68 @@ func TestNewSigner(t *testing.T) {
 			appID:       "",
 			appSecret:   "test-app-secret",
 			walletID:    "test-wallet-id",
-			baseURL:     "https://api.privy.io",
 			expectError: true,
+			errContains: "appID cannot be empty",
 		},
 		{
 			name:        "empty app secret",
 			appID:       "test-app-id",
 			appSecret:   "",
 			walletID:    "test-wallet-id",
-			baseURL:     "https://api.privy.io",
 			expectError: true,
+			errContains: "appSecret cannot be empty",
 		},
 		{
 			name:        "empty wallet ID",
 			appID:       "test-app-id",
 			appSecret:   "test-app-secret",
 			walletID:    "",
-			baseURL:     "https://api.privy.io",
 			expectError: true,
-		},
-		{
-			name:        "empty base URL",
-			appID:       "test-app-id",
-			appSecret:   "test-app-secret",
-			walletID:    "test-wallet-id",
-			baseURL:     "",
-			expectError: true,
+			errContains: "walletID cannot be empty",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			signer, err := NewSigner(tt.appID, tt.appSecret, tt.walletID, tt.baseURL)
+			signer, err := NewSigner(tt.appID, tt.appSecret, tt.walletID, tt.opts...)
 
 			if tt.expectError {
 				require.Error(t, err)
 				require.Nil(t, signer)
+				if tt.errContains != "" {
+					require.Contains(t, err.Error(), tt.errContains)
+				}
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, signer)
 				require.Equal(t, tt.appID, signer.appID)
 				require.Equal(t, tt.appSecret, signer.appSecret)
 				require.Equal(t, tt.walletID, signer.walletID)
-				require.Equal(t, tt.baseURL, signer.baseURL)
 			}
 		})
 	}
+}
+
+func TestNewSigner_DefaultBaseURL(t *testing.T) {
+	signer, err := NewSigner("test-app-id", "test-app-secret", "test-wallet-id")
+	require.NoError(t, err)
+	require.Equal(t, DefaultBaseURL, signer.baseURL)
+}
+
+func TestNewSigner_WithOptions(t *testing.T) {
+	server := MockPrivyServer(t)
+	defer server.Close()
+
+	signer, err := NewSigner(
+		"test-app-id",
+		"test-app-secret",
+		"mock-wallet-id-123",
+		WithBaseURL(server.URL),
+		WithHTTPClient(&http.Client{}),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, signer)
+	require.Equal(t, server.URL, signer.baseURL)
 }
 
 func TestNewSignerFromEnv(t *testing.T) {
@@ -251,7 +275,7 @@ func TestNewSignerFromEnv(t *testing.T) {
 
 				expectedBaseURL := tt.envVars["PRIVY_BASE_URL"]
 				if expectedBaseURL == "" {
-					expectedBaseURL = "https://api.privy.io"
+					expectedBaseURL = DefaultBaseURL
 				}
 				require.Equal(t, expectedBaseURL, signer.baseURL)
 			}
@@ -268,7 +292,12 @@ func TestSigner_Sign(t *testing.T) {
 	server := MockPrivyServer(t)
 	defer server.Close()
 
-	signer, err := NewSignerWithCustomClient("test-app-id", "test-app-secret", "mock-wallet-id-123", &http.Client{}, server.URL)
+	signer, err := NewSigner(
+		"test-app-id",
+		"test-app-secret",
+		"mock-wallet-id-123",
+		WithBaseURL(server.URL),
+	)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -285,7 +314,12 @@ func TestSigner_GetWalletAddress(t *testing.T) {
 	server := MockPrivyServer(t)
 	defer server.Close()
 
-	signer, err := NewSignerWithCustomClient("test-app-id", "test-app-secret", "mock-wallet-id-123", &http.Client{}, server.URL)
+	signer, err := NewSigner(
+		"test-app-id",
+		"test-app-secret",
+		"mock-wallet-id-123",
+		WithBaseURL(server.URL),
+	)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -300,7 +334,12 @@ func TestSigner_AuthenticationFailure(t *testing.T) {
 	defer server.Close()
 
 	// Create signer with wrong credentials
-	signer, err := NewSignerWithCustomClient("wrong-app-id", "wrong-app-secret", "mock-wallet-id-123", &http.Client{}, server.URL)
+	signer, err := NewSigner(
+		"wrong-app-id",
+		"wrong-app-secret",
+		"mock-wallet-id-123",
+		WithBaseURL(server.URL),
+	)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -322,7 +361,12 @@ func TestSigner_ErrorHandling(t *testing.T) {
 	}))
 	defer server.Close()
 
-	signer, err := NewSignerWithCustomClient("test-app-id", "test-app-secret", "test-wallet-id", &http.Client{}, server.URL)
+	signer, err := NewSigner(
+		"test-app-id",
+		"test-app-secret",
+		"test-wallet-id",
+		WithBaseURL(server.URL),
+	)
 	require.NoError(t, err)
 
 	ctx := context.Background()

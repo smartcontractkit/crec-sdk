@@ -34,24 +34,40 @@ type Signer struct {
 	mount   string
 }
 
-func NewSigner(vaultUrl, token, mountPath, key string) (*Signer, error) {
+// Option is a functional option for configuring the Signer
+type Option func(*Signer)
+
+// WithClient sets a custom Vault client (useful for testing)
+func WithClient(client *vault.Client) Option {
+	return func(s *Signer) {
+		s.client = client
+	}
+}
+
+func NewSigner(vaultUrl, token, mountPath, key string, opts ...Option) (*Signer, error) {
+	if vaultUrl == "" || token == "" || mountPath == "" || key == "" {
+		return nil, fmt.Errorf("vaultUrl, token, mountPath, and key must be set")
+	}
+
 	client, err := vault.NewClient(vault.DefaultConfig())
 	if err != nil {
 		return nil, err
 	}
 
-	if vaultUrl == "" || token == "" || mountPath == "" || key == "" {
-		return nil, fmt.Errorf("vaultUrl, token, mountPath, and key must be set")
-	}
-
 	client.SetAddress(vaultUrl)
 	client.SetToken(token)
 
-	return &Signer{
+	s := &Signer{
 		client:  client,
 		keyName: key,
 		mount:   mountPath, // usually "transit"
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s, nil
 }
 
 func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
