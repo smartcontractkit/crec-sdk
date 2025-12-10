@@ -113,17 +113,11 @@ func TestClient_ListEvents(t *testing.T) {
 		events := createTestEventsWithKeys(t, 2, privKeys)
 		limit := 2
 		offset := int64(10)
-		domain := "dvp"
-		eventName := "Transfer"
-		typeVal := apiClient.GetChannelsChannelIdEventsParamsTypeWatcherEvent
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			q := r.URL.Query()
 			assert.Equal(t, "2", q.Get("limit"))
 			assert.Equal(t, "10", q.Get("offset"))
-			assert.Equal(t, "dvp", q.Get("domain"))
-			assert.Equal(t, "Transfer", q.Get("event_name"))
-			assert.Equal(t, "watcher.event", q.Get("type"))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			// Server returns apiClient.EventList
@@ -137,11 +131,8 @@ func TestClient_ListEvents(t *testing.T) {
 		defer server.Close()
 
 		params := &apiClient.GetChannelsChannelIdEventsParams{
-			Limit:     &limit,
-			Offset:    offset,
-			Domain:    &domain,
-			EventName: &eventName,
-			Type:      &typeVal,
+			Limit:  &limit,
+			Offset: &offset,
 		}
 		eventsList, hasMore, err := c.Poll(context.Background(), channelID, params)
 		require.NoError(t, err)
@@ -221,7 +212,7 @@ func TestClient_ListEvents(t *testing.T) {
 
 		params := &apiClient.GetChannelsChannelIdEventsParams{
 			Limit:  &limit,
-			Offset: offset,
+			Offset: &offset,
 		}
 		eventsList, hasMore, err := c.Poll(context.Background(), channelID, params)
 		require.NoError(t, err)
