@@ -132,7 +132,7 @@ func TestClient_ListEvents(t *testing.T) {
 
 		params := &apiClient.GetChannelsChannelIdEventsParams{
 			Limit:  &limit,
-			Offset: offset,
+			Offset: &offset,
 		}
 		eventsList, hasMore, err := c.Poll(context.Background(), channelID, params)
 		require.NoError(t, err)
@@ -212,7 +212,7 @@ func TestClient_ListEvents(t *testing.T) {
 
 		params := &apiClient.GetChannelsChannelIdEventsParams{
 			Limit:  &limit,
-			Offset: offset,
+			Offset: &offset,
 		}
 		eventsList, hasMore, err := c.Poll(context.Background(), channelID, params)
 		require.NoError(t, err)
