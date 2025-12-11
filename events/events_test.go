@@ -424,7 +424,23 @@ func TestClient_SearchEvents(t *testing.T) {
 		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrSearchEvents))
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
+		assert.True(t, errors.Is(err, ErrBadRequest))
+		assert.Contains(t, err.Error(), "Invalid parameter combination")
+	})
+
+	t.Run("BadRequest_NoApplicationError", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			// No JSON body, so JSON400 will be nil
+		}
+		c, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrSearchEvents))
+		assert.True(t, errors.Is(err, ErrBadRequest))
+		assert.Contains(t, err.Error(), "Invalid request parameters")
 	})
 
 	t.Run("UnexpectedStatusCode", func(t *testing.T) {
