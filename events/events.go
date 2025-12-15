@@ -54,6 +54,7 @@ var (
 	// Response errors
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 	ErrNilResponseBody      = errors.New("unexpected nil response body")
+	ErrBadRequest           = errors.New("invalid request parameters")
 	ErrOCRReportTooShort    = errors.New("OCR report is too short")
 
 	// Configuration errors
@@ -175,10 +176,17 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 	}
 
 	if resp.StatusCode() == 400 {
+		var errorMsg string
+		if resp.JSON400 != nil && resp.JSON400.Message != "" {
+			errorMsg = resp.JSON400.Message
+		} else {
+			errorMsg = "Invalid request parameters"
+		}
 		c.logger.Error("Failed to search events - bad request",
 			"status_code", resp.StatusCode(),
+			"message", errorMsg,
 			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrSearchEvents, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, false, fmt.Errorf("%w: %w: %s (status code %d)", ErrSearchEvents, ErrBadRequest, errorMsg, resp.StatusCode())
 	}
 
 	if resp.StatusCode() != 200 {
