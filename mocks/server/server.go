@@ -288,7 +288,7 @@ func (s *MockServer) GetChannelsChannelIdEvents(w http.ResponseWriter, r *http.R
 }
 
 func (s *MockServer) GetChannelsChannelIdEventsSearch(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdEventsSearchParams) {
-	// Not implemented - events search service
+	// Not implemented - events service
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
