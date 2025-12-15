@@ -70,6 +70,10 @@ func ParseWorkflowConfig(b []byte) (*Config, error) {
 			return nil, fmt.Errorf("failed to parse workflow config (yaml/json)")
 		}
 	}
+	if cfg.ChainSelector == "" || cfg.ChainSelector == "0" {
+		return nil, fmt.Errorf("chain selector is required")
+	}
+
 	// No hard validation here; downstream helpers handle defaults/fallbacks.
 	return &cfg, nil
 }

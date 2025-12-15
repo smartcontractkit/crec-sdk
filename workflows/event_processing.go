@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	gethAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	gethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -193,9 +192,9 @@ func MustEvent(abiJSON, eventName string) gethAbi.Event {
 	return eventDef
 }
 
-// BuildAndSignEventEnvelope builds the base64 verifiable-event JSON and computes keccak256(type+"."+b64).
+// BuildAndHashEventEnvelope builds the base64 verifiable-event JSON and computes keccak256(type+"."+b64).
 // Note: parameters and metadata are treated as read-only; they are not mutated.
-func BuildAndSignEventEnvelope(
+func BuildAndHashEventEnvelope(
 	service string,
 	eventName string,
 	contractAddress string,
@@ -235,7 +234,7 @@ func BuildAndSignEventEnvelope(
 	}
 
 	createdAt := time.Unix(int64(timestamp), 0).UTC().Format(time.RFC3339Nano)
-	obj := map[string]any{
+	verifiableEventBody := map[string]any{
 		"created_at":  createdAt,
 		"event":       event,
 		"parameters":  parameters,
@@ -243,16 +242,16 @@ func BuildAndSignEventEnvelope(
 		"metadata":    metadata,
 	}
 
-	j, _ := json.Marshal(obj)
-	b64 := base64.StdEncoding.EncodeToString(j)
+	marshalledVerifiableEvent, _ := json.Marshal(verifiableEventBody)
+	base64VerifiableEvent := base64.StdEncoding.EncodeToString(marshalledVerifiableEvent)
 	typeName := service + "." + eventName
-	payloadToSign := typeName + "." + b64
-	evHash := crypto.Keccak256Hash([]byte(payloadToSign))
+	payloadToSign := typeName + "." + base64VerifiableEvent
+	eventHash := crypto.Keccak256Hash([]byte(payloadToSign))
 
 	return PreConsensusEventResults{
-		Base64Event:    b64,
+		Base64Event:    base64VerifiableEvent,
 		Type:           typeName,
-		EventHash:      evHash,
+		EventHash:      eventHash,
 		BlockTimestamp: timestamp,
 		Metadata:       metadata,
 	}, nil
