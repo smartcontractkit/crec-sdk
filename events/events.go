@@ -210,6 +210,8 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 // Verify verifies the authenticity of a given event.
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
+//   - workflowId: The expected workflow CID (Content Identifier) that generated the event. This is the identifier of the workflow that should have generated this event.
+// Returns true if the event is valid and signed by enough authorized signers, false otherwise.
 func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error) {
 	if len(c.validSigners) == 0 {
 		return false, ErrVerificationNotConfigured
