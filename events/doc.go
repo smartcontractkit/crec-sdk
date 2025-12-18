@@ -48,7 +48,7 @@
 // the event was signed by enough trusted DON members and matches the expected workflow:
 //
 //	// The workflowId is the CID (Content Identifier) of the workflow that should
-//	// have generated this event. Obtain this from your workflow deployment configuration.
+//	// have generated this event. Use workflowId from corresponding watcher.
 //	workflowId := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
 //
 //	for _, event := range events {
