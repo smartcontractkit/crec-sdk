@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
-	"github.com/smartcontractkit/crec-sdk/transact/hasher"
+	"github.com/smartcontractkit/crec-sdk/transact/eip712"
 	"github.com/smartcontractkit/crec-sdk/transact/signer"
 	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
@@ -58,9 +58,9 @@ type Options struct {
 type Client struct {
 	logger     *slog.Logger
 	crecClient *apiClient.ClientWithResponses
-	// Hasher provides hashing and signing operations for CREC operations.
+	// EIP712Handler provides hashing and signing operations for CREC operations.
 	// It can be used independently for offline signing workflows.
-	Hasher *hasher.Client
+	EIP712Handler *eip712.Handler
 }
 
 // NewClient creates a new CREC transact client with the provided CREC client and options.
@@ -82,33 +82,33 @@ func NewClient(opts *Options) (*Client, error) {
 
 	logger.Debug("Creating CREC transact client")
 
-	// Create the hasher client for signing operations
-	hasherClient, err := hasher.NewClient(&hasher.Options{
+	// Create the EIP-712 handler for signing operations
+	eip712Handler, err := eip712.NewHandler(&eip712.Options{
 		Logger: logger,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create hasher client: %w", err)
+		return nil, fmt.Errorf("failed to create EIP-712 handler: %w", err)
 	}
 
 	return &Client{
-		logger:     logger,
-		crecClient: opts.CRECClient,
-		Hasher:     hasherClient,
+		logger:        logger,
+		crecClient:    opts.CRECClient,
+		EIP712Handler: eip712Handler,
 	}, nil
 }
 
 // HashOperation computes the EIP-712 digest of the given operation.
-// This method delegates to the embedded Hasher client.
+// This method delegates to the embedded EIP712Handler.
 //   - op: The operation to hash.
 //   - chainSelector: chainSelector of the blockchain network in which the operation is being executed.
 //
 // Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
 func (c *Client) HashOperation(op *types.Operation, chainSelector string) (common.Hash, error) {
-	return c.Hasher.HashOperation(op, chainSelector)
+	return c.EIP712Handler.HashOperation(op, chainSelector)
 }
 
 // SignOperation signs the given operation using the provided signer, returning the operation hash and the signature
-// over the hash. This method delegates to the embedded Hasher client.
+// over the hash. This method delegates to the embedded EIP712Handler.
 //   - ctx: The context for the request.
 //   - op: The operation to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
@@ -121,11 +121,11 @@ func (c *Client) SignOperation(
 	signer signer.Signer,
 	chainSelector string,
 ) (common.Hash, []byte, error) {
-	return c.Hasher.SignOperation(ctx, op, signer, chainSelector)
+	return c.EIP712Handler.SignOperation(ctx, op, signer, chainSelector)
 }
 
 // SignOperationHash signs the given operation hash using the provided signer, returning the signature.
-// This method delegates to the embedded Hasher client.
+// This method delegates to the embedded EIP712Handler.
 //   - ctx: The context for the request.
 //   - opHash: The operation hash to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
@@ -134,7 +134,7 @@ func (c *Client) SignOperationHash(
 	opHash common.Hash,
 	signer signer.Signer,
 ) ([]byte, error) {
-	return c.Hasher.SignOperationHash(ctx, opHash, signer)
+	return c.EIP712Handler.SignOperationHash(ctx, opHash, signer)
 }
 
 // CreateOperationInput defines the input parameters for creating a new operation.

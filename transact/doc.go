@@ -8,7 +8,7 @@
 //
 // The transact package is composed of two main components:
 //
-//  1. Hasher Client (transact/hasher) - Handles EIP-712 hashing and signing operations.
+//  1. EIP-712 Handler (transact/eip712) - Handles EIP-712 hashing and signing operations.
 //     This client has no network dependencies and can be used independently for
 //     offline signing workflows.
 //

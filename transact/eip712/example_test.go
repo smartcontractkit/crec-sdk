@@ -1,4 +1,4 @@
-package hasher_test
+package eip712_test
 
 import (
 	"context"
@@ -9,16 +9,16 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/smartcontractkit/crec-sdk/transact/hasher"
+	"github.com/smartcontractkit/crec-sdk/transact/eip712"
 	"github.com/smartcontractkit/crec-sdk/transact/signer/local"
 	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// This example demonstrates using the hasher client independently
+// This example demonstrates using the EIP-712 handler independently
 // for offline signing without requiring any network dependencies.
 func Example() {
-	// Create a hasher client without any API dependencies
-	hasherClient, err := hasher.NewClient(nil)
+	// Create an EIP-712 handler without any API dependencies
+	handler, err := eip712.NewHandler(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func Example() {
 	chainSelector := "10344971235874465080"
 
 	// Hash the operation
-	hash, err := hasherClient.HashOperation(operation, chainSelector)
+	hash, err := handler.HashOperation(operation, chainSelector)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func Example() {
 	signer := local.NewSigner(privateKey)
 
 	// Sign the operation
-	opHash, signature, err := hasherClient.SignOperation(context.Background(), operation, signer, chainSelector)
+	opHash, signature, err := handler.SignOperation(context.Background(), operation, signer, chainSelector)
 	if err != nil {
 		log.Fatal(err)
 	}

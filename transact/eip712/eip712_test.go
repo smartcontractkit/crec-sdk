@@ -1,4 +1,4 @@
-package hasher
+package eip712
 
 import (
 	"context"
@@ -15,25 +15,25 @@ import (
 	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-func TestNewClient(t *testing.T) {
-	t.Run("creates client with default logger", func(t *testing.T) {
-		client, err := NewClient(nil)
+func TestNewHandler(t *testing.T) {
+	t.Run("creates handler with default logger", func(t *testing.T) {
+		handler, err := NewHandler(nil)
 		require.NoError(t, err)
-		require.NotNil(t, client)
-		assert.NotNil(t, client.logger)
+		require.NotNil(t, handler)
+		assert.NotNil(t, handler.logger)
 	})
 
-	t.Run("creates client with custom logger", func(t *testing.T) {
+	t.Run("creates handler with custom logger", func(t *testing.T) {
 		logger := slog.Default()
-		client, err := NewClient(&Options{Logger: logger})
+		handler, err := NewHandler(&Options{Logger: logger})
 		require.NoError(t, err)
-		require.NotNil(t, client)
-		assert.Equal(t, logger, client.logger)
+		require.NotNil(t, handler)
+		assert.Equal(t, logger, handler.logger)
 	})
 }
 
 func TestHashOperation(t *testing.T) {
-	client, err := NewClient(nil)
+	handler, err := NewHandler(nil)
 	require.NoError(t, err)
 
 	// Base Sepolia chain selector
@@ -52,26 +52,26 @@ func TestHashOperation(t *testing.T) {
 	}
 
 	t.Run("successfully hashes operation", func(t *testing.T) {
-		hash, err := client.HashOperation(operation, chainSelector)
+		hash, err := handler.HashOperation(operation, chainSelector)
 		require.NoError(t, err)
 		assert.NotEqual(t, common.Hash{}, hash)
 	})
 
 	t.Run("returns error for nil operation", func(t *testing.T) {
-		_, err := client.HashOperation(nil, chainSelector)
+		_, err := handler.HashOperation(nil, chainSelector)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrOperationRequired)
 	})
 
 	t.Run("returns error for invalid chain selector", func(t *testing.T) {
-		_, err := client.HashOperation(operation, "invalid")
+		_, err := handler.HashOperation(operation, "invalid")
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrParseChainSelector)
 	})
 }
 
 func TestSignOperation(t *testing.T) {
-	client, err := NewClient(nil)
+	handler, err := NewHandler(nil)
 	require.NoError(t, err)
 
 	// Base Sepolia chain selector
@@ -96,7 +96,7 @@ func TestSignOperation(t *testing.T) {
 	}
 
 	t.Run("successfully signs operation", func(t *testing.T) {
-		hash, sig, err := client.SignOperation(context.Background(), operation, localSigner, chainSelector)
+		hash, sig, err := handler.SignOperation(context.Background(), operation, localSigner, chainSelector)
 		require.NoError(t, err)
 		assert.NotEqual(t, common.Hash{}, hash)
 		assert.NotEmpty(t, sig)
@@ -104,20 +104,20 @@ func TestSignOperation(t *testing.T) {
 	})
 
 	t.Run("returns error for nil signer", func(t *testing.T) {
-		_, _, err := client.SignOperation(context.Background(), operation, nil, chainSelector)
+		_, _, err := handler.SignOperation(context.Background(), operation, nil, chainSelector)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrSignerRequired)
 	})
 
 	t.Run("returns error for nil operation", func(t *testing.T) {
-		_, _, err := client.SignOperation(context.Background(), nil, localSigner, chainSelector)
+		_, _, err := handler.SignOperation(context.Background(), nil, localSigner, chainSelector)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrOperationRequired)
 	})
 }
 
 func TestSignOperationHash(t *testing.T) {
-	client, err := NewClient(nil)
+	handler, err := NewHandler(nil)
 	require.NoError(t, err)
 
 	// Create a test private key
@@ -129,14 +129,14 @@ func TestSignOperationHash(t *testing.T) {
 	testHash := common.HexToHash("0x1234567890123456789012345678901234567890123456789012345678901234")
 
 	t.Run("successfully signs hash", func(t *testing.T) {
-		sig, err := client.SignOperationHash(context.Background(), testHash, localSigner)
+		sig, err := handler.SignOperationHash(context.Background(), testHash, localSigner)
 		require.NoError(t, err)
 		assert.NotEmpty(t, sig)
 		assert.Equal(t, 65, len(sig)) // Ethereum signature length
 	})
 
 	t.Run("returns error for nil signer", func(t *testing.T) {
-		_, err := client.SignOperationHash(context.Background(), testHash, nil)
+		_, err := handler.SignOperationHash(context.Background(), testHash, nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrSignerRequired)
 	})
