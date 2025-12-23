@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
+	ocrReportPayloadOffset   = 109                 // Offset of the report payload (event hash) in the OCR report
+	OperationStatusEventName = "OperationExecuted" // Event name used for operation status event hashing
 )
 
 var (
@@ -35,14 +36,15 @@ var (
 	ErrEventDomainIsNil = errors.New("event domain is nil")
 
 	// Parsing errors
-	ErrParseSignature             = errors.New("failed to parse signature")
-	ErrRecoverPubKeyFromSignature = errors.New("failed to recover public key from signature")
-	ErrParseOCRReport             = errors.New("failed to parse OCR report")
-	ErrParseOCRContext            = errors.New("failed to parse OCR context")
-	ErrParseEventPayload          = errors.New("failed to parse event payload")
-	ErrOnlyWatcherEventsSupported = errors.New("only watcher events are supported for event verification")
-	ErrMarshalEventPayload        = errors.New("failed to marshal event payload")
-	ErrMarshalEventToJSON         = errors.New("failed to marshal event to JSON")
+	ErrParseSignature               = errors.New("failed to parse signature")
+	ErrRecoverPubKeyFromSignature   = errors.New("failed to recover public key from signature")
+	ErrParseOCRReport               = errors.New("failed to parse OCR report")
+	ErrParseOCRContext              = errors.New("failed to parse OCR context")
+	ErrParseEventPayload            = errors.New("failed to parse event payload")
+	ErrOnlyWatcherEventsSupported   = errors.New("only watcher events are supported for event verification")
+	ErrOnlyOperationStatusSupported = errors.New("only operation status events are supported for operation status verification")
+	ErrMarshalEventPayload          = errors.New("failed to marshal event payload")
+	ErrMarshalEventToJSON           = errors.New("failed to marshal event to JSON")
 
 	// Verification errors
 	ErrInvalidEventHash = errors.New("event hash verification failed")
@@ -211,38 +213,23 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
 //   - workflowId: The expected workflow CID (Content Identifier) that generated the event. This is the identifier of the workflow that should have generated this event.
+//
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
 func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error) {
-	if len(c.validSigners) == 0 {
-		return false, ErrVerificationNotConfigured
-	}
-	ocrProof, err := getOCRProof(event)
+	ocrProof, payloadValue, err := c.prepareVerification(event)
 	if err != nil {
-		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
+		return false, err
 	}
 
 	// Check the payload type to ensure it's a watcher event
-	payloadValue, err := event.Payload.ValueByDiscriminator()
-	if err != nil {
-		return false, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
-	}
-
 	eventPayload, ok := payloadValue.(apiClient.WatcherEventPayload)
 	if !ok {
 		return false, ErrOnlyWatcherEventsSupported
 	}
 
-	ocrReport, err := common.ParseHexOrString(ocrProof.OcrReport)
+	ocrReport, ocrContext, err := c.parseOCRProofData(ocrProof)
 	if err != nil {
-		return false, fmt.Errorf("%w: %w", ErrParseOCRReport, err)
-	}
-	ocrContext, err := common.ParseHexOrString(ocrProof.OcrContext)
-	if err != nil {
-		return false, fmt.Errorf("%w: %w", ErrParseOCRContext, err)
-	}
-
-	if len(ocrReport) < ocrReportPayloadOffset+32 { // 32 bytes for event hash
-		return false, ErrOCRReportTooShort
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
 	c.logger.Debug("Verifying event",
@@ -264,6 +251,166 @@ func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error)
 		return false, ErrInvalidEventHash
 	}
 
+	// verify signatures
+	verified, err := c.verifySignatures(ocrProof, ocrReport, ocrContext)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
+	}
+
+	if verified {
+		c.logger.Debug("Event verified successfully")
+	}
+	return verified, nil
+}
+
+// VerifyOperationStatus verifies the authenticity of an operation status event.
+// It checks whether the event was signed by at least a minimum number of authorized signers.
+//   - event: The event to verify.
+//   - workflowId: The expected workflow CID (Content Identifier) that generated the event. This is the identifier of the workflow that should have generated this event.
+// Returns true if the event is valid and signed by enough authorized signers, false otherwise.
+func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowId string) (bool, error) {
+	ocrProof, payloadValue, err := c.prepareVerification(event)
+	if err != nil {
+		return false, err
+	}
+
+	// Check the payload type to ensure it's an operation status event
+	operationStatusPayload, ok := payloadValue.(apiClient.OperationStatusPayload)
+	if !ok {
+		return false, ErrOnlyOperationStatusSupported
+	}
+
+	if operationStatusPayload.VerifiableEvent == nil || *operationStatusPayload.VerifiableEvent == "" {
+		return false, fmt.Errorf("%w: verifiable event is required for operation status verification", ErrVerifyEvent)
+	}
+
+	ocrReport, ocrContext, err := c.parseOCRProofData(ocrProof)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
+	}
+
+	c.logger.Debug("Verifying operation status event",
+		"operation_id", operationStatusPayload.OperationId.String(),
+		"wallet_operation_id", operationStatusPayload.WalletOperationId,
+		"status", operationStatusPayload.Status,
+		"address", operationStatusPayload.Address,
+		"ocr_report", ocrProof.OcrReport,
+		"ocr_context", ocrProof.OcrContext)
+
+	// compute the event hash from the operation status payload
+	eventHash, err := c.OperationStatusHash(&operationStatusPayload)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
+	}
+
+	// ensure locally computed event hash matches the one in the report
+	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowId)
+	if !eventHashValid {
+		return false, ErrInvalidEventHash
+	}
+
+	// verify signatures
+	verified, err := c.verifySignatures(ocrProof, ocrReport, ocrContext)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
+	}
+
+	if verified {
+		c.logger.Debug("Operation status event verified successfully")
+	}
+	return verified, nil
+}
+
+// Decode decodes a verifiable event into a specified payload structure.
+//   - event: The event to decode.
+//   - payload: A pointer to the structure where the decoded event will be stored.
+func (c *Client) Decode(event *apiClient.Event, payload any) error {
+	// Marshal the event data to JSON
+	jsonBytes, err := c.ToJSON(*event)
+	if err != nil {
+		return fmt.Errorf("%w: %w: %w", ErrDecodeEvent, ErrMarshalEventToJSON, err)
+	}
+	return json.Unmarshal(jsonBytes, payload)
+}
+
+// ToJSON converts a verifiable event into its JSON representation.
+//   - event: The event to convert.
+func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
+	jsonBytes, err := json.Marshal(event)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrMarshalEventPayload, err)
+	}
+	return jsonBytes, nil
+}
+
+// EventHash computes the "EventHash" of an event used for verification.
+func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
+	if event.Event.Domain == nil {
+		return common.Hash{}, ErrEventDomainIsNil
+	}
+	dataBytes, err := json.Marshal(event.Event.Data)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	dataStr := base64.StdEncoding.EncodeToString(dataBytes)
+	return crypto.Keccak256Hash([]byte(*event.Event.Domain + "." + event.Event.EventName + "." + dataStr)), nil
+}
+
+// OperationStatusHash computes the "EventHash" of an OperationStatusPayload used for verification.
+// The hash is computed using the pattern: eventName + "." + base64VerifiableEvent
+// Note: VerifiableEvent must be present and non-empty (should be validated by caller).
+func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) (common.Hash, error) {
+	payloadToSign := OperationStatusEventName + "." + *payload.VerifiableEvent
+	eventHash := crypto.Keccak256Hash([]byte(payloadToSign))
+
+	return eventHash, nil
+}
+
+// prepareVerification performs the initial verification setup steps:
+// - Validates that verification is configured (validSigners are set)
+// - Extracts the OCR proof from the event
+// - Extracts the payload value from the event
+// Returns the OCR proof and payload value, or an error if any step fails.
+func (c *Client) prepareVerification(event *apiClient.Event) (apiClient.OCRProof, interface{}, error) {
+	if len(c.validSigners) == 0 {
+		return apiClient.OCRProof{}, nil, ErrVerificationNotConfigured
+	}
+
+	ocrProof, err := getOCRProof(event)
+	if err != nil {
+		return apiClient.OCRProof{}, nil, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
+	}
+
+	payloadValue, err := event.Payload.ValueByDiscriminator()
+	if err != nil {
+		return apiClient.OCRProof{}, nil, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
+	}
+
+	return ocrProof, payloadValue, nil
+}
+
+// parseOCRProofData parses the OCR proof and returns the OCR report and context bytes.
+// It also validates that the OCR report has the minimum required length.
+func (c *Client) parseOCRProofData(ocrProof apiClient.OCRProof) ([]byte, []byte, error) {
+	ocrReport, err := common.ParseHexOrString(ocrProof.OcrReport)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: %w", ErrParseOCRReport, err)
+	}
+	ocrContext, err := common.ParseHexOrString(ocrProof.OcrContext)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: %w", ErrParseOCRContext, err)
+	}
+
+	if len(ocrReport) < ocrReportPayloadOffset+32 { // 32 bytes for event hash
+		return nil, nil, ErrOCRReportTooShort
+	}
+
+	return ocrReport, ocrContext, nil
+}
+
+// verifySignatures verifies that the OCR proof signatures are valid and signed by authorized signers.
+// It returns true if at least minRequiredSignatures valid signatures are found, false otherwise.
+func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrContext []byte) (bool, error) {
 	// generate the report hash matching the DON signing format
 	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
 
@@ -304,7 +451,7 @@ func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error)
 	}
 
 	if validSigCount >= c.minRequiredSignatures {
-		c.logger.Debug("Event verified successfully",
+		c.logger.Debug("Signatures verified successfully",
 			"valid_signatures", validSigCount,
 			"required_signatures", c.minRequiredSignatures)
 		return true, nil
@@ -313,41 +460,6 @@ func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error)
 		"valid_signatures", validSigCount,
 		"required_signatures", c.minRequiredSignatures)
 	return false, nil
-}
-
-// Decode decodes a verifiable event into a specified payload structure.
-//   - event: The event to decode.
-//   - payload: A pointer to the structure where the decoded event will be stored.
-func (c *Client) Decode(event *apiClient.Event, payload any) error {
-	// Marshal the event data to JSON
-	jsonBytes, err := c.ToJSON(*event)
-	if err != nil {
-		return fmt.Errorf("%w: %w: %w", ErrDecodeEvent, ErrMarshalEventToJSON, err)
-	}
-	return json.Unmarshal(jsonBytes, payload)
-}
-
-// ToJSON converts a verifiable event into its JSON representation.
-//   - event: The event to convert.
-func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
-	jsonBytes, err := json.Marshal(event)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrMarshalEventPayload, err)
-	}
-	return jsonBytes, nil
-}
-
-// EventHash computes the "EventHash" of an event used for verification.
-func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
-	if event.Event.Domain == nil {
-		return common.Hash{}, ErrEventDomainIsNil
-	}
-	dataBytes, err := json.Marshal(event.Event.Data)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-	return crypto.Keccak256Hash([]byte(*event.Event.Domain + "." + event.Event.EventName + "." + dataStr)), nil
 }
 
 func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowId string) bool {
