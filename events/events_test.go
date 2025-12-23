@@ -1147,10 +1147,10 @@ func TestClient_Verify(t *testing.T) {
 
 		// Build a valid WatcherStatusPayload (not WatcherEventPayload)
 		statusPayload := apiClient.WatcherStatusPayload{
-			Type:          apiClient.WatcherStatusPayloadType("watcher.status"),
+			Type:          apiClient.WatcherStatus,
 			WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
 			ChainSelector: "5009297550715157269",
-			Status:        apiClient.WatcherStatusPayloadStatus("DEPLOYING"),
+			Status:        apiClient.Deploying,
 			StatusCode:    "DEPLOYING",
 			StatusReason:  "Watcher is being deployed",
 		}
@@ -1389,8 +1389,9 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
-		require.NoError(t, err)
+		require.Error(t, err)
 		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrInvalidEventHash))
 	})
 
 	t.Run("ErrInvalidEventHash", func(t *testing.T) {
@@ -1451,8 +1452,9 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
-		require.NoError(t, err)
+		require.Error(t, err)
 		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrInvalidEventHash))
 	})
 
 	t.Run("ErrOnlyOperationStatusSupported", func(t *testing.T) {
@@ -1493,10 +1495,12 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		// Create operation status payload without VerifiableEvent
 		operationStatusPayload := apiClient.OperationStatusPayload{
-			Type:              apiClient.OperationStatusPayloadType("operation.status"),
+			Type:              apiClient.OperationStatusPayloadTypeOperationStatus,
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            "confirmed",
+			Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+			StatusReason:      "Operation confirmed",
+			ChainSelector:     "5009297550715157269",
 			Address:           "0x1234567890123456789012345678901234567890",
 			VerifiableEvent:   nil,
 		}
@@ -1655,7 +1659,7 @@ func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
 	}
 
 	return apiClient.WatcherEventPayload{
-		Type:          apiClient.WatcherEventPayloadType("watcher.event"),
+		Type:          apiClient.WatcherEventPayloadTypeWatcherEvent,
 		WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
 		Address:       "0x1234567890123456789012345678901234567890",
 		ChainSelector: "5009297550715157269",
@@ -1745,10 +1749,12 @@ func createTestOperationStatusPayload(t *testing.T) apiClient.OperationStatusPay
 	operationId := uuid.New()
 
 	return apiClient.OperationStatusPayload{
-		Type:              apiClient.OperationStatusPayloadType("operation.status"),
+		Type:              apiClient.OperationStatusPayloadTypeOperationStatus,
 		OperationId:       operationId,
 		WalletOperationId: "wallet-op-123",
-		Status:            "confirmed",
+		Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+		StatusReason:      "Operation confirmed",
+		ChainSelector:     "5009297550715157269",
 		Address:           "0x1234567890123456789012345678901234567890",
 		VerifiableEvent:   &verifiableEvent,
 	}
