@@ -724,6 +724,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{},
 			},
@@ -762,6 +763,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -812,6 +814,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -869,6 +872,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -933,6 +937,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proof1, proof2}, // Multiple proofs
 			},
@@ -968,6 +973,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1003,6 +1009,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1050,6 +1057,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1109,6 +1117,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1160,6 +1169,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1323,6 +1333,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1372,6 +1383,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1435,6 +1447,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1478,6 +1491,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1520,6 +1534,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1732,6 +1747,7 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 
 	event := &apiClient.Event{
 		Headers: apiClient.EventHeaders{
+			Type:   apiClient.EventHeadersTypeWatcherEvent,
 			Offset: int64(12345),
 			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 		},
@@ -1802,6 +1818,7 @@ func createValidOperationStatusEventWithSignatures(t *testing.T, privateKeys []*
 
 	event := &apiClient.Event{
 		Headers: apiClient.EventHeaders{
+			Type:   apiClient.EventHeadersTypeOperationStatus,
 			Offset: int64(12345),
 			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 		},

@@ -221,7 +221,12 @@ func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error)
 		return false, err
 	}
 
-	// Check the payload type to ensure it's a watcher event
+	// Check the event type in headers to ensure it's a watcher event
+	if event.Headers.Type != apiClient.EventHeadersTypeWatcherEvent {
+		return false, ErrOnlyWatcherEventsSupported
+	}
+
+	// Check the payload type to ensure it's a watcher event (defense in depth)
 	eventPayload, ok := payloadValue.(apiClient.WatcherEventPayload)
 	if !ok {
 		return false, ErrOnlyWatcherEventsSupported
@@ -267,6 +272,7 @@ func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error)
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
 //   - workflowId: The expected workflow CID (Content Identifier) that generated the event. This is the identifier of the workflow that should have generated this event.
+//
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
 func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowId string) (bool, error) {
 	ocrProof, payloadValue, err := c.prepareVerification(event)
@@ -274,7 +280,12 @@ func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowId string
 		return false, err
 	}
 
-	// Check the payload type to ensure it's an operation status event
+	// Check the event type in headers to ensure it's an operation status event
+	if event.Headers.Type != apiClient.EventHeadersTypeOperationStatus {
+		return false, ErrOnlyOperationStatusSupported
+	}
+
+	// Check the payload type to ensure it's an operation status event (defense in depth)
 	operationStatusPayload, ok := payloadValue.(apiClient.OperationStatusPayload)
 	if !ok {
 		return false, ErrOnlyOperationStatusSupported
