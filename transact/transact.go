@@ -59,7 +59,6 @@ type Client struct {
 	logger     *slog.Logger
 	crecClient *apiClient.ClientWithResponses
 	// EIP712Handler provides hashing and signing operations for CREC operations.
-	// It can be used independently for offline signing workflows.
 	EIP712Handler *eip712.Handler
 }
 
@@ -82,7 +81,6 @@ func NewClient(opts *Options) (*Client, error) {
 
 	logger.Debug("Creating CREC transact client")
 
-	// Create the EIP-712 handler for signing operations
 	eip712Handler, err := eip712.NewHandler(&eip712.Options{
 		Logger: logger,
 	})

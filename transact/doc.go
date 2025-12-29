@@ -13,7 +13,7 @@
 //     offline signing workflows.
 //
 //  2. Transact Client - Handles API operations for submitting signed operations
-//     to the CREC network. This client embeds the Hasher client and delegates
+//     to the CREC network. This client embeds the EIP-712 handler and delegates
 //     hash/sign operations to it.
 //
 // # Usage
@@ -37,10 +37,10 @@
 //
 // For offline signing workflows without network dependencies:
 //
-//	hasher, err := hasher.NewClient(&hasher.Options{
+//	handler, err := eip712.NewHandler(&eip712.Options{
 //	    Logger: logger,
 //	})
-//	hash, signature, err := hasher.SignOperation(ctx, operation, signer, chainSelector)
+//	hash, signature, err := handler.SignOperation(ctx, operation, signer, chainSelector)
 //
 // # Building Operations
 //
