@@ -30,6 +30,8 @@ var (
 	ErrChainSelectorRequired      = errors.New("chain selector is required")
 	ErrWalletOwnerAddressRequired = errors.New("wallet owner address is required")
 	ErrWalletTypeRequired         = errors.New("wallet type is required")
+	ErrInvalidSignersForEcdsa     = errors.New("only allowed_ecdsa_signers can be provided for ecdsa wallet type")
+	ErrInvalidSignersForRsa       = errors.New("only allowed_rsa_signers can be provided for rsa wallet type")
 
 	// API operation errors
 	ErrCreateWallet = errors.New("failed to create wallet")
@@ -130,6 +132,18 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 
 	if input.WalletType == "" {
 		return nil, ErrWalletTypeRequired
+	}
+
+	// Validate that wallet type matches the provided signers
+	switch input.WalletType {
+	case "ecdsa":
+		if input.AllowedRsaSigners != nil && len(*input.AllowedRsaSigners) > 0 {
+			return nil, ErrInvalidSignersForEcdsa
+		}
+	case "rsa":
+		if input.AllowedEcdsaSigners != nil && len(*input.AllowedEcdsaSigners) > 0 {
+			return nil, ErrInvalidSignersForRsa
+		}
 	}
 
 	createWalletReq := apiClient.CreateWallet{

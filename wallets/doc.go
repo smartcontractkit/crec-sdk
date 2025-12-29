@@ -1,12 +1,12 @@
-// Package wallets provides operations for managing wallets in the CREC platform.
+// Package wallets provides operations for managing Smart Wallets in the CREC platform.
 //
-// Wallets are blockchain wallets that can be used to sign transactions and interact
+// Smart Wallets are blockchain wallets that can be used to sign transactions and interact
 // with smart contracts. They can be configured with allowed signers and are associated
 // with specific blockchain networks through chain selectors.
 //
 // # Usage
 //
-// Wallets are typically accessed through the main SDK client:
+// Smart Wallets are typically accessed through the main SDK client:
 //
 //	client, _ := crec.NewClient(baseURL, apiKey)
 //
@@ -24,9 +24,17 @@
 //	    Logger:    &logger,
 //	})
 //
-// # Creating Wallets
+// # Creating Smart Wallets
 //
-// Create a new wallet with required configuration:
+// Smart Wallets support different cryptographic algorithms for signing:
+//   - ECDSA (Elliptic Curve Digital Signature Algorithm): Standard for Ethereum transactions,
+//     uses elliptic curve cryptography. Specify "ecdsa" as the wallet type and provide
+//     AllowedEcdsaSigners as hex-encoded public keys.
+//   - RSA (Rivest-Shamir-Adleman): Alternative signing algorithm using RSA keys.
+//     Specify "rsa" as the wallet type and provide AllowedRsaSigners with public
+//     exponent (E) and modulus (N) values.
+//
+// Create a new Smart Wallet with required configuration:
 //
 //	wallet, err := client.Wallets.Create(ctx, CreateInput{
 //	    Name:               "my-wallet",
@@ -38,11 +46,11 @@
 //	fmt.Printf("Created: %s (ID: %s, Address: %s)\n",
 //	    *wallet.Name, wallet.WalletId, wallet.Address)
 //
-// # Listing Wallets
+// # Listing Smart Wallets
 //
 // Use [Client.List] with optional filtering:
 //
-//	// List all wallets
+//	// List all Smart Wallets
 //	wallets, hasMore, err := client.Wallets.List(ctx, ListInput{})
 //
 //	// Filter by name and chain selector
@@ -54,13 +62,13 @@
 //	    Limit:         ptr(10),
 //	})
 //
-// # Getting and Updating Wallets
+// # Getting and Updating Smart Wallets
 //
-// Retrieve a specific wallet by ID:
+// Retrieve a specific Smart Wallet by ID:
 //
 //	wallet, err := client.Wallets.Get(ctx, walletID)
 //
-// Update a wallet's name:
+// Update a Smart Wallet's name:
 //
 //	err := client.Wallets.Update(ctx, walletID, UpdateInput{
 //	    Name: "updated-wallet-name",
