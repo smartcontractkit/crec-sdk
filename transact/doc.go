@@ -4,6 +4,18 @@
 // signing with EIP-712 typed data, and submitting to the CREC network for
 // gas-sponsored execution.
 //
+// # Architecture
+//
+// The transact package is composed of two main components:
+//
+//  1. EIP-712 Handler (transact/eip712) - Handles EIP-712 hashing and signing operations.
+//     This client has no network dependencies and can be used independently for
+//     offline signing workflows.
+//
+//  2. Transact Client - Handles API operations for submitting signed operations
+//     to the CREC network. This client embeds the EIP-712 handler and delegates
+//     hash/sign operations to it.
+//
 // # Usage
 //
 // Transact is typically accessed through the main SDK client:
@@ -22,6 +34,13 @@
 //	    CRECClient: apiClient,
 //	    Logger:     &logger,
 //	})
+//
+// For offline signing workflows without network dependencies:
+//
+//	handler, err := eip712.NewHandler(&eip712.Options{
+//	    Logger: logger,
+//	})
+//	hash, signature, err := handler.SignOperation(ctx, operation, signer, chainSelector)
 //
 // # Building Operations
 //
@@ -48,7 +67,7 @@
 // Or compute just the hash with [Client.HashOperation]:
 //
 //	hash, err := client.Transact.HashOperation(operation, chainSelector)
-//
+
 // # Sending Operations
 //
 // Use [Client.ExecuteOperation] to sign and send in one step:
