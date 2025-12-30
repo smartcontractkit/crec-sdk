@@ -137,11 +137,11 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 	// Validate that wallet type matches the provided signers
 	switch input.WalletType {
 	case "ecdsa":
-		if input.AllowedRsaSigners != nil && len(*input.AllowedRsaSigners) > 0 {
+		if input.AllowedRsaSigners != nil {
 			return nil, ErrInvalidSignersForEcdsa
 		}
 	case "rsa":
-		if input.AllowedEcdsaSigners != nil && len(*input.AllowedEcdsaSigners) > 0 {
+		if input.AllowedEcdsaSigners != nil {
 			return nil, ErrInvalidSignersForRsa
 		}
 	}
