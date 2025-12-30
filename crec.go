@@ -29,6 +29,7 @@ import (
 	"github.com/smartcontractkit/crec-sdk/channels"
 	"github.com/smartcontractkit/crec-sdk/events"
 	"github.com/smartcontractkit/crec-sdk/transact"
+	"github.com/smartcontractkit/crec-sdk/wallets"
 	"github.com/smartcontractkit/crec-sdk/watchers"
 )
 
@@ -101,6 +102,9 @@ type Client struct {
 
 	// Transact provides operations for signing and sending operations to CREC.
 	Transact *transact.Client
+
+	// Wallets provides operations for managing CREC Smart Wallets.
+	Wallets *wallets.Client
 
 	// Watchers provides operations for managing CREC watchers.
 	Watchers *watchers.Client
@@ -190,6 +194,15 @@ func (c *Client) initSubClients(cfg *clientConfig) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create transact client: %w", err)
+	}
+
+	// Initialize Wallets client
+	c.Wallets, err = wallets.NewClient(&wallets.Options{
+		Logger:    c.logger,
+		APIClient: c.apiClient,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create wallets client: %w", err)
 	}
 
 	// Initialize Watchers client
