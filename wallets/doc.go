@@ -12,7 +12,7 @@
 //
 //	wallet, err := client.Wallets.Create(ctx, CreateInput{
 //	    Name:               "production-wallet",
-//	    ChainSelector:      "ethereum-mainnet",
+//	    ChainSelector:      "5009297550715157269",
 //	    WalletOwnerAddress: "0x1234...",
 //	    WalletType:         "ecdsa",
 //	})
@@ -38,7 +38,7 @@
 //
 //	wallet, err := client.Wallets.Create(ctx, CreateInput{
 //	    Name:               "my-wallet",
-//	    ChainSelector:      "ethereum-sepolia",
+//	    ChainSelector:      "5009297550715157269",
 //	    WalletOwnerAddress: "0xabcdef...",
 //	    WalletType:         "ecdsa",
 //	    AllowedEcdsaSigners: &[]string{"0x123...", "0x456..."},
@@ -55,7 +55,7 @@
 //
 //	// Filter by name and chain selector
 //	filterName := "production"
-//	filterChain := "ethereum-mainnet"
+//	filterChain := "5009297550715157269"
 //	wallets, hasMore, err := client.Wallets.List(ctx, ListInput{
 //	    Name:          &filterName,
 //	    ChainSelector: &filterChain,

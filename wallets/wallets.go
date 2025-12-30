@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
@@ -29,9 +30,16 @@ var (
 	ErrNameTooLong                = errors.New("wallet name too long")
 	ErrChainSelectorRequired      = errors.New("chain selector is required")
 	ErrWalletOwnerAddressRequired = errors.New("wallet owner address is required")
+	ErrInvalidWalletOwnerAddress  = errors.New("wallet owner address must be a valid hex address")
 	ErrWalletTypeRequired         = errors.New("wallet type is required")
+	ErrUnsupportedWalletType      = errors.New("unsupported wallet type")
+	ErrWalletIDRequired           = errors.New("wallet ID is required")
 	ErrInvalidSignersForEcdsa     = errors.New("only allowed_ecdsa_signers can be provided for ecdsa wallet type")
 	ErrInvalidSignersForRsa       = errors.New("only allowed_rsa_signers can be provided for rsa wallet type")
+	ErrInvalidEcdsaSigner         = errors.New("all allowed_ecdsa_signers must be valid hex addresses")
+	ErrInvalidRsaSigner           = errors.New("all allowed_rsa_signers must have non-empty E and N fields")
+	ErrInvalidLimit               = errors.New("limit must be positive")
+	ErrInvalidOffset              = errors.New("offset cannot be negative")
 
 	// API operation errors
 	ErrCreateWallet = errors.New("failed to create wallet")
@@ -130,20 +138,44 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, ErrWalletOwnerAddressRequired
 	}
 
+	if !common.IsHexAddress(input.WalletOwnerAddress) {
+		return nil, ErrInvalidWalletOwnerAddress
+	}
+
 	if input.WalletType == "" {
 		return nil, ErrWalletTypeRequired
 	}
 
 	// Validate that wallet type matches the provided signers
 	switch input.WalletType {
-	case "ecdsa":
+	case apiClient.CreateWalletWalletTypeEcdsa:
 		if input.AllowedRsaSigners != nil {
 			return nil, ErrInvalidSignersForEcdsa
 		}
-	case "rsa":
+		if input.AllowedEcdsaSigners == nil {
+			return nil, errors.New("allowed_ecdsa_signers is required for ecdsa wallet type")
+		}
+		// Validate ECDSA signers (can be empty array)
+		for _, signer := range *input.AllowedEcdsaSigners {
+			if !common.IsHexAddress(signer) {
+				return nil, fmt.Errorf("%w: %s", ErrInvalidEcdsaSigner, signer)
+			}
+		}
+	case apiClient.CreateWalletWalletTypeRsa:
 		if input.AllowedEcdsaSigners != nil {
 			return nil, ErrInvalidSignersForRsa
 		}
+		if input.AllowedRsaSigners == nil {
+			return nil, errors.New("allowed_rsa_signers is required for rsa wallet type")
+		}
+		// Validate RSA signers (can be empty array)
+		for _, signer := range *input.AllowedRsaSigners {
+			if signer.E == "" || signer.N == "" {
+				return nil, ErrInvalidRsaSigner
+			}
+		}
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedWalletType, input.WalletType)
 	}
 
 	createWalletReq := apiClient.CreateWallet{
@@ -191,6 +223,10 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet, error) {
 	c.logger.Debug("Getting wallet", "wallet_id", walletID.String())
 
+	if walletID == uuid.Nil {
+		return nil, ErrWalletIDRequired
+	}
+
 	resp, err := c.apiClient.GetWalletsWalletIdWithResponse(ctx, walletID)
 	if err != nil {
 		c.logger.Error("Failed to get wallet", "error", err)
@@ -224,7 +260,7 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 // ListInput defines the input parameters for listing wallets.
 //   - Name: Optional filter to search wallets by name (case-insensitive partial match).
 //   - ChainSelector: Optional filter to search wallets by chain selector.
-//   - Limit: Maximum number of wallets to return (1-50, default: 20).
+//   - Limit: Maximum number of wallets to return per page.
 //   - Offset: Number of wallets to skip for pagination (default: 0).
 type ListInput struct {
 	Name          *string
@@ -242,6 +278,16 @@ type ListInput struct {
 // Returns a list of wallets and a boolean indicating if there are more results.
 func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet, bool, error) {
 	c.logger.Debug("Listing wallets", "filters", input)
+
+	// Validate limit if provided
+	if input.Limit != nil && *input.Limit < 1 {
+		return nil, false, ErrInvalidLimit
+	}
+
+	// Validate offset if provided
+	if input.Offset != nil && *input.Offset < 0 {
+		return nil, false, ErrInvalidOffset
+	}
 
 	params := apiClient.GetWalletsParams{
 		Name:          input.Name,
@@ -290,6 +336,10 @@ type UpdateInput struct {
 // Returns an error if the operation fails or the wallet is not found.
 func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInput) error {
 	c.logger.Debug("Updating wallet", "wallet_id", walletID.String(), "name", input.Name)
+
+	if walletID == uuid.Nil {
+		return ErrWalletIDRequired
+	}
 
 	if input.Name == "" {
 		return ErrNameRequired

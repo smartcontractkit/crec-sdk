@@ -32,7 +32,7 @@ func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest
 	)
 	require.NoError(t, err)
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := slog.New(slog.DiscardHandler)
 	client, err := NewClient(&Options{
 		Logger:    logger,
 		APIClient: crecAPIClient,
@@ -47,7 +47,7 @@ func TestNewClient(t *testing.T) {
 		crecAPIClient, err := apiClient.NewClientWithResponses("http://localhost:8080")
 		require.NoError(t, err)
 
-		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		logger := slog.New(slog.DiscardHandler)
 		client, err := NewClient(&Options{
 			Logger:    logger,
 			APIClient: crecAPIClient,
@@ -68,7 +68,7 @@ func TestNewClient(t *testing.T) {
 	})
 
 	t.Run("NilAPIClient", func(t *testing.T) {
-		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		logger := slog.New(slog.DiscardHandler)
 		client, err := NewClient(&Options{
 			Logger:    logger,
 			APIClient: nil,
@@ -133,11 +133,14 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
+		ecdsaSigners := []string{}
+
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               walletName,
-			ChainSelector:      chainSelector,
-			WalletOwnerAddress: ownerAddress,
-			WalletType:         "ecdsa",
+			Name:                walletName,
+			ChainSelector:       chainSelector,
+			WalletOwnerAddress:  ownerAddress,
+			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
+			AllowedEcdsaSigners: &ecdsaSigners,
 		})
 
 		require.NoError(t, err)
@@ -158,9 +161,9 @@ func TestClient_Create(t *testing.T) {
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               "",
-			ChainSelector:      "ethereum-sepolia",
+			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         "ecdsa",
+			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
 		})
 
 		require.Error(t, err)
@@ -180,7 +183,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "test-wallet",
 			ChainSelector:      "",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         "ecdsa",
+			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
 		})
 
 		require.Error(t, err)
@@ -198,14 +201,34 @@ func TestClient_Create(t *testing.T) {
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               "test-wallet",
-			ChainSelector:      "ethereum-sepolia",
+			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "",
-			WalletType:         "ecdsa",
+			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
 		})
 
 		require.Error(t, err)
 		assert.Nil(t, wallet)
 		assert.True(t, errors.Is(err, ErrWalletOwnerAddressRequired))
+	})
+
+	t.Run("InvalidOwnerAddress", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with invalid owner address")
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:               "test-wallet",
+			ChainSelector:      "5009297550715157269",
+			WalletOwnerAddress: "not-a-valid-hex-address",
+			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallet)
+		assert.True(t, errors.Is(err, ErrInvalidWalletOwnerAddress))
 	})
 
 	t.Run("EmptyWalletType", func(t *testing.T) {
@@ -218,7 +241,7 @@ func TestClient_Create(t *testing.T) {
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               "test-wallet",
-			ChainSelector:      "ethereum-sepolia",
+			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
 			WalletType:         "",
 		})
@@ -239,9 +262,9 @@ func TestClient_Create(t *testing.T) {
 		longName := string(make([]byte, MaxWalletNameLength+1))
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               longName,
-			ChainSelector:      "ethereum-sepolia",
+			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         "ecdsa",
+			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
 		})
 
 		require.Error(t, err)
@@ -257,16 +280,35 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
+		ecdsaSigners := []string{}
+
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test-wallet",
-			ChainSelector:      "ethereum-sepolia",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         "ecdsa",
+			Name:                "test-wallet",
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
+			AllowedEcdsaSigners: &ecdsaSigners,
 		})
 
 		require.Error(t, err)
 		assert.Nil(t, wallet)
 		assert.True(t, errors.Is(err, ErrCreateWallet))
+	})
+
+	t.Run("UnsupportedWalletType", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:               "test-wallet",
+			ChainSelector:      "5009297550715157269",
+			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:         "unknown-type",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallet)
+		assert.True(t, errors.Is(err, ErrUnsupportedWalletType))
 	})
 
 	t.Run("EcdsaWalletWithRsaSigners", func(t *testing.T) {
@@ -286,9 +328,9 @@ func TestClient_Create(t *testing.T) {
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               "test-wallet",
-			ChainSelector:      "ethereum-sepolia",
+			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         "ecdsa",
+			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
 			AllowedRsaSigners:  &rsaSigners,
 		})
 
@@ -309,9 +351,9 @@ func TestClient_Create(t *testing.T) {
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:                "test-wallet",
-			ChainSelector:       "ethereum-sepolia",
+			ChainSelector:       "5009297550715157269",
 			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:          "rsa",
+			WalletType:          apiClient.CreateWalletWalletTypeRsa,
 			AllowedEcdsaSigners: &ecdsaSigners,
 		})
 
@@ -320,11 +362,30 @@ func TestClient_Create(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrInvalidSignersForRsa))
 	})
 
+	t.Run("EcdsaWalletWithInvalidSigner", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		ecdsaSigners := []string{"0x1234567890abcdef1234567890abcdef12345678", "not-a-valid-address"}
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:                "test-wallet",
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
+			AllowedEcdsaSigners: &ecdsaSigners,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallet)
+		assert.True(t, errors.Is(err, ErrInvalidEcdsaSigner))
+	})
+
 	t.Run("EcdsaWalletWithEcdsaSigners", func(t *testing.T) {
 		walletID := uuid.New()
 		walletName := "test-wallet"
 		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
-		chainSelector := "ethereum-sepolia"
+		chainSelector := "5009297550715157269"
 		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
@@ -342,13 +403,13 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		ecdsaSigners := []string{"0x123...", "0x456..."}
+		ecdsaSigners := []string{"0x1234567890abcdef1234567890abcdef12345678", "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"}
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:                walletName,
 			ChainSelector:       chainSelector,
 			WalletOwnerAddress:  ownerAddress,
-			WalletType:          "ecdsa",
+			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
 			AllowedEcdsaSigners: &ecdsaSigners,
 		})
 
@@ -360,7 +421,7 @@ func TestClient_Create(t *testing.T) {
 		walletID := uuid.New()
 		walletName := "test-wallet"
 		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
-		chainSelector := "ethereum-sepolia"
+		chainSelector := "5009297550715157269"
 		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
@@ -389,21 +450,80 @@ func TestClient_Create(t *testing.T) {
 			Name:               walletName,
 			ChainSelector:      chainSelector,
 			WalletOwnerAddress: ownerAddress,
-			WalletType:         "rsa",
+			WalletType:         apiClient.CreateWalletWalletTypeRsa,
 			AllowedRsaSigners:  &rsaSigners,
 		})
 
 		require.NoError(t, err)
 		assert.NotNil(t, wallet)
 	})
+
+	t.Run("RsaWalletWithInvalidSigner_EmptyE", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		rsaSigners := []struct {
+			E string `json:"e"`
+			N string `json:"n"`
+		}{
+			{E: "", N: "abc123"},
+		}
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:               "test-wallet",
+			ChainSelector:      "5009297550715157269",
+			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:         apiClient.CreateWalletWalletTypeRsa,
+			AllowedRsaSigners:  &rsaSigners,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallet)
+		assert.True(t, errors.Is(err, ErrInvalidRsaSigner))
+	})
+
+	t.Run("RsaWalletWithInvalidSigner_EmptyN", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		rsaSigners := []struct {
+			E string `json:"e"`
+			N string `json:"n"`
+		}{
+			{E: "AQAB", N: ""},
+		}
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:               "test-wallet",
+			ChainSelector:      "5009297550715157269",
+			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:         apiClient.CreateWalletWalletTypeRsa,
+			AllowedRsaSigners:  &rsaSigners,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallet)
+		assert.True(t, errors.Is(err, ErrInvalidRsaSigner))
+	})
 }
 
 func TestClient_Get(t *testing.T) {
+	t.Run("NilWalletID", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		wallet, err := client.Get(context.Background(), uuid.Nil)
+
+		require.Error(t, err)
+		assert.Nil(t, wallet)
+		assert.True(t, errors.Is(err, ErrWalletIDRequired))
+	})
+
 	t.Run("Success", func(t *testing.T) {
 		walletID := uuid.New()
 		walletName := "test-wallet"
 		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
-		chainSelector := "ethereum-sepolia"
+		chainSelector := "5009297550715157269"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/wallets/"+walletID.String(), r.URL.Path)
@@ -517,7 +637,7 @@ func TestClient_List(t *testing.T) {
 
 	t.Run("WithFilters", func(t *testing.T) {
 		walletName := "production"
-		chainSelector := "ethereum-mainnet"
+		chainSelector := "5009297550715157269"
 		limit := 10
 		offset := int64(5)
 
@@ -567,9 +687,66 @@ func TestClient_List(t *testing.T) {
 		assert.False(t, hasMore)
 		assert.True(t, errors.Is(err, ErrListWallets))
 	})
+
+	t.Run("InvalidLimit_Zero", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		limit := 0
+		wallets, hasMore, err := client.List(context.Background(), ListInput{
+			Limit: &limit,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallets)
+		assert.False(t, hasMore)
+		assert.True(t, errors.Is(err, ErrInvalidLimit))
+	})
+
+	t.Run("InvalidLimit_Negative", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		limit := -1
+		wallets, hasMore, err := client.List(context.Background(), ListInput{
+			Limit: &limit,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallets)
+		assert.False(t, hasMore)
+		assert.True(t, errors.Is(err, ErrInvalidLimit))
+	})
+
+	t.Run("InvalidOffset_Negative", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		offset := int64(-1)
+		wallets, hasMore, err := client.List(context.Background(), ListInput{
+			Offset: &offset,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallets)
+		assert.False(t, hasMore)
+		assert.True(t, errors.Is(err, ErrInvalidOffset))
+	})
 }
 
 func TestClient_Update(t *testing.T) {
+	t.Run("NilWalletID", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		err := client.Update(context.Background(), uuid.Nil, UpdateInput{
+			Name: "new-name",
+		})
+
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrWalletIDRequired))
+	})
+
 	t.Run("Success", func(t *testing.T) {
 		walletID := uuid.New()
 		newName := "updated-wallet"
