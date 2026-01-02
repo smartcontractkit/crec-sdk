@@ -26,13 +26,12 @@ var (
 	ErrCRECClientRequired = errors.New("CRECClient is required")
 
 	// API operation errors
-	ErrChannelNotFound  = errors.New("channel not found")
-	ErrPollEvents       = errors.New("failed to poll events")
-	ErrSearchEvents     = errors.New("failed to search events")
-	ErrGetEvents        = errors.New("failed to get events")
-	ErrVerifyEvent      = errors.New("failed to verify event")
-	ErrDecodeEvent      = errors.New("failed to decode event")
-	ErrEventDomainIsNil = errors.New("event domain is nil")
+	ErrChannelNotFound = errors.New("channel not found")
+	ErrPollEvents      = errors.New("failed to poll events")
+	ErrSearchEvents    = errors.New("failed to search events")
+	ErrGetEvents       = errors.New("failed to get events")
+	ErrVerifyEvent     = errors.New("failed to verify event")
+	ErrDecodeEvent     = errors.New("failed to decode event")
 
 	// Parsing errors
 	ErrParseSignature             = errors.New("failed to parse signature")
@@ -211,6 +210,7 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
 //   - workflowId: The expected workflow CID (Content Identifier) that generated the event. This is the identifier of the workflow that should have generated this event.
+//
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
 func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error) {
 	if len(c.validSigners) == 0 {
@@ -244,11 +244,10 @@ func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error)
 	if len(ocrReport) < ocrReportPayloadOffset+32 { // 32 bytes for event hash
 		return false, ErrOCRReportTooShort
 	}
-
 	c.logger.Debug("Verifying event",
 		"event_address", eventPayload.Address,
 		"event_watcher_id", eventPayload.WatcherId,
-		"event_name", eventPayload.Event.EventName,
+		"event_name", eventPayload.Name,
 		"ocr_report", ocrProof.OcrReport,
 		"ocr_context", ocrProof.OcrContext)
 
@@ -339,15 +338,12 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 
 // EventHash computes the "EventHash" of an event used for verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
-	if event.Event.Domain == nil {
-		return common.Hash{}, ErrEventDomainIsNil
-	}
-	dataBytes, err := json.Marshal(event.Event.Data)
+	dataBytes, err := json.Marshal(event.VerifiableEvent)
 	if err != nil {
 		return common.Hash{}, err
 	}
 	dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-	return crypto.Keccak256Hash([]byte(*event.Event.Domain + "." + event.Event.EventName + "." + dataStr)), nil
+	return crypto.Keccak256Hash([]byte(event.Domain + "." + event.Name + "." + dataStr)), nil
 }
 
 func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowId string) bool {

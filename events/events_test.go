@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -537,7 +536,7 @@ func TestClient_EventHash(t *testing.T) {
 	t.Run("DifferentEventNameProducesDifferentHash", func(t *testing.T) {
 		eventPayload1 := createTestEventPayload(t)
 		eventPayload2 := createTestEventPayload(t)
-		eventPayload2.Event.EventName = "Approval"
+		eventPayload2.Name = "Approval"
 
 		hash1, err := c.EventHash(&eventPayload1)
 		require.NoError(t, err)
@@ -551,8 +550,7 @@ func TestClient_EventHash(t *testing.T) {
 	t.Run("DifferentDomainProducesDifferentHash", func(t *testing.T) {
 		eventPayload1 := createTestEventPayload(t)
 		eventPayload2 := createTestEventPayload(t)
-		differentDomain := "dta"
-		eventPayload2.Event.Domain = &differentDomain
+		eventPayload2.Domain = "dta"
 
 		hash1, err := c.EventHash(&eventPayload1)
 		require.NoError(t, err)
@@ -566,11 +564,14 @@ func TestClient_EventHash(t *testing.T) {
 	t.Run("DifferentDataProducesDifferentHash", func(t *testing.T) {
 		eventPayload1 := createTestEventPayload(t)
 		eventPayload2 := createTestEventPayload(t)
-		eventPayload2.Event.Data = map[string]interface{}{
+		// Create different verifiable event data
+		differentData := map[string]interface{}{
 			"from":  "0x0000000000000000000000000000000000000000",
 			"to":    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
 			"value": "2000000000000000000", // Different value
 		}
+		differentDataBytes, _ := json.Marshal(differentData)
+		eventPayload2.VerifiableEvent = base64.StdEncoding.EncodeToString(differentDataBytes)
 
 		hash1, err := c.EventHash(&eventPayload1)
 		require.NoError(t, err)
@@ -588,22 +589,22 @@ func TestClient_EventHash(t *testing.T) {
 		require.NoError(t, err)
 
 		// Manually compute the expected hash to verify the algorithm
-		dataBytes, err := json.Marshal(eventPayload.Event.Data)
+		dataBytes, err := json.Marshal(eventPayload.VerifiableEvent)
 		require.NoError(t, err)
 		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		expectedHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
+		expectedHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
 
 		assert.Equal(t, expectedHash, hash, "hash should match expected Keccak256 computation")
 	})
 
 	t.Run("ErrEventDomainIsNil", func(t *testing.T) {
 		eventPayload := createTestEventPayload(t)
-		eventPayload.Event.Domain = nil // Set domain to nil
+		eventPayload.Domain = "" // Set domain to empty string
 
 		hash, err := c.EventHash(&eventPayload)
-		require.Error(t, err)
-		assert.Equal(t, common.Hash{}, hash, "hash should be empty when domain is nil")
-		assert.True(t, errors.Is(err, ErrEventDomainIsNil))
+		// With the new structure, empty domain doesn't cause an error but produces different hash
+		require.NoError(t, err)
+		assert.NotEqual(t, common.Hash{}, hash, "hash should not be empty even with empty domain")
 	})
 }
 
@@ -784,9 +785,9 @@ func TestClient_Verify(t *testing.T) {
 		wrongWorkflowCid := common.HexToHash("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
 		copy(ocrReport[45:77], wrongWorkflowCid.Bytes())
 
-		dataBytes, _ := json.Marshal(eventPayload.Event.Data)
+		dataBytes, _ := json.Marshal(eventPayload.VerifiableEvent)
 		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test-context")
@@ -903,9 +904,9 @@ func TestClient_Verify(t *testing.T) {
 		copy(ocrReport[45:77], workflowCid.Bytes())
 
 		ocrContext := []byte("test")
-		dataBytes, _ := json.Marshal(eventPayload.Event.Data)
+		dataBytes, _ := json.Marshal(eventPayload.VerifiableEvent)
 		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
@@ -1025,9 +1026,9 @@ func TestClient_Verify(t *testing.T) {
 		workflowCid := common.HexToHash(testWorkflowID)
 		copy(ocrReport[45:77], workflowCid.Bytes())
 
-		dataBytes, _ := json.Marshal(eventPayload.Event.Data)
+		dataBytes, _ := json.Marshal(eventPayload.VerifiableEvent)
 		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test")
@@ -1081,9 +1082,9 @@ func TestClient_Verify(t *testing.T) {
 		workflowCid := common.HexToHash(testWorkflowID)
 		copy(ocrReport[45:77], workflowCid.Bytes())
 
-		dataBytes, _ := json.Marshal(eventPayload.Event.Data)
+		dataBytes, _ := json.Marshal(eventPayload.VerifiableEvent)
 		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test")
@@ -1279,42 +1280,30 @@ func generateTestKeys(t *testing.T, count int) ([]*ecdsa.PrivateKey, []string) {
 	return keys, addresses
 }
 
-// mustParseTime parses time string or fails the test
-func mustParseTime(t *testing.T, timeStr string) time.Time {
-	t.Helper()
-	parsedTime, err := time.Parse(time.RFC3339, timeStr)
-	require.NoError(t, err)
-	return parsedTime
-}
-
 // createTestEventPayload creates a standard test event payload
 func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
 	t.Helper()
 
-	domain := "dvp"
-	metadata := map[string]interface{}{
-		"block_number": 12345678,
-		"block_hash":   "0xabcdef1234567890",
+	// Create verifiable event data (base64 encoded)
+	verifiableEventData := map[string]interface{}{
+		"from":  "0x0000000000000000000000000000000000000000",
+		"to":    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+		"value": "1000000000000000000",
 	}
+	verifiableEventBytes, err := json.Marshal(verifiableEventData)
+	require.NoError(t, err)
+	verifiableEvent := base64.StdEncoding.EncodeToString(verifiableEventBytes)
 
 	return apiClient.WatcherEventPayload{
-		Type:          apiClient.WatcherEventPayloadType("watcher.event"),
-		WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
-		Address:       "0x1234567890123456789012345678901234567890",
-		ChainSelector: "5009297550715157269",
-		Event: apiClient.WatcherEvent{
-			EventName: "Transfer",
-			TopicHash: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-			Timestamp: mustParseTime(t, "2024-01-01T00:00:00Z"),
-			LogIndex:  42,
-			Domain:    &domain,
-			Data: map[string]interface{}{
-				"from":  "0x0000000000000000000000000000000000000000",
-				"to":    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-				"value": "1000000000000000000",
-			},
-			Metadata: &metadata,
-		},
+		Type:            apiClient.WatcherEventPayloadType("watcher.event"),
+		WatcherId:       "550e8400-e29b-41d4-a716-446655440000",
+		WatcherEventId:  uuid.MustParse("550e8400-e29b-41d4-a716-446655440001"),
+		Address:         "0x1234567890123456789012345678901234567890",
+		ChainSelector:   "5009297550715157269",
+		Domain:          "dvp",
+		Name:            "Transfer",
+		VerifiableEvent: verifiableEvent,
+		Signatures:      []string{},
 	}
 }
 
@@ -1330,10 +1319,10 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 	copy(ocrReport[45:77], workflowCid.Bytes())
 
 	// Compute event hash using base64 encoding (same as EventHash method)
-	dataBytes, err := json.Marshal(eventPayload.Event.Data)
+	dataBytes, err := json.Marshal(eventPayload.VerifiableEvent)
 	require.NoError(t, err)
 	dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-	eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Event.Domain + "." + eventPayload.Event.EventName + "." + dataStr))
+	eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
 
 	// Place event hash at offset 109
 	copy(ocrReport[109:], eventHash.Bytes())
