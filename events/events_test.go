@@ -588,11 +588,8 @@ func TestClient_EventHash(t *testing.T) {
 		hash, err := c.EventHash(&eventPayload)
 		require.NoError(t, err)
 
-		// Manually compute the expected hash to verify the algorithm
-		dataBytes, err := json.Marshal(eventPayload.VerifiableEvent)
-		require.NoError(t, err)
-		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		expectedHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
+		// Manually compute the expected hash to verify the algorithm (no base64 encoding)
+		expectedHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
 
 		assert.Equal(t, expectedHash, hash, "hash should match expected Keccak256 computation")
 	})
@@ -785,9 +782,7 @@ func TestClient_Verify(t *testing.T) {
 		wrongWorkflowCid := common.HexToHash("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
 		copy(ocrReport[45:77], wrongWorkflowCid.Bytes())
 
-		dataBytes, _ := json.Marshal(eventPayload.VerifiableEvent)
-		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test-context")
@@ -904,9 +899,7 @@ func TestClient_Verify(t *testing.T) {
 		copy(ocrReport[45:77], workflowCid.Bytes())
 
 		ocrContext := []byte("test")
-		dataBytes, _ := json.Marshal(eventPayload.VerifiableEvent)
-		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
@@ -1026,9 +1019,7 @@ func TestClient_Verify(t *testing.T) {
 		workflowCid := common.HexToHash(testWorkflowID)
 		copy(ocrReport[45:77], workflowCid.Bytes())
 
-		dataBytes, _ := json.Marshal(eventPayload.VerifiableEvent)
-		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test")
@@ -1082,9 +1073,7 @@ func TestClient_Verify(t *testing.T) {
 		workflowCid := common.HexToHash(testWorkflowID)
 		copy(ocrReport[45:77], workflowCid.Bytes())
 
-		dataBytes, _ := json.Marshal(eventPayload.VerifiableEvent)
-		dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test")
@@ -1318,11 +1307,8 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 	workflowCid := common.HexToHash(testWorkflowID)
 	copy(ocrReport[45:77], workflowCid.Bytes())
 
-	// Compute event hash using base64 encoding (same as EventHash method)
-	dataBytes, err := json.Marshal(eventPayload.VerifiableEvent)
-	require.NoError(t, err)
-	dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-	eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + dataStr))
+	// Compute event hash (same as EventHash method - no base64 encoding)
+	eventHash := crypto.Keccak256Hash([]byte(eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
 
 	// Place event hash at offset 109
 	copy(ocrReport[109:], eventHash.Bytes())
@@ -1350,7 +1336,7 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 	}
 
 	proofUnion := apiClient.EventHeaders_Proofs_Item{}
-	err = proofUnion.FromOCRProof(ocrProof)
+	err := proofUnion.FromOCRProof(ocrProof)
 	require.NoError(t, err)
 
 	// Create event payload union

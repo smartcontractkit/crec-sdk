@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -338,12 +337,7 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 
 // EventHash computes the "EventHash" of an event used for verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
-	dataBytes, err := json.Marshal(event.VerifiableEvent)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-	return crypto.Keccak256Hash([]byte(event.Domain + "." + event.Name + "." + dataStr)), nil
+	return crypto.Keccak256Hash([]byte(event.Domain + "." + event.Name + "." + event.VerifiableEvent)), nil
 }
 
 func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowId string) bool {
