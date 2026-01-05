@@ -723,6 +723,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{},
 			},
@@ -761,6 +762,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -809,6 +811,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -866,6 +869,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -928,6 +932,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proof1, proof2}, // Multiple proofs
 			},
@@ -963,6 +968,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -998,6 +1004,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1043,6 +1050,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1100,6 +1108,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1151,6 +1160,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1161,6 +1171,372 @@ func TestClient_Verify(t *testing.T) {
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrOnlyWatcherEventsSupported))
+	})
+}
+
+func TestClient_VerifyOperationStatus(t *testing.T) {
+	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 0,
+			ValidSigners:          nil,
+		})
+		require.NoError(t, err)
+
+		privKeys, _ := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventWithSignatures(t, privKeys, &eventPayload)
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+	})
+
+	t.Run("ErrVerificationNotConfigured_EmptySigners", func(t *testing.T) {
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 0,
+			ValidSigners:          []string{},
+		})
+		require.NoError(t, err)
+
+		privKeys, _ := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventWithSignatures(t, privKeys, &eventPayload)
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+	})
+
+	t.Run("HappyPath_TwoValidSignatures", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventWithSignatures(t, privKeys, &eventPayload)
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 2,
+			ValidSigners:          addresses,
+		})
+		require.NoError(t, err)
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("NotEnoughSignatures", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 3)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventWithSignatures(t, privKeys[:2], &eventPayload)
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 3,
+			ValidSigners:          addresses,
+		})
+		require.NoError(t, err)
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.NoError(t, err)
+		assert.False(t, ok)
+	})
+
+	t.Run("IncorrectSigners", func(t *testing.T) {
+		signingKeys, _ := generateTestKeys(t, 2)
+		_, validAddresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventWithSignatures(t, signingKeys, &eventPayload)
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 2,
+			ValidSigners:          validAddresses,
+		})
+		require.NoError(t, err)
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.NoError(t, err)
+		assert.False(t, ok)
+	})
+
+	t.Run("ErrNoOCRProofs", func(t *testing.T) {
+		c := setupLocalClient(t)
+		eventPayload := createTestOperationStatusPayload(t)
+		payloadUnion := apiClient.Event_Payload{}
+		err := payloadUnion.FromOperationStatusPayload(eventPayload)
+		require.NoError(t, err)
+
+		event := &apiClient.Event{
+			Headers: apiClient.EventHeaders{
+				Offset: int64(12345),
+				Proofs: []apiClient.EventHeaders_Proofs_Item{},
+			},
+			Payload: payloadUnion,
+		}
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrVerifyEvent))
+		assert.True(t, errors.Is(err, ErrNoOCRProofs))
+	})
+
+	t.Run("ErrOCRReportTooShort", func(t *testing.T) {
+		c := setupLocalClient(t)
+		eventPayload := createTestOperationStatusPayload(t)
+
+		shortOcrReport := make([]byte, 50)
+		ocrContext := []byte("test")
+
+		ocrProof := apiClient.OCRProof{
+			Alg:        "ecdsa-secp256k1",
+			OcrContext: "0x" + common.Bytes2Hex(ocrContext),
+			OcrReport:  "0x" + common.Bytes2Hex(shortOcrReport),
+			Signatures: []string{"0x1234"},
+		}
+
+		proofUnion := apiClient.EventHeaders_Proofs_Item{}
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
+
+		payloadUnion := apiClient.Event_Payload{}
+		err = payloadUnion.FromOperationStatusPayload(eventPayload)
+		require.NoError(t, err)
+
+		event := &apiClient.Event{
+			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Offset: int64(12345),
+				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+			},
+			Payload: payloadUnion,
+		}
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrOCRReportTooShort))
+	})
+
+	t.Run("ErrInvalidWorkflowCID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+
+		ocrReport := make([]byte, 141)
+		ocrReport[0] = 0x01
+
+		wrongWorkflowCid := common.HexToHash("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+		copy(ocrReport[45:77], wrongWorkflowCid.Bytes())
+
+		// Compute event hash using OperationStatusHash pattern
+		eventHash := crypto.Keccak256Hash([]byte(OperationStatusEventName + "." + *eventPayload.VerifiableEvent))
+		copy(ocrReport[109:], eventHash.Bytes())
+
+		ocrContext := []byte("test-context")
+		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+		sig, _ := crypto.Sign(reportHash.Bytes(), privKeys[0])
+		sig[64] += 27
+
+		ocrProof := apiClient.OCRProof{
+			Alg:        "ecdsa-secp256k1",
+			OcrContext: "0x" + common.Bytes2Hex(ocrContext),
+			OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+			Signatures: []string{"0x" + common.Bytes2Hex(sig)},
+		}
+
+		proofUnion := apiClient.EventHeaders_Proofs_Item{}
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
+
+		payloadUnion := apiClient.Event_Payload{}
+		err = payloadUnion.FromOperationStatusPayload(eventPayload)
+		require.NoError(t, err)
+
+		event := &apiClient.Event{
+			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Offset: int64(12345),
+				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+			},
+			Payload: payloadUnion,
+		}
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 1,
+			ValidSigners:          addresses,
+		})
+		require.NoError(t, err)
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrInvalidEventHash))
+	})
+
+	t.Run("ErrInvalidEventHash", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+
+		ocrReport := make([]byte, 141)
+		ocrReport[0] = 0x01
+
+		workflowCid := common.HexToHash(testWorkflowID)
+		copy(ocrReport[45:77], workflowCid.Bytes())
+
+		// Use wrong event hash
+		wrongHash := common.HexToHash("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+		copy(ocrReport[109:], wrongHash.Bytes())
+
+		ocrContext := []byte("test-context")
+		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+		var signatures []string
+		for _, privKey := range privKeys {
+			sig, _ := crypto.Sign(reportHash.Bytes(), privKey)
+			sig[64] += 27
+			signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
+		}
+
+		ocrProof := apiClient.OCRProof{
+			Alg:        "ecdsa-secp256k1",
+			OcrContext: "0x" + common.Bytes2Hex(ocrContext),
+			OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+			Signatures: signatures,
+		}
+
+		proofUnion := apiClient.EventHeaders_Proofs_Item{}
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
+
+		payloadUnion := apiClient.Event_Payload{}
+		err = payloadUnion.FromOperationStatusPayload(eventPayload)
+		require.NoError(t, err)
+
+		event := &apiClient.Event{
+			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Offset: int64(12345),
+				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+			},
+			Payload: payloadUnion,
+		}
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 2,
+			ValidSigners:          addresses,
+		})
+		require.NoError(t, err)
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrInvalidEventHash))
+	})
+
+	t.Run("ErrOnlyOperationStatusSupported", func(t *testing.T) {
+		c := setupLocalClient(t)
+
+		ocrReport := make([]byte, 141)
+		ocrProof := apiClient.OCRProof{
+			Alg:        "ecdsa-secp256k1",
+			OcrContext: "0x01",
+			OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+			Signatures: []string{},
+		}
+		proofUnion := apiClient.EventHeaders_Proofs_Item{}
+		require.NoError(t, proofUnion.FromOCRProof(ocrProof))
+
+		// Build a valid WatcherEventPayload (not OperationStatusPayload)
+		eventPayload := createTestEventPayload(t)
+
+		payloadUnion := apiClient.Event_Payload{}
+		require.NoError(t, payloadUnion.FromWatcherEventPayload(eventPayload))
+
+		event := &apiClient.Event{
+			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Offset: int64(12345),
+				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+			},
+			Payload: payloadUnion,
+		}
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrOnlyOperationStatusSupported))
+	})
+
+	t.Run("ErrVerifiableEventRequired", func(t *testing.T) {
+		c := setupLocalClient(t)
+
+		// Create operation status payload without VerifiableEvent
+		operationStatusPayload := apiClient.OperationStatusPayload{
+			Type:              apiClient.OperationStatusPayloadTypeOperationStatus,
+			OperationId:       uuid.New(),
+			WalletOperationId: "wallet-op-123",
+			Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+			StatusReason:      "Operation confirmed",
+			ChainSelector:     "5009297550715157269",
+			Address:           "0x1234567890123456789012345678901234567890",
+			VerifiableEvent:   nil,
+		}
+
+		ocrReport := make([]byte, 141)
+		ocrProof := apiClient.OCRProof{
+			Alg:        "ecdsa-secp256k1",
+			OcrContext: "0x01",
+			OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+			Signatures: []string{},
+		}
+		proofUnion := apiClient.EventHeaders_Proofs_Item{}
+		require.NoError(t, proofUnion.FromOCRProof(ocrProof))
+
+		payloadUnion := apiClient.Event_Payload{}
+		require.NoError(t, payloadUnion.FromOperationStatusPayload(operationStatusPayload))
+
+		event := &apiClient.Event{
+			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Offset: int64(12345),
+				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+			},
+			Payload: payloadUnion,
+		}
+
+		ok, err := c.VerifyOperationStatus(event, testWorkflowID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrVerifyEvent))
+		assert.Contains(t, err.Error(), "verifiable event is required")
 	})
 }
 
@@ -1346,6 +1722,78 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 
 	event := &apiClient.Event{
 		Headers: apiClient.EventHeaders{
+			Type:   apiClient.EventHeadersTypeWatcherEvent,
+			Offset: int64(12345),
+			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+		},
+		Payload: payloadUnion,
+	}
+
+	return event
+}
+
+// createTestOperationStatusPayload creates a standard test operation status payload
+func createTestOperationStatusPayload(t *testing.T) apiClient.OperationStatusPayload {
+	t.Helper()
+
+	verifiableEvent := base64.StdEncoding.EncodeToString([]byte(`{"operationId":"test-op-123","status":"confirmed"}`))
+	operationId := uuid.New()
+
+	return apiClient.OperationStatusPayload{
+		Type:              apiClient.OperationStatusPayloadTypeOperationStatus,
+		OperationId:       operationId,
+		WalletOperationId: "wallet-op-123",
+		Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+		StatusReason:      "Operation confirmed",
+		ChainSelector:     "5009297550715157269",
+		Address:           "0x1234567890123456789012345678901234567890",
+		VerifiableEvent:   &verifiableEvent,
+	}
+}
+
+// createValidOperationStatusEventWithSignatures creates a valid operation status event with proper OCR report and signatures
+func createValidOperationStatusEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKey, eventPayload *apiClient.OperationStatusPayload) *apiClient.Event {
+	t.Helper()
+
+	ocrReport := make([]byte, 141)
+	ocrReport[0] = 0x01
+
+	workflowCid := common.HexToHash(testWorkflowID)
+	copy(ocrReport[45:77], workflowCid.Bytes())
+
+	eventHash := crypto.Keccak256Hash([]byte(OperationStatusEventName + "." + *eventPayload.VerifiableEvent))
+
+	copy(ocrReport[109:], eventHash.Bytes())
+	ocrContext := []byte("test-context-data")
+
+	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+	var signatures []string
+	for _, privKey := range privateKeys {
+		sig, err := crypto.Sign(reportHash.Bytes(), privKey)
+		require.NoError(t, err)
+		sig[64] += 27
+		signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
+	}
+
+	ocrProof := apiClient.OCRProof{
+		Alg:        "ecdsa-secp256k1",
+		OcrContext: "0x" + common.Bytes2Hex(ocrContext),
+		OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+		Signatures: signatures,
+	}
+
+	proofUnion := apiClient.EventHeaders_Proofs_Item{}
+	err := proofUnion.FromOCRProof(ocrProof)
+	require.NoError(t, err)
+
+	payloadUnion := apiClient.Event_Payload{}
+	err = payloadUnion.FromOperationStatusPayload(*eventPayload)
+	require.NoError(t, err)
+
+	event := &apiClient.Event{
+		Headers: apiClient.EventHeaders{
+			Type:   apiClient.EventHeadersTypeOperationStatus,
 			Offset: int64(12345),
 			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 		},
