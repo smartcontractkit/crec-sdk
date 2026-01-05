@@ -45,7 +45,11 @@
 // # Verifying Events
 //
 // CRITICAL: Always verify events before processing. Verification ensures
-// the event was signed by enough trusted DON members and matches the expected workflow:
+// the event was signed by enough trusted DON members and matches the expected workflow.
+//
+// ## Verifying Watcher Events
+//
+// Use [Client.Verify] to verify watcher events (blockchain events captured by watchers):
 //
 //	// The workflowId is the CID (Content Identifier) of the workflow that should
 //	// have generated this event. Use workflowId from corresponding watcher.
@@ -64,6 +68,20 @@
 //
 //	    // Event is verified, safe to process
 //	    processEvent(event)
+//	}
+//
+// ## Verifying Operation Status Events
+//
+// Use [Client.VerifyOperationStatus] to verify operation status events:
+//
+//	workflowId := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+//
+//	verified, err := client.Events.VerifyOperationStatus(&event, workflowId)
+//	if err != nil {
+//	    // Handle verification error
+//	}
+//	if !verified {
+//	    // Not enough valid signatures or workflow mismatch
 //	}
 //
 // # Decoding Events
@@ -87,10 +105,11 @@
 // # Event Types
 //
 // Events can be:
-//   - Watcher events: Blockchain events captured by watchers (support verification)
-//   - Application events: Status updates for operations, watchers, etc.
+//   - Watcher events: Blockchain events captured by watchers (verify with [Client.Verify])
+//   - Operation status events: Status updates for operations (verify with [Client.VerifyOperationStatus])
+//   - Application events: Other status updates for watchers, etc.
 //
-// Only watcher events support cryptographic verification via [Client.Verify].
+// Both watcher events and operation status events support cryptographic verification.
 //
 // # Error Handling
 //
@@ -103,6 +122,9 @@
 //	    // Event data was tampered with
 //	}
 //	if errors.Is(err, ErrOnlyWatcherEventsSupported) {
-//	    // Tried to verify a non-watcher event
+//	    // Tried to verify a non-watcher event with Verify
+//	}
+//	if errors.Is(err, ErrOnlyOperationStatusSupported) {
+//	    // Tried to verify a non-operation-status event with VerifyOperationStatus
 //	}
 package events
