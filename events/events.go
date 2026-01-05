@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,13 +26,12 @@ var (
 	ErrCRECClientRequired = errors.New("CRECClient is required")
 
 	// API operation errors
-	ErrChannelNotFound  = errors.New("channel not found")
-	ErrPollEvents       = errors.New("failed to poll events")
-	ErrSearchEvents     = errors.New("failed to search events")
-	ErrGetEvents        = errors.New("failed to get events")
-	ErrVerifyEvent      = errors.New("failed to verify event")
-	ErrDecodeEvent      = errors.New("failed to decode event")
-	ErrEventDomainIsNil = errors.New("event domain is nil")
+	ErrChannelNotFound = errors.New("channel not found")
+	ErrPollEvents      = errors.New("failed to poll events")
+	ErrSearchEvents    = errors.New("failed to search events")
+	ErrGetEvents       = errors.New("failed to get events")
+	ErrVerifyEvent     = errors.New("failed to verify event")
+	ErrDecodeEvent     = errors.New("failed to decode event")
 
 	// Parsing errors
 	ErrParseSignature               = errors.New("failed to parse signature")
@@ -240,7 +238,7 @@ func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error)
 	c.logger.Debug("Verifying event",
 		"event_address", eventPayload.Address,
 		"event_watcher_id", eventPayload.WatcherId,
-		"event_name", eventPayload.Event.EventName,
+		"event_name", eventPayload.Name,
 		"ocr_report", ocrProof.OcrReport,
 		"ocr_context", ocrProof.OcrContext)
 
@@ -356,15 +354,11 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 
 // EventHash computes the "EventHash" of an event used for verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
-	if event.Event.Domain == nil {
-		return common.Hash{}, ErrEventDomainIsNil
+	strToHash := event.Name + "." + event.VerifiableEvent
+	if event.Domain != nil {
+		strToHash = *event.Domain + "." + strToHash
 	}
-	dataBytes, err := json.Marshal(event.Event.Data)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	dataStr := base64.StdEncoding.EncodeToString(dataBytes)
-	return crypto.Keccak256Hash([]byte(*event.Event.Domain + "." + event.Event.EventName + "." + dataStr)), nil
+	return crypto.Keccak256Hash([]byte(strToHash)), nil
 }
 
 // OperationStatusHash computes the "EventHash" of an OperationStatusPayload used for verification.
