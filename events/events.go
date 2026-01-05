@@ -331,6 +331,36 @@ func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowId string
 	return verified, nil
 }
 
+// Decode decodes a verifiable event into a specified payload structure.
+//   - event: The event to decode.
+//   - payload: A pointer to the structure where the decoded event will be stored.
+func (c *Client) Decode(event *apiClient.Event, payload any) error {
+	// Marshal the event data to JSON
+	jsonBytes, err := c.ToJSON(*event)
+	if err != nil {
+		return fmt.Errorf("%w: %w: %w", ErrDecodeEvent, ErrMarshalEventToJSON, err)
+	}
+	return json.Unmarshal(jsonBytes, payload)
+}
+
+// ToJSON converts a verifiable event into its JSON representation.
+//   - event: The event to convert.
+func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
+	jsonBytes, err := json.Marshal(event)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrMarshalEventPayload, err)
+	}
+	return jsonBytes, nil
+}
+
+// EventHash computes the "EventHash" of an event used for verification.
+func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
+	if event.Domain == nil {
+		return common.Hash{}, ErrEventDomainIsNil
+	}
+	return crypto.Keccak256Hash([]byte(*event.Domain + "." + event.Name + "." + event.VerifiableEvent)), nil
+}
+
 // OperationStatusHash computes the "EventHash" of an OperationStatusPayload used for verification.
 // The hash is computed using the pattern: eventName + "." + base64VerifiableEvent
 // Note: VerifiableEvent must be present and non-empty (should be validated by caller).
@@ -435,36 +465,6 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 		"valid_signatures", validSigCount,
 		"required_signatures", c.minRequiredSignatures)
 	return false, nil
-}
-
-// Decode decodes a verifiable event into a specified payload structure.
-//   - event: The event to decode.
-//   - payload: A pointer to the structure where the decoded event will be stored.
-func (c *Client) Decode(event *apiClient.Event, payload any) error {
-	// Marshal the event data to JSON
-	jsonBytes, err := c.ToJSON(*event)
-	if err != nil {
-		return fmt.Errorf("%w: %w: %w", ErrDecodeEvent, ErrMarshalEventToJSON, err)
-	}
-	return json.Unmarshal(jsonBytes, payload)
-}
-
-// ToJSON converts a verifiable event into its JSON representation.
-//   - event: The event to convert.
-func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
-	jsonBytes, err := json.Marshal(event)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrMarshalEventPayload, err)
-	}
-	return jsonBytes, nil
-}
-
-// EventHash computes the "EventHash" of an event used for verification.
-func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
-	if event.Domain == nil {
-		return common.Hash{}, ErrEventDomainIsNil
-	}
-	return crypto.Keccak256Hash([]byte(*event.Domain + "." + event.Name + "." + event.VerifiableEvent)), nil
 }
 
 func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowId string) bool {
