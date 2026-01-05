@@ -26,13 +26,12 @@ var (
 	ErrCRECClientRequired = errors.New("CRECClient is required")
 
 	// API operation errors
-	ErrChannelNotFound  = errors.New("channel not found")
-	ErrPollEvents       = errors.New("failed to poll events")
-	ErrSearchEvents     = errors.New("failed to search events")
-	ErrGetEvents        = errors.New("failed to get events")
-	ErrVerifyEvent      = errors.New("failed to verify event")
-	ErrDecodeEvent      = errors.New("failed to decode event")
-	ErrEventDomainIsNil = errors.New("event domain is nil")
+	ErrChannelNotFound = errors.New("channel not found")
+	ErrPollEvents      = errors.New("failed to poll events")
+	ErrSearchEvents    = errors.New("failed to search events")
+	ErrGetEvents       = errors.New("failed to get events")
+	ErrVerifyEvent     = errors.New("failed to verify event")
+	ErrDecodeEvent     = errors.New("failed to decode event")
 
 	// Parsing errors
 	ErrParseSignature               = errors.New("failed to parse signature")
@@ -355,10 +354,11 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 
 // EventHash computes the "EventHash" of an event used for verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
-	if event.Domain == nil {
-		return common.Hash{}, ErrEventDomainIsNil
+	strToHash := event.Name + "." + event.VerifiableEvent
+	if event.Domain != nil {
+		strToHash = *event.Domain + "." + strToHash
 	}
-	return crypto.Keccak256Hash([]byte(*event.Domain + "." + event.Name + "." + event.VerifiableEvent)), nil
+	return crypto.Keccak256Hash([]byte(strToHash)), nil
 }
 
 // OperationStatusHash computes the "EventHash" of an OperationStatusPayload used for verification.

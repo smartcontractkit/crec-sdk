@@ -600,9 +600,8 @@ func TestClient_EventHash(t *testing.T) {
 		eventPayload.Domain = nil // Set domain to nil
 
 		hash, err := c.EventHash(&eventPayload)
-		require.Error(t, err)
-		assert.Equal(t, common.Hash{}, hash, "hash should be empty when domain is nil")
-		assert.True(t, errors.Is(err, ErrEventDomainIsNil))
+		require.NoError(t, err)
+		assert.NotEqual(t, common.Hash{}, hash, "hash should not be empty even with empty domain")
 	})
 }
 
