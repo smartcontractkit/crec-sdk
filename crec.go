@@ -135,6 +135,12 @@ func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
 		opt(cfg)
 	}
 
+	// Apply default event verification if not disabled and not custom configured
+	if !cfg.disableEventVerification && len(cfg.validSigners) == 0 {
+		cfg.validSigners = DefaultValidSigners
+		cfg.minRequiredSignatures = DefaultMinRequiredSignatures
+	}
+
 	// Validate event verification configuration
 	if len(cfg.validSigners) > 0 && cfg.minRequiredSignatures <= 0 {
 		return nil, ErrInvalidEventVerificationConfig

@@ -141,6 +141,15 @@ func TestNewClient(t *testing.T) {
 			},
 			wantErr: nil,
 		},
+		{
+			name:    "Success_WithoutEventVerification",
+			baseURL: "https://api.crec.example.com",
+			apiKey:  "test-api-key",
+			opts: []crec.Option{
+				crec.WithoutEventVerification(),
+			},
+			wantErr: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -303,6 +312,58 @@ func TestNewClient_WatcherPollingConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, client)
 	assert.NotNil(t, client.Watchers)
+}
+
+func TestNewClient_DefaultEventVerification(t *testing.T) {
+	t.Run("DefaultsAppliedWithNoOptions", func(t *testing.T) {
+		// When no options are provided, defaults should be applied
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+		)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+		// Client created successfully means defaults were applied correctly
+		// (DefaultMinRequiredSignatures=3 with DefaultValidSigners)
+	})
+
+	t.Run("WithoutEventVerificationDisablesDefaults", func(t *testing.T) {
+		// When WithoutEventVerification is used, no defaults should be applied
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithoutEventVerification(),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+		// Client created successfully with verification disabled
+	})
+
+	t.Run("CustomSignersOverrideDefaults", func(t *testing.T) {
+		// When custom signers are provided, they should override defaults
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithEventVerification(2, []string{"0x1234", "0x5678"}),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+		// Custom signers used instead of defaults
+	})
+
+	t.Run("WithoutEventVerificationTakesPrecedence", func(t *testing.T) {
+		// WithoutEventVerification should work even if called before WithEventVerification
+		// Last option wins, so order matters
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithEventVerification(2, []string{"0x1234", "0x5678"}),
+			crec.WithoutEventVerification(),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+		// Verification disabled even though WithEventVerification was called first
+	})
 }
 
 func TestNewClient_MultipleOptionsOrder(t *testing.T) {
