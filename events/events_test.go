@@ -1149,7 +1149,7 @@ func TestClient_Verify(t *testing.T) {
 			Type:          apiClient.WatcherStatus,
 			WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
 			ChainSelector: "5009297550715157269",
-			Status:        apiClient.Deploying,
+			Status:        apiClient.WatcherStatusPayloadStatusDeploying,
 			StatusCode:    "DEPLOYING",
 			StatusReason:  "Watcher is being deployed",
 		}
