@@ -185,29 +185,42 @@ Protocol-specific helpers for common Chainlink systems:
 - [crec-sdk-ext-dvp](https://github.com/smartcontractkit/crec-sdk-ext-dvp) - Delivery versus Payment
 - [crec-sdk-ext-dta](https://github.com/smartcontractkit/crec-sdk-ext-dta) - Digital Token Assets
 
-## Event Verification Keys (Production)
+## Event Verification Keys (Mainnet)
 
-The SDK includes built-in production DON public keys for event verification. **No configuration is required** — verification is enabled by default.
+The SDK includes built-in mainnet DON public keys for event verification. **No configuration is required** — verification is enabled by default.
 
 ### Default Configuration
 
 - **Keys**: All Zone A workflow nodes (10 keys)
 - **Required Signatures**: 3 (configurable)
 
-### Zone A Workflow Nodes (Built-in)
+## DON Keys Reference
 
-| Node Operator          | Public Key                                   |
-| ---------------------- | -------------------------------------------- |
-| chainlayer-wf-zone-a-1 | `0xff9b062fccb2f042311343048b9518068370f837` |
-| clp-cre-wf-zone-a-0    | `0xe55fcaf921e76c6bbcf9415bba12b1236f07b0c3` |
-| dextrac-wf-zone-a-3    | `0x4d6cfd44f94408a39fb1af94a53c107a730ba161` |
-| fiews-wf-zone-a-2      | `0xde5cd1dd4300a0b4854f8223add60d20e1dfe21b` |
-| inotel-wf-zone-a-4     | `0xf3baa9a99b5ad64f50779f449bac83baac8bfdb6` |
-| linkforest-wf-zone-a-5 | `0xd7f22fb5382ff477d2ff5c702cab0ef8abf18233` |
-| linkpool-wf-zone-a-0   | `0xcdf20f8ffd41b02c680988b20e68735cc8c1ca17` |
-| linkriver-wf-zone-a-6  | `0x4d7d71c7e584cfa1f5c06275e5d283b9d3176924` |
-| piertwo-wf-zone-a-7    | `0x1a89c98e75983ec384ad8e83eaf7d0176eeaf155` |
-| simplyvc-wf-zone-a-8   | `0x4f99b550623e77b807df7cbed9c79d55e1163b48` |
+### ethereum-mainnet
+
+#### zone-a
+
+| Node Operator                    | Public Key                                   |
+| -------------------------------- | -------------------------------------------- |
+| chainlayer-wf-zone-a-1           | `0xff9b062fccb2f042311343048b9518068370f837` |
+| clp-cre-wf-zone-a-0              | `0xe55fcaf921e76c6bbcf9415bba12b1236f07b0c3` |
+| dextrac-wf-zone-a-3              | `0x4d6cfd44f94408a39fb1af94a53c107a730ba161` |
+| fiews-wf-zone-a-2                | `0xde5cd1dd4300a0b4854f8223add60d20e1dfe21b` |
+| inotel-wf-zone-a-4               | `0xf3baa9a99b5ad64f50779f449bac83baac8bfdb6` |
+| linkforest-wf-zone-a-5           | `0xd7f22fb5382ff477d2ff5c702cab0ef8abf18233` |
+| linkpool-wf-zone-a-0             | `0xcdf20f8ffd41b02c680988b20e68735cc8c1ca17` |
+| linkriver-wf-zone-a-6            | `0x4d7d71c7e584cfa1f5c06275e5d283b9d3176924` |
+| piertwo-wf-zone-a-7              | `0x1a89c98e75983ec384ad8e83eaf7d0176eeaf155` |
+| simplyvc-wf-zone-a-8             | `0x4f99b550623e77b807df7cbed9c79d55e1163b48` |
+
+#### zone-b
+
+| Node Operator                    | Public Key                                   |
+| -------------------------------- | -------------------------------------------- |
+| chainlayer-wf-zone-b-1           | `0xc42c803d9243bf38456b04551cd1a1f7dcd208f8` |
+| clp-cre-wf-zone-b-3              | `0x224f5e03e5d57342e9d5c69739ca30a77c1b19ae` |
+| fiews-wf-zone-b-2                | `0x659cc3f04fcb810bbe7155182e9b6867d1e8198a` |
+| linkpool-wf-zone-b-0             | `0x1350ae637645a7198890a1019eabef7b53d7984a` |
 
 ### Customizing Verification
 

@@ -6,10 +6,15 @@ import (
 	"time"
 )
 
-// DefaultMinRequiredSignatures is the default minimum number of valid signatures
-// required to verify an event. This provides a reasonable security threshold
-// for the default DON configuration.
-const DefaultMinRequiredSignatures = 3
+// DefaultMinRequiredSignatures is the minimum number of valid signatures required
+// to verify an event. Calculated as F + 1, where F is the maximum number of faulty
+// nodes the DON can tolerate. With F+1 signatures, at least one must be from an
+// honest node, guaranteeing the data passed consensus.
+//
+// The DON transmits once this minimum is reached, so reports will never contain
+// more than F+1 signatures. Do not increase this value unless you are certain
+// about the implications—doing so will cause signature verification to fail.
+const DefaultMinRequiredSignatures = 4
 
 // DefaultValidSigners contains the production Zone A workflow node public keys.
 // These are the keys used by the DON to sign events on Ethereum Mainnet.
