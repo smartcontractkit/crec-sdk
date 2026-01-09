@@ -639,7 +639,7 @@ func TestClient_List(t *testing.T) {
 		walletName := "production"
 		chainSelector := "5009297550715157269"
 		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
-		walletType := apiClient.GetWalletsParamsTypeEcdsa
+		walletType := apiClient.Ecdsa
 		walletStatus := apiClient.GetWalletsParamsStatusDeployed
 		limit := 10
 		offset := int64(5)
