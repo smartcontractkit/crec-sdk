@@ -40,6 +40,7 @@ var (
 	ErrInvalidRsaSigner           = errors.New("all allowed_rsa_signers must have non-empty E and N fields")
 	ErrInvalidLimit               = errors.New("limit must be positive")
 	ErrInvalidOffset              = errors.New("offset cannot be negative")
+	ErrInvalidOwnerAddress        = errors.New("owner address must be a valid hex address")
 
 	// API operation errors
 	ErrCreateWallet = errors.New("failed to create wallet")
@@ -260,11 +261,17 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 // ListInput defines the input parameters for listing wallets.
 //   - Name: Optional filter to search wallets by name (case-insensitive partial match).
 //   - ChainSelector: Optional filter to search wallets by chain selector.
+//   - Owner: Optional filter to search wallets by owner address (42-character hex string starting with 0x).
+//   - Type: Optional filter to search wallets by type (e.g., "ecdsa", "rsa").
+//   - Status: Optional filter to search wallets by status (e.g., "deployed", "deploying", "failed", "pending").
 //   - Limit: Maximum number of wallets to return per page.
 //   - Offset: Number of wallets to skip for pagination (default: 0).
 type ListInput struct {
 	Name          *string
 	ChainSelector *string
+	Owner         *string
+	Type          *apiClient.GetWalletsParamsType
+	Status        *apiClient.GetWalletsParamsStatus
 	Limit         *int
 	Offset        *int64
 }
@@ -289,9 +296,17 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 		return nil, false, ErrInvalidOffset
 	}
 
+	// Validate owner address if provided
+	if input.Owner != nil && !common.IsHexAddress(*input.Owner) {
+		return nil, false, fmt.Errorf("%w: %s", ErrInvalidOwnerAddress, *input.Owner)
+	}
+
 	params := apiClient.GetWalletsParams{
 		Name:          input.Name,
 		ChainSelector: input.ChainSelector,
+		Owner:         input.Owner,
+		Type:          input.Type,
+		Status:        input.Status,
 		Limit:         input.Limit,
 		Offset:        input.Offset,
 	}

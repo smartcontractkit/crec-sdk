@@ -638,6 +638,9 @@ func TestClient_List(t *testing.T) {
 	t.Run("WithFilters", func(t *testing.T) {
 		walletName := "production"
 		chainSelector := "5009297550715157269"
+		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+		walletType := apiClient.GetWalletsParamsTypeEcdsa
+		walletStatus := apiClient.GetWalletsParamsStatusDeployed
 		limit := 10
 		offset := int64(5)
 
@@ -645,6 +648,9 @@ func TestClient_List(t *testing.T) {
 			assert.Equal(t, "/wallets", r.URL.Path)
 			assert.Equal(t, walletName, r.URL.Query().Get("name"))
 			assert.Equal(t, chainSelector, r.URL.Query().Get("chain_selector"))
+			assert.Equal(t, ownerAddress, r.URL.Query().Get("owner"))
+			assert.Equal(t, "ecdsa", r.URL.Query().Get("type"))
+			assert.Equal(t, "deployed", r.URL.Query().Get("status"))
 			assert.Equal(t, "10", r.URL.Query().Get("limit"))
 			assert.Equal(t, "5", r.URL.Query().Get("offset"))
 
@@ -663,6 +669,9 @@ func TestClient_List(t *testing.T) {
 		wallets, hasMore, err := client.List(context.Background(), ListInput{
 			Name:          &walletName,
 			ChainSelector: &chainSelector,
+			Owner:         &ownerAddress,
+			Type:          &walletType,
+			Status:        &walletStatus,
 			Limit:         &limit,
 			Offset:        &offset,
 		})
@@ -731,6 +740,21 @@ func TestClient_List(t *testing.T) {
 		assert.Nil(t, wallets)
 		assert.False(t, hasMore)
 		assert.True(t, errors.Is(err, ErrInvalidOffset))
+	})
+
+	t.Run("InvalidOwner_InvalidAddress", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		invalidOwner := "not-a-valid-address"
+		wallets, hasMore, err := client.List(context.Background(), ListInput{
+			Owner: &invalidOwner,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallets)
+		assert.False(t, hasMore)
+		assert.True(t, errors.Is(err, ErrInvalidOwnerAddress))
 	})
 }
 
