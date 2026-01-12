@@ -60,7 +60,7 @@ client, err := crec.NewClient(
 )
 ```
 
-Event verification is enabled by default using the production DON public keys. See [Event Verification Keys](#event-verification-keys-production) for details.
+Event verification is enabled by default using the production DON public keys. See [Event Verification Keys](#event-verification-keys-mainnet) for details.
 
 The unified client provides access to all sub-clients:
 
@@ -212,15 +212,6 @@ The SDK includes built-in mainnet DON public keys for event verification. **No c
 | linkriver-wf-zone-a-6            | `0x4d7d71c7e584cfa1f5c06275e5d283b9d3176924` |
 | piertwo-wf-zone-a-7              | `0x1a89c98e75983ec384ad8e83eaf7d0176eeaf155` |
 | simplyvc-wf-zone-a-8             | `0x4f99b550623e77b807df7cbed9c79d55e1163b48` |
-
-#### zone-b
-
-| Node Operator                    | Public Key                                   |
-| -------------------------------- | -------------------------------------------- |
-| chainlayer-wf-zone-b-1           | `0xc42c803d9243bf38456b04551cd1a1f7dcd208f8` |
-| clp-cre-wf-zone-b-3              | `0x224f5e03e5d57342e9d5c69739ca30a77c1b19ae` |
-| fiews-wf-zone-b-2                | `0x659cc3f04fcb810bbe7155182e9b6867d1e8198a` |
-| linkpool-wf-zone-b-0             | `0x1350ae637645a7198890a1019eabef7b53d7984a` |
 
 ### Customizing Verification
 
