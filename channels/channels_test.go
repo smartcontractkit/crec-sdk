@@ -114,6 +114,7 @@ func TestClient_Create(t *testing.T) {
 			err = json.Unmarshal(body, &createReq)
 			require.NoError(t, err)
 			assert.Equal(t, channelName, createReq.Name)
+			assert.Nil(t, createReq.Description)
 
 			// Return success response
 			w.Header().Set("Content-Type", "application/json")
@@ -137,6 +138,57 @@ func TestClient_Create(t *testing.T) {
 		assert.NotNil(t, channel)
 		assert.Equal(t, channelID, channel.ChannelId)
 		assert.Equal(t, channelName, channel.Name)
+		assert.Equal(t, createdAt, channel.CreatedAt)
+	})
+
+	t.Run("Success_WithDescription", func(t *testing.T) {
+		channelID := uuid.New()
+		channelName := "test-channel"
+		channelDescription := "Test channel description"
+		createdAt := time.Now().Unix()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/channels", r.URL.Path)
+			assert.Equal(t, "POST", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			// Read and validate request body
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var createReq apiClient.CreateChannel
+			err = json.Unmarshal(body, &createReq)
+			require.NoError(t, err)
+			assert.Equal(t, channelName, createReq.Name)
+			assert.NotNil(t, createReq.Description)
+			assert.Equal(t, channelDescription, *createReq.Description)
+
+			// Return success response
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			response := apiClient.Channel{
+				ChannelId:   channelID,
+				Name:        channelName,
+				Description: &channelDescription,
+				CreatedAt:   createdAt,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		channel, err := client.Create(context.Background(), CreateInput{
+			Name:        channelName,
+			Description: &channelDescription,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, channel)
+		assert.Equal(t, channelID, channel.ChannelId)
+		assert.Equal(t, channelName, channel.Name)
+		assert.NotNil(t, channel.Description)
+		assert.Equal(t, channelDescription, *channel.Description)
 		assert.Equal(t, createdAt, channel.CreatedAt)
 	})
 

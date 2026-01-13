@@ -82,8 +82,10 @@ func NewClient(opts *Options) (*Client, error) {
 
 // CreateInput defines the input parameters for creating a new channel.
 //   - Name: The name of the channel. Must be unique.
+//   - Description: Optional description of the channel.
 type CreateInput struct {
-	Name string
+	Name        string
+	Description *string
 }
 
 // Create creates a new channel in the CREC backend.
@@ -105,7 +107,8 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Chan
 	}
 
 	createChannelReq := apiClient.CreateChannel{
-		Name: input.Name,
+		Name:        input.Name,
+		Description: input.Description,
 	}
 
 	resp, err := c.apiClient.PostChannelsWithResponse(ctx, createChannelReq)
