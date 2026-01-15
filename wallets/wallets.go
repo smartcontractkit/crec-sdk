@@ -47,6 +47,7 @@ var (
 	ErrGetWallet    = errors.New("failed to get wallet")
 	ErrListWallets  = errors.New("failed to list wallets")
 	ErrUpdateWallet = errors.New("failed to update wallet")
+	ErrDeleteWallet = errors.New("failed to delete wallet")
 
 	// Response errors
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
@@ -387,6 +388,43 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 	}
 
 	c.logger.Info("Wallet updated successfully", "wallet_id", walletID.String())
+
+	return nil
+}
+
+// Delete deletes a wallet.
+//
+// Parameters:
+//   - ctx: The context for the request.
+//   - walletID: The UUID of the wallet to delete.
+//
+// Returns an error if the operation fails or the wallet is not found.
+func (c *Client) Delete(ctx context.Context, walletID uuid.UUID) error {
+	c.logger.Debug("Deleting wallet", "wallet_id", walletID.String())
+
+	if walletID == uuid.Nil {
+		return ErrWalletIDRequired
+	}
+
+	resp, err := c.apiClient.DeleteWalletsWalletIdWithResponse(ctx, walletID)
+	if err != nil {
+		c.logger.Error("Failed to delete wallet", "error", err)
+		return fmt.Errorf("%w: %w", ErrDeleteWallet, err)
+	}
+
+	if resp.StatusCode() == 404 {
+		c.logger.Warn("Wallet not found", "wallet_id", walletID.String())
+		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
+	}
+
+	if resp.StatusCode() != 200 {
+		c.logger.Error("Unexpected status code when deleting wallet",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return fmt.Errorf("%w: %w (status code %d)", ErrDeleteWallet, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+
+	c.logger.Info("Wallet deleted successfully", "wallet_id", walletID.String())
 
 	return nil
 }

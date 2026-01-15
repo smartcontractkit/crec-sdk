@@ -621,6 +621,21 @@ func (s *MockServer) PatchWalletsWalletId(w http.ResponseWriter, r *http.Request
 	http.Error(w, "wallet not found", http.StatusNotFound)
 }
 
+func (s *MockServer) DeleteWalletsWalletId(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Find and remove the wallet
+	for i, wallet := range s.wallets {
+		if wallet.WalletId == walletId {
+			s.wallets = append(s.wallets[:i], s.wallets[i+1:]...)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
+	http.Error(w, "wallet not found", http.StatusNotFound)
+}
+
 // ============================================================================
 // HELPER METHODS (INTERNAL)
 // ============================================================================

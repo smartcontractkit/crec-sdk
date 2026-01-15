@@ -871,3 +871,72 @@ func TestClient_Update(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrUpdateWallet))
 	})
 }
+
+func TestClient_Delete(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		walletID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/wallets/"+walletID.String(), r.URL.Path)
+			assert.Equal(t, "DELETE", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			w.WriteHeader(http.StatusOK)
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		err := client.Delete(context.Background(), walletID)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("NilWalletID", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		err := client.Delete(context.Background(), uuid.Nil)
+
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrWalletIDRequired))
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		walletID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{
+				"message": "Wallet not found",
+				"type":    "Not found",
+			})
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		err := client.Delete(context.Background(), walletID)
+
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrWalletNotFound))
+	})
+
+	t.Run("UnexpectedStatusCode", func(t *testing.T) {
+		walletID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		err := client.Delete(context.Background(), walletID)
+
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrDeleteWallet))
+		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
+	})
+}
