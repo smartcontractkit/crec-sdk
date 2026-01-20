@@ -32,6 +32,7 @@ var (
 	ErrCreateChannel = errors.New("failed to create channel")
 	ErrGetChannel    = errors.New("failed to get channel")
 	ErrListChannels  = errors.New("failed to list channels")
+	ErrUpdateChannel = errors.New("failed to update channel")
 	ErrDeleteChannel = errors.New("failed to delete channel")
 
 	// Response errors
@@ -82,8 +83,10 @@ func NewClient(opts *Options) (*Client, error) {
 
 // CreateInput defines the input parameters for creating a new channel.
 //   - Name: The name of the channel. Must be unique.
+//   - Description: Optional description of the channel.
 type CreateInput struct {
-	Name string
+	Name        string
+	Description *string
 }
 
 // Create creates a new channel in the CREC backend.
@@ -105,7 +108,8 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Chan
 	}
 
 	createChannelReq := apiClient.CreateChannel{
-		Name: input.Name,
+		Name:        input.Name,
+		Description: input.Description,
 	}
 
 	resp, err := c.apiClient.PostChannelsWithResponse(ctx, createChannelReq)
@@ -219,6 +223,67 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Channel
 		"has_more", resp.JSON200.HasMore)
 
 	return resp.JSON200.Data, resp.JSON200.HasMore, nil
+}
+
+// UpdateInput defines the input parameters for updating a channel.
+//   - Name: The new name for the channel.
+//   - Description: The new description for the channel.
+type UpdateInput struct {
+	Name        string
+	Description string
+}
+
+// Update updates a channel's information.
+//
+// Parameters:
+//   - ctx: The context for the request.
+//   - channelID: The UUID of the channel to update.
+//   - input: The channel update parameters.
+//
+// Returns the updated channel or an error if the operation fails or the channel is not found.
+func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateInput) (*apiClient.Channel, error) {
+	c.logger.Debug("Updating channel", "channel_id", channelID.String(), "name", input.Name)
+
+	if input.Name == "" {
+		return nil, ErrChannelNameRequired
+	}
+
+	if len(input.Name) > MaxChannelNameLength {
+		return nil, fmt.Errorf("%w: cannot exceed %d characters", ErrChannelNameTooLong, MaxChannelNameLength)
+	}
+
+	updateChannelReq := apiClient.UpdateChannel{
+		Name:        input.Name,
+		Description: input.Description,
+	}
+
+	resp, err := c.apiClient.PutChannelsChannelIdWithResponse(ctx, channelID, updateChannelReq)
+	if err != nil {
+		c.logger.Error("Failed to update channel", "error", err)
+		return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, err)
+	}
+
+	if resp.StatusCode() == 404 {
+		c.logger.Warn("Channel not found", "channel_id", channelID.String())
+		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+	}
+
+	if resp.StatusCode() != 200 {
+		c.logger.Error("Unexpected status code when updating channel",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrUpdateChannel, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, ErrNilResponseBody)
+	}
+
+	c.logger.Info("Channel updated successfully",
+		"channel_id", resp.JSON200.ChannelId.String(),
+		"name", resp.JSON200.Name)
+
+	return resp.JSON200, nil
 }
 
 // Delete deletes a channel.

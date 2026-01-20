@@ -669,6 +669,43 @@ func TestClient_Get(t *testing.T) {
 		assert.Equal(t, "active", watcher.Status)
 	})
 
+	t.Run("SuccessWithDONInfo", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				ChannelId:     channelID,
+				Name:          &name,
+				ChainSelector: "16015286601757825753",
+				Address:       "0x1234567890123456789012345678901234567890",
+				Status:        "active",
+				CreatedAt:     1704067200, // 2024-01-01 00:00:00 UTC
+				Events:        []string{"Transfer"},
+				WorkflowId:    "00a52f385ef2c2ae57721370dbcef8b25ab406de2be190575c88e324c002e22f",
+				DonFamily:     "zone-a",
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		watcher, err := client.Get(context.Background(), channelID, watcherID)
+
+		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, watcherID, watcher.WatcherId)
+		assert.Equal(t, channelID, watcher.ChannelId)
+		assert.Equal(t, "zone-a", watcher.DonFamily)
+		assert.Equal(t, "00a52f385ef2c2ae57721370dbcef8b25ab406de2be190575c88e324c002e22f", watcher.WorkflowId)
+		assert.Equal(t, []string{"Transfer"}, watcher.Events)
+	})
+
 	t.Run("EmptyChannelID", func(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			t.Fatal("Should not make request with empty channel ID")

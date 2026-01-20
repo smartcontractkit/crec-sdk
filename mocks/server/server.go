@@ -142,6 +142,30 @@ func (s *MockServer) GetChannelsChannelId(w http.ResponseWriter, r *http.Request
 	http.Error(w, "channel not found", http.StatusNotFound)
 }
 
+func (s *MockServer) PutChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	var request stdserver.UpdateChannel
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Find and update the channel
+	for i, ch := range s.channels {
+		if ch.ChannelId == channelId {
+			s.channels[i].Name = request.Name
+			s.channels[i].Description = &request.Description
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(s.channels[i])
+			return
+		}
+	}
+	http.Error(w, "channel not found", http.StatusNotFound)
+}
+
 func (s *MockServer) DeleteChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
 	s.mu.RLock()
 	found := false
@@ -591,6 +615,21 @@ func (s *MockServer) PatchWalletsWalletId(w http.ResponseWriter, r *http.Request
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(s.wallets[i])
+			return
+		}
+	}
+	http.Error(w, "wallet not found", http.StatusNotFound)
+}
+
+func (s *MockServer) DeleteWalletsWalletId(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Find and remove the wallet
+	for i, wallet := range s.wallets {
+		if wallet.WalletId == walletId {
+			s.wallets = append(s.wallets[:i], s.wallets[i+1:]...)
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 	}
