@@ -151,6 +151,69 @@ func TestClient_Create(t *testing.T) {
 		assert.Equal(t, chainSelector, wallet.ChainSelector)
 	})
 
+	t.Run("SuccessWithStatusChannelId", func(t *testing.T) {
+		walletID := uuid.New()
+		walletName := "test-wallet-with-status-channel"
+		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
+		chainSelector := "ethereum-sepolia"
+		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+		statusChannelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/wallets", r.URL.Path)
+			assert.Equal(t, "POST", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+
+			// Read and validate request body
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var createReq apiClient.CreateWallet
+			err = json.Unmarshal(body, &createReq)
+			require.NoError(t, err)
+			assert.Equal(t, walletName, createReq.Name)
+			assert.Equal(t, chainSelector, createReq.ChainSelector)
+			assert.Equal(t, ownerAddress, createReq.WalletOwnerAddress)
+			assert.NotNil(t, createReq.StatusChannelId)
+			assert.Equal(t, statusChannelID, *createReq.StatusChannelId)
+
+			// Return success response
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			response := apiClient.Wallet{
+				WalletId:        walletID,
+				Name:            &walletName,
+				Address:         walletAddress,
+				ChainSelector:   chainSelector,
+				StatusChannelId: &statusChannelID,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		ecdsaSigners := []string{}
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:                walletName,
+			ChainSelector:       chainSelector,
+			WalletOwnerAddress:  ownerAddress,
+			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
+			AllowedEcdsaSigners: &ecdsaSigners,
+			StatusChannelId:     &statusChannelID,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, wallet)
+		assert.Equal(t, walletID, wallet.WalletId)
+		assert.Equal(t, walletName, *wallet.Name)
+		assert.Equal(t, walletAddress, wallet.Address)
+		assert.Equal(t, chainSelector, wallet.ChainSelector)
+		assert.NotNil(t, wallet.StatusChannelId)
+		assert.Equal(t, statusChannelID, *wallet.StatusChannelId)
+	})
+
 	t.Run("EmptyName", func(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			t.Fatal("Should not make request with empty name")

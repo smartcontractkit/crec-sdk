@@ -100,6 +100,7 @@ func NewClient(opts *Options) (*Client, error) {
 //   - WalletType: The type of the wallet (e.g., "ecdsa").
 //   - AllowedEcdsaSigners: Optional list of allowed ECDSA public signing keys.
 //   - AllowedRsaSigners: Optional list of allowed RSA public signing keys.
+//   - StatusChannelId: Optional unique identifier for the channel where the wallet status will be published
 type CreateInput struct {
 	Name                string
 	ChainSelector       string
@@ -110,6 +111,7 @@ type CreateInput struct {
 		E string `json:"e"` // RSA public exponent
 		N string `json:"n"` // RSA modulus
 	}
+	StatusChannelId *uuid.UUID `json:"status_channel_id,omitempty"`
 }
 
 // Create creates a new wallet in the CREC backend.
@@ -185,6 +187,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		WalletType:          input.WalletType,
 		AllowedEcdsaSigners: input.AllowedEcdsaSigners,
 		AllowedRsaSigners:   input.AllowedRsaSigners,
+		StatusChannelId:     input.StatusChannelId,
 	}
 
 	resp, err := c.apiClient.PostWalletsWithResponse(ctx, createWalletReq)
