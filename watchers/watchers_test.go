@@ -508,13 +508,17 @@ func TestClient_List(t *testing.T) {
 			name1 := "watcher-1"
 			name2 := "watcher-2"
 			response := apiClient.WatcherList{
-				Data: []apiClient.Watcher{
+				Data: []apiClient.WatcherSummary{
 					{
 						WatcherId:     watcher1ID,
 						Name:          &name1,
 						ChainSelector: "1337",
 						Address:       "0x1111",
 						Status:        "active",
+						ChannelId:     channelID,
+						CreatedAt:     time.Now().Unix(),
+						DonFamily:     "zone-a",
+						WorkflowId:    "workflow-1",
 					},
 					{
 						WatcherId:     watcher2ID,
@@ -522,6 +526,10 @@ func TestClient_List(t *testing.T) {
 						ChainSelector: "1337",
 						Address:       "0x2222",
 						Status:        "active",
+						ChannelId:     channelID,
+						CreatedAt:     time.Now().Unix(),
+						DonFamily:     "zone-a",
+						WorkflowId:    "workflow-2",
 					},
 				},
 				HasMore: false,
@@ -565,13 +573,17 @@ func TestClient_List(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			response := apiClient.WatcherList{
-				Data: []apiClient.Watcher{
+				Data: []apiClient.WatcherSummary{
 					{
 						WatcherId:     watcherID,
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1111",
 						Status:        string(status),
+						ChannelId:     channelID,
+						CreatedAt:     time.Now().Unix(),
+						DonFamily:     "zone-a",
+						WorkflowId:    "workflow-1",
 					},
 				},
 				HasMore: false,
@@ -1790,13 +1802,17 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/channels/"+channelID.String()+"/watchers") && !strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
 				response := apiClient.WatcherList{
-					Data: []apiClient.Watcher{
+					Data: []apiClient.WatcherSummary{
 						{
 							WatcherId:     watcherID,
 							Name:          &watcherName,
 							ChainSelector: "1337",
 							Address:       "0x5678",
 							Status:        "active",
+							ChannelId:     channelID,
+							CreatedAt:     time.Now().Unix(),
+							DonFamily:     "zone-a",
+							WorkflowId:    "workflow-1",
 						},
 					},
 					HasMore: false,
@@ -2107,13 +2123,17 @@ func TestEndToEnd_Filtering(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			name := "my-watcher"
 			response := apiClient.WatcherList{
-				Data: []apiClient.Watcher{
+				Data: []apiClient.WatcherSummary{
 					{
 						WatcherId:     uuid.New(),
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1234",
 						Status:        "active",
+						ChannelId:     channelID,
+						CreatedAt:     time.Now().Unix(),
+						DonFamily:     "zone-a",
+						WorkflowId:    "workflow-1",
 					},
 				},
 				HasMore: false,
@@ -2164,15 +2184,19 @@ func TestEndToEnd_Filtering(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 
 			// Simulate paginated results
-			watchers := []apiClient.Watcher{}
+			watchers := []apiClient.WatcherSummary{}
 			for i := 0; i < 5 && offset+i < 15; i++ {
 				name := "watcher-" + strconv.Itoa(offset+i)
-				watchers = append(watchers, apiClient.Watcher{
+				watchers = append(watchers, apiClient.WatcherSummary{
 					WatcherId:     uuid.New(),
 					Name:          &name,
 					ChainSelector: "1337",
 					Address:       "0x1234",
 					Status:        "active",
+					ChannelId:     channelID,
+					CreatedAt:     time.Now().Unix(),
+					DonFamily:     "zone-a",
+					WorkflowId:    "workflow-" + strconv.Itoa(offset+i),
 				})
 			}
 
@@ -2191,7 +2215,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 		limit := 5
 
 		// Fetch pages
-		allWatchers := []apiClient.Watcher{}
+		allWatchers := []apiClient.WatcherSummary{}
 		for offset := int64(0); offset < 15; offset += 5 {
 			filters := ListFilters{
 				Limit:  &limit,
