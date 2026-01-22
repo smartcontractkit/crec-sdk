@@ -550,11 +550,13 @@ func (s *MockServer) PostWallets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := uuid.New()
+	now := time.Now().Unix()
 	wallet := stdserver.Wallet{
 		WalletId:      id,
 		Address:       in.WalletOwnerAddress,
 		ChainSelector: in.ChainSelector,
 		Name:          &in.Name,
+		CreatedAt:     &now,
 	}
 
 	s.mu.Lock()
