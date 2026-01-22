@@ -386,9 +386,23 @@ func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http
 	if end > len(filteredWatchers) {
 		end = len(filteredWatchers)
 	}
-	data := []stdserver.Watcher{}
+	data := []stdserver.WatcherSummary{}
 	if offset < len(filteredWatchers) {
-		data = filteredWatchers[offset:end]
+		watchersSlice := filteredWatchers[offset:end]
+		for _, watcher := range watchersSlice {
+			summary := stdserver.WatcherSummary{
+				WatcherId:     watcher.WatcherId,
+				Name:          watcher.Name,
+				ChainSelector: watcher.ChainSelector,
+				Address:       watcher.Address,
+				Status:        watcher.Status,
+				ChannelId:     watcher.ChannelId,
+				CreatedAt:     watcher.CreatedAt,
+				DonFamily:     watcher.DonFamily,
+				WorkflowId:    watcher.WorkflowId,
+			}
+			data = append(data, summary)
+		}
 	}
 	hasMore := end < len(filteredWatchers)
 
