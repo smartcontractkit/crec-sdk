@@ -210,10 +210,10 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 // Verify verifies the authenticity of a given event.
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
-//   - workflowId: The expected workflow CID (Content Identifier) that generated the event. This is the identifier of the workflow that should have generated this event.
+//   - workflowOwner: The expected workflow owner address (Ethereum address) that deployed the workflow. This is used to verify the event originated from a workflow owned by the expected address.
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
-func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error) {
+func (c *Client) Verify(event *apiClient.Event, workflowOwner string) (bool, error) {
 	ocrProof, payloadValue, err := c.prepareVerification(event)
 	if err != nil {
 		return false, err
@@ -249,7 +249,7 @@ func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error)
 	}
 
 	// ensure locally computed event hash matches the one in the report
-	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowId)
+	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowOwner)
 	if !eventHashValid {
 		return false, ErrInvalidEventHash
 	}
@@ -269,10 +269,10 @@ func (c *Client) Verify(event *apiClient.Event, workflowId string) (bool, error)
 // VerifyOperationStatus verifies the authenticity of an operation status event.
 // It checks whether the event was signed by at least a minimum number of authorized signers.
 //   - event: The event to verify.
-//   - workflowId: The expected workflow CID (Content Identifier) that generated the event. This is the identifier of the workflow that should have generated this event.
+//   - workflowOwner: The expected workflow owner address (Ethereum address) that deployed the workflow. This is used to verify the event originated from a workflow owned by the expected address.
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
-func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowId string) (bool, error) {
+func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowOwner string) (bool, error) {
 	ocrProof, payloadValue, err := c.prepareVerification(event)
 	if err != nil {
 		return false, err
@@ -313,7 +313,7 @@ func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowId string
 	}
 
 	// ensure locally computed event hash matches the one in the report
-	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowId)
+	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowOwner)
 	if !eventHashValid {
 		return false, ErrInvalidEventHash
 	}
@@ -467,7 +467,7 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 	return false, nil
 }
 
-func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowId string) bool {
+func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowOwner string) bool {
 
 	// OCR report layout:
 	// version                offset   0, size  1
@@ -481,11 +481,12 @@ func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workfl
 	// report_id              offset 107, size  2
 	// payload			      offset 109, size  ... <- event hash
 
-	reportWorkflowCid := common.BytesToHash(ocrReport[45:77])
-	if reportWorkflowCid.String() != workflowId {
-		c.logger.Warn("Workflow CID mismatch",
-			"report_workflow_cid", reportWorkflowCid.String(),
-			"workflow_id", workflowId)
+	reportWorkflowOwner := common.BytesToAddress(ocrReport[87:107])
+	expectedOwner := common.HexToAddress(workflowOwner)
+	if reportWorkflowOwner != expectedOwner {
+		c.logger.Warn("Workflow owner mismatch",
+			"report_workflow_owner", reportWorkflowOwner.Hex(),
+			"expected_workflow_owner", expectedOwner.Hex())
 		return false
 	}
 
