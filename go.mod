@@ -1,5 +1,7 @@
 module github.com/smartcontractkit/crec-sdk
 
+replace github.com/smartcontractkit/crec-api-go => /Users/machado/Projects/crec-api-go
+
 go 1.24.4
 
 require (
