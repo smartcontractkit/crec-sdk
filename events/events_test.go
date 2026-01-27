@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	testAPIKey       = "test-api-key"
+	testAPIKey        = "test-api-key"
 	testWorkflowOwner = "0x853d51d5d9935964267a5050aC53aa63ECA39bc5"
 )
 
@@ -1156,7 +1156,7 @@ func TestClient_Verify(t *testing.T) {
 			Type:          apiClient.WatcherStatus,
 			WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
 			ChainSelector: "5009297550715157269",
-			Status:        apiClient.WatcherStatusPayloadStatusDeploying,
+			Status:        apiClient.WatcherStatusPayloadStatusActive,
 			StatusCode:    "DEPLOYING",
 			StatusReason:  "Watcher is being deployed",
 		}
