@@ -451,6 +451,8 @@ github.com/smartcontractkit/crec-api-go v0.3.8-0.20260122115228-fde7c6d61b4b h1:
 github.com/smartcontractkit/crec-api-go v0.3.8-0.20260122115228-fde7c6d61b4b/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
 github.com/smartcontractkit/crec-api-go v0.3.8-0.20260122133437-f60a0b132c96 h1:P4rzgpAJNdi3i9dxMyhsZ47NZIPt1aK9Ur4XaKRmvt0=
 github.com/smartcontractkit/crec-api-go v0.3.8-0.20260122133437-f60a0b132c96/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
+github.com/smartcontractkit/crec-api-go v0.3.8-0.20260127185148-fee3eccdab9a h1:5TKwJYh0ppn0E2DesTGvM0NdeO5ND8sCP1SksvGdzPw=
+github.com/smartcontractkit/crec-api-go v0.3.8-0.20260127185148-fee3eccdab9a/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
 github.com/spf13/afero v1.12.0 h1:UcOPyRBYczmFn6yvphxkn9ZEOY65cpwGKb5mL36mrqs=

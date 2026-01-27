@@ -266,6 +266,7 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 //   - Name: Optional filter to search wallets by name (case-insensitive partial match).
 //   - ChainSelector: Optional filter to search wallets by chain selector.
 //   - Owner: Optional filter to search wallets by owner address (42-character hex string starting with 0x).
+//   - Address: Optional filter to search wallets by wallet address (42-character hex string starting with 0x).
 //   - Type: Optional filter to search wallets by type (e.g., "ecdsa", "rsa").
 //   - Status: Optional filter to search wallets by status (e.g., "deployed", "deploying", "failed", "pending").
 //   - Limit: Maximum number of wallets to return per page.
@@ -274,6 +275,7 @@ type ListInput struct {
 	Name          *string
 	ChainSelector *string
 	Owner         *string
+	Address       *string
 	Type          *apiClient.GetWalletsParamsType
 	Status        *apiClient.GetWalletsParamsStatus
 	Limit         *int
@@ -305,10 +307,16 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 		return nil, false, fmt.Errorf("%w: %s", ErrInvalidOwnerAddress, *input.Owner)
 	}
 
+	// Validate wallet address if provided
+	if input.Address != nil && !common.IsHexAddress(*input.Address) {
+		return nil, false, fmt.Errorf("%w: %s", ErrInvalidOwnerAddress, *input.Address)
+	}
+
 	params := apiClient.GetWalletsParams{
 		Name:          input.Name,
 		ChainSelector: input.ChainSelector,
 		Owner:         input.Owner,
+		Address:       input.Address,
 		Type:          input.Type,
 		Status:        input.Status,
 		Limit:         input.Limit,

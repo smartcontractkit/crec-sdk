@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/vault/api v1.20.0
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/smartcontractkit/chain-selectors v1.0.82
-	github.com/smartcontractkit/crec-api-go v0.3.8-0.20260122133437-f60a0b132c96
+	github.com/smartcontractkit/crec-api-go v0.3.8-0.20260127185148-fee3eccdab9a
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/vault v0.38.0
