@@ -536,10 +536,17 @@ func TestClient_EventHash(t *testing.T) {
 		assert.Equal(t, hash1, hash2, "same event payload should produce same hash")
 	})
 
-	t.Run("DifferentEventNameProducesDifferentHash", func(t *testing.T) {
+	t.Run("DifferentVerifiableEventProducesDifferentHash", func(t *testing.T) {
 		eventPayload1 := createTestEventPayload(t)
 		eventPayload2 := createTestEventPayload(t)
-		eventPayload2.Name = "Approval"
+		// Create different verifiable event data
+		differentData := map[string]interface{}{
+			"from":  "0x0000000000000000000000000000000000000000",
+			"to":    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+			"value": "9999999999999999999",
+		}
+		differentDataBytes, _ := json.Marshal(differentData)
+		eventPayload2.VerifiableEvent = base64.StdEncoding.EncodeToString(differentDataBytes)
 
 		hash1, err := c.EventHash(&eventPayload1)
 		require.NoError(t, err)
@@ -547,22 +554,7 @@ func TestClient_EventHash(t *testing.T) {
 		hash2, err := c.EventHash(&eventPayload2)
 		require.NoError(t, err)
 
-		assert.NotEqual(t, hash1, hash2, "different event names should produce different hashes")
-	})
-
-	t.Run("DifferentDomainProducesDifferentHash", func(t *testing.T) {
-		eventPayload1 := createTestEventPayload(t)
-		eventPayload2 := createTestEventPayload(t)
-		differentDomain := "dta"
-		eventPayload2.Domain = &differentDomain
-
-		hash1, err := c.EventHash(&eventPayload1)
-		require.NoError(t, err)
-
-		hash2, err := c.EventHash(&eventPayload2)
-		require.NoError(t, err)
-
-		assert.NotEqual(t, hash1, hash2, "different domains should produce different hashes")
+		assert.NotEqual(t, hash1, hash2, "different verifiable events should produce different hashes")
 	})
 
 	t.Run("DifferentDataProducesDifferentHash", func(t *testing.T) {
@@ -592,19 +584,10 @@ func TestClient_EventHash(t *testing.T) {
 		hash, err := c.EventHash(&eventPayload)
 		require.NoError(t, err)
 
-		// Manually compute the expected hash to verify the algorithm (no base64 encoding)
-		expectedHash := crypto.Keccak256Hash([]byte(*eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
+		// Hash is now just keccak256(verifiableEvent)
+		expectedHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
 
 		assert.Equal(t, expectedHash, hash, "hash should match expected Keccak256 computation")
-	})
-
-	t.Run("ErrEventDomainIsNil", func(t *testing.T) {
-		eventPayload := createTestEventPayload(t)
-		eventPayload.Domain = nil // Set domain to nil
-
-		hash, err := c.EventHash(&eventPayload)
-		require.NoError(t, err)
-		assert.NotEqual(t, common.Hash{}, hash, "hash should not be empty even with empty domain")
 	})
 }
 
@@ -788,7 +771,7 @@ func TestClient_Verify(t *testing.T) {
 		wrongWorkflowOwner := common.HexToAddress("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
 		copy(ocrReport[87:107], wrongWorkflowOwner.Bytes())
 
-		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test-context")
@@ -908,7 +891,7 @@ func TestClient_Verify(t *testing.T) {
 		copy(ocrReport[87:107], workflowOwner.Bytes())
 
 		ocrContext := []byte("test")
-		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
@@ -1032,7 +1015,7 @@ func TestClient_Verify(t *testing.T) {
 		workflowOwner := common.HexToAddress(testWorkflowOwner)
 		copy(ocrReport[87:107], workflowOwner.Bytes())
 
-		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test")
@@ -1088,7 +1071,7 @@ func TestClient_Verify(t *testing.T) {
 		workflowOwner := common.HexToAddress(testWorkflowOwner)
 		copy(ocrReport[87:107], workflowOwner.Bytes())
 
-		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test")
@@ -1136,8 +1119,8 @@ func TestClient_Verify(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrRecoverPubKeyFromSignature))
 	})
 
-	// Test payload parsing errors with watcher.status type (not watcher.event)
-	t.Run("ErrParseEventPayload_OnlyWatcherEventsSupported", func(t *testing.T) {
+	// Test that wrong header type returns error
+	t.Run("ErrOnlyWatcherEventsSupported_WrongHeaderType", func(t *testing.T) {
 		c := setupLocalClient(t)
 
 		// Provide properly sized OCR report (141 bytes minimum) to pass validation
@@ -1153,12 +1136,10 @@ func TestClient_Verify(t *testing.T) {
 
 		// Build a valid WatcherStatusPayload (not WatcherEventPayload)
 		statusPayload := apiClient.WatcherStatusPayload{
-			Type:          apiClient.WatcherStatus,
-			WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
-			ChainSelector: "5009297550715157269",
-			Status:        apiClient.WatcherStatusPayloadStatusActive,
-			StatusCode:    "DEPLOYING",
-			StatusReason:  "Watcher is being deployed",
+			WatcherId:    "550e8400-e29b-41d4-a716-446655440000",
+			Status:       apiClient.WatcherStatusPayloadStatusPending,
+			StatusCode:   "PENDING",
+			StatusReason: "Watcher is pending",
 		}
 
 		payloadUnion := apiClient.Event_Payload{}
@@ -1166,7 +1147,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventHeadersTypeWatcherStatus, // Wrong type for Verify()
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1469,7 +1450,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrInvalidEventHash))
 	})
 
-	t.Run("ErrOnlyOperationStatusSupported", func(t *testing.T) {
+	t.Run("ErrOnlyOperationStatusSupported_WrongHeaderType", func(t *testing.T) {
 		c := setupLocalClient(t)
 
 		ocrReport := make([]byte, 141)
@@ -1490,7 +1471,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Type:   apiClient.EventHeadersTypeWatcherEvent, // Wrong type for VerifyOperationStatus()
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1508,13 +1489,11 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		// Create operation status payload without VerifiableEvent
 		operationStatusPayload := apiClient.OperationStatusPayload{
-			Type:              apiClient.OperationStatusPayloadTypeOperationStatus,
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
 			Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+			StatusCode:        "CONFIRMED",
 			StatusReason:      "Operation confirmed",
-			ChainSelector:     "5009297550715157269",
-			Address:           "0x1234567890123456789012345678901234567890",
 			VerifiableEvent:   nil,
 		}
 
@@ -1658,7 +1637,6 @@ func generateTestKeys(t *testing.T, count int) ([]*ecdsa.PrivateKey, []string) {
 func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
 	t.Helper()
 
-	domain := "dvp"
 	// Create verifiable event data (base64 encoded)
 	verifiableEventData := map[string]interface{}{
 		"from":  "0x0000000000000000000000000000000000000000",
@@ -1669,14 +1647,13 @@ func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
 	require.NoError(t, err)
 	verifiableEvent := base64.StdEncoding.EncodeToString(verifiableEventBytes)
 
+	// Compute the event hash (keccak256 of verifiable event)
+	eventHash := crypto.Keccak256Hash([]byte(verifiableEvent))
+
 	return apiClient.WatcherEventPayload{
-		Type:            apiClient.WatcherEventPayloadType("watcher.event"),
 		WatcherId:       "550e8400-e29b-41d4-a716-446655440000",
-		Address:         "0x1234567890123456789012345678901234567890",
-		ChainSelector:   "5009297550715157269",
-		Domain:          &domain,
-		Name:            "Transfer",
 		VerifiableEvent: verifiableEvent,
+		EventHash:       eventHash.Hex(),
 	}
 }
 
@@ -1692,8 +1669,8 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 	workflowOwner := common.HexToAddress(testWorkflowOwner)
 	copy(ocrReport[87:107], workflowOwner.Bytes())
 
-	// Compute event hash using base64 encoding (same as EventHash method)
-	eventHash := crypto.Keccak256Hash([]byte(*eventPayload.Domain + "." + eventPayload.Name + "." + eventPayload.VerifiableEvent))
+	// Compute event hash - now just keccak256(verifiableEvent)
+	eventHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
 
 	// Place event hash at offset 109
 	copy(ocrReport[109:], eventHash.Bytes())
@@ -1749,13 +1726,11 @@ func createTestOperationStatusPayload(t *testing.T) apiClient.OperationStatusPay
 	operationId := uuid.New()
 
 	return apiClient.OperationStatusPayload{
-		Type:              apiClient.OperationStatusPayloadTypeOperationStatus,
 		OperationId:       operationId,
 		WalletOperationId: "wallet-op-123",
 		Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+		StatusCode:        "CONFIRMED",
 		StatusReason:      "Operation confirmed",
-		ChainSelector:     "5009297550715157269",
-		Address:           "0x1234567890123456789012345678901234567890",
 		VerifiableEvent:   &verifiableEvent,
 	}
 }
