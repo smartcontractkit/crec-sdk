@@ -12,15 +12,15 @@ generate:
 
 .PHONY: test
 test:
-	go test ./...
+	go test -v ./...
 
 .PHONY: coverage
 coverage:
-	go test ./... -cover
+	go test -v ./... -cover
 
 .PHONY: coverage-report
 coverage-report:
-	go test ./... -coverprofile=coverage.out -covermode=atomic
+	go test -v ./... -coverprofile=coverage.out -covermode=atomic
 	go tool cover -func=coverage.out
 
 .PHONY: vendor

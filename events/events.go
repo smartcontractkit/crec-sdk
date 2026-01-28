@@ -113,10 +113,14 @@ func NewClient(opts *Options) (*Client, error) {
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - channelID: The UUID of the channel to retrieve events from.
 //   - params: parameters for filtering events, see apiClient.GetChannelsChannelIdEventsParams for details.
-func (c *Client) Poll(ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsParams) ([]apiClient.Event, bool, error) {
-	c.logger.Debug("Polling events by channel",
+func (c *Client) Poll(
+	ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsParams,
+) ([]apiClient.Event, bool, error) {
+	c.logger.Debug(
+		"Polling events by channel",
 		"channel_id", channelID.String(),
-		"filter", params)
+		"filter", params,
+	)
 
 	if channelID == uuid.Nil {
 		return nil, false, ErrChannelIDRequired
@@ -133,19 +137,25 @@ func (c *Client) Poll(ctx context.Context, channelID uuid.UUID, params *apiClien
 	}
 
 	if resp.StatusCode() != 200 {
-		c.logger.Error("Failed to get events - unexpected status code",
+		c.logger.Error(
+			"Failed to get events - unexpected status code",
 			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrPollEvents, ErrUnexpectedStatusCode, resp.StatusCode())
+			"body", string(resp.Body),
+		)
+		return nil, false, fmt.Errorf(
+			"%w: %w (status code %d)", ErrPollEvents, ErrUnexpectedStatusCode, resp.StatusCode(),
+		)
 	}
 
 	if resp.JSON200 == nil {
 		return nil, false, fmt.Errorf("%w: %w", ErrPollEvents, ErrNilResponseBody)
 	}
 
-	c.logger.Debug("Events polled successfully",
+	c.logger.Debug(
+		"Events polled successfully",
 		"count", len(resp.JSON200.Events),
-		"has_more", resp.JSON200.HasMore)
+		"has_more", resp.JSON200.HasMore,
+	)
 
 	return resp.JSON200.Events, resp.JSON200.HasMore, nil
 }
@@ -155,10 +165,14 @@ func (c *Client) Poll(ctx context.Context, channelID uuid.UUID, params *apiClien
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - channelID: The UUID of the channel to search events from.
 //   - params: Parameters for filtering events, see client.GetChannelsChannelIdEventsSearchParams for details.
-func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsSearchParams) ([]apiClient.Event, bool, error) {
-	c.logger.Debug("Searching historical events by channel",
+func (c *Client) SearchEvents(
+	ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsSearchParams,
+) ([]apiClient.Event, bool, error) {
+	c.logger.Debug(
+		"Searching historical events by channel",
 		"channel_id", channelID.String(),
-		"filter", params)
+		"filter", params,
+	)
 
 	if channelID == uuid.Nil {
 		return nil, false, ErrChannelIDRequired
@@ -170,8 +184,10 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 	}
 
 	if resp.StatusCode() == 404 {
-		c.logger.Warn("Channel not found",
-			"channel_id", channelID.String())
+		c.logger.Warn(
+			"Channel not found",
+			"channel_id", channelID.String(),
+		)
 		return nil, false, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
 	}
 
@@ -182,27 +198,37 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 		} else {
 			errorMsg = "Invalid request parameters"
 		}
-		c.logger.Error("Failed to search events - bad request",
+		c.logger.Error(
+			"Failed to search events - bad request",
 			"status_code", resp.StatusCode(),
 			"message", errorMsg,
-			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w: %s (status code %d)", ErrSearchEvents, ErrBadRequest, errorMsg, resp.StatusCode())
+			"body", string(resp.Body),
+		)
+		return nil, false, fmt.Errorf(
+			"%w: %w: %s (status code %d)", ErrSearchEvents, ErrBadRequest, errorMsg, resp.StatusCode(),
+		)
 	}
 
 	if resp.StatusCode() != 200 {
-		c.logger.Error("Failed to search events - unexpected status code",
+		c.logger.Error(
+			"Failed to search events - unexpected status code",
 			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrSearchEvents, ErrUnexpectedStatusCode, resp.StatusCode())
+			"body", string(resp.Body),
+		)
+		return nil, false, fmt.Errorf(
+			"%w: %w (status code %d)", ErrSearchEvents, ErrUnexpectedStatusCode, resp.StatusCode(),
+		)
 	}
 
 	if resp.JSON200 == nil {
 		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, ErrNilResponseBody)
 	}
 
-	c.logger.Debug("Events searched successfully",
+	c.logger.Debug(
+		"Events searched successfully",
 		"count", len(resp.JSON200.Events),
-		"has_more", resp.JSON200.HasMore)
+		"has_more", resp.JSON200.HasMore,
+	)
 
 	return resp.JSON200.Events, resp.JSON200.HasMore, nil
 }
@@ -214,7 +240,7 @@ func (c *Client) SearchEvents(ctx context.Context, channelID uuid.UUID, params *
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
 func (c *Client) Verify(event *apiClient.Event, workflowOwner string) (bool, error) {
-	ocrProof, payloadValue, err := c.prepareVerification(event)
+	ocrProof, payload, err := c.prepareVerification(event)
 	if err != nil {
 		return false, err
 	}
@@ -225,8 +251,8 @@ func (c *Client) Verify(event *apiClient.Event, workflowOwner string) (bool, err
 	}
 
 	// Check the payload type to ensure it's a watcher event (defense in depth)
-	eventPayload, ok := payloadValue.(apiClient.WatcherEventPayload)
-	if !ok {
+	eventPayload, err := payload.AsWatcherEventPayload()
+	if err != nil {
 		return false, ErrOnlyWatcherEventsSupported
 	}
 
@@ -235,12 +261,13 @@ func (c *Client) Verify(event *apiClient.Event, workflowOwner string) (bool, err
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
-	c.logger.Debug("Verifying event",
-		"event_address", eventPayload.Address,
+	c.logger.Debug(
+		"Verifying event",
+		"event_hash", eventPayload.EventHash,
 		"event_watcher_id", eventPayload.WatcherId,
-		"event_name", eventPayload.Name,
 		"ocr_report", ocrProof.OcrReport,
-		"ocr_context", ocrProof.OcrContext)
+		"ocr_context", ocrProof.OcrContext,
+	)
 
 	// compute the event hash from the event data
 	eventHash, err := c.EventHash(&eventPayload)
@@ -273,7 +300,7 @@ func (c *Client) Verify(event *apiClient.Event, workflowOwner string) (bool, err
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
 func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowOwner string) (bool, error) {
-	ocrProof, payloadValue, err := c.prepareVerification(event)
+	ocrProof, payload, err := c.prepareVerification(event)
 	if err != nil {
 		return false, err
 	}
@@ -284,8 +311,8 @@ func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowOwner str
 	}
 
 	// Check the payload type to ensure it's an operation status event (defense in depth)
-	operationStatusPayload, ok := payloadValue.(apiClient.OperationStatusPayload)
-	if !ok {
+	operationStatusPayload, err := payload.AsOperationStatusPayload()
+	if err != nil {
 		return false, ErrOnlyOperationStatusSupported
 	}
 
@@ -298,13 +325,14 @@ func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowOwner str
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
-	c.logger.Debug("Verifying operation status event",
+	c.logger.Debug(
+		"Verifying operation status event",
 		"operation_id", operationStatusPayload.OperationId.String(),
 		"wallet_operation_id", operationStatusPayload.WalletOperationId,
 		"status", operationStatusPayload.Status,
-		"address", operationStatusPayload.Address,
 		"ocr_report", ocrProof.OcrReport,
-		"ocr_context", ocrProof.OcrContext)
+		"ocr_context", ocrProof.OcrContext,
+	)
 
 	// compute the event hash from the operation status payload
 	eventHash, err := c.OperationStatusHash(&operationStatusPayload)
@@ -354,11 +382,7 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 
 // EventHash computes the "EventHash" of an event used for verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
-	strToHash := event.Name + "." + event.VerifiableEvent
-	if event.Domain != nil {
-		strToHash = *event.Domain + "." + strToHash
-	}
-	return crypto.Keccak256Hash([]byte(strToHash)), nil
+	return crypto.Keccak256Hash([]byte(event.VerifiableEvent)), nil
 }
 
 // OperationStatusHash computes the "EventHash" of an OperationStatusPayload used for verification.
@@ -374,9 +398,9 @@ func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) 
 // prepareVerification performs the initial verification setup steps:
 // - Validates that verification is configured (validSigners are set)
 // - Extracts the OCR proof from the event
-// - Extracts the payload value from the event
-// Returns the OCR proof and payload value, or an error if any step fails.
-func (c *Client) prepareVerification(event *apiClient.Event) (apiClient.OCRProof, interface{}, error) {
+// - Extracts the payload from the event
+// Returns the OCR proof and payload, or an error if any step fails.
+func (c *Client) prepareVerification(event *apiClient.Event) (apiClient.OCRProof, *apiClient.Event_Payload, error) {
 	if len(c.validSigners) == 0 {
 		return apiClient.OCRProof{}, nil, ErrVerificationNotConfigured
 	}
@@ -386,12 +410,7 @@ func (c *Client) prepareVerification(event *apiClient.Event) (apiClient.OCRProof
 		return apiClient.OCRProof{}, nil, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
-	payloadValue, err := event.Payload.ValueByDiscriminator()
-	if err != nil {
-		return apiClient.OCRProof{}, nil, fmt.Errorf("%w: %w", ErrParseEventPayload, err)
-	}
-
-	return ocrProof, payloadValue, nil
+	return ocrProof, &event.Payload, nil
 }
 
 // parseOCRProofData parses the OCR proof and returns the OCR report and context bytes.
@@ -439,9 +458,11 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 		}
 
 		signer := crypto.PubkeyToAddress(*pubKey)
-		c.logger.Debug("Recovered signer from signature",
+		c.logger.Debug(
+			"Recovered signer from signature",
 			"signer", signer.Hex(),
-			"signature", sig)
+			"signature", sig,
+		)
 
 		if availableSigners[signer] {
 			c.logger.Debug("Signature verified successfully", "signer", signer.Hex())
@@ -456,14 +477,18 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 	}
 
 	if validSigCount >= c.minRequiredSignatures {
-		c.logger.Debug("Signatures verified successfully",
+		c.logger.Debug(
+			"Signatures verified successfully",
 			"valid_signatures", validSigCount,
-			"required_signatures", c.minRequiredSignatures)
+			"required_signatures", c.minRequiredSignatures,
+		)
 		return true, nil
 	}
-	c.logger.Warn("Not enough valid signatures",
+	c.logger.Warn(
+		"Not enough valid signatures",
 		"valid_signatures", validSigCount,
-		"required_signatures", c.minRequiredSignatures)
+		"required_signatures", c.minRequiredSignatures,
+	)
 	return false, nil
 }
 
@@ -484,16 +509,20 @@ func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workfl
 	reportWorkflowOwner := common.BytesToAddress(ocrReport[87:107])
 	expectedOwner := common.HexToAddress(workflowOwner)
 	if reportWorkflowOwner != expectedOwner {
-		c.logger.Warn("Workflow owner mismatch",
+		c.logger.Warn(
+			"Workflow owner mismatch",
 			"report_workflow_owner", reportWorkflowOwner.Hex(),
-			"expected_workflow_owner", expectedOwner.Hex())
+			"expected_workflow_owner", expectedOwner.Hex(),
+		)
 		return false
 	}
 
 	reportEventHash := common.BytesToHash(ocrReport[ocrReportPayloadOffset:])
-	c.logger.Debug("Comparing event hashes",
+	c.logger.Debug(
+		"Comparing event hashes",
 		"local_event_hash", eventHash.String(),
-		"report_event_hash", reportEventHash.String())
+		"report_event_hash", reportEventHash.String(),
+	)
 
 	return eventHash == reportEventHash
 }

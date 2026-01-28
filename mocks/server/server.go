@@ -316,6 +316,11 @@ func (s *MockServer) GetChannelsChannelIdEventsSearch(w http.ResponseWriter, r *
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+func (s *MockServer) GetChannelsChannelIdEventsSearchEventId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, eventId openapiTypes.UUID) {
+	// Not implemented - events service
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ============================================================================
 // WATCHERS ENDPOINTS (under channels)
 // ============================================================================
