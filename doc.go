@@ -7,6 +7,7 @@
 //
 //   - [github.com/smartcontractkit/crec-sdk/channels] - Channel CRUD operations
 //   - [github.com/smartcontractkit/crec-sdk/events] - Event polling and verification
+//   - [github.com/smartcontractkit/crec-sdk/networks] - List available networks
 //   - [github.com/smartcontractkit/crec-sdk/transact] - Operation signing and sending
 //   - [github.com/smartcontractkit/crec-sdk/watchers] - Watcher CRUD operations
 //

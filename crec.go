@@ -28,6 +28,7 @@ import (
 
 	"github.com/smartcontractkit/crec-sdk/channels"
 	"github.com/smartcontractkit/crec-sdk/events"
+	"github.com/smartcontractkit/crec-sdk/networks"
 	"github.com/smartcontractkit/crec-sdk/transact"
 	"github.com/smartcontractkit/crec-sdk/wallets"
 	"github.com/smartcontractkit/crec-sdk/watchers"
@@ -102,6 +103,9 @@ type Client struct {
 
 	// Transact provides operations for signing and sending operations to CREC.
 	Transact *transact.Client
+
+	// Networks provides operations for listing available CREC networks.
+	Networks *networks.Client
 
 	// Wallets provides operations for managing CREC Smart Wallets.
 	Wallets *wallets.Client
@@ -200,6 +204,15 @@ func (c *Client) initSubClients(cfg *clientConfig) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create transact client: %w", err)
+	}
+
+	// Initialize Networks client
+	c.Networks, err = networks.NewClient(&networks.Options{
+		Logger:    c.logger,
+		APIClient: c.apiClient,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create networks client: %w", err)
 	}
 
 	// Initialize Wallets client
