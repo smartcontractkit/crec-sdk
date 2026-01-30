@@ -591,6 +591,104 @@ func TestClient_EventHash(t *testing.T) {
 	})
 }
 
+func TestClient_OperationStatusHash(t *testing.T) {
+	crecClient := newCRECClient(t, "http://localhost:8080")
+	logger := slog.New(slog.DiscardHandler)
+	c, err := NewClient(&Options{
+		Logger:     logger,
+		CRECClient: crecClient,
+	})
+	require.NoError(t, err)
+
+	t.Run("ComputesValidHash", func(t *testing.T) {
+		eventPayload := createTestOperationStatusPayload(t)
+
+		hash, err := c.OperationStatusHash(&eventPayload)
+		require.NoError(t, err)
+		assert.NotEqual(t, common.Hash{}, hash)
+
+		// Verify the hash is 32 bytes (256 bits)
+		assert.Equal(t, 32, len(hash.Bytes()))
+	})
+
+	t.Run("DeterministicHash", func(t *testing.T) {
+		// Same payload should produce the same hash
+		eventPayload := createTestOperationStatusPayload(t)
+
+		hash1, err := c.OperationStatusHash(&eventPayload)
+		require.NoError(t, err)
+
+		hash2, err := c.OperationStatusHash(&eventPayload)
+		require.NoError(t, err)
+
+		assert.Equal(t, hash1, hash2, "same operation status payload should produce same hash")
+	})
+
+	t.Run("DifferentVerifiableEventProducesDifferentHash", func(t *testing.T) {
+		eventPayload1 := createTestOperationStatusPayload(t)
+		eventPayload2 := createTestOperationStatusPayload(t)
+		
+		// Create different verifiable event data
+		differentData := base64.StdEncoding.EncodeToString([]byte(`{"operationId":"test-op-456","status":"failed"}`))
+		eventPayload2.VerifiableEvent = &differentData
+
+		hash1, err := c.OperationStatusHash(&eventPayload1)
+		require.NoError(t, err)
+
+		hash2, err := c.OperationStatusHash(&eventPayload2)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, hash1, hash2, "different verifiable events should produce different hashes")
+	})
+
+	t.Run("VerifyHashFormat", func(t *testing.T) {
+		eventPayload := createTestOperationStatusPayload(t)
+
+		hash, err := c.OperationStatusHash(&eventPayload)
+		require.NoError(t, err)
+
+		// Hash is now just keccak256(verifiableEvent)
+		expectedHash := crypto.Keccak256Hash([]byte(*eventPayload.VerifiableEvent))
+
+		assert.Equal(t, expectedHash, hash, "hash should match expected Keccak256 computation")
+	})
+
+	t.Run("NilVerifiableEvent_ReturnsError", func(t *testing.T) {
+		eventPayload := apiClient.OperationStatusPayload{
+			OperationId:       uuid.New(),
+			WalletOperationId: "wallet-op-123",
+			Status:            apiClient.OperationStatusPayloadStatusPending,
+			StatusCode:        "PENDING",
+			StatusReason:      "Operation pending",
+			VerifiableEvent:   nil,
+		}
+
+		hash, err := c.OperationStatusHash(&eventPayload)
+		require.Error(t, err)
+		assert.Equal(t, common.Hash{}, hash)
+		assert.True(t, errors.Is(err, ErrVerifyEvent))
+		assert.Contains(t, err.Error(), "verifiable event is required")
+	})
+
+	t.Run("EmptyVerifiableEvent_ReturnsError", func(t *testing.T) {
+		emptyVerifiableEvent := ""
+		eventPayload := apiClient.OperationStatusPayload{
+			OperationId:       uuid.New(),
+			WalletOperationId: "wallet-op-123",
+			Status:            apiClient.OperationStatusPayloadStatusPending,
+			StatusCode:        "PENDING",
+			StatusReason:      "Operation pending",
+			VerifiableEvent:   &emptyVerifiableEvent,
+		}
+
+		hash, err := c.OperationStatusHash(&eventPayload)
+		require.Error(t, err)
+		assert.Equal(t, common.Hash{}, hash)
+		assert.True(t, errors.Is(err, ErrVerifyEvent))
+		assert.Contains(t, err.Error(), "verifiable event is required")
+	})
+}
+
 func TestClient_Verify(t *testing.T) {
 	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
 		// Create client WITHOUT configuring signers
@@ -1336,7 +1434,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		copy(ocrReport[87:107], wrongWorkflowOwner.Bytes())
 
 		// Compute event hash using OperationStatusHash pattern
-		eventHash := crypto.Keccak256Hash([]byte(OperationStatusEventName + "." + *eventPayload.VerifiableEvent))
+		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.VerifiableEvent))
 		copy(ocrReport[109:], eventHash.Bytes())
 
 		ocrContext := []byte("test-context")
@@ -1746,7 +1844,7 @@ func createValidOperationStatusEventWithSignatures(t *testing.T, privateKeys []*
 	workflowOwner := common.HexToAddress(testWorkflowOwner)
 	copy(ocrReport[87:107], workflowOwner.Bytes())
 
-	eventHash := crypto.Keccak256Hash([]byte(OperationStatusEventName + "." + *eventPayload.VerifiableEvent))
+	eventHash := crypto.Keccak256Hash([]byte(*eventPayload.VerifiableEvent))
 
 	copy(ocrReport[109:], eventHash.Bytes())
 	ocrContext := []byte("test-context-data")
