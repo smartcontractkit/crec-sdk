@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	ocrReportPayloadOffset   = 109                 // Offset of the report payload (event hash) in the OCR report
-	OperationStatusEventName = "OperationExecuted" // Event name used for operation status event hashing
+	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
 )
 
 var (
@@ -389,7 +388,10 @@ func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, e
 // The hash is computed using the pattern: eventName + "." + base64VerifiableEvent
 // Note: VerifiableEvent must be present and non-empty (should be validated by caller).
 func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) (common.Hash, error) {
-	payloadToSign := OperationStatusEventName + "." + *payload.VerifiableEvent
+	if payload.VerifiableEvent == nil || *payload.VerifiableEvent == "" {
+		return common.Hash{}, fmt.Errorf("%w: verifiable event is required for operation status verification", ErrVerifyEvent)
+	}
+	payloadToSign := *payload.VerifiableEvent
 	eventHash := crypto.Keccak256Hash([]byte(payloadToSign))
 
 	return eventHash, nil
