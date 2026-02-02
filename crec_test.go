@@ -2,6 +2,7 @@ package crec_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -9,8 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
 	"github.com/smartcontractkit/crec-sdk"
 	"github.com/smartcontractkit/crec-sdk/channels"
@@ -233,6 +237,61 @@ func TestNewClient_DefaultLogger(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, client)
+}
+
+func TestClient_ListNetworks(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		networkID := uuid.New()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/networks", r.URL.Path)
+			assert.Equal(t, "GET", r.Method)
+			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(apiClient.NetworkList{
+				Data: []apiClient.Network{
+					{
+						Id:            networkID,
+						Name:          "Ethereum Mainnet",
+						ChainFamily:   "evm",
+						ChainId:       "1",
+						ChainSelector: "5009297550715157269",
+						CreatedAt:     1700000000,
+						UpdatedAt:     1700000000,
+					},
+				},
+				HasMore: false,
+			})
+		}))
+		defer server.Close()
+
+		client, err := crec.NewClient(server.URL, "test-api-key")
+		require.NoError(t, err)
+
+		networks, hasMore, err := client.ListNetworks(context.Background())
+		require.NoError(t, err)
+		assert.Len(t, networks, 1)
+		assert.False(t, hasMore)
+		assert.Equal(t, networkID, networks[0].Id)
+		assert.Equal(t, "Ethereum Mainnet", networks[0].Name)
+		assert.Equal(t, "evm", networks[0].ChainFamily)
+	})
+
+	t.Run("UnexpectedStatusCode", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		client, err := crec.NewClient(server.URL, "test-api-key")
+		require.NoError(t, err)
+
+		networks, hasMore, err := client.ListNetworks(context.Background())
+		require.Error(t, err)
+		assert.Nil(t, networks)
+		assert.False(t, hasMore)
+		assert.True(t, errors.Is(err, crec.ErrListNetworks))
+	})
 }
 
 func TestNewClient_EventVerificationConfig(t *testing.T) {

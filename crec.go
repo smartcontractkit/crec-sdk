@@ -28,7 +28,6 @@ import (
 
 	"github.com/smartcontractkit/crec-sdk/channels"
 	"github.com/smartcontractkit/crec-sdk/events"
-	"github.com/smartcontractkit/crec-sdk/networks"
 	"github.com/smartcontractkit/crec-sdk/transact"
 	"github.com/smartcontractkit/crec-sdk/wallets"
 	"github.com/smartcontractkit/crec-sdk/watchers"
@@ -49,6 +48,9 @@ var (
 
 	// ErrInvalidEventVerificationConfig is returned when event verification is misconfigured.
 	ErrInvalidEventVerificationConfig = errors.New("minRequiredSignatures must be > 0 when validSigners are provided")
+
+	// ErrListNetworks is returned when listing networks fails.
+	ErrListNetworks = errors.New("failed to list networks")
 )
 
 // NewAPIClient creates an authenticated CREC API client that can be used
@@ -103,9 +105,6 @@ type Client struct {
 
 	// Transact provides operations for signing and sending operations to CREC.
 	Transact *transact.Client
-
-	// Networks provides operations for listing available CREC networks.
-	Networks *networks.Client
 
 	// Wallets provides operations for managing CREC Smart Wallets.
 	Wallets *wallets.Client
@@ -206,15 +205,6 @@ func (c *Client) initSubClients(cfg *clientConfig) error {
 		return fmt.Errorf("failed to create transact client: %w", err)
 	}
 
-	// Initialize Networks client
-	c.Networks, err = networks.NewClient(&networks.Options{
-		Logger:    c.logger,
-		APIClient: c.apiClient,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create networks client: %w", err)
-	}
-
 	// Initialize Wallets client
 	c.Wallets, err = wallets.NewClient(&wallets.Options{
 		Logger:    c.logger,
@@ -236,4 +226,30 @@ func (c *Client) initSubClients(cfg *clientConfig) error {
 	}
 
 	return nil
+}
+
+// ListNetworks returns the list of available networks supported by the CREC platform.
+// It delegates to the underlying API client (GET /networks) with no extra SDK logic.
+//
+// Parameters:
+//   - ctx: The context for the request.
+//
+// Returns the list of networks, a boolean indicating if there are more results (HasMore),
+// and an error if the request fails.
+func (c *Client) ListNetworks(ctx context.Context) ([]apiClient.Network, bool, error) {
+	resp, err := c.apiClient.GetNetworksWithResponse(ctx)
+	if err != nil {
+		c.logger.Error("Failed to list networks", "error", err)
+		return nil, false, fmt.Errorf("%w: %w", ErrListNetworks, err)
+	}
+	if resp.StatusCode() != 200 {
+		c.logger.Error("Unexpected status code when listing networks",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, fmt.Errorf("%w (status code %d)", ErrListNetworks, resp.StatusCode())
+	}
+	if resp.JSON200 == nil {
+		return nil, false, ErrListNetworks
+	}
+	return resp.JSON200.Data, resp.JSON200.HasMore, nil
 }
