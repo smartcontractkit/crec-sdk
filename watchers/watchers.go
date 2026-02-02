@@ -70,8 +70,24 @@ const (
 	StatusActive   Status = "active"
 	StatusFailed   Status = "failed"
 	StatusDeleting Status = "deleting"
-	StatusDeleted  Status = "deleted"
 )
+
+// statusToAPIStatus converts SDK Status to API-go WatcherStatus.
+// Returns an error if the status value doesn't match any known API-go status.
+func statusToAPIStatus(status Status) (apiClient.WatcherStatus, error) {
+	switch status {
+	case StatusPending:
+		return apiClient.Pending, nil
+	case StatusActive:
+		return apiClient.Active, nil
+	case StatusFailed:
+		return apiClient.Failed, nil
+	case StatusDeleting:
+		return apiClient.Deleting, nil
+	default:
+		return "", fmt.Errorf("%w: unknown status '%s'", ErrUnexpectedStatus, status)
+	}
+}
 
 type EventABIInput struct {
 	Indexed      bool   `json:"indexed"`
@@ -360,8 +376,12 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 	}
 
 	if filters.Status != nil {
-		statusStr := string(*filters.Status)
-		params.Status = &statusStr
+		apiStatus, err := statusToAPIStatus(*filters.Status)
+		if err != nil {
+			c.logger.Error("Failed to convert status", "status", *filters.Status, "error", err)
+			return nil, fmt.Errorf("%w: %w", ErrListWatchers, err)
+		}
+		params.Status = &apiStatus
 	}
 
 	resp, err := c.apiClient.GetChannelsChannelIdWatchersWithResponse(ctx, channelID, params)
@@ -542,9 +562,6 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 			case StatusDeleting:
 				c.logger.Error("Watcher is being deleted")
 				return nil, ErrWatcherIsDeleting
-			case StatusDeleted:
-				c.logger.Error("Watcher has been deleted")
-				return nil, ErrWatcherAlreadyDeleted
 			default:
 				c.logger.Error("Unexpected watcher status while waiting for active", "status", watcher.Status)
 				return nil, fmt.Errorf("%w: %s", ErrUnexpectedStatus, watcher.Status)
@@ -638,9 +655,6 @@ func (c *Client) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watche
 			}
 
 			switch Status(watcher.Status) {
-			case StatusDeleted:
-				c.logger.Debug("Watcher is now deleted (status confirmed)")
-				return nil
 			case StatusDeleting:
 				c.logger.Debug("Watcher is being deleted, continuing to wait")
 				continue
