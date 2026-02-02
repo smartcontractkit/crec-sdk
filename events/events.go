@@ -357,6 +357,30 @@ func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowOwner str
 	return verified, nil
 }
 
+// VerifyOCRSignatures verifies that the OCR proof contains valid DON signatures.
+// This is a lower-level verification that checks only signatures, without
+// requiring a full Event structure or validating event hash/workflow owner.
+//
+// Returns true if at least minRequiredSignatures valid signatures are found.
+func (c *Client) VerifyOCRSignatures(ocrReport, ocrContext string, signatures []string) (bool, error) {
+	if len(c.validSigners) == 0 {
+		return false, ErrVerificationNotConfigured
+	}
+
+	ocrProof := apiClient.OCRProof{
+		OcrReport:  ocrReport,
+		OcrContext: ocrContext,
+		Signatures: signatures,
+	}
+
+	reportBytes, contextBytes, err := c.parseOCRProofData(ocrProof)
+	if err != nil {
+		return false, err
+	}
+
+	return c.verifySignatures(ocrProof, reportBytes, contextBytes)
+}
+
 // Decode decodes a verifiable event into a specified payload structure.
 //   - event: The event to decode.
 //   - payload: A pointer to the structure where the decoded event will be stored.
