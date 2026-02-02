@@ -627,7 +627,7 @@ func TestClient_OperationStatusHash(t *testing.T) {
 	t.Run("DifferentVerifiableEventProducesDifferentHash", func(t *testing.T) {
 		eventPayload1 := createTestOperationStatusPayload(t)
 		eventPayload2 := createTestOperationStatusPayload(t)
-		
+
 		// Create different verifiable event data
 		differentData := base64.StdEncoding.EncodeToString([]byte(`{"operationId":"test-op-456","status":"failed"}`))
 		eventPayload2.VerifiableEvent = &differentData
@@ -1622,6 +1622,111 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrVerifyEvent))
 		assert.Contains(t, err.Error(), "verifiable event is required")
+	})
+}
+
+func TestEvents_VerifyOCRSignatures(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 3)
+
+		ocrReport := make([]byte, 141)
+		ocrReport[0] = 0x01
+		ocrContext := []byte("test-context-data")
+
+		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+		var signatures []string
+		for _, privKey := range privKeys {
+			sig, err := crypto.Sign(reportHash.Bytes(), privKey)
+			require.NoError(t, err)
+			sig[64] += 27
+			signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
+		}
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		valid, err := c.VerifyOCRSignatures(
+			"0x"+common.Bytes2Hex(ocrReport),
+			"0x"+common.Bytes2Hex(ocrContext),
+			signatures,
+		)
+		require.NoError(t, err)
+		assert.True(t, valid)
+	})
+
+	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.ValidSigners = nil
+		})
+
+		valid, err := c.VerifyOCRSignatures("0x01", "0x01", []string{})
+		require.Error(t, err)
+		assert.False(t, valid)
+		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+	})
+
+	t.Run("NotEnoughValidSignatures", func(t *testing.T) {
+		privKeys, _ := generateTestKeys(t, 2)
+		_, otherAddresses := generateTestKeys(t, 2)
+
+		ocrReport := make([]byte, 141)
+		ocrReport[0] = 0x01
+		ocrContext := []byte("test-context-data")
+
+		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+		var signatures []string
+		for _, privKey := range privKeys {
+			sig, err := crypto.Sign(reportHash.Bytes(), privKey)
+			require.NoError(t, err)
+			sig[64] += 27
+			signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
+		}
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = otherAddresses
+		})
+
+		valid, err := c.VerifyOCRSignatures(
+			"0x"+common.Bytes2Hex(ocrReport),
+			"0x"+common.Bytes2Hex(ocrContext),
+			signatures,
+		)
+		require.NoError(t, err)
+		assert.False(t, valid)
+	})
+
+	t.Run("ErrOCRReportTooShort", func(t *testing.T) {
+		_, addresses := generateTestKeys(t, 2)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		valid, err := c.VerifyOCRSignatures("0x01", "0x01", []string{})
+		require.Error(t, err)
+		assert.False(t, valid)
+		assert.True(t, errors.Is(err, ErrOCRReportTooShort))
+	})
+
+	t.Run("InvalidOCRContextFormat", func(t *testing.T) {
+		_, addresses := generateTestKeys(t, 2)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ocrReport := make([]byte, 141)
+		valid, err := c.VerifyOCRSignatures("0x"+common.Bytes2Hex(ocrReport), "0xZZZ", []string{})
+		require.Error(t, err)
+		assert.False(t, valid)
+		assert.True(t, errors.Is(err, ErrParseOCRContext))
 	})
 }
 
