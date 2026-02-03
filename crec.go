@@ -48,6 +48,9 @@ var (
 
 	// ErrInvalidEventVerificationConfig is returned when event verification is misconfigured.
 	ErrInvalidEventVerificationConfig = errors.New("minRequiredSignatures must be > 0 when validSigners are provided")
+
+	// ErrListNetworks is returned when listing networks fails.
+	ErrListNetworks = errors.New("failed to list networks")
 )
 
 // NewAPIClient creates an authenticated CREC API client that can be used
@@ -223,4 +226,30 @@ func (c *Client) initSubClients(cfg *clientConfig) error {
 	}
 
 	return nil
+}
+
+// ListNetworks returns the list of available networks supported by the CREC platform.
+// It delegates to the underlying API client (GET /networks) with no extra SDK logic.
+//
+// Parameters:
+//   - ctx: The context for the request.
+//
+// Returns the list of networks, a boolean indicating if there are more results (HasMore),
+// and an error if the request fails.
+func (c *Client) ListNetworks(ctx context.Context) ([]apiClient.Network, bool, error) {
+	resp, err := c.apiClient.GetNetworksWithResponse(ctx)
+	if err != nil {
+		c.logger.Error("Failed to list networks", "error", err)
+		return nil, false, fmt.Errorf("%w: %w", ErrListNetworks, err)
+	}
+	if resp.StatusCode() != 200 {
+		c.logger.Error("Unexpected status code when listing networks",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, fmt.Errorf("%w (status code %d)", ErrListNetworks, resp.StatusCode())
+	}
+	if resp.JSON200 == nil {
+		return nil, false, ErrListNetworks
+	}
+	return resp.JSON200.Data, resp.JSON200.HasMore, nil
 }

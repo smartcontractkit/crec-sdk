@@ -58,6 +58,15 @@ func (s *MockServer) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+func (s *MockServer) GetNetworks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stdserver.NetworkList{
+		Data:    []stdserver.Network{},
+		HasMore: false,
+	})
+}
+
 // ============================================================================
 // CHANNELS ENDPOINTS
 // ============================================================================
