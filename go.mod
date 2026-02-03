@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/vault/api v1.20.0
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/smartcontractkit/chain-selectors v1.0.82
-	github.com/smartcontractkit/crec-api-go v0.4.2
+	github.com/smartcontractkit/crec-api-go v0.4.3
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/vault v0.38.0
@@ -205,5 +205,3 @@ require (
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 tool github.com/vektra/mockery/v2
-
-replace github.com/smartcontractkit/crec-api-go => ../crec-api-go
