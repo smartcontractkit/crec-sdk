@@ -1047,11 +1047,11 @@ func TestClient_WaitForActive(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 
-			var status string
+			var status apiClient.WatcherStatus
 			if callCount < 3 {
-				status = "pending"
+				status = apiClient.Pending
 			} else {
-				status = "active"
+				status = apiClient.Active
 			}
 
 			name := "test-watcher"
@@ -1072,7 +1072,7 @@ func TestClient_WaitForActive(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
-		assert.Equal(t, "active", watcher.Status)
+		assert.Equal(t, apiClient.Active, watcher.Status)
 		assert.GreaterOrEqual(t, callCount, 3)
 	})
 
@@ -1089,7 +1089,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "failed",
+				Status:        apiClient.Failed,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1117,7 +1117,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "pending",
+				Status:        apiClient.Pending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1175,7 +1175,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "deleting",
+				Status:        apiClient.Deleting,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1188,34 +1188,6 @@ func TestClient_WaitForActive(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, watcher)
 		assert.True(t, errors.Is(err, ErrWatcherIsDeleting), "Expected ErrWatcherIsDeleting, got: %v", err)
-	})
-
-	t.Run("DeletedStatus", func(t *testing.T) {
-		channelID := uuid.New()
-		watcherID := uuid.New()
-
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			name := "test-watcher"
-			response := apiClient.Watcher{
-				WatcherId:     watcherID,
-				Name:          &name,
-				ChainSelector: "1337",
-				Address:       "0x1234",
-				Status:        "deleted",
-			}
-			json.NewEncoder(w).Encode(response)
-		}
-
-		client, server := setupTestClient(t, handler)
-		defer server.Close()
-
-		watcher, err := client.WaitForActive(context.Background(), channelID, watcherID, 5*time.Second)
-
-		require.Error(t, err)
-		assert.Nil(t, watcher)
-		assert.True(t, errors.Is(err, ErrWatcherAlreadyDeleted), "Expected ErrWatcherAlreadyDeleted, got: %v", err)
 	})
 
 	t.Run("ContextCancellation", func(t *testing.T) {
@@ -1232,7 +1204,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "pending",
+				Status:        apiClient.Pending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1281,7 +1253,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active",
+				Status:        apiClient.Active,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1293,7 +1265,7 @@ func TestClient_WaitForActive(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
-		assert.Equal(t, "active", watcher.Status)
+		assert.Equal(t, apiClient.Active, watcher.Status)
 		assert.GreaterOrEqual(t, attemptCount, 3, "Should have retried after transient errors")
 	})
 
@@ -1387,32 +1359,6 @@ func TestClient_WaitForActive(t *testing.T) {
 }
 
 func TestClient_WaitForDeleted(t *testing.T) {
-	t.Run("SuccessImmediatelyDeleted", func(t *testing.T) {
-		channelID := uuid.New()
-		watcherID := uuid.New()
-
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			name := "test-watcher"
-			response := apiClient.Watcher{
-				WatcherId:     watcherID,
-				Name:          &name,
-				ChainSelector: "1337",
-				Address:       "0x1234",
-				Status:        "deleted",
-			}
-			json.NewEncoder(w).Encode(response)
-		}
-
-		client, server := setupTestClient(t, handler)
-		defer server.Close()
-
-		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
-
-		require.NoError(t, err)
-	})
-
 	t.Run("SuccessAfterPolling", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
