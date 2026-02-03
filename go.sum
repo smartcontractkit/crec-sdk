@@ -449,6 +449,8 @@ github.com/smartcontractkit/chain-selectors v1.0.82 h1:YCBn0HquAhH2jNVai32zQDFyC
 github.com/smartcontractkit/chain-selectors v1.0.82/go.mod h1:xsKM0aN3YGcQKTPRPDDtPx2l4mlTN1Djmg0VVXV40b8=
 github.com/smartcontractkit/crec-api-go v0.4.0 h1:N9gdy8/UPHgi152p/rwaO0E+7v4CULyKvuHAFApZ0m0=
 github.com/smartcontractkit/crec-api-go v0.4.0/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
+github.com/smartcontractkit/crec-api-go v0.4.1-0.20260129144540-b2dd88118ae3 h1:dVPMu9W8TKkaYUZrIw9g0qpffjeZK5GTNYBY47GYxqI=
+github.com/smartcontractkit/crec-api-go v0.4.1-0.20260129144540-b2dd88118ae3/go.mod h1:TuDZiMoStNQBv3HYA5pqpwPyecbMh8p5momO4b1A9Eg=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
 github.com/spf13/afero v1.12.0 h1:UcOPyRBYczmFn6yvphxkn9ZEOY65cpwGKb5mL36mrqs=

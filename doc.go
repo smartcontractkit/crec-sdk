@@ -10,6 +10,8 @@
 //   - [github.com/smartcontractkit/crec-sdk/transact] - Operation signing and sending
 //   - [github.com/smartcontractkit/crec-sdk/watchers] - Watcher CRUD operations
 //
+// Use [Client.ListNetworks] to list available networks (GET /networks); no separate sub-client.
+//
 // # Getting Started
 //
 // Create a new client with your API credentials:
