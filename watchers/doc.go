@@ -76,9 +76,9 @@
 //
 // Use [Client.List] with [ListFilters] to query watchers:
 //
-//	status := StatusActive
+//	statusFilter := []apiClient.WatcherStatus{apiClient.Active}
 //	result, err := client.Watchers.List(ctx, channelID, ListFilters{
-//	    Status: &status,
+//	    Status: &statusFilter,
 //	    Limit:  ptr(10),
 //	})
 //	for _, w := range result.Data {

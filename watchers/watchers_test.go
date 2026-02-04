@@ -168,7 +168,7 @@ func TestClient_CreateWithService(t *testing.T) {
 				Name:          &watcherName,
 				ChainSelector: chainSelector,
 				Address:       address,
-				Status:        "pending",
+				Status:        apiClient.Pending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -327,7 +327,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 				Name:          &watcherName,
 				ChainSelector: chainSelector,
 				Address:       address,
-				Status:        "pending",
+				Status:        apiClient.Pending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -514,7 +514,7 @@ func TestClient_List(t *testing.T) {
 						Name:          &name1,
 						ChainSelector: "1337",
 						Address:       "0x1111",
-						Status:        "active",
+						Status:        apiClient.Active,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -525,7 +525,7 @@ func TestClient_List(t *testing.T) {
 						Name:          &name2,
 						ChainSelector: "1337",
 						Address:       "0x2222",
-						Status:        "active",
+						Status:        apiClient.Active,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -563,7 +563,7 @@ func TestClient_List(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 		name := "test-watcher"
-		status := StatusActive
+		status := apiClient.Active
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			query := r.URL.Query()
@@ -594,7 +594,7 @@ func TestClient_List(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		statusFilter := []apiClient.WatcherStatus{apiClient.WatcherStatus(status)}
+		statusFilter := []apiClient.WatcherStatus{status}
 		result, err := client.List(context.Background(), channelID, ListFilters{
 			Name:   &name,
 			Status: &statusFilter,
@@ -664,7 +664,7 @@ func TestClient_Get(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active",
+				Status:        apiClient.Active,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -696,7 +696,7 @@ func TestClient_Get(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "16015286601757825753",
 				Address:       "0x1234567890123456789012345678901234567890",
-				Status:        "active",
+				Status:        apiClient.Active,
 				CreatedAt:     1704067200, // 2024-01-01 00:00:00 UTC
 				Events:        []string{"Transfer"},
 				WorkflowId:    "00a52f385ef2c2ae57721370dbcef8b25ab406de2be190575c88e324c002e22f",
@@ -800,7 +800,7 @@ func TestClient_Update(t *testing.T) {
 				Name:          &newName,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active",
+				Status:        apiClient.Active,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1023,7 +1023,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active",
+				Status:        apiClient.Active,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1061,7 +1061,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.WatcherStatus(status),
+				Status:        status,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1342,7 +1342,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active",
+				Status:        apiClient.Active,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1432,7 +1432,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "deleting",
+				Status:        apiClient.Deleting,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1461,7 +1461,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "deleting",
+				Status:        apiClient.Deleting,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1617,7 +1617,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        "pending",
+					Status:        apiClient.Pending,
 				}
 				json.NewEncoder(w).Encode(response)
 
@@ -1637,7 +1637,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &name,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.WatcherStatus(status),
+					Status:        status,
 				}
 				json.NewEncoder(w).Encode(response)
 
@@ -2085,7 +2085,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 			assert.Equal(t, "1337", query.Get("chain_selector"))
 			assert.Equal(t, "0x1234", query.Get("address"))
 			assert.Equal(t, "dvp", query.Get("service"))
-			assert.Equal(t, "active", query.Get("status"))
+			assert.Equal(t, string(apiClient.Active), query.Get("status"))
 			assert.Equal(t, "10", query.Get("limit"))
 			assert.Equal(t, "5", query.Get("offset"))
 
@@ -2099,7 +2099,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        "active",
+						Status:        apiClient.Active,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -2121,12 +2121,12 @@ func TestEndToEnd_Filtering(t *testing.T) {
 		name := "my-watcher"
 		address := "0x1234"
 		service := "dvp"
-		status := StatusActive
+		status := apiClient.Active
 		limit := 10
 		offset := int64(5)
 
 		serviceFilter := []string{service}
-		statusFilter := []apiClient.WatcherStatus{apiClient.WatcherStatus(status)}
+		statusFilter := []apiClient.WatcherStatus{status}
 		filters := ListFilters{
 			Name:          &name,
 			ChainSelector: &chainSelector,
@@ -2164,7 +2164,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 					Name:          &name,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        "active",
+					Status:        apiClient.Active,
 					ChannelId:     channelID,
 					CreatedAt:     time.Now().Unix(),
 					DonFamily:     "zone-a",

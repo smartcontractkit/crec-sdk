@@ -210,7 +210,7 @@ func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *h
 
 	operation := stdserver.Operation{
 		OperationId:       operationId,
-		Status:            "pending",
+		Status:            stdserver.OperationStatusPending,
 		ChainSelector:     request.ChainSelector,
 		Address:           request.Address,
 		WalletOperationId: request.WalletOperationId,
@@ -468,7 +468,7 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 		WatcherId: watcherId,
 		ChannelId: channelId,
 		Address:   "",
-		Status:    "pending", // Start as pending
+		Status:    stdserver.Pending, // Start as pending
 		CreatedAt: now,
 		Events:    []string{},
 	}

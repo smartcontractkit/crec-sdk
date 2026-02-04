@@ -277,7 +277,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		createdGt := int64(1600000000)
 		createdGte := int64(1600000001)
 		chainSelector := "5009297550715157269"
-		status := []string{"confirmed"}
+		status := []string{string(apiClient.OperationStatusConfirmed)}
 		watcherID := uuid.New()
 		address := []string{"0x1234567890123456789012345678901234567890"}
 		walletOperationID := "op-123"
@@ -295,7 +295,7 @@ func TestClient_SearchEvents(t *testing.T) {
 			assert.Equal(t, "1600000000", q.Get("created.gt"))
 			assert.Equal(t, "1600000001", q.Get("created.gte"))
 			assert.Equal(t, "5009297550715157269", q.Get("chain_selector"))
-			assert.Equal(t, "confirmed", q.Get("status"))
+			assert.Equal(t, string(apiClient.OperationStatusConfirmed), q.Get("status"))
 			assert.Equal(t, watcherID.String(), q.Get("watcher_id"))
 			assert.Equal(t, "0x1234567890123456789012345678901234567890", q.Get("address"))
 			assert.Equal(t, "op-123", q.Get("wallet_operation_id"))

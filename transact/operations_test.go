@@ -490,7 +490,7 @@ func TestClient_ListOperations(t *testing.T) {
 				Data: []apiClient.Operation{
 					{
 						OperationId:       operationID,
-						Status:            apiClient.OperationStatus(status),
+						Status:            status,
 						ChainSelector:     "1337",
 						Address:           address,
 						WalletOperationId: "op-1",
@@ -545,7 +545,7 @@ func TestClient_ListOperations(t *testing.T) {
 				Data: []apiClient.Operation{
 					{
 						OperationId:       operationID,
-						Status:            apiClient.OperationStatus(status),
+						Status:            status,
 						ChainSelector:     "1337",
 						Address:           address,
 						WalletOperationId: "op-1",

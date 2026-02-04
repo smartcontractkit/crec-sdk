@@ -63,31 +63,8 @@ var (
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 )
 
-type Status string
-
-const (
-	StatusPending  Status = "pending"
-	StatusActive   Status = "active"
-	StatusFailed   Status = "failed"
-	StatusDeleting Status = "deleting"
-)
-
-// statusToAPIStatus converts SDK Status to API-go WatcherStatus.
-// Returns an error if the status value doesn't match any known API-go status.
-func statusToAPIStatus(status Status) (apiClient.WatcherStatus, error) {
-	switch status {
-	case StatusPending:
-		return apiClient.Pending, nil
-	case StatusActive:
-		return apiClient.Active, nil
-	case StatusFailed:
-		return apiClient.Failed, nil
-	case StatusDeleting:
-		return apiClient.Deleting, nil
-	default:
-		return "", fmt.Errorf("%w: unknown status '%s'", ErrUnexpectedStatus, status)
-	}
-}
+// watcherStatusDeleted is the status value for a deleted watcher (API may return it even if not in WatcherStatus constants).
+const watcherStatusDeleted apiClient.WatcherStatus = "deleted"
 
 type EventABIInput struct {
 	Indexed      bool   `json:"indexed"`
@@ -124,14 +101,14 @@ type UpdateInput struct {
 }
 
 type ListFilters struct {
-	Limit         *int                         `url:"limit,omitempty"`
-	Offset        *int64                       `url:"offset,omitempty"`
-	Name          *string                      `url:"name,omitempty"`
-	Status        *[]apiClient.WatcherStatus   `url:"status,omitempty"`
-	ChainSelector *string                      `url:"chain_selector,omitempty"`
-	Address       *string                      `url:"address,omitempty"`
-	Service       *[]string                    `url:"service,omitempty"`
-	EventName     *string                      `url:"event_name,omitempty"`
+	Limit         *int                       `url:"limit,omitempty"`
+	Offset        *int64                     `url:"offset,omitempty"`
+	Name          *string                    `url:"name,omitempty"`
+	Status        *[]apiClient.WatcherStatus `url:"status,omitempty"`
+	ChainSelector *string                    `url:"chain_selector,omitempty"`
+	Address       *string                    `url:"address,omitempty"`
+	Service       *[]string                  `url:"service,omitempty"`
+	EventName     *string                    `url:"event_name,omitempty"`
 }
 
 // Options defines the options for creating a new CREC Watchers client.
@@ -540,20 +517,23 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 				return nil, fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
 			}
 
-			switch Status(watcher.Status) {
-			case StatusActive:
+			switch watcher.Status {
+			case apiClient.Active:
 				c.logger.Info("Watcher is now active")
 				return watcher, nil
-			case StatusFailed:
+			case apiClient.Failed:
 				c.logger.Error("Watcher deployment failed")
 				return nil, ErrWatcherDeploymentFailed
-			case StatusPending:
+			case apiClient.Pending:
 				// Continue waiting
 				c.logger.Debug("Watcher still pending, continuing to wait")
 				continue
-			case StatusDeleting:
+			case apiClient.Deleting:
 				c.logger.Error("Watcher is being deleted")
 				return nil, ErrWatcherIsDeleting
+			case watcherStatusDeleted:
+				c.logger.Error("Watcher has been deleted")
+				return nil, ErrWatcherAlreadyDeleted
 			default:
 				c.logger.Error("Unexpected watcher status while waiting for active", "status", watcher.Status)
 				return nil, fmt.Errorf("%w: %s", ErrUnexpectedStatus, watcher.Status)
@@ -646,11 +626,14 @@ func (c *Client) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watche
 				return fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
 			}
 
-			switch Status(watcher.Status) {
-			case StatusDeleting:
+			switch watcher.Status {
+			case watcherStatusDeleted:
+				c.logger.Debug("Watcher is now deleted (status confirmed)")
+				return nil
+			case apiClient.Deleting:
 				c.logger.Debug("Watcher is being deleted, continuing to wait")
 				continue
-			case StatusActive, StatusPending, StatusFailed:
+			case apiClient.Active, apiClient.Pending, apiClient.Failed:
 				// If the watcher is in any other valid state, it means deletion was rolled back or failed
 				c.logger.Error("Watcher deletion appears to have failed", "status", watcher.Status)
 				return fmt.Errorf("%w, watcher is in %s state", ErrWatcherDeletionFailed, watcher.Status)
