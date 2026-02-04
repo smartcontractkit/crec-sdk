@@ -269,19 +269,19 @@ func TestClient_SearchEvents(t *testing.T) {
 		events := createTestEventsWithKeys(t, 2, privKeys)
 		limit := 50
 		offset := int64(10)
-		typeVal := apiClient.GetChannelsChannelIdEventsSearchParamsTypeWatcherEvent
+		typeVal := []apiClient.EventType{apiClient.EventTypeWatcherEvent}
 		createdLt := int64(1700000000)
 		createdLte := int64(1700000001)
 		createdGt := int64(1600000000)
 		createdGte := int64(1600000001)
 		chainSelector := "5009297550715157269"
-		status := "confirmed"
+		status := []string{"confirmed"}
 		watcherID := uuid.New()
-		address := "0x1234567890123456789012345678901234567890"
+		address := []string{"0x1234567890123456789012345678901234567890"}
 		walletOperationID := "op-123"
 		operationID := uuid.New().String()
 		eventName := "Transfer"
-		domain := "dvp"
+		service := []string{"dvp"}
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			q := r.URL.Query()
@@ -299,7 +299,7 @@ func TestClient_SearchEvents(t *testing.T) {
 			assert.Equal(t, "op-123", q.Get("wallet_operation_id"))
 			assert.Equal(t, operationID, q.Get("operation_id"))
 			assert.Equal(t, "Transfer", q.Get("event_name"))
-			assert.Equal(t, "dvp", q.Get("domain"))
+			assert.Equal(t, "dvp", q.Get("service"))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			response := apiClient.EventList{
@@ -326,7 +326,7 @@ func TestClient_SearchEvents(t *testing.T) {
 			WalletOperationId: &walletOperationID,
 			OperationId:       &operationID,
 			EventName:         &eventName,
-			Domain:            &domain,
+			Service:           &service,
 		}
 		eventsList, hasMore, err := c.SearchEvents(context.Background(), channelID, params)
 		require.NoError(t, err)
@@ -366,7 +366,7 @@ func TestClient_SearchEvents(t *testing.T) {
 
 	t.Run("WithTypeFilter", func(t *testing.T) {
 		events := createTestEventsWithKeys(t, 2, privKeys)
-		typeVal := apiClient.GetChannelsChannelIdEventsSearchParamsTypeOperationStatus
+		typeVal := []apiClient.EventType{apiClient.EventTypeOperationStatus}
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			q := r.URL.Query()
@@ -657,7 +657,7 @@ func TestClient_OperationStatusHash(t *testing.T) {
 		eventPayload := apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusPayloadStatusPending,
+			Status:            apiClient.OperationStatusPending,
 			StatusCode:        "PENDING",
 			StatusReason:      "Operation pending",
 			VerifiableEvent:   nil,
@@ -675,7 +675,7 @@ func TestClient_OperationStatusHash(t *testing.T) {
 		eventPayload := apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusPayloadStatusPending,
+			Status:            apiClient.OperationStatusPending,
 			StatusCode:        "PENDING",
 			StatusReason:      "Operation pending",
 			VerifiableEvent:   &emptyVerifiableEvent,
@@ -806,7 +806,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{},
 			},
@@ -845,7 +845,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -895,7 +895,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -954,7 +954,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1017,7 +1017,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proof1, proof2}, // Multiple proofs
 			},
@@ -1053,7 +1053,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1089,7 +1089,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1136,7 +1136,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1195,7 +1195,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1235,7 +1235,7 @@ func TestClient_Verify(t *testing.T) {
 		// Build a valid WatcherStatusPayload (not WatcherEventPayload)
 		statusPayload := apiClient.WatcherStatusPayload{
 			WatcherId:    "550e8400-e29b-41d4-a716-446655440000",
-			Status:       apiClient.WatcherStatusPayloadStatusPending,
+			Status:       apiClient.WatcherEventStatusPending,
 			StatusCode:   "PENDING",
 			StatusReason: "Watcher is pending",
 		}
@@ -1245,7 +1245,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherStatus, // Wrong type for Verify()
+				Type:   apiClient.EventTypeWatcherStatus, // Wrong type for Verify()
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1409,7 +1409,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Type:   apiClient.EventTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1460,7 +1460,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Type:   apiClient.EventTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1525,7 +1525,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Type:   apiClient.EventTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1569,7 +1569,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent, // Wrong type for VerifyOperationStatus()
+				Type:   apiClient.EventTypeWatcherEvent, // Wrong type for VerifyOperationStatus()
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1589,7 +1589,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		operationStatusPayload := apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+			Status:            apiClient.OperationStatusConfirmed,
 			StatusCode:        "CONFIRMED",
 			StatusReason:      "Operation confirmed",
 			VerifiableEvent:   nil,
@@ -1610,7 +1610,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Type:   apiClient.EventTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1911,7 +1911,7 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 
 	event := &apiClient.Event{
 		Headers: apiClient.EventHeaders{
-			Type:   apiClient.EventHeadersTypeWatcherEvent,
+			Type:   apiClient.EventTypeWatcherEvent,
 			Offset: int64(12345),
 			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 		},
@@ -1931,7 +1931,7 @@ func createTestOperationStatusPayload(t *testing.T) apiClient.OperationStatusPay
 	return apiClient.OperationStatusPayload{
 		OperationId:       operationId,
 		WalletOperationId: "wallet-op-123",
-		Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+		Status:            apiClient.OperationStatusConfirmed,
 		StatusCode:        "CONFIRMED",
 		StatusReason:      "Operation confirmed",
 		VerifiableEvent:   &verifiableEvent,
@@ -1981,7 +1981,7 @@ func createValidOperationStatusEventWithSignatures(t *testing.T, privateKeys []*
 
 	event := &apiClient.Event{
 		Headers: apiClient.EventHeaders{
-			Type:   apiClient.EventHeadersTypeOperationStatus,
+			Type:   apiClient.EventTypeOperationStatus,
 			Offset: int64(12345),
 			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 		},

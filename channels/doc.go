@@ -62,7 +62,7 @@
 //	channel, _ := client.Channels.Create(ctx, CreateInput{Name: "my-channel"})
 //
 //	// Create watchers in the channel
-//	watcher, _ := client.Watchers.CreateWithDomain(ctx, channel.ChannelId, ...)
+//	watcher, _ := client.Watchers.CreateWithService(ctx, channel.ChannelId, ...)
 //
 //	// Poll events from the channel
 //	events, _, _ := client.Events.Poll(ctx, channel.ChannelId, nil)

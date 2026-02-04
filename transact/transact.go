@@ -383,12 +383,14 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 	}
 
 	params := apiClient.GetChannelsChannelIdOperationsParams{
-		Status:        input.Status,
 		ChainSelector: input.ChainSelector,
 		Address:       input.Address,
 		WalletId:      input.WalletID,
 		Limit:         input.Limit,
 		Offset:        input.Offset,
+	}
+	if input.Status != nil {
+		params.Status = &[]apiClient.OperationStatus{apiClient.OperationStatus(*input.Status)}
 	}
 
 	resp, err := c.crecClient.GetChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, &params)

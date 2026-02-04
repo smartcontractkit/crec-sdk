@@ -245,7 +245,7 @@ func (c *Client) Verify(event *apiClient.Event, workflowOwner string) (bool, err
 	}
 
 	// Check the event type in headers to ensure it's a watcher event
-	if event.Headers.Type != apiClient.EventHeadersTypeWatcherEvent {
+	if event.Headers.Type != apiClient.EventTypeWatcherEvent {
 		return false, ErrOnlyWatcherEventsSupported
 	}
 
@@ -305,7 +305,7 @@ func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowOwner str
 	}
 
 	// Check the event type in headers to ensure it's an operation status event
-	if event.Headers.Type != apiClient.EventHeadersTypeOperationStatus {
+	if event.Headers.Type != apiClient.EventTypeOperationStatus {
 		return false, ErrOnlyOperationStatusSupported
 	}
 
