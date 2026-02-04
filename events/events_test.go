@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -18,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+	"github.com/smartcontractkit/crec-api-go/models"
 )
 
 const (
@@ -269,7 +271,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		events := createTestEventsWithKeys(t, 2, privKeys)
 		limit := 50
 		offset := int64(10)
-		typeVal := apiClient.GetChannelsChannelIdEventsSearchParamsTypeWatcherEvent
+		typeVal := apiClient.EventTypeWatcherEvent
 		createdLt := int64(1700000000)
 		createdLte := int64(1700000001)
 		createdGt := int64(1600000000)
@@ -366,7 +368,7 @@ func TestClient_SearchEvents(t *testing.T) {
 
 	t.Run("WithTypeFilter", func(t *testing.T) {
 		events := createTestEventsWithKeys(t, 2, privKeys)
-		typeVal := apiClient.GetChannelsChannelIdEventsSearchParamsTypeOperationStatus
+		typeVal := apiClient.EventTypeOperationStatus
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			q := r.URL.Query()
@@ -657,7 +659,7 @@ func TestClient_OperationStatusHash(t *testing.T) {
 		eventPayload := apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusPayloadStatusPending,
+			Status:            apiClient.OperationStatusPending,
 			StatusCode:        "PENDING",
 			StatusReason:      "Operation pending",
 			VerifiableEvent:   nil,
@@ -675,7 +677,7 @@ func TestClient_OperationStatusHash(t *testing.T) {
 		eventPayload := apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusPayloadStatusPending,
+			Status:            apiClient.OperationStatusPending,
 			StatusCode:        "PENDING",
 			StatusReason:      "Operation pending",
 			VerifiableEvent:   &emptyVerifiableEvent,
@@ -806,7 +808,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{},
 			},
@@ -845,7 +847,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -895,7 +897,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -954,7 +956,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1017,7 +1019,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proof1, proof2}, // Multiple proofs
 			},
@@ -1053,7 +1055,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1089,7 +1091,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1136,7 +1138,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1195,7 +1197,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent,
+				Type:   apiClient.EventTypeWatcherEvent,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1235,7 +1237,7 @@ func TestClient_Verify(t *testing.T) {
 		// Build a valid WatcherStatusPayload (not WatcherEventPayload)
 		statusPayload := apiClient.WatcherStatusPayload{
 			WatcherId:    "550e8400-e29b-41d4-a716-446655440000",
-			Status:       apiClient.WatcherStatusPayloadStatusPending,
+			Status:       apiClient.WatcherEventStatusPending,
 			StatusCode:   "PENDING",
 			StatusReason: "Watcher is pending",
 		}
@@ -1245,7 +1247,7 @@ func TestClient_Verify(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherStatus, // Wrong type for Verify()
+				Type:   apiClient.EventTypeWatcherStatus, // Wrong type for Verify()
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1409,7 +1411,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Type:   apiClient.EventTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1460,7 +1462,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Type:   apiClient.EventTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1525,7 +1527,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Type:   apiClient.EventTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1569,7 +1571,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeWatcherEvent, // Wrong type for VerifyOperationStatus()
+				Type:   apiClient.EventTypeWatcherEvent, // Wrong type for VerifyOperationStatus()
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1589,7 +1591,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		operationStatusPayload := apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+			Status:            apiClient.OperationStatusConfirmed,
 			StatusCode:        "CONFIRMED",
 			StatusReason:      "Operation confirmed",
 			VerifiableEvent:   nil,
@@ -1610,7 +1612,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		event := &apiClient.Event{
 			Headers: apiClient.EventHeaders{
-				Type:   apiClient.EventHeadersTypeOperationStatus,
+				Type:   apiClient.EventTypeOperationStatus,
 				Offset: int64(12345),
 				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 			},
@@ -1776,6 +1778,356 @@ func TestClient_ToJson(t *testing.T) {
 	})
 }
 
+func TestClient_DecodeVerifiableEvent(t *testing.T) {
+	crecClient := newCRECClient(t, "http://localhost:8080")
+	logger := slog.New(slog.DiscardHandler)
+	c, err := NewClient(&Options{
+		Logger:     logger,
+		CRECClient: crecClient,
+	})
+	require.NoError(t, err)
+
+	t.Run("Success_WithEVMChainEvent", func(t *testing.T) {
+		// Watcher events always have chain events - create a proper EVMEvent
+		evmEvent := models.EVMEvent{
+			Address:        "0x1234567890123456789012345678901234567890",
+			BlockNumber:    12345678,
+			BlockTimestamp: 1700000000,
+			ChainId:        "1",
+			EventSignature: "Transfer(address,address,uint256)",
+			LogIndex:       5,
+			TopicHash:      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+			TxHash:         "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+			Params: &map[string]interface{}{
+				"from":  "0x0000000000000000000000000000000000000000",
+				"to":    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+				"value": "1000000000000000000",
+			},
+		}
+
+		chainEvent := &models.VerifiableEvent_ChainEvent{}
+		err := chainEvent.FromEVMEvent(evmEvent)
+		require.NoError(t, err)
+
+		chainFamily := "evm"
+		chainSelector := "5009297550715157269"
+		service := "watcher"
+		verifiableEvent := models.VerifiableEvent{
+			Name:          "Transfer",
+			Timestamp:     time.Now().UTC().Truncate(time.Second),
+			ChainFamily:   &chainFamily,
+			ChainSelector: &chainSelector,
+			Service:       &service,
+			ChainEvent:    chainEvent,
+		}
+
+		verifiableEventBytes, err := json.Marshal(verifiableEvent)
+		require.NoError(t, err)
+		verifiableEventBase64 := base64.StdEncoding.EncodeToString(verifiableEventBytes)
+
+		payload := &apiClient.WatcherEventPayload{
+			WatcherId:       "550e8400-e29b-41d4-a716-446655440000",
+			VerifiableEvent: verifiableEventBase64,
+			EventHash:       crypto.Keccak256Hash([]byte(verifiableEventBase64)).Hex(),
+		}
+
+		decoded, err := c.DecodeVerifiableEvent(payload)
+		require.NoError(t, err)
+		require.NotNil(t, decoded)
+
+		// Verify metadata
+		assert.Equal(t, "Transfer", decoded.Name)
+		assert.Equal(t, verifiableEvent.Timestamp, decoded.Timestamp)
+		require.NotNil(t, decoded.ChainFamily)
+		assert.Equal(t, chainFamily, *decoded.ChainFamily)
+		require.NotNil(t, decoded.ChainSelector)
+		assert.Equal(t, chainSelector, *decoded.ChainSelector)
+		require.NotNil(t, decoded.Service)
+		assert.Equal(t, service, *decoded.Service)
+		assert.Nil(t, decoded.Data) // Watcher events don't use Data field
+
+		// Verify ChainEvent
+		require.NotNil(t, decoded.ChainEvent)
+		decodedEVMEvent, err := decoded.ChainEvent.AsEVMEvent()
+		require.NoError(t, err)
+
+		assert.Equal(t, evmEvent.Address, decodedEVMEvent.Address)
+		assert.Equal(t, evmEvent.BlockNumber, decodedEVMEvent.BlockNumber)
+		assert.Equal(t, evmEvent.BlockTimestamp, decodedEVMEvent.BlockTimestamp)
+		assert.Equal(t, evmEvent.ChainId, decodedEVMEvent.ChainId)
+		assert.Equal(t, evmEvent.EventSignature, decodedEVMEvent.EventSignature)
+		assert.Equal(t, evmEvent.LogIndex, decodedEVMEvent.LogIndex)
+		assert.Equal(t, evmEvent.TopicHash, decodedEVMEvent.TopicHash)
+		assert.Equal(t, evmEvent.TxHash, decodedEVMEvent.TxHash)
+		require.NotNil(t, decodedEVMEvent.Params)
+		assert.Equal(t, "0x0000000000000000000000000000000000000000", (*decodedEVMEvent.Params)["from"])
+	})
+
+	t.Run("Error_NilPayload", func(t *testing.T) {
+		decoded, err := c.DecodeVerifiableEvent(nil)
+		require.Error(t, err)
+		assert.Nil(t, decoded)
+		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.Contains(t, err.Error(), "payload is nil")
+	})
+
+	t.Run("Error_EmptyVerifiableEvent", func(t *testing.T) {
+		payload := &apiClient.WatcherEventPayload{
+			WatcherId:       "550e8400-e29b-41d4-a716-446655440000",
+			VerifiableEvent: "",
+			EventHash:       "0x1234",
+		}
+
+		decoded, err := c.DecodeVerifiableEvent(payload)
+		require.Error(t, err)
+		assert.Nil(t, decoded)
+		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.Contains(t, err.Error(), "verifiable event is empty")
+	})
+
+	t.Run("Error_InvalidBase64", func(t *testing.T) {
+		payload := &apiClient.WatcherEventPayload{
+			WatcherId:       "550e8400-e29b-41d4-a716-446655440000",
+			VerifiableEvent: "not-valid-base64!!!",
+			EventHash:       "0x1234",
+		}
+
+		decoded, err := c.DecodeVerifiableEvent(payload)
+		require.Error(t, err)
+		assert.Nil(t, decoded)
+		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.Contains(t, err.Error(), "invalid base64")
+	})
+
+	t.Run("Error_InvalidJSON", func(t *testing.T) {
+		// Valid base64 but invalid JSON
+		invalidJSON := base64.StdEncoding.EncodeToString([]byte("not valid json {{{"))
+		payload := &apiClient.WatcherEventPayload{
+			WatcherId:       "550e8400-e29b-41d4-a716-446655440000",
+			VerifiableEvent: invalidJSON,
+			EventHash:       "0x1234",
+		}
+
+		decoded, err := c.DecodeVerifiableEvent(payload)
+		require.Error(t, err)
+		assert.Nil(t, decoded)
+		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.Contains(t, err.Error(), "invalid JSON")
+	})
+}
+
+func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
+	crecClient := newCRECClient(t, "http://localhost:8080")
+	logger := slog.New(slog.DiscardHandler)
+	c, err := NewClient(&Options{
+		Logger:     logger,
+		CRECClient: crecClient,
+	})
+	require.NoError(t, err)
+
+	t.Run("Success_ConfirmedWithChainEvent", func(t *testing.T) {
+		// Confirmed operation status events have chain events (the on-chain transaction)
+		evmEvent := models.EVMEvent{
+			Address:        "0x1234567890123456789012345678901234567890",
+			BlockNumber:    12345678,
+			BlockTimestamp: 1700000000,
+			ChainId:        "1",
+			EventSignature: "OperationExecuted(bytes32,address)",
+			LogIndex:       0,
+			TopicHash:      "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+			TxHash:         "0xdeadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678",
+		}
+
+		chainEvent := &models.VerifiableEvent_ChainEvent{}
+		err := chainEvent.FromEVMEvent(evmEvent)
+		require.NoError(t, err)
+
+		chainFamily := "evm"
+		chainSelector := "5009297550715157269"
+		service := "_crec"
+		verifiableEvent := models.VerifiableEvent{
+			Name:          "OperationConfirmed",
+			Timestamp:     time.Now().UTC().Truncate(time.Second),
+			ChainFamily:   &chainFamily,
+			ChainSelector: &chainSelector,
+			Service:       &service,
+			ChainEvent:    chainEvent,
+		}
+
+		verifiableEventBytes, err := json.Marshal(verifiableEvent)
+		require.NoError(t, err)
+		verifiableEventBase64 := base64.StdEncoding.EncodeToString(verifiableEventBytes)
+
+		payload := &apiClient.OperationStatusPayload{
+			OperationId:       uuid.New(),
+			WalletOperationId: "wallet-op-123",
+			Status:            apiClient.OperationStatusConfirmed,
+			StatusCode:        "CONFIRMED",
+			StatusReason:      "Operation confirmed",
+			VerifiableEvent:   &verifiableEventBase64,
+		}
+
+		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
+		require.NoError(t, err)
+		require.NotNil(t, decoded)
+
+		// Verify metadata
+		assert.Equal(t, "OperationConfirmed", decoded.Name)
+		assert.Equal(t, verifiableEvent.Timestamp, decoded.Timestamp)
+		require.NotNil(t, decoded.ChainFamily)
+		assert.Equal(t, chainFamily, *decoded.ChainFamily)
+		require.NotNil(t, decoded.ChainSelector)
+		assert.Equal(t, chainSelector, *decoded.ChainSelector)
+		require.NotNil(t, decoded.Service)
+		assert.Equal(t, service, *decoded.Service)
+		assert.Nil(t, decoded.Data) // Confirmed operations have ChainEvent, not Data
+
+		// Verify ChainEvent
+		require.NotNil(t, decoded.ChainEvent)
+		decodedEVMEvent, err := decoded.ChainEvent.AsEVMEvent()
+		require.NoError(t, err)
+		assert.Equal(t, evmEvent.TxHash, decodedEVMEvent.TxHash)
+	})
+
+	t.Run("Success_FailedWithOperationStatusData", func(t *testing.T) {
+		// Failed operation status events have no chain event but contain OperationStatusData in Data
+		service := "_crec"
+		operationStatusData := models.OperationStatusData{
+			Status:            models.Failed,
+			StatusReason:      "Insufficient funds",
+			WalletAddress:     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+			WalletOperationId: "wallet-op-456",
+		}
+
+		// Convert OperationStatusData to map for the Data field
+		operationStatusDataBytes, err := json.Marshal(operationStatusData)
+		require.NoError(t, err)
+		var dataMap map[string]interface{}
+		err = json.Unmarshal(operationStatusDataBytes, &dataMap)
+		require.NoError(t, err)
+
+		verifiableEvent := models.VerifiableEvent{
+			Name:       "OperationFailed",
+			Timestamp:  time.Now().UTC().Truncate(time.Second),
+			Service:    &service,
+			ChainEvent: nil, // No chain event for failed operations
+			Data:       &dataMap,
+		}
+
+		verifiableEventBytes, err := json.Marshal(verifiableEvent)
+		require.NoError(t, err)
+		verifiableEventBase64 := base64.StdEncoding.EncodeToString(verifiableEventBytes)
+
+		payload := &apiClient.OperationStatusPayload{
+			OperationId:       uuid.New(),
+			WalletOperationId: "wallet-op-456",
+			Status:            apiClient.OperationStatusFailed,
+			StatusCode:        "FAILED",
+			StatusReason:      "Insufficient funds",
+			VerifiableEvent:   &verifiableEventBase64,
+		}
+
+		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
+		require.NoError(t, err)
+		require.NotNil(t, decoded)
+
+		// Verify metadata
+		assert.Equal(t, "OperationFailed", decoded.Name)
+		require.NotNil(t, decoded.Service)
+		assert.Equal(t, service, *decoded.Service)
+
+		// Failed operations have no ChainEvent
+		assert.Nil(t, decoded.ChainEvent)
+
+		// But they have OperationStatusData in Data field
+		require.NotNil(t, decoded.Data)
+		assert.Equal(t, "failed", (*decoded.Data)["status"])
+		assert.Equal(t, "Insufficient funds", (*decoded.Data)["status_reason"])
+		assert.Equal(t, "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb", (*decoded.Data)["wallet_address"])
+		assert.Equal(t, "wallet-op-456", (*decoded.Data)["wallet_operation_id"])
+	})
+
+	t.Run("Error_NilPayload", func(t *testing.T) {
+		decoded, err := c.DecodeOperationStatusVerifiableEvent(nil)
+		require.Error(t, err)
+		assert.Nil(t, decoded)
+		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.Contains(t, err.Error(), "payload is nil")
+	})
+
+	t.Run("Error_NilVerifiableEvent", func(t *testing.T) {
+		payload := &apiClient.OperationStatusPayload{
+			OperationId:       uuid.New(),
+			WalletOperationId: "wallet-op-123",
+			Status:            apiClient.OperationStatusConfirmed,
+			StatusCode:        "CONFIRMED",
+			StatusReason:      "Operation confirmed",
+			VerifiableEvent:   nil,
+		}
+
+		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
+		require.Error(t, err)
+		assert.Nil(t, decoded)
+		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.Contains(t, err.Error(), "verifiable event is nil or empty")
+	})
+
+	t.Run("Error_EmptyVerifiableEvent", func(t *testing.T) {
+		emptyStr := ""
+		payload := &apiClient.OperationStatusPayload{
+			OperationId:       uuid.New(),
+			WalletOperationId: "wallet-op-123",
+			Status:            apiClient.OperationStatusConfirmed,
+			StatusCode:        "CONFIRMED",
+			StatusReason:      "Operation confirmed",
+			VerifiableEvent:   &emptyStr,
+		}
+
+		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
+		require.Error(t, err)
+		assert.Nil(t, decoded)
+		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.Contains(t, err.Error(), "verifiable event is nil or empty")
+	})
+
+	t.Run("Error_InvalidBase64", func(t *testing.T) {
+		invalidBase64 := "not-valid-base64!!!"
+		payload := &apiClient.OperationStatusPayload{
+			OperationId:       uuid.New(),
+			WalletOperationId: "wallet-op-123",
+			Status:            apiClient.OperationStatusConfirmed,
+			StatusCode:        "CONFIRMED",
+			StatusReason:      "Operation confirmed",
+			VerifiableEvent:   &invalidBase64,
+		}
+
+		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
+		require.Error(t, err)
+		assert.Nil(t, decoded)
+		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.Contains(t, err.Error(), "invalid base64")
+	})
+
+	t.Run("Error_InvalidJSON", func(t *testing.T) {
+		// Valid base64 but invalid JSON
+		invalidJSON := base64.StdEncoding.EncodeToString([]byte("not valid json {{{"))
+		payload := &apiClient.OperationStatusPayload{
+			OperationId:       uuid.New(),
+			WalletOperationId: "wallet-op-123",
+			Status:            apiClient.OperationStatusConfirmed,
+			StatusCode:        "CONFIRMED",
+			StatusReason:      "Operation confirmed",
+			VerifiableEvent:   &invalidJSON,
+		}
+
+		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
+		require.Error(t, err)
+		assert.Nil(t, decoded)
+		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.Contains(t, err.Error(), "invalid JSON")
+	})
+}
+
 func newCRECClient(t *testing.T, baseURL string) *apiClient.ClientWithResponses {
 	t.Helper()
 	crecClient, err := apiClient.NewClientWithResponses(
@@ -1911,7 +2263,7 @@ func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKe
 
 	event := &apiClient.Event{
 		Headers: apiClient.EventHeaders{
-			Type:   apiClient.EventHeadersTypeWatcherEvent,
+			Type:   apiClient.EventTypeWatcherEvent,
 			Offset: int64(12345),
 			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 		},
@@ -1931,7 +2283,7 @@ func createTestOperationStatusPayload(t *testing.T) apiClient.OperationStatusPay
 	return apiClient.OperationStatusPayload{
 		OperationId:       operationId,
 		WalletOperationId: "wallet-op-123",
-		Status:            apiClient.OperationStatusPayloadStatusConfirmed,
+		Status:            apiClient.OperationStatusConfirmed,
 		StatusCode:        "CONFIRMED",
 		StatusReason:      "Operation confirmed",
 		VerifiableEvent:   &verifiableEvent,
@@ -1981,7 +2333,7 @@ func createValidOperationStatusEventWithSignatures(t *testing.T, privateKeys []*
 
 	event := &apiClient.Event{
 		Headers: apiClient.EventHeaders{
-			Type:   apiClient.EventHeadersTypeOperationStatus,
+			Type:   apiClient.EventTypeOperationStatus,
 			Offset: int64(12345),
 			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 		},

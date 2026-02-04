@@ -139,7 +139,7 @@ func TestClient_Create(t *testing.T) {
 			Name:                walletName,
 			ChainSelector:       chainSelector,
 			WalletOwnerAddress:  ownerAddress,
-			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:          apiClient.Ecdsa,
 			AllowedEcdsaSigners: &ecdsaSigners,
 		})
 
@@ -199,7 +199,7 @@ func TestClient_Create(t *testing.T) {
 			Name:                walletName,
 			ChainSelector:       chainSelector,
 			WalletOwnerAddress:  ownerAddress,
-			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:          apiClient.Ecdsa,
 			AllowedEcdsaSigners: &ecdsaSigners,
 			StatusChannelId:     &statusChannelID,
 		})
@@ -226,7 +226,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "",
 			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:         apiClient.Ecdsa,
 		})
 
 		require.Error(t, err)
@@ -246,7 +246,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "test-wallet",
 			ChainSelector:      "",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:         apiClient.Ecdsa,
 		})
 
 		require.Error(t, err)
@@ -266,7 +266,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "test-wallet",
 			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "",
-			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:         apiClient.Ecdsa,
 		})
 
 		require.Error(t, err)
@@ -286,7 +286,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "test-wallet",
 			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "not-a-valid-hex-address",
-			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:         apiClient.Ecdsa,
 		})
 
 		require.Error(t, err)
@@ -327,7 +327,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               longName,
 			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:         apiClient.Ecdsa,
 		})
 
 		require.Error(t, err)
@@ -349,7 +349,7 @@ func TestClient_Create(t *testing.T) {
 			Name:                "test-wallet",
 			ChainSelector:       "5009297550715157269",
 			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:          apiClient.Ecdsa,
 			AllowedEcdsaSigners: &ecdsaSigners,
 		})
 
@@ -366,7 +366,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "test-wallet",
 			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         "unknown-type",
+			WalletType:         "unsupported",
 		})
 
 		require.Error(t, err)
@@ -393,7 +393,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "test-wallet",
 			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:         apiClient.Ecdsa,
 			AllowedRsaSigners:  &rsaSigners,
 		})
 
@@ -416,7 +416,7 @@ func TestClient_Create(t *testing.T) {
 			Name:                "test-wallet",
 			ChainSelector:       "5009297550715157269",
 			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:          apiClient.CreateWalletWalletTypeRsa,
+			WalletType:          apiClient.Rsa,
 			AllowedEcdsaSigners: &ecdsaSigners,
 		})
 
@@ -435,7 +435,7 @@ func TestClient_Create(t *testing.T) {
 			Name:                "test-wallet",
 			ChainSelector:       "5009297550715157269",
 			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:          apiClient.Ecdsa,
 			AllowedEcdsaSigners: &ecdsaSigners,
 		})
 
@@ -472,7 +472,7 @@ func TestClient_Create(t *testing.T) {
 			Name:                walletName,
 			ChainSelector:       chainSelector,
 			WalletOwnerAddress:  ownerAddress,
-			WalletType:          apiClient.CreateWalletWalletTypeEcdsa,
+			WalletType:          apiClient.Ecdsa,
 			AllowedEcdsaSigners: &ecdsaSigners,
 		})
 
@@ -513,7 +513,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               walletName,
 			ChainSelector:      chainSelector,
 			WalletOwnerAddress: ownerAddress,
-			WalletType:         apiClient.CreateWalletWalletTypeRsa,
+			WalletType:         apiClient.Rsa,
 			AllowedRsaSigners:  &rsaSigners,
 		})
 
@@ -536,7 +536,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "test-wallet",
 			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.CreateWalletWalletTypeRsa,
+			WalletType:         apiClient.Rsa,
 			AllowedRsaSigners:  &rsaSigners,
 		})
 
@@ -560,7 +560,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "test-wallet",
 			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.CreateWalletWalletTypeRsa,
+			WalletType:         apiClient.Rsa,
 			AllowedRsaSigners:  &rsaSigners,
 		})
 
@@ -703,7 +703,7 @@ func TestClient_List(t *testing.T) {
 		chainSelector := "5009297550715157269"
 		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
 		walletType := apiClient.Ecdsa
-		walletStatus := apiClient.GetWalletsParamsStatusDeployed
+		walletStatus := apiClient.WalletStatusDeployed
 		limit := 10
 		offset := int64(5)
 

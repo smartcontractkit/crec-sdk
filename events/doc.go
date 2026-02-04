@@ -96,6 +96,51 @@
 //	var data map[string]interface{}
 //	err := client.Events.Decode(&event, &data)
 //
+// # Decoding Verifiable Events
+//
+// The event payload contains a base64-encoded VerifiableEvent field with rich event metadata.
+// Use [Client.DecodeVerifiableEvent] to decode it into a models.VerifiableEvent struct:
+//
+//	import "github.com/smartcontractkit/crec-api-go/models"
+//
+//	// Get the watcher event payload
+//	watcherPayload, err := event.Payload.AsWatcherEventPayload()
+//	if err != nil {
+//	    // Handle error
+//	}
+//
+//	// Decode the verifiable event
+//	verifiableEvent, err := client.Events.DecodeVerifiableEvent(&watcherPayload)
+//	if err != nil {
+//	    // Handle error
+//	}
+//
+//	// Access event metadata
+//	fmt.Printf("Event: %s at %v\n", verifiableEvent.Name, verifiableEvent.Timestamp)
+//	if verifiableEvent.ChainFamily != nil {
+//	    fmt.Printf("Chain Family: %s\n", *verifiableEvent.ChainFamily)
+//	}
+//
+//	// Access chain event details (for EVM chains)
+//	if verifiableEvent.ChainEvent != nil {
+//	    evmEvent, err := verifiableEvent.ChainEvent.AsEVMEvent()
+//	    if err == nil {
+//	        fmt.Printf("Contract: %s, Block: %d\n", evmEvent.Address, evmEvent.BlockNumber)
+//	        fmt.Printf("Tx Hash: %s\n", evmEvent.TxHash)
+//	        // Access event parameters
+//	        if evmEvent.Params != nil {
+//	            for key, value := range *evmEvent.Params {
+//	                fmt.Printf("  %s: %v\n", key, value)
+//	            }
+//	        }
+//	    }
+//	}
+//
+// For operation status events, use [Client.DecodeOperationStatusVerifiableEvent]:
+//
+//	opStatusPayload, _ := event.Payload.AsOperationStatusPayload()
+//	verifiableEvent, err := client.Events.DecodeOperationStatusVerifiableEvent(&opStatusPayload)
+//
 // # JSON Serialization
 //
 // Convert events to JSON for logging or storage:
@@ -126,5 +171,8 @@
 //	}
 //	if errors.Is(err, ErrOnlyOperationStatusSupported) {
 //	    // Tried to verify a non-operation-status event with VerifyOperationStatus
+//	}
+//	if errors.Is(err, ErrDecodeVerifiableEvent) {
+//	    // Failed to decode base64 verifiable event (invalid base64 or JSON)
 //	}
 package events

@@ -107,7 +107,7 @@ type CreateInput struct {
 	Name                string
 	ChainSelector       string
 	WalletOwnerAddress  string
-	WalletType          apiClient.CreateWalletWalletType
+	WalletType          apiClient.WalletType
 	AllowedEcdsaSigners *[]string
 	AllowedRsaSigners   *[]struct {
 		E string `json:"e"` // RSA public exponent
@@ -152,7 +152,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 
 	// Validate that wallet type matches the provided signers
 	switch input.WalletType {
-	case apiClient.CreateWalletWalletTypeEcdsa:
+	case apiClient.Ecdsa:
 		if input.AllowedRsaSigners != nil {
 			return nil, ErrInvalidSignersForEcdsa
 		}
@@ -165,7 +165,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 				return nil, fmt.Errorf("%w: %s", ErrInvalidEcdsaSigner, signer)
 			}
 		}
-	case apiClient.CreateWalletWalletTypeRsa:
+	case apiClient.Rsa:
 		if input.AllowedEcdsaSigners != nil {
 			return nil, ErrInvalidSignersForRsa
 		}
@@ -182,13 +182,25 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedWalletType, input.WalletType)
 	}
 
+	var allowedRsaSigners *[]apiClient.RSAPublicKey
+
+	if input.AllowedRsaSigners != nil {
+		allowedRsaSigners := make([]apiClient.RSAPublicKey, len(*input.AllowedRsaSigners))
+		for i, signer := range *input.AllowedRsaSigners {
+			allowedRsaSigners[i] = apiClient.RSAPublicKey{
+				E: signer.E,
+				N: signer.N,
+			}
+		}
+	}
+
 	createWalletReq := apiClient.CreateWallet{
 		Name:                input.Name,
 		ChainSelector:       input.ChainSelector,
 		WalletOwnerAddress:  input.WalletOwnerAddress,
 		WalletType:          input.WalletType,
 		AllowedEcdsaSigners: input.AllowedEcdsaSigners,
-		AllowedRsaSigners:   input.AllowedRsaSigners,
+		AllowedRsaSigners:   allowedRsaSigners,
 		StatusChannelId:     input.StatusChannelId,
 	}
 
@@ -276,8 +288,8 @@ type ListInput struct {
 	ChainSelector *string
 	Owner         *string
 	Address       *string
-	Type          *apiClient.GetWalletsParamsType
-	Status        *apiClient.GetWalletsParamsStatus
+	Type          *apiClient.WalletType
+	Status        *apiClient.WalletStatus
 	Limit         *int
 	Offset        *int64
 }
