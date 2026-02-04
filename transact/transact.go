@@ -42,41 +42,9 @@ var (
 	ErrSendOperation   = errors.New("failed to send operation")
 
 	// Response errors
-	ErrUnexpectedStatusCode      = errors.New("unexpected status code")
-	ErrNilResponseBody           = errors.New("unexpected nil response body")
-	ErrUnexpectedOperationStatus = errors.New("unexpected operation status")
+	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	ErrNilResponseBody      = errors.New("unexpected nil response body")
 )
-
-// OperationStatus represents the status of an operation in the SDK.
-// Only statuses that are part of the API are exposed.
-type OperationStatus string
-
-const (
-	OperationStatusPending      OperationStatus = "pending"
-	OperationStatusSent         OperationStatus = "sent"
-	OperationStatusBroadcasting OperationStatus = "broadcasting"
-	OperationStatusConfirmed    OperationStatus = "confirmed"
-	OperationStatusFailed       OperationStatus = "failed"
-)
-
-// operationStatusToAPIStatus converts SDK OperationStatus to API-go OperationStatus.
-// Returns an error if the status value doesn't match any known API-go status.
-func operationStatusToAPIStatus(status OperationStatus) (apiClient.OperationStatus, error) {
-	switch status {
-	case OperationStatusPending:
-		return apiClient.OperationStatusPending, nil
-	case OperationStatusSent:
-		return apiClient.OperationStatusSent, nil
-	case OperationStatusBroadcasting:
-		return apiClient.OperationStatusBroadcasting, nil
-	case OperationStatusConfirmed:
-		return apiClient.OperationStatusConfirmed, nil
-	case OperationStatusFailed:
-		return apiClient.OperationStatusFailed, nil
-	default:
-		return "", fmt.Errorf("%w: unknown status '%s'", ErrUnexpectedOperationStatus, status)
-	}
-}
 
 // Options defines the options for creating a new CREC transact client used to send operations to the CREC system.
 // It includes a logger for logging messages and a chain ID for the blockchain network.
@@ -390,7 +358,7 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 //   - Offset: Number of operations to skip for pagination (default: 0).
 type ListOperationsInput struct {
 	ChannelID     uuid.UUID
-	Status        *OperationStatus
+	Status        *apiClient.OperationStatus
 	ChainSelector *string
 	Address       *string
 	WalletID      *uuid.UUID
@@ -420,15 +388,7 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 		WalletId:      input.WalletID,
 		Limit:         input.Limit,
 		Offset:        input.Offset,
-	}
-
-	if input.Status != nil {
-		apiStatus, err := operationStatusToAPIStatus(*input.Status)
-		if err != nil {
-			c.logger.Error("Failed to convert operation status", "status", *input.Status, "error", err)
-			return nil, false, fmt.Errorf("%w: %w", ErrListOperations, err)
-		}
-		params.Status = &apiStatus
+		Status:        input.Status,
 	}
 
 	resp, err := c.crecClient.GetChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, &params)

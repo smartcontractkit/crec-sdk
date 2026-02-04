@@ -507,7 +507,7 @@ func TestClient_ListOperations(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		listOperationStatus := OperationStatusPending
+		listOperationStatus := apiClient.OperationStatusPending
 
 		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID:     channelID,
