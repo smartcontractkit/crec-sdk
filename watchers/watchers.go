@@ -533,10 +533,10 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 							"window", c.eventualConsistencyWindow)
 						continue
 					}
-					// After the window, 404 is a permanent error
-					c.logger.Error("Watcher not found after eventual consistency window",
+					// After the window, 404 means the watcher was deleted
+					c.logger.Error("Watcher was deleted",
 						"elapsed", elapsedTime)
-					return nil, fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
+					return nil, ErrWatcherAlreadyDeleted
 				}
 
 				// Check if error is transient (network issues, 5xx, etc.)

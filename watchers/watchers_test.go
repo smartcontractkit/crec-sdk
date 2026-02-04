@@ -191,7 +191,7 @@ func TestClient_CreateWithDomain(t *testing.T) {
 		assert.Equal(t, watcherName, *watcher.Name)
 		assert.Equal(t, chainSelector, watcher.ChainSelector)
 		assert.Equal(t, address, watcher.Address)
-		assert.Equal(t, "pending", watcher.Status)
+		assert.Equal(t, apiClient.Pending, watcher.Status)
 	})
 
 	t.Run("EmptyChannelID", func(t *testing.T) {
@@ -373,7 +373,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 		assert.Equal(t, watcherName, *watcher.Name)
 		assert.Equal(t, chainSelector, watcher.ChainSelector)
 		assert.Equal(t, address, watcher.Address)
-		assert.Equal(t, "pending", watcher.Status)
+		assert.Equal(t, apiClient.Pending, watcher.Status)
 	})
 
 	t.Run("EmptyChannelID", func(t *testing.T) {
@@ -579,7 +579,7 @@ func TestClient_List(t *testing.T) {
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1111",
-						Status:        string(status),
+						Status:        apiClient.Active,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -604,7 +604,7 @@ func TestClient_List(t *testing.T) {
 		assert.Len(t, result.Data, 1)
 		require.NotNil(t, result.Data[0].Name)
 		assert.Equal(t, name, *result.Data[0].Name)
-		assert.Equal(t, string(status), result.Data[0].Status)
+		assert.Equal(t, apiClient.Active, result.Data[0].Status)
 	})
 
 	t.Run("EmptyChannelID", func(t *testing.T) {
@@ -678,7 +678,7 @@ func TestClient_Get(t *testing.T) {
 		assert.Equal(t, watcherID, watcher.WatcherId)
 		require.NotNil(t, watcher.Name)
 		assert.Equal(t, "test-watcher", *watcher.Name)
-		assert.Equal(t, "active", watcher.Status)
+		assert.Equal(t, apiClient.Active, watcher.Status)
 	})
 
 	t.Run("SuccessWithDONInfo", func(t *testing.T) {
@@ -1034,7 +1034,7 @@ func TestClient_WaitForActive(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
-		assert.Equal(t, "active", watcher.Status)
+		assert.Equal(t, apiClient.Active, watcher.Status)
 	})
 
 	t.Run("SuccessAfterPolling", func(t *testing.T) {
@@ -1353,7 +1353,7 @@ func TestClient_WaitForActive(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
-		assert.Equal(t, "active", watcher.Status)
+		assert.Equal(t, apiClient.Active, watcher.Status)
 		assert.GreaterOrEqual(t, attemptCount, 3, "Should have retried after 500 errors")
 	})
 }
@@ -1367,24 +1367,26 @@ func TestClient_WaitForDeleted(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			callCount++
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
 
-			var status string
+			// First 2 calls return "deleting" status, then return 404 (watcher removed)
 			if callCount < 3 {
-				status = "deleting"
+				w.WriteHeader(http.StatusOK)
+				name := "test-watcher"
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &name,
+					ChainSelector: "1337",
+					Address:       "0x1234",
+					Status:        apiClient.Deleting,
+				}
+				json.NewEncoder(w).Encode(response)
 			} else {
-				status = "deleted"
+				// Return 404 - watcher has been deleted
+				w.WriteHeader(http.StatusNotFound)
+				json.NewEncoder(w).Encode(map[string]string{
+					"error": "Watcher not found",
+				})
 			}
-
-			name := "test-watcher"
-			response := apiClient.Watcher{
-				WatcherId:     watcherID,
-				Name:          &name,
-				ChainSelector: "1337",
-				Address:       "0x1234",
-				Status:        status,
-			}
-			json.NewEncoder(w).Encode(response)
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1621,10 +1623,10 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 			// 2-3. Wait for active (first pending, then active)
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
-				status := "pending"
+				status := apiClient.Pending
 				name := watcherName
 				if callCount > 2 {
-					status = "active"
+					status = apiClient.Active
 				}
 				if callCount > 4 {
 					name = updatedName
@@ -1646,7 +1648,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &updatedName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        "active",
+					Status:        apiClient.Active,
 				}
 				json.NewEncoder(w).Encode(response)
 
@@ -1675,12 +1677,12 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		created, err := client.CreateWithDomain(ctx, channelID, createInput)
 		require.NoError(t, err)
 		assert.Equal(t, watcherID, created.WatcherId)
-		assert.Equal(t, "pending", created.Status)
+		assert.Equal(t, apiClient.Pending, created.Status)
 
 		// Step 2: Wait for watcher to become active
 		active, err := client.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
-		assert.Equal(t, "active", active.Status)
+		assert.Equal(t, apiClient.Active, active.Status)
 
 		// Step 3: Find the watcher
 		found, err := client.Get(ctx, channelID, watcherID)
@@ -1728,7 +1730,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x5678",
-					Status:        "pending",
+					Status:        apiClient.Pending,
 				}
 				json.NewEncoder(w).Encode(response)
 
@@ -1740,7 +1742,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x5678",
-					Status:        "active",
+					Status:        apiClient.Active,
 				}
 				json.NewEncoder(w).Encode(response)
 
@@ -1754,7 +1756,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 							Name:          &watcherName,
 							ChainSelector: "1337",
 							Address:       "0x5678",
-							Status:        "active",
+							Status:        apiClient.Active,
 							ChannelId:     channelID,
 							CreatedAt:     time.Now().Unix(),
 							DonFamily:     "zone-a",
@@ -1805,7 +1807,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		// Step 2: Wait for active
 		active, err := client.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
-		assert.Equal(t, "active", active.Status)
+		assert.Equal(t, apiClient.Active, active.Status)
 
 		// Step 3: List all watchers in the channel
 		filters := ListFilters{}
@@ -1866,7 +1868,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        "pending",
+					Status:        apiClient.Pending,
 				}
 				json.NewEncoder(w).Encode(response)
 			} else if r.Method == "GET" {
@@ -1877,7 +1879,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        "failed",
+					Status:        apiClient.Failed,
 				}
 				json.NewEncoder(w).Encode(response)
 			}
@@ -1910,9 +1912,8 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		watcherID := uuid.New()
 		watcherName := "deleted-watcher"
 
-		callCount := 0
+		getCallCount := 0
 		handler := func(w http.ResponseWriter, r *http.Request) {
-			callCount++
 			w.Header().Set("Content-Type", "application/json")
 
 			if r.Method == "POST" {
@@ -1922,29 +1923,56 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        "pending",
+					Status:        apiClient.Pending,
 				}
 				json.NewEncoder(w).Encode(response)
 			} else if r.Method == "GET" {
-				w.WriteHeader(http.StatusOK)
-				// First call: pending, then deleted
-				status := "pending"
-				if callCount > 2 {
-					status = "deleted"
+				getCallCount++
+				// First GET call returns pending (within consistency window)
+				// Subsequent GET calls return 404 (watcher deleted, after consistency window)
+				if getCallCount == 1 {
+					w.WriteHeader(http.StatusOK)
+					response := apiClient.Watcher{
+						WatcherId:     watcherID,
+						Name:          &watcherName,
+						ChainSelector: "1337",
+						Address:       "0x1234",
+						Status:        apiClient.Pending,
+					}
+					json.NewEncoder(w).Encode(response)
+				} else {
+					// Return 404 - watcher was deleted
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(map[string]string{
+						"error": "Watcher not found",
+					})
 				}
-				response := apiClient.Watcher{
-					WatcherId:     watcherID,
-					Name:          &watcherName,
-					ChainSelector: "1337",
-					Address:       "0x1234",
-					Status:        status,
-				}
-				json.NewEncoder(w).Encode(response)
 			}
 		}
 
-		client, server := setupTestClient(t, handler)
+		server := httptest.NewServer(http.HandlerFunc(handler))
 		defer server.Close()
+
+		// Create client with very short eventual consistency window
+		// so that 404 is immediately treated as "watcher deleted"
+		apiKeyEditor := func(ctx context.Context, req *http.Request) error {
+			req.Header.Set("Api-Key", "test-api-key")
+			return nil
+		}
+		crecAPIClient, err := apiClient.NewClientWithResponses(
+			server.URL,
+			apiClient.WithRequestEditorFn(apiKeyEditor),
+		)
+		require.NoError(t, err)
+
+		logger := slog.New(slog.DiscardHandler)
+		client, err := NewClient(&Options{
+			Logger:                    logger,
+			APIClient:                 crecAPIClient,
+			PollInterval:              10 * time.Millisecond,
+			EventualConsistencyWindow: 1 * time.Millisecond, // Very short window for test
+		})
+		require.NoError(t, err)
 
 		ctx := context.Background()
 
@@ -1959,7 +1987,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		created, err := client.CreateWithDomain(ctx, channelID, createInput)
 		require.NoError(t, err)
 
-		// Wait for active - should fail because watcher was deleted
+		// Wait for active - should fail because watcher was deleted (404 after consistency window)
 		_, err = client.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWatcherAlreadyDeleted), "Expected ErrWatcherAlreadyDeleted, got: %v", err)
@@ -1994,17 +2022,17 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 
-		callCount := 0
+		getCallCount := 0
 		handler := func(w http.ResponseWriter, r *http.Request) {
-			callCount++
 			w.Header().Set("Content-Type", "application/json")
 
 			if r.Method == "DELETE" {
 				// Async deletion
 				w.WriteHeader(http.StatusAccepted)
 			} else if r.Method == "GET" {
-				// First call: deleting, then deleted
-				if callCount <= 2 {
+				getCallCount++
+				// First 2 GET calls return "deleting" status, then return 404 (watcher removed)
+				if getCallCount <= 2 {
 					w.WriteHeader(http.StatusOK)
 					name := "test-watcher"
 					response := apiClient.Watcher{
@@ -2012,20 +2040,15 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        "deleting",
+						Status:        apiClient.Deleting,
 					}
 					json.NewEncoder(w).Encode(response)
 				} else {
-					w.WriteHeader(http.StatusOK)
-					name := "test-watcher"
-					response := apiClient.Watcher{
-						WatcherId:     watcherID,
-						Name:          &name,
-						ChainSelector: "1337",
-						Address:       "0x1234",
-						Status:        "deleted",
-					}
-					json.NewEncoder(w).Encode(response)
+					// Return 404 - watcher has been deleted
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(map[string]string{
+						"error": "Watcher not found",
+					})
 				}
 			}
 		}
