@@ -70,8 +70,24 @@ const (
 	StatusActive   Status = "active"
 	StatusFailed   Status = "failed"
 	StatusDeleting Status = "deleting"
-	StatusDeleted  Status = "deleted"
 )
+
+// statusToAPIStatus converts SDK Status to API-go WatcherStatus.
+// Returns an error if the status value doesn't match any known API-go status.
+func statusToAPIStatus(status Status) (apiClient.WatcherStatus, error) {
+	switch status {
+	case StatusPending:
+		return apiClient.Pending, nil
+	case StatusActive:
+		return apiClient.Active, nil
+	case StatusFailed:
+		return apiClient.Failed, nil
+	case StatusDeleting:
+		return apiClient.Deleting, nil
+	default:
+		return "", fmt.Errorf("%w: unknown status '%s'", ErrUnexpectedStatus, status)
+	}
+}
 
 type EventABIInput struct {
 	Indexed      bool   `json:"indexed"`
@@ -108,14 +124,14 @@ type UpdateInput struct {
 }
 
 type ListFilters struct {
-	Limit         *int    `url:"limit,omitempty"`
-	Offset        *int64  `url:"offset,omitempty"`
-	Name          *string `url:"name,omitempty"`
-	Status        *Status `url:"status,omitempty"`
-	ChainSelector *string `url:"chain_selector,omitempty"`
-	Address       *string `url:"address,omitempty"`
-	Service       *string `url:"service,omitempty"`
-	EventName     *string `url:"event_name,omitempty"`
+	Limit         *int                         `url:"limit,omitempty"`
+	Offset        *int64                       `url:"offset,omitempty"`
+	Name          *string                      `url:"name,omitempty"`
+	Status        *[]apiClient.WatcherStatus   `url:"status,omitempty"`
+	ChainSelector *string                      `url:"chain_selector,omitempty"`
+	Address       *string                      `url:"address,omitempty"`
+	Service       *[]string                    `url:"service,omitempty"`
+	EventName     *string                      `url:"event_name,omitempty"`
 }
 
 // Options defines the options for creating a new CREC Watchers client.
@@ -356,13 +372,8 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 		ChainSelector: filters.ChainSelector,
 		Address:       filters.Address,
 		EventName:     filters.EventName,
-	}
-
-	if filters.Service != nil {
-		params.Service = &[]string{*filters.Service}
-	}
-	if filters.Status != nil {
-		params.Status = &[]apiClient.WatcherStatus{apiClient.WatcherStatus(string(*filters.Status))}
+		Service:       filters.Service,
+		Status:        filters.Status,
 	}
 
 	resp, err := c.apiClient.GetChannelsChannelIdWatchersWithResponse(ctx, channelID, params)
@@ -514,10 +525,10 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 							"window", c.eventualConsistencyWindow)
 						continue
 					}
-					// After the window, 404 is a permanent error
-					c.logger.Error("Watcher not found after eventual consistency window",
+					// After the window, 404 means the watcher was deleted
+					c.logger.Error("Watcher was deleted",
 						"elapsed", elapsedTime)
-					return nil, fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
+					return nil, ErrWatcherAlreadyDeleted
 				}
 
 				// Check if error is transient (network issues, 5xx, etc.)
@@ -543,9 +554,6 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 			case StatusDeleting:
 				c.logger.Error("Watcher is being deleted")
 				return nil, ErrWatcherIsDeleting
-			case StatusDeleted:
-				c.logger.Error("Watcher has been deleted")
-				return nil, ErrWatcherAlreadyDeleted
 			default:
 				c.logger.Error("Unexpected watcher status while waiting for active", "status", watcher.Status)
 				return nil, fmt.Errorf("%w: %s", ErrUnexpectedStatus, watcher.Status)
@@ -639,9 +647,6 @@ func (c *Client) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watche
 			}
 
 			switch Status(watcher.Status) {
-			case StatusDeleted:
-				c.logger.Debug("Watcher is now deleted (status confirmed)")
-				return nil
 			case StatusDeleting:
 				c.logger.Debug("Watcher is being deleted, continuing to wait")
 				continue

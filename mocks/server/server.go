@@ -565,17 +565,15 @@ func (s *MockServer) DeleteChannelsChannelIdWatchersWatcherId(w http.ResponseWri
 			}
 
 			// Mark as deleting to simulate async deletion
-			s.watchers[i].Status = "deleting"
+			s.watchers[i].Status = stdserver.Deleting
 
-			// Schedule automatic transition to "deleted" after a brief delay
-			// Tests can also manually advance the state using helper methods
-			scheduleStatusTransition(
+			// Schedule automatic removal of the watcher after a brief delay
+			// When a watcher is deleted, it should return 404 Not Found
+			scheduleWatcherRemoval(
 				watcherId,
-				"deleting",
-				"deleted",
 				50*time.Millisecond,
-				func(id uuid.UUID, from, to string) bool {
-					return s.updateWatcherStatusConditional(id, from, to)
+				func(id uuid.UUID) bool {
+					return s.removeWatcherIfDeleting(id)
 				},
 			)
 
@@ -699,26 +697,25 @@ func (s *MockServer) DeleteWalletsWalletId(w http.ResponseWriter, r *http.Reques
 // HELPER METHODS (INTERNAL)
 // ============================================================================
 
-// scheduleStatusTransition is a generic helper to simulate async state transitions.
-// It schedules a status change after a delay, checking the current status before updating.
-func scheduleStatusTransition(id uuid.UUID, fromStatus, toStatus string, delay time.Duration, updateFn func(uuid.UUID, string, string) bool) {
+// scheduleWatcherRemoval schedules the removal of a watcher after a delay.
+// This simulates the async deletion behavior where a watcher transitions from "deleting"
+// to being fully removed (returning 404 on subsequent GET requests).
+func scheduleWatcherRemoval(id uuid.UUID, delay time.Duration, removeFn func(uuid.UUID) bool) {
 	go func() {
 		time.Sleep(delay)
-		updateFn(id, fromStatus, toStatus)
+		removeFn(id)
 	}()
 }
 
-// updateWatcherStatusConditional updates a watcher's status only if it matches the expected current status.
-// Returns true if the update was successful.
-func (s *MockServer) updateWatcherStatusConditional(watcherID uuid.UUID, fromStatus, toStatus string) bool {
+// removeWatcherIfDeleting removes a watcher from the slice if it's in "deleting" status.
+// Returns true if the watcher was removed.
+func (s *MockServer) removeWatcherIfDeleting(watcherID uuid.UUID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	from := stdserver.WatcherStatus(fromStatus)
-	to := stdserver.WatcherStatus(toStatus)
 	for i, w := range s.watchers {
-		if w.WatcherId == watcherID && w.Status == from {
-			s.watchers[i].Status = to
+		if w.WatcherId == watcherID && w.Status == stdserver.Deleting {
+			s.watchers = append(s.watchers[:i], s.watchers[i+1:]...)
 			return true
 		}
 	}

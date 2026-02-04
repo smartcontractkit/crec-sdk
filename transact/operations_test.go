@@ -471,7 +471,7 @@ func TestClient_ListOperations(t *testing.T) {
 		channelID := uuid.New()
 		operationID := uuid.New()
 		createdAt := time.Now().Unix()
-		status := "pending"
+		status := apiClient.OperationStatusPending
 		chainSelector := "1337"
 		address := "0x1234"
 
@@ -480,7 +480,7 @@ func TestClient_ListOperations(t *testing.T) {
 
 			// Check query parameters
 			query := r.URL.Query()
-			assert.Equal(t, status, query.Get("status"))
+			assert.Equal(t, string(status), query.Get("status"))
 			assert.Equal(t, "1337", query.Get("chain_selector"))
 			assert.Equal(t, address, query.Get("address"))
 
@@ -507,9 +507,11 @@ func TestClient_ListOperations(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
+		statusFilter := []apiClient.OperationStatus{apiClient.OperationStatusPending}
+
 		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID:     channelID,
-			Status:        &status,
+			Status:        &statusFilter,
 			ChainSelector: &chainSelector,
 			Address:       &address,
 		})
@@ -517,7 +519,7 @@ func TestClient_ListOperations(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, operations, 1)
 		assert.False(t, hasMore)
-		assert.Equal(t, apiClient.OperationStatus(status), operations[0].Status)
+		assert.Equal(t, apiClient.OperationStatusPending, operations[0].Status)
 		assert.Equal(t, "1337", operations[0].ChainSelector)
 		assert.Equal(t, address, operations[0].Address)
 	})
@@ -527,7 +529,7 @@ func TestClient_ListOperations(t *testing.T) {
 		operationID := uuid.New()
 		walletID := uuid.New()
 		createdAt := time.Now().Unix()
-		status := "pending"
+		status := apiClient.OperationStatusPending
 		address := "0x1234"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {

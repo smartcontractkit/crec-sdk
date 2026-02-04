@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+	"github.com/smartcontractkit/crec-api-go/models"
 )
 
 const (
@@ -25,12 +27,13 @@ var (
 	ErrCRECClientRequired = errors.New("CRECClient is required")
 
 	// API operation errors
-	ErrChannelNotFound = errors.New("channel not found")
-	ErrPollEvents      = errors.New("failed to poll events")
-	ErrSearchEvents    = errors.New("failed to search events")
-	ErrGetEvents       = errors.New("failed to get events")
-	ErrVerifyEvent     = errors.New("failed to verify event")
-	ErrDecodeEvent     = errors.New("failed to decode event")
+	ErrChannelNotFound       = errors.New("channel not found")
+	ErrPollEvents            = errors.New("failed to poll events")
+	ErrSearchEvents          = errors.New("failed to search events")
+	ErrGetEvents             = errors.New("failed to get events")
+	ErrVerifyEvent           = errors.New("failed to verify event")
+	ErrDecodeEvent           = errors.New("failed to decode event")
+	ErrDecodeVerifiableEvent = errors.New("failed to decode verifiable event")
 
 	// Parsing errors
 	ErrParseSignature               = errors.New("failed to parse signature")
@@ -419,6 +422,48 @@ func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) 
 	eventHash := crypto.Keccak256Hash([]byte(payloadToSign))
 
 	return eventHash, nil
+}
+
+// DecodeVerifiableEvent decodes the base64-encoded VerifiableEvent from a WatcherEventPayload
+// into a models.VerifiableEvent struct containing the full event data.
+func (c *Client) DecodeVerifiableEvent(payload *apiClient.WatcherEventPayload) (*models.VerifiableEvent, error) {
+	if payload == nil {
+		return nil, fmt.Errorf("%w: payload is nil", ErrDecodeVerifiableEvent)
+	}
+	if payload.VerifiableEvent == "" {
+		return nil, fmt.Errorf("%w: verifiable event is empty", ErrDecodeVerifiableEvent)
+	}
+
+	return c.decodeVerifiableEventString(payload.VerifiableEvent)
+}
+
+// DecodeOperationStatusVerifiableEvent decodes the base64-encoded VerifiableEvent
+// from an OperationStatusPayload into a models.VerifiableEvent struct.
+func (c *Client) DecodeOperationStatusVerifiableEvent(payload *apiClient.OperationStatusPayload) (*models.VerifiableEvent, error) {
+	if payload == nil {
+		return nil, fmt.Errorf("%w: payload is nil", ErrDecodeVerifiableEvent)
+	}
+	if payload.VerifiableEvent == nil || *payload.VerifiableEvent == "" {
+		return nil, fmt.Errorf("%w: verifiable event is nil or empty", ErrDecodeVerifiableEvent)
+	}
+
+	return c.decodeVerifiableEventString(*payload.VerifiableEvent)
+}
+
+// decodeVerifiableEventString decodes a base64-encoded verifiable event string
+// into a models.VerifiableEvent struct.
+func (c *Client) decodeVerifiableEventString(verifiableEventBase64 string) (*models.VerifiableEvent, error) {
+	decoded, err := base64.StdEncoding.DecodeString(verifiableEventBase64)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid base64: %w", ErrDecodeVerifiableEvent, err)
+	}
+
+	var verifiableEvent models.VerifiableEvent
+	if err := json.Unmarshal(decoded, &verifiableEvent); err != nil {
+		return nil, fmt.Errorf("%w: invalid JSON: %w", ErrDecodeVerifiableEvent, err)
+	}
+
+	return &verifiableEvent, nil
 }
 
 // prepareVerification performs the initial verification setup steps:

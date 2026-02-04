@@ -366,7 +366,7 @@ func TestClient_Create(t *testing.T) {
 			Name:               "test-wallet",
 			ChainSelector:      "5009297550715157269",
 			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         "unknown-type",
+			WalletType:         "unsupported",
 		})
 
 		require.Error(t, err)

@@ -179,13 +179,25 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedWalletType, input.WalletType)
 	}
 
+	var allowedRsaSigners *[]apiClient.RSAPublicKey
+
+	if input.AllowedRsaSigners != nil {
+		allowedRsaSigners := make([]apiClient.RSAPublicKey, len(*input.AllowedRsaSigners))
+		for i, signer := range *input.AllowedRsaSigners {
+			allowedRsaSigners[i] = apiClient.RSAPublicKey{
+				E: signer.E,
+				N: signer.N,
+			}
+		}
+	}
+
 	createWalletReq := apiClient.CreateWallet{
 		Name:                input.Name,
 		ChainSelector:       input.ChainSelector,
 		WalletOwnerAddress:  input.WalletOwnerAddress,
 		WalletType:          input.WalletType,
 		AllowedEcdsaSigners: input.AllowedEcdsaSigners,
-		AllowedRsaSigners:   input.AllowedRsaSigners,
+		AllowedRsaSigners:   allowedRsaSigners,
 		StatusChannelId:     input.StatusChannelId,
 	}
 

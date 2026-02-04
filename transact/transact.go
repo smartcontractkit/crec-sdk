@@ -358,7 +358,7 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 //   - Offset: Number of operations to skip for pagination (default: 0).
 type ListOperationsInput struct {
 	ChannelID     uuid.UUID
-	Status        *string
+	Status        *[]apiClient.OperationStatus
 	ChainSelector *string
 	Address       *string
 	WalletID      *uuid.UUID
@@ -388,9 +388,7 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 		WalletId:      input.WalletID,
 		Limit:         input.Limit,
 		Offset:        input.Offset,
-	}
-	if input.Status != nil {
-		params.Status = &[]apiClient.OperationStatus{apiClient.OperationStatus(*input.Status)}
+		Status:        input.Status,
 	}
 
 	resp, err := c.crecClient.GetChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, &params)

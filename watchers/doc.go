@@ -70,8 +70,7 @@
 //   - pending: Created, deployment in progress
 //   - active: Deployed and monitoring events
 //   - failed: Deployment failed (terminal)
-//   - deleting: Deletion in progress
-//   - deleted: Removed (terminal)
+//   - deleting: Deletion in progress (watcher returns 404 Not Found once fully deleted)
 //
 // # Listing and Filtering
 //
