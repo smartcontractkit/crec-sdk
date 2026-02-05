@@ -27,7 +27,7 @@ var (
 	ErrChannelIDRequired     = errors.New("channel_id cannot be empty")
 	ErrWatcherIDRequired     = errors.New("watcher_id cannot be empty")
 	ErrNameRequired          = errors.New("name is required")
-	ErrDomainRequired        = errors.New("domain is required")
+	ErrServiceRequired       = errors.New("service is required")
 	ErrAddressRequired       = errors.New("address is required")
 	ErrEventsRequired        = errors.New("events list cannot be empty")
 	ErrABIRequired           = errors.New("abi cannot be empty")
@@ -53,7 +53,7 @@ var (
 
 	// API operation errors (base errors for wrapping)
 	ErrCreateWatcherRequest = errors.New("failed to create watcher request")
-	ErrCreateWatcherDomain  = errors.New("failed to create watcher with domain")
+	ErrCreateWatcherService = errors.New("failed to create watcher with service")
 	ErrCreateWatcherABI     = errors.New("failed to create watcher with ABI")
 	ErrListWatchers         = errors.New("failed to list watchers")
 	ErrGetWatcher           = errors.New("failed to get watcher")
@@ -63,31 +63,8 @@ var (
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 )
 
-type Status string
-
-const (
-	StatusPending  Status = "pending"
-	StatusActive   Status = "active"
-	StatusFailed   Status = "failed"
-	StatusDeleting Status = "deleting"
-)
-
-// statusToAPIStatus converts SDK Status to API-go WatcherStatus.
-// Returns an error if the status value doesn't match any known API-go status.
-func statusToAPIStatus(status Status) (apiClient.WatcherStatus, error) {
-	switch status {
-	case StatusPending:
-		return apiClient.Pending, nil
-	case StatusActive:
-		return apiClient.Active, nil
-	case StatusFailed:
-		return apiClient.Failed, nil
-	case StatusDeleting:
-		return apiClient.Deleting, nil
-	default:
-		return "", fmt.Errorf("%w: unknown status '%s'", ErrUnexpectedStatus, status)
-	}
-}
+// watcherStatusDeleted is the status value for a deleted watcher (API may return it even if not in WatcherStatus constants).
+const watcherStatusDeleted apiClient.WatcherStatus = "deleted"
 
 type EventABIInput struct {
 	Indexed      bool   `json:"indexed"`
@@ -103,11 +80,11 @@ type EventABI struct {
 	Type      string          `json:"type"`
 }
 
-type CreateWithDomainInput struct {
+type CreateWithServiceInput struct {
 	Name          *string  `json:"name,omitempty"`
 	ChainSelector string   `json:"chain_selector"`
 	Address       string   `json:"address"`
-	Domain        string   `json:"domain"`
+	Service       string   `json:"service"`
 	Events        []string `json:"events"`
 }
 
@@ -124,14 +101,14 @@ type UpdateInput struct {
 }
 
 type ListFilters struct {
-	Limit         *int    `url:"limit,omitempty"`
-	Offset        *int64  `url:"offset,omitempty"`
-	Name          *string `url:"name,omitempty"`
-	Status        *Status `url:"status,omitempty"`
-	ChainSelector *string `url:"chain_selector,omitempty"`
-	Address       *string `url:"address,omitempty"`
-	Domain        *string `url:"domain,omitempty"`
-	EventName     *string `url:"event_name,omitempty"`
+	Limit         *int                       `url:"limit,omitempty"`
+	Offset        *int64                     `url:"offset,omitempty"`
+	Name          *string                    `url:"name,omitempty"`
+	Status        *[]apiClient.WatcherStatus `url:"status,omitempty"`
+	ChainSelector *string                    `url:"chain_selector,omitempty"`
+	Address       *string                    `url:"address,omitempty"`
+	Service       *[]string                  `url:"service,omitempty"`
+	EventName     *string                    `url:"event_name,omitempty"`
 }
 
 // Options defines the options for creating a new CREC Watchers client.
@@ -194,11 +171,11 @@ func NewClient(opts *Options) (*Client, error) {
 	}, nil
 }
 
-// CreateWithDomain creates a new watcher with a domain (dvp, dta, test_consumer)
-func (c *Client) CreateWithDomain(ctx context.Context, channelID uuid.UUID, input CreateWithDomainInput) (*apiClient.Watcher, error) {
-	c.logger.Debug("Creating watcher with domain",
+// CreateWithService creates a new watcher with a service (dvp, dta, test_consumer)
+func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, input CreateWithServiceInput) (*apiClient.Watcher, error) {
+	c.logger.Debug("Creating watcher with service",
 		"channel_id", channelID.String(),
-		"domain", input.Domain,
+		"service", input.Service,
 		"address", input.Address)
 
 	if err := validateChannelID(channelID); err != nil {
@@ -210,38 +187,38 @@ func (c *Client) CreateWithDomain(ctx context.Context, channelID uuid.UUID, inpu
 	if input.Address == "" {
 		return nil, ErrAddressRequired
 	}
-	if input.Domain == "" {
-		return nil, ErrDomainRequired
+	if input.Service == "" {
+		return nil, ErrServiceRequired
 	}
 	if len(input.Events) == 0 {
 		return nil, ErrEventsRequired
 	}
 
-	createWatcherWithDomain := apiClient.CreateWatcherWithDomain{
+	createWatcherWithService := apiClient.CreateWatcherWithService{
 		Name:          input.Name,
 		ChainSelector: input.ChainSelector,
 		Address:       input.Address,
-		Domain:        input.Domain,
+		Service:       input.Service,
 		Events:        input.Events,
 	}
 
 	var createWatcherReq apiClient.CreateWatcher
-	if err := createWatcherReq.FromCreateWatcherWithDomain(createWatcherWithDomain); err != nil {
+	if err := createWatcherReq.FromCreateWatcherWithService(createWatcherWithService); err != nil {
 		c.logger.Error("Failed to create watcher request", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherRequest, err)
 	}
 
 	resp, err := c.apiClient.PostChannelsChannelIdWatchersWithResponse(ctx, channelID, createWatcherReq)
 	if err != nil {
-		c.logger.Error("Failed to create watcher with domain", "error", err)
-		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherDomain, err)
+		c.logger.Error("Failed to create watcher with service", "error", err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherService, err)
 	}
 
 	if resp.StatusCode() != 201 {
-		c.logger.Error("Failed to create watcher with domain - unexpected status code",
+		c.logger.Error("Failed to create watcher with service - unexpected status code",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWatcherDomain, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWatcherService, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
 	if resp.JSON201 == nil {
@@ -371,17 +348,9 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 		Name:          filters.Name,
 		ChainSelector: filters.ChainSelector,
 		Address:       filters.Address,
-		Domain:        filters.Domain,
 		EventName:     filters.EventName,
-	}
-
-	if filters.Status != nil {
-		apiStatus, err := statusToAPIStatus(*filters.Status)
-		if err != nil {
-			c.logger.Error("Failed to convert status", "status", *filters.Status, "error", err)
-			return nil, fmt.Errorf("%w: %w", ErrListWatchers, err)
-		}
-		params.Status = &apiStatus
+		Service:       filters.Service,
+		Status:        filters.Status,
 	}
 
 	resp, err := c.apiClient.GetChannelsChannelIdWatchersWithResponse(ctx, channelID, params)
@@ -548,20 +517,23 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 				return nil, fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
 			}
 
-			switch Status(watcher.Status) {
-			case StatusActive:
+			switch watcher.Status {
+			case apiClient.Active:
 				c.logger.Info("Watcher is now active")
 				return watcher, nil
-			case StatusFailed:
+			case apiClient.Failed:
 				c.logger.Error("Watcher deployment failed")
 				return nil, ErrWatcherDeploymentFailed
-			case StatusPending:
+			case apiClient.Pending:
 				// Continue waiting
 				c.logger.Debug("Watcher still pending, continuing to wait")
 				continue
-			case StatusDeleting:
+			case apiClient.Deleting:
 				c.logger.Error("Watcher is being deleted")
 				return nil, ErrWatcherIsDeleting
+			case watcherStatusDeleted:
+				c.logger.Error("Watcher has been deleted")
+				return nil, ErrWatcherAlreadyDeleted
 			default:
 				c.logger.Error("Unexpected watcher status while waiting for active", "status", watcher.Status)
 				return nil, fmt.Errorf("%w: %s", ErrUnexpectedStatus, watcher.Status)
@@ -654,11 +626,14 @@ func (c *Client) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watche
 				return fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
 			}
 
-			switch Status(watcher.Status) {
-			case StatusDeleting:
+			switch watcher.Status {
+			case watcherStatusDeleted:
+				c.logger.Debug("Watcher is now deleted (status confirmed)")
+				return nil
+			case apiClient.Deleting:
 				c.logger.Debug("Watcher is being deleted, continuing to wait")
 				continue
-			case StatusActive, StatusPending, StatusFailed:
+			case apiClient.Active, apiClient.Pending, apiClient.Failed:
 				// If the watcher is in any other valid state, it means deletion was rolled back or failed
 				c.logger.Error("Watcher deletion appears to have failed", "status", watcher.Status)
 				return fmt.Errorf("%w, watcher is in %s state", ErrWatcherDeletionFailed, watcher.Status)
@@ -685,7 +660,7 @@ func isTransientError(err error) bool {
 	if errors.Is(err, ErrChannelIDRequired) ||
 		errors.Is(err, ErrWatcherIDRequired) ||
 		errors.Is(err, ErrNameRequired) ||
-		errors.Is(err, ErrDomainRequired) ||
+		errors.Is(err, ErrServiceRequired) ||
 		errors.Is(err, ErrAddressRequired) ||
 		errors.Is(err, ErrEventsRequired) ||
 		errors.Is(err, ErrABIRequired) {

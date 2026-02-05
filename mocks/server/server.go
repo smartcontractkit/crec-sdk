@@ -210,7 +210,7 @@ func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *h
 
 	operation := stdserver.Operation{
 		OperationId:       operationId,
-		Status:            "pending",
+		Status:            stdserver.OperationStatusPending,
 		ChainSelector:     request.ChainSelector,
 		Address:           request.Address,
 		WalletOperationId: request.WalletOperationId,
@@ -251,8 +251,17 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 	filteredOps := []stdserver.Operation{}
 	for _, op := range operations {
 		// Filter by status if provided
-		if params.Status != nil && op.Status != *params.Status {
-			continue
+		if params.Status != nil {
+			found := false
+			for _, st := range *params.Status {
+				if op.Status == st {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
 		}
 
 		// Filter by chainSelector if provided
@@ -358,14 +367,33 @@ func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http
 		}
 
 		// Apply optional query filters
-		if params.Status != nil && watcher.Status != *params.Status {
-			continue
+		if params.Status != nil {
+			found := false
+			for _, st := range *params.Status {
+				if watcher.Status == st {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
 		}
 		if params.Address != nil && watcher.Address != *params.Address {
 			continue
 		}
-		if params.Domain != nil {
-			if watcher.Domain == nil || *watcher.Domain != *params.Domain {
+		if params.Service != nil {
+			if watcher.Service == nil {
+				continue
+			}
+			found := false
+			for _, svc := range *params.Service {
+				if *watcher.Service == svc {
+					found = true
+					break
+				}
+			}
+			if !found {
 				continue
 			}
 		}
@@ -440,18 +468,19 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 		WatcherId: watcherId,
 		ChannelId: channelId,
 		Address:   "",
-		Status:    "pending", // Start as pending
+		Status:    stdserver.Pending, // Start as pending
 		CreatedAt: now,
 		Events:    []string{},
 	}
 
-	// Handle the union type - try to unmarshal as domain first, then ABI
-	if domain, err := request.AsCreateWatcherWithDomain(); err == nil {
-		watcher.Name = domain.Name
-		watcher.Domain = &domain.Domain
-		watcher.Address = domain.Address
-		watcher.ChainSelector = domain.ChainSelector
-		watcher.Events = domain.Events
+	// Handle the union type - try to unmarshal as service first, then ABI
+	if svcReq, err := request.AsCreateWatcherWithService(); err == nil {
+		watcher.Name = svcReq.Name
+		serviceVal := svcReq.Service
+		watcher.Service = &serviceVal
+		watcher.Address = svcReq.Address
+		watcher.ChainSelector = svcReq.ChainSelector
+		watcher.Events = svcReq.Events
 	} else if abiReq, err := request.AsCreateWatcherWithABI(); err == nil {
 		watcher.Name = abiReq.Name
 		watcher.Address = abiReq.Address

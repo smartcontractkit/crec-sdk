@@ -327,7 +327,7 @@ func TestClient_GetOperation(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			response := apiClient.Operation{
 				OperationId:       operationID,
-				Status:            "pending",
+				Status:            apiClient.OperationStatusPending,
 				ChainSelector:     "1337",
 				Address:           "0x1234",
 				WalletOperationId: "op-123",
@@ -423,7 +423,7 @@ func TestClient_ListOperations(t *testing.T) {
 				Data: []apiClient.Operation{
 					{
 						OperationId:       operation1ID,
-						Status:            "pending",
+						Status:            apiClient.OperationStatusPending,
 						ChainSelector:     "1337",
 						Address:           "0x1234",
 						WalletOperationId: "op-1",
@@ -433,7 +433,7 @@ func TestClient_ListOperations(t *testing.T) {
 					},
 					{
 						OperationId:       operation2ID,
-						Status:            "confirmed",
+						Status:            apiClient.OperationStatusConfirmed,
 						ChainSelector:     "1337",
 						Address:           "0x1234",
 						WalletOperationId: "op-2",
@@ -507,11 +507,11 @@ func TestClient_ListOperations(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		listOperationStatus := apiClient.OperationStatusPending
+		statusFilter := []apiClient.OperationStatus{apiClient.OperationStatusPending}
 
 		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID:     channelID,
-			Status:        &listOperationStatus,
+			Status:        &statusFilter,
 			ChainSelector: &chainSelector,
 			Address:       &address,
 		})

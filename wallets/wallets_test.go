@@ -382,12 +382,7 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		rsaSigners := []struct {
-			E string `json:"e"`
-			N string `json:"n"`
-		}{
-			{E: "AQAB", N: "abc123"},
-		}
+		rsaSigners := apiClient.RSASignersList{{E: "AQAB", N: "abc123"}}
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               "test-wallet",
@@ -502,12 +497,7 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		rsaSigners := []struct {
-			E string `json:"e"`
-			N string `json:"n"`
-		}{
-			{E: "AQAB", N: "abc123"},
-		}
+		rsaSigners := apiClient.RSASignersList{{E: "AQAB", N: "abc123"}}
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               walletName,
@@ -525,12 +515,7 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
-		rsaSigners := []struct {
-			E string `json:"e"`
-			N string `json:"n"`
-		}{
-			{E: "", N: "abc123"},
-		}
+		rsaSigners := apiClient.RSASignersList{{E: "", N: "abc123"}}
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               "test-wallet",
@@ -549,12 +534,7 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
-		rsaSigners := []struct {
-			E string `json:"e"`
-			N string `json:"n"`
-		}{
-			{E: "AQAB", N: ""},
-		}
+		rsaSigners := apiClient.RSASignersList{{E: "AQAB", N: ""}}
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               "test-wallet",
@@ -703,7 +683,7 @@ func TestClient_List(t *testing.T) {
 		chainSelector := "5009297550715157269"
 		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
 		walletType := apiClient.Ecdsa
-		walletStatus := apiClient.WalletStatusDeployed
+		walletStatus := []apiClient.WalletStatus{apiClient.WalletStatusDeployed}
 		limit := 10
 		offset := int64(5)
 
@@ -713,7 +693,7 @@ func TestClient_List(t *testing.T) {
 			assert.Equal(t, chainSelector, r.URL.Query().Get("chain_selector"))
 			assert.Equal(t, ownerAddress, r.URL.Query().Get("owner"))
 			assert.Equal(t, "ecdsa", r.URL.Query().Get("type"))
-			assert.Equal(t, "deployed", r.URL.Query().Get("status"))
+			assert.Equal(t, string(apiClient.WalletStatusDeployed), r.URL.Query().Get("status"))
 			assert.Equal(t, "10", r.URL.Query().Get("limit"))
 			assert.Equal(t, "5", r.URL.Query().Get("offset"))
 

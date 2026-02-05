@@ -271,19 +271,19 @@ func TestClient_SearchEvents(t *testing.T) {
 		events := createTestEventsWithKeys(t, 2, privKeys)
 		limit := 50
 		offset := int64(10)
-		typeVal := apiClient.EventTypeWatcherEvent
+		typeVal := []apiClient.EventType{apiClient.EventTypeWatcherEvent}
 		createdLt := int64(1700000000)
 		createdLte := int64(1700000001)
 		createdGt := int64(1600000000)
 		createdGte := int64(1600000001)
 		chainSelector := "5009297550715157269"
-		status := "confirmed"
+		status := []string{string(apiClient.OperationStatusConfirmed)}
 		watcherID := uuid.New()
-		address := "0x1234567890123456789012345678901234567890"
+		address := []string{"0x1234567890123456789012345678901234567890"}
 		walletOperationID := "op-123"
 		operationID := uuid.New().String()
 		eventName := "Transfer"
-		domain := "dvp"
+		service := []string{"dvp"}
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			q := r.URL.Query()
@@ -295,13 +295,13 @@ func TestClient_SearchEvents(t *testing.T) {
 			assert.Equal(t, "1600000000", q.Get("created.gt"))
 			assert.Equal(t, "1600000001", q.Get("created.gte"))
 			assert.Equal(t, "5009297550715157269", q.Get("chain_selector"))
-			assert.Equal(t, "confirmed", q.Get("status"))
+			assert.Equal(t, string(apiClient.OperationStatusConfirmed), q.Get("status"))
 			assert.Equal(t, watcherID.String(), q.Get("watcher_id"))
 			assert.Equal(t, "0x1234567890123456789012345678901234567890", q.Get("address"))
 			assert.Equal(t, "op-123", q.Get("wallet_operation_id"))
 			assert.Equal(t, operationID, q.Get("operation_id"))
 			assert.Equal(t, "Transfer", q.Get("event_name"))
-			assert.Equal(t, "dvp", q.Get("domain"))
+			assert.Equal(t, "dvp", q.Get("service"))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			response := apiClient.EventList{
@@ -328,7 +328,7 @@ func TestClient_SearchEvents(t *testing.T) {
 			WalletOperationId: &walletOperationID,
 			OperationId:       &operationID,
 			EventName:         &eventName,
-			Domain:            &domain,
+			Service:           &service,
 		}
 		eventsList, hasMore, err := c.SearchEvents(context.Background(), channelID, params)
 		require.NoError(t, err)
@@ -368,7 +368,7 @@ func TestClient_SearchEvents(t *testing.T) {
 
 	t.Run("WithTypeFilter", func(t *testing.T) {
 		events := createTestEventsWithKeys(t, 2, privKeys)
-		typeVal := apiClient.EventTypeOperationStatus
+		typeVal := []apiClient.EventType{apiClient.EventTypeOperationStatus}
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			q := r.URL.Query()

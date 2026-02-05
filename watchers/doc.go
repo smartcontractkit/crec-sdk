@@ -2,7 +2,7 @@
 //
 // Watchers monitor specific smart contract events on blockchain networks and
 // trigger workflows when those events occur. They can be configured with
-// pre-defined domain ABIs (dvp, dta, test_consumer) or custom event ABIs.
+// pre-defined service ABIs (dvp, dta, test_consumer) or custom event ABIs.
 //
 // # Usage
 //
@@ -10,10 +10,10 @@
 //
 //	client, _ := crec.NewClient(baseURL, apiKey)
 //
-//	watcher, err := client.Watchers.CreateWithDomain(ctx, channelID, watchers.CreateWithDomainInput{
+//	watcher, err := client.Watchers.CreateWithService(ctx, channelID, watchers.CreateWithServiceInput{
 //	    ChainSelector: "16015286601757825753",
 //	    Address:       "0x...",
-//	    Domain:        "dvp",
+//	    Service:       "dvp",
 //	    Events:        []string{"SettlementProposed"},
 //	})
 //
@@ -26,14 +26,14 @@
 //
 // # Creating Watchers
 //
-// Use [Client.CreateWithDomain] for known contract types (dvp, dta, test_consumer):
+// Use [Client.CreateWithService] for known contract types (dvp, dta, test_consumer):
 //
 //	name := "My DVP Watcher"
-//	watcher, err := client.Watchers.CreateWithDomain(ctx, channelID, CreateWithDomainInput{
+//	watcher, err := client.Watchers.CreateWithService(ctx, channelID, CreateWithServiceInput{
 //	    Name:          &name,
 //	    ChainSelector: "16015286601757825753",
 //	    Address:       "0x1234...",
-//	    Domain:        "dvp",
+//	    Service:       "dvp",
 //	    Events:        []string{"OperationExecuted"},
 //	})
 //
@@ -76,9 +76,9 @@
 //
 // Use [Client.List] with [ListFilters] to query watchers:
 //
-//	status := StatusActive
+//	statusFilter := []apiClient.WatcherStatus{apiClient.Active}
 //	result, err := client.Watchers.List(ctx, channelID, ListFilters{
-//	    Status: &status,
+//	    Status: &statusFilter,
 //	    Limit:  ptr(10),
 //	})
 //	for _, w := range result.Data {

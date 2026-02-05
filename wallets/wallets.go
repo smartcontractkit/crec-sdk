@@ -109,11 +109,8 @@ type CreateInput struct {
 	WalletOwnerAddress  string
 	WalletType          apiClient.WalletType
 	AllowedEcdsaSigners *[]string
-	AllowedRsaSigners   *[]struct {
-		E string `json:"e"` // RSA public exponent
-		N string `json:"n"` // RSA modulus
-	}
-	StatusChannelId *uuid.UUID `json:"status_channel_id,omitempty"`
+	AllowedRsaSigners   *apiClient.RSASignersList
+	StatusChannelId     *uuid.UUID `json:"status_channel_id,omitempty"`
 }
 
 // Create creates a new wallet in the CREC backend.
@@ -280,7 +277,7 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 //   - Owner: Optional filter to search wallets by owner address (42-character hex string starting with 0x).
 //   - Address: Optional filter to search wallets by wallet address (42-character hex string starting with 0x).
 //   - Type: Optional filter to search wallets by type (e.g., "ecdsa", "rsa").
-//   - Status: Optional filter to search wallets by status (e.g., "deployed", "deploying", "failed", "pending").
+//   - Status: Optional filter to search wallets by status (e.g., "deployed", "deploying", "failed", "pending", "deactivated").
 //   - Limit: Maximum number of wallets to return per page.
 //   - Offset: Number of wallets to skip for pagination (default: 0).
 type ListInput struct {
@@ -289,7 +286,7 @@ type ListInput struct {
 	Owner         *string
 	Address       *string
 	Type          *apiClient.WalletType
-	Status        *apiClient.WalletStatus
+	Status        *[]apiClient.WalletStatus
 	Limit         *int
 	Offset        *int64
 }

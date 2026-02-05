@@ -45,11 +45,11 @@
 //
 // Watchers monitor blockchain events on specific smart contracts:
 //
-//	// Create a watcher with a known domain
-//	watcher, err := client.Watchers.CreateWithDomain(ctx, channelID, watchers.CreateWithDomainInput{
+//	// Create a watcher with a known service
+//	watcher, err := client.Watchers.CreateWithService(ctx, channelID, watchers.CreateWithServiceInput{
 //	    ChainSelector: "16015286601757825753",
 //	    Address:       "0x...",
-//	    Domain:        "dvp",
+//	    Service:       "dvp",
 //	    Events:        []string{"SettlementProposed"},
 //	})
 //

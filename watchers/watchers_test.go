@@ -131,12 +131,12 @@ func TestNewClient(t *testing.T) {
 	})
 }
 
-func TestClient_CreateWithDomain(t *testing.T) {
+func TestClient_CreateWithService(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 		watcherName := "test-watcher"
-		domain := "dvp"
+		service := "dvp"
 		chainSelector := "1337"
 		address := "0x1234567890abcdef"
 
@@ -153,13 +153,13 @@ func TestClient_CreateWithDomain(t *testing.T) {
 			err = json.Unmarshal(body, &createReq)
 			require.NoError(t, err)
 
-			domainWatcher, err := createReq.AsCreateWatcherWithDomain()
+			serviceWatcher, err := createReq.AsCreateWatcherWithService()
 			require.NoError(t, err)
-			require.NotNil(t, domainWatcher.Name)
-			assert.Equal(t, watcherName, *domainWatcher.Name)
-			assert.Equal(t, domain, domainWatcher.Domain)
-			assert.Equal(t, chainSelector, domainWatcher.ChainSelector)
-			assert.Equal(t, address, domainWatcher.Address)
+			require.NotNil(t, serviceWatcher.Name)
+			assert.Equal(t, watcherName, *serviceWatcher.Name)
+			assert.Equal(t, service, serviceWatcher.Service)
+			assert.Equal(t, chainSelector, serviceWatcher.ChainSelector)
+			assert.Equal(t, address, serviceWatcher.Address)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
@@ -168,7 +168,7 @@ func TestClient_CreateWithDomain(t *testing.T) {
 				Name:          &watcherName,
 				ChainSelector: chainSelector,
 				Address:       address,
-				Status:        "pending",
+				Status:        apiClient.Pending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -176,9 +176,9 @@ func TestClient_CreateWithDomain(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		watcher, err := client.CreateWithDomain(context.Background(), channelID, CreateWithDomainInput{
+		watcher, err := client.CreateWithService(context.Background(), channelID, CreateWithServiceInput{
 			Name:          &watcherName,
-			Domain:        domain,
+			Service:       service,
 			ChainSelector: chainSelector,
 			Address:       address,
 			Events:        []string{"TestEvent"},
@@ -203,9 +203,9 @@ func TestClient_CreateWithDomain(t *testing.T) {
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := client.CreateWithDomain(context.Background(), uuid.Nil, CreateWithDomainInput{
+		watcher, err := client.CreateWithService(context.Background(), uuid.Nil, CreateWithServiceInput{
 			Name:          &name,
-			Domain:        "dvp",
+			Service:       "dvp",
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
@@ -216,18 +216,18 @@ func TestClient_CreateWithDomain(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrChannelIDRequired), "Expected ErrChannelIDRequired, got: %v", err)
 	})
 
-	t.Run("EmptyDomain", func(t *testing.T) {
+	t.Run("EmptyService", func(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
-			t.Fatal("Should not make request with empty domain")
+			t.Fatal("Should not make request with empty service")
 		}
 
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := client.CreateWithDomain(context.Background(), uuid.New(), CreateWithDomainInput{
+		watcher, err := client.CreateWithService(context.Background(), uuid.New(), CreateWithServiceInput{
 			Name:          &name,
-			Domain:        "",
+			Service:       "",
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
@@ -235,7 +235,7 @@ func TestClient_CreateWithDomain(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
-		assert.True(t, errors.Is(err, ErrDomainRequired), "Expected ErrDomainRequired, got: %v", err)
+		assert.True(t, errors.Is(err, ErrServiceRequired), "Expected ErrServiceRequired, got: %v", err)
 	})
 
 	t.Run("EmptyAddress", func(t *testing.T) {
@@ -247,9 +247,9 @@ func TestClient_CreateWithDomain(t *testing.T) {
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := client.CreateWithDomain(context.Background(), uuid.New(), CreateWithDomainInput{
+		watcher, err := client.CreateWithService(context.Background(), uuid.New(), CreateWithServiceInput{
 			Name:          &name,
-			Domain:        "dvp",
+			Service:       "dvp",
 			ChainSelector: "1337",
 			Address:       "",
 			Events:        []string{"TestEvent"},
@@ -275,9 +275,9 @@ func TestClient_CreateWithDomain(t *testing.T) {
 		defer server.Close()
 
 		name := "test-watcher"
-		watcher, err := client.CreateWithDomain(context.Background(), channelID, CreateWithDomainInput{
+		watcher, err := client.CreateWithService(context.Background(), channelID, CreateWithServiceInput{
 			Name:          &name,
-			Domain:        "dvp",
+			Service:       "dvp",
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
@@ -285,7 +285,7 @@ func TestClient_CreateWithDomain(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
-		assert.True(t, errors.Is(err, ErrCreateWatcherDomain), "Expected ErrCreateWatcherDomain, got: %v", err)
+		assert.True(t, errors.Is(err, ErrCreateWatcherService), "Expected ErrCreateWatcherService, got: %v", err)
 	})
 }
 
@@ -327,7 +327,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 				Name:          &watcherName,
 				ChainSelector: chainSelector,
 				Address:       address,
-				Status:        "pending",
+				Status:        apiClient.Pending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -514,7 +514,7 @@ func TestClient_List(t *testing.T) {
 						Name:          &name1,
 						ChainSelector: "1337",
 						Address:       "0x1111",
-						Status:        "active",
+						Status:        apiClient.Active,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -525,7 +525,7 @@ func TestClient_List(t *testing.T) {
 						Name:          &name2,
 						ChainSelector: "1337",
 						Address:       "0x2222",
-						Status:        "active",
+						Status:        apiClient.Active,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -563,7 +563,7 @@ func TestClient_List(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 		name := "test-watcher"
-		status := StatusActive
+		status := apiClient.Active
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			query := r.URL.Query()
@@ -594,9 +594,10 @@ func TestClient_List(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
+		statusFilter := []apiClient.WatcherStatus{status}
 		result, err := client.List(context.Background(), channelID, ListFilters{
 			Name:   &name,
-			Status: &status,
+			Status: &statusFilter,
 		})
 
 		require.NoError(t, err)
@@ -663,7 +664,7 @@ func TestClient_Get(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active",
+				Status:        apiClient.Active,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -695,7 +696,7 @@ func TestClient_Get(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "16015286601757825753",
 				Address:       "0x1234567890123456789012345678901234567890",
-				Status:        "active",
+				Status:        apiClient.Active,
 				CreatedAt:     1704067200, // 2024-01-01 00:00:00 UTC
 				Events:        []string{"Transfer"},
 				WorkflowId:    "00a52f385ef2c2ae57721370dbcef8b25ab406de2be190575c88e324c002e22f",
@@ -799,7 +800,7 @@ func TestClient_Update(t *testing.T) {
 				Name:          &newName,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active",
+				Status:        apiClient.Active,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1022,7 +1023,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active",
+				Status:        apiClient.Active,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1341,7 +1342,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active",
+				Status:        apiClient.Active,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1431,7 +1432,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "deleting",
+				Status:        apiClient.Deleting,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1460,7 +1461,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "deleting",
+				Status:        apiClient.Deleting,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1498,7 +1499,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        "active", // Unexpected status while waiting for deletion
+				Status:        apiClient.Active, // Unexpected status while waiting for deletion
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1596,7 +1597,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 }
 
 func TestEndToEnd_WatcherLifecycle(t *testing.T) {
-	t.Run("CreateWithDomain_WaitActive_Update_Delete", func(t *testing.T) {
+	t.Run("CreateWithService_WaitActive_Update_Delete", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 		watcherName := "integration-test-watcher"
@@ -1616,7 +1617,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        "pending",
+					Status:        apiClient.Pending,
 				}
 				json.NewEncoder(w).Encode(response)
 
@@ -1666,15 +1667,15 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 
 		ctx := context.Background()
 
-		// Step 1: Create watcher with domain
-		createInput := CreateWithDomainInput{
+		// Step 1: Create watcher with service
+		createInput := CreateWithServiceInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
 			Address:       "0x1234",
-			Domain:        "dvp",
+			Service:       "dvp",
 			Events:        []string{"TestEvent"},
 		}
-		created, err := client.CreateWithDomain(ctx, channelID, createInput)
+		created, err := client.CreateWithService(ctx, channelID, createInput)
 		require.NoError(t, err)
 		assert.Equal(t, watcherID, created.WatcherId)
 		assert.Equal(t, apiClient.Pending, created.Status)
@@ -1842,13 +1843,13 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		ctx := context.Background()
 
 		// Try to create with invalid data
-		createInput := CreateWithDomainInput{
+		createInput := CreateWithServiceInput{
 			ChainSelector: "0", // Invalid
 			Address:       "0x1234",
-			Domain:        "dvp",
+			Service:       "dvp",
 			Events:        []string{"TestEvent"},
 		}
-		_, err := client.CreateWithDomain(ctx, channelID, createInput)
+		_, err := client.CreateWithService(ctx, channelID, createInput)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrChainSelectorRequired), "Expected ErrChainSelectorRequired, got: %v", err)
 	})
@@ -1891,14 +1892,14 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		ctx := context.Background()
 
 		// Create watcher
-		createInput := CreateWithDomainInput{
+		createInput := CreateWithServiceInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
 			Address:       "0x1234",
-			Domain:        "dvp",
+			Service:       "dvp",
 			Events:        []string{"TestEvent"},
 		}
-		created, err := client.CreateWithDomain(ctx, channelID, createInput)
+		created, err := client.CreateWithService(ctx, channelID, createInput)
 		require.NoError(t, err)
 
 		// Wait for active - should fail because watcher deployment failed
@@ -1977,14 +1978,14 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		ctx := context.Background()
 
 		// Create watcher
-		createInput := CreateWithDomainInput{
+		createInput := CreateWithServiceInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
 			Address:       "0x1234",
-			Domain:        "dvp",
+			Service:       "dvp",
 			Events:        []string{"TestEvent"},
 		}
-		created, err := client.CreateWithDomain(ctx, channelID, createInput)
+		created, err := client.CreateWithService(ctx, channelID, createInput)
 		require.NoError(t, err)
 
 		// Wait for active - should fail because watcher was deleted (404 after consistency window)
@@ -2083,8 +2084,8 @@ func TestEndToEnd_Filtering(t *testing.T) {
 			assert.Equal(t, "my-watcher", query.Get("name"))
 			assert.Equal(t, "1337", query.Get("chain_selector"))
 			assert.Equal(t, "0x1234", query.Get("address"))
-			assert.Equal(t, "dvp", query.Get("domain"))
-			assert.Equal(t, "active", query.Get("status"))
+			assert.Equal(t, "dvp", query.Get("service"))
+			assert.Equal(t, string(apiClient.Active), query.Get("status"))
 			assert.Equal(t, "10", query.Get("limit"))
 			assert.Equal(t, "5", query.Get("offset"))
 
@@ -2098,7 +2099,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        "active",
+						Status:        apiClient.Active,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -2119,17 +2120,19 @@ func TestEndToEnd_Filtering(t *testing.T) {
 		chainSelector := "1337"
 		name := "my-watcher"
 		address := "0x1234"
-		domain := "dvp"
-		status := StatusActive
+		service := "dvp"
+		status := apiClient.Active
 		limit := 10
 		offset := int64(5)
 
+		serviceFilter := []string{service}
+		statusFilter := []apiClient.WatcherStatus{status}
 		filters := ListFilters{
 			Name:          &name,
 			ChainSelector: &chainSelector,
 			Address:       &address,
-			Domain:        &domain,
-			Status:        &status,
+			Service:       &serviceFilter,
+			Status:        &statusFilter,
 			Limit:         &limit,
 			Offset:        &offset,
 		}
@@ -2161,7 +2164,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 					Name:          &name,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        "active",
+					Status:        apiClient.Active,
 					ChannelId:     channelID,
 					CreatedAt:     time.Now().Unix(),
 					DonFamily:     "zone-a",
@@ -2330,7 +2333,7 @@ func TestIsTransientError(t *testing.T) {
 			ErrChannelIDRequired,
 			ErrWatcherIDRequired,
 			ErrNameRequired,
-			ErrDomainRequired,
+			ErrServiceRequired,
 			ErrAddressRequired,
 			ErrEventsRequired,
 			ErrABIRequired,
