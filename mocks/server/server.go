@@ -80,10 +80,12 @@ func (s *MockServer) PostChannels(w http.ResponseWriter, r *http.Request) {
 
 	channelId := uuid.New()
 	now := time.Now().Unix()
+	status := stdserver.ChannelStatusActive
 	channel := stdserver.Channel{
 		ChannelId: channelId,
 		Name:      request.Name,
 		CreatedAt: now,
+		Status:    &status,
 	}
 
 	s.mu.Lock()
@@ -115,6 +117,15 @@ func (s *MockServer) GetChannels(w http.ResponseWriter, r *http.Request, params 
 		filtered := []stdserver.Channel{}
 		for _, ch := range channels {
 			if ch.Name == *params.Name {
+				filtered = append(filtered, ch)
+			}
+		}
+		filteredChannels = filtered
+	}
+	if params.Status != nil {
+		filtered := []stdserver.Channel{}
+		for _, ch := range filteredChannels {
+			if ch.Status != nil && *ch.Status == *params.Status {
 				filtered = append(filtered, ch)
 			}
 		}
@@ -468,7 +479,7 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 		WatcherId: watcherId,
 		ChannelId: channelId,
 		Address:   "",
-		Status:    stdserver.Pending, // Start as pending
+		Status:    stdserver.WatcherStatusPending, // Start as pending
 		CreatedAt: now,
 		Events:    []string{},
 	}
@@ -565,7 +576,7 @@ func (s *MockServer) DeleteChannelsChannelIdWatchersWatcherId(w http.ResponseWri
 			}
 
 			// Mark as deleting to simulate async deletion
-			s.watchers[i].Status = stdserver.Deleting
+			s.watchers[i].Status = stdserver.WatcherStatusDeleting
 
 			// Schedule automatic removal of the watcher after a brief delay
 			// When a watcher is deleted, it should return 404 Not Found
@@ -598,6 +609,7 @@ func (s *MockServer) PostWallets(w http.ResponseWriter, r *http.Request) {
 		ChainSelector: in.ChainSelector,
 		Name:          &in.Name,
 		CreatedAt:     &now,
+		Status:        stdserver.WalletStatusDeployed,
 	}
 
 	s.mu.Lock()
@@ -682,10 +694,10 @@ func (s *MockServer) DeleteWalletsWalletId(w http.ResponseWriter, r *http.Reques
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Find and remove the wallet
+	// Soft delete: set status to deleted instead of removing
 	for i, wallet := range s.wallets {
 		if wallet.WalletId == walletId {
-			s.wallets = append(s.wallets[:i], s.wallets[i+1:]...)
+			s.wallets[i].Status = stdserver.WalletStatusDeleted
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -714,7 +726,7 @@ func (s *MockServer) removeWatcherIfDeleting(watcherID uuid.UUID) bool {
 	defer s.mu.Unlock()
 
 	for i, w := range s.watchers {
-		if w.WatcherId == watcherID && w.Status == stdserver.Deleting {
+		if w.WatcherId == watcherID && w.Status == stdserver.WatcherStatusDeleting {
 			s.watchers = append(s.watchers[:i], s.watchers[i+1:]...)
 			return true
 		}

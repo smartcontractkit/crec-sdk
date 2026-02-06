@@ -277,7 +277,7 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 //   - Owner: Optional filter to search wallets by owner address (42-character hex string starting with 0x).
 //   - Address: Optional filter to search wallets by wallet address (42-character hex string starting with 0x).
 //   - Type: Optional filter to search wallets by type (e.g., "ecdsa", "rsa").
-//   - Status: Optional filter to search wallets by status (e.g., "deployed", "deploying", "failed", "pending", "deactivated").
+//   - Status: Optional filter to search wallets by status (e.g., "deployed", "deploying", "failed", "pending", "deleted").
 //   - Limit: Maximum number of wallets to return per page.
 //   - Offset: Number of wallets to skip for pagination (default: 0).
 type ListInput struct {
