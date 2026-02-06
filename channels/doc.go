@@ -44,6 +44,12 @@
 //	    Limit: ptr(10),
 //	})
 //
+//	// Filter by status
+//	status := apiClient.ChannelStatusActive
+//	channels, hasMore, err = client.Channels.List(ctx, ListInput{
+//	    Status: &status,
+//	})
+//
 // # Getting and Deleting
 //
 // Retrieve a specific channel by ID:

@@ -518,17 +518,17 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 			}
 
 			switch watcher.Status {
-			case apiClient.Active:
+			case apiClient.WatcherStatusActive:
 				c.logger.Info("Watcher is now active")
 				return watcher, nil
-			case apiClient.Failed:
+			case apiClient.WatcherStatusFailed:
 				c.logger.Error("Watcher deployment failed")
 				return nil, ErrWatcherDeploymentFailed
-			case apiClient.Pending:
+			case apiClient.WatcherStatusPending:
 				// Continue waiting
 				c.logger.Debug("Watcher still pending, continuing to wait")
 				continue
-			case apiClient.Deleting:
+			case apiClient.WatcherStatusDeleting:
 				c.logger.Error("Watcher is being deleted")
 				return nil, ErrWatcherIsDeleting
 			case watcherStatusDeleted:
@@ -630,10 +630,10 @@ func (c *Client) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watche
 			case watcherStatusDeleted:
 				c.logger.Debug("Watcher is now deleted (status confirmed)")
 				return nil
-			case apiClient.Deleting:
+			case apiClient.WatcherStatusDeleting:
 				c.logger.Debug("Watcher is being deleted, continuing to wait")
 				continue
-			case apiClient.Active, apiClient.Pending, apiClient.Failed:
+			case apiClient.WatcherStatusActive, apiClient.WatcherStatusPending, apiClient.WatcherStatusFailed:
 				// If the watcher is in any other valid state, it means deletion was rolled back or failed
 				c.logger.Error("Watcher deletion appears to have failed", "status", watcher.Status)
 				return fmt.Errorf("%w, watcher is in %s state", ErrWatcherDeletionFailed, watcher.Status)

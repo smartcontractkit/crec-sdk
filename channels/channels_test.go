@@ -119,10 +119,12 @@ func TestClient_Create(t *testing.T) {
 			// Return success response
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
+			channelStatus := apiClient.ChannelStatusActive
 			response := apiClient.Channel{
 				ChannelId: channelID,
 				Name:      channelName,
 				CreatedAt: createdAt,
+				Status:    &channelStatus,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -166,11 +168,13 @@ func TestClient_Create(t *testing.T) {
 			// Return success response
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
+			channelStatus := apiClient.ChannelStatusActive
 			response := apiClient.Channel{
 				ChannelId:   channelID,
 				Name:        channelName,
 				Description: &channelDescription,
 				CreatedAt:   createdAt,
+				Status:      &channelStatus,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -289,10 +293,12 @@ func TestClient_Get(t *testing.T) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
+			channelStatus := apiClient.ChannelStatusActive
 			response := apiClient.Channel{
 				ChannelId: channelID,
 				Name:      channelName,
 				CreatedAt: createdAt,
+				Status:    &channelStatus,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -371,17 +377,20 @@ func TestClient_List(t *testing.T) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
+			channelStatus := apiClient.ChannelStatusActive
 			response := apiClient.ChannelList{
 				Data: []apiClient.Channel{
 					{
 						ChannelId: channel1ID,
 						Name:      "channel-1",
 						CreatedAt: createdAt,
+						Status:    &channelStatus,
 					},
 					{
 						ChannelId: channel2ID,
 						Name:      "channel-2",
 						CreatedAt: createdAt,
+						Status:    &channelStatus,
 					},
 				},
 				HasMore: false,
@@ -423,12 +432,14 @@ func TestClient_List(t *testing.T) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
+			channelStatus := apiClient.ChannelStatusActive
 			response := apiClient.ChannelList{
 				Data: []apiClient.Channel{
 					{
 						ChannelId: channelID,
 						Name:      "test-channel",
 						CreatedAt: createdAt,
+						Status:    &channelStatus,
 					},
 				},
 				HasMore: false,
@@ -447,6 +458,49 @@ func TestClient_List(t *testing.T) {
 		assert.Len(t, channels, 1)
 		assert.False(t, hasMore)
 		assert.Equal(t, "test-channel", channels[0].Name)
+	})
+
+	t.Run("WithStatusFilter", func(t *testing.T) {
+		channelID := uuid.New()
+		createdAt := time.Now().Unix()
+		filterStatus := apiClient.ChannelStatusActive
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/channels", r.URL.Path)
+			assert.Equal(t, "GET", r.Method)
+			query := r.URL.Query()
+			assert.Equal(t, string(apiClient.ChannelStatusActive), query.Get("status"))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			channelStatus := apiClient.ChannelStatusActive
+			response := apiClient.ChannelList{
+				Data: []apiClient.Channel{
+					{
+						ChannelId: channelID,
+						Name:      "active-channel",
+						CreatedAt: createdAt,
+						Status:    &channelStatus,
+					},
+				},
+				HasMore: false,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		channels, hasMore, err := client.List(context.Background(), ListInput{
+			Status: &filterStatus,
+		})
+
+		require.NoError(t, err)
+		assert.Len(t, channels, 1)
+		assert.False(t, hasMore)
+		assert.Equal(t, "active-channel", channels[0].Name)
+		assert.NotNil(t, channels[0].Status)
+		assert.Equal(t, apiClient.ChannelStatusActive, *channels[0].Status)
 	})
 
 	t.Run("WithPagination", func(t *testing.T) {
@@ -526,11 +580,13 @@ func TestClient_Update(t *testing.T) {
 			// Return success response
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
+			channelStatus := apiClient.ChannelStatusActive
 			response := apiClient.Channel{
 				ChannelId:   channelID,
 				Name:        newName,
 				Description: &newDescription,
 				CreatedAt:   createdAt,
+				Status:      &channelStatus,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
