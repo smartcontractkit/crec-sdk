@@ -124,7 +124,7 @@ func TestClient_Create(t *testing.T) {
 				ChannelId: channelID,
 				Name:      channelName,
 				CreatedAt: createdAt,
-				Status:    &channelStatus,
+				Status:    channelStatus,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -174,7 +174,7 @@ func TestClient_Create(t *testing.T) {
 				Name:        channelName,
 				Description: &channelDescription,
 				CreatedAt:   createdAt,
-				Status:      &channelStatus,
+				Status:      channelStatus,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -298,7 +298,7 @@ func TestClient_Get(t *testing.T) {
 				ChannelId: channelID,
 				Name:      channelName,
 				CreatedAt: createdAt,
-				Status:    &channelStatus,
+				Status:    channelStatus,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -384,13 +384,13 @@ func TestClient_List(t *testing.T) {
 						ChannelId: channel1ID,
 						Name:      "channel-1",
 						CreatedAt: createdAt,
-						Status:    &channelStatus,
+						Status:    channelStatus,
 					},
 					{
 						ChannelId: channel2ID,
 						Name:      "channel-2",
 						CreatedAt: createdAt,
-						Status:    &channelStatus,
+						Status:    channelStatus,
 					},
 				},
 				HasMore: false,
@@ -439,7 +439,7 @@ func TestClient_List(t *testing.T) {
 						ChannelId: channelID,
 						Name:      "test-channel",
 						CreatedAt: createdAt,
-						Status:    &channelStatus,
+						Status:    channelStatus,
 					},
 				},
 				HasMore: false,
@@ -480,7 +480,7 @@ func TestClient_List(t *testing.T) {
 						ChannelId: channelID,
 						Name:      "active-channel",
 						CreatedAt: createdAt,
-						Status:    &channelStatus,
+						Status:    channelStatus,
 					},
 				},
 				HasMore: false,
@@ -499,8 +499,7 @@ func TestClient_List(t *testing.T) {
 		assert.Len(t, channels, 1)
 		assert.False(t, hasMore)
 		assert.Equal(t, "active-channel", channels[0].Name)
-		assert.NotNil(t, channels[0].Status)
-		assert.Equal(t, apiClient.ChannelStatusActive, *channels[0].Status)
+		assert.Equal(t, apiClient.ChannelStatusActive, channels[0].Status)
 	})
 
 	t.Run("WithPagination", func(t *testing.T) {
@@ -586,7 +585,7 @@ func TestClient_Update(t *testing.T) {
 				Name:        newName,
 				Description: &newDescription,
 				CreatedAt:   createdAt,
-				Status:      &channelStatus,
+				Status:      channelStatus,
 			}
 			json.NewEncoder(w).Encode(response)
 		}

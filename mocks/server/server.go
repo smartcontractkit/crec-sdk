@@ -80,12 +80,11 @@ func (s *MockServer) PostChannels(w http.ResponseWriter, r *http.Request) {
 
 	channelId := uuid.New()
 	now := time.Now().Unix()
-	status := stdserver.ChannelStatusActive
 	channel := stdserver.Channel{
 		ChannelId: channelId,
 		Name:      request.Name,
 		CreatedAt: now,
-		Status:    &status,
+		Status:    stdserver.ChannelStatusActive,
 	}
 
 	s.mu.Lock()
@@ -125,7 +124,7 @@ func (s *MockServer) GetChannels(w http.ResponseWriter, r *http.Request, params 
 	if params.Status != nil {
 		filtered := []stdserver.Channel{}
 		for _, ch := range filteredChannels {
-			if ch.Status != nil && *ch.Status == *params.Status {
+			if ch.Status == *params.Status {
 				filtered = append(filtered, ch)
 			}
 		}
