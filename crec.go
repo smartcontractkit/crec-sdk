@@ -83,7 +83,7 @@ func NewAPIClient(baseURL, apiKey string, opts ...Option) (*APIClient, error) {
 	}
 
 	apiKeyHeaderEditor := func(ctx context.Context, req *http.Request) error {
-		req.Header.Set("Api-Key", apiKey)
+		req.Header.Set("Authorization", "Apikey "+apiKey)
 		return nil
 	}
 

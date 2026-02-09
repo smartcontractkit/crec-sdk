@@ -39,7 +39,7 @@ func TestHashOperation(t *testing.T) {
 	c, err := apiClient.NewClientWithResponses(
 		mockServer.TestServer.URL,
 		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("Api-Key", "some-api-key")
+			req.Header.Set("Authorization", "Apikey some-api-key")
 			return nil
 		}),
 	)
@@ -89,7 +89,7 @@ func TestSignOperation(t *testing.T) {
 	c, err := apiClient.NewClientWithResponses(
 		mockServer.TestServer.URL,
 		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("Api-Key", "some-api-key")
+			req.Header.Set("Authorization", "Apikey some-api-key")
 			return nil
 		}),
 	)
@@ -177,7 +177,7 @@ func TestSendSignedOperation(t *testing.T) {
 			c, err := apiClient.NewClientWithResponses(
 				mockServer.TestServer.URL,
 				apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-					req.Header.Set("Api-Key", "some-api-key")
+					req.Header.Set("Authorization", "Apikey some-api-key")
 					return nil
 				}),
 			)
@@ -222,7 +222,7 @@ func TestExecuteOperation(t *testing.T) {
 	c, err := apiClient.NewClientWithResponses(
 		mockServer.TestServer.URL,
 		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("Api-Key", "some-api-key")
+			req.Header.Set("Authorization", "Apikey some-api-key")
 			return nil
 		}),
 	)
@@ -270,7 +270,7 @@ func TestExecuteTransactions(t *testing.T) {
 	c, err := apiClient.NewClientWithResponses(
 		mockServer.TestServer.URL,
 		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("Api-Key", "some-api-key")
+			req.Header.Set("Authorization", "Apikey some-api-key")
 			return nil
 		}),
 	)
@@ -364,7 +364,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	c, err := apiClient.NewClientWithResponses(
 		mockServer.TestServer.URL,
 		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("Api-Key", "some-api-key")
+			req.Header.Set("Authorization", "Apikey some-api-key")
 			return nil
 		}),
 	)
