@@ -177,7 +177,7 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID) (*apiClient.Chann
 
 // ListInput defines the input parameters for listing channels.
 //   - Name: Optional filter to search channels by name.
-//   - Status: Optional filter to search channels by status (e.g., active, deactivated).
+//   - Status: Optional filter to search channels by status (e.g., active, inactive).
 //   - Limit: Maximum number of channels to return (1-50, default: 20).
 //   - Offset: Number of channels to skip for pagination (default: 0).
 type ListInput struct {
