@@ -22,7 +22,7 @@ func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest
 
 	// Add API key header to all requests
 	apiKeyEditor := func(ctx context.Context, req *http.Request) error {
-		req.Header.Set("Api-Key", "test-api-key")
+		req.Header.Set("Authorization", "Apikey test-api-key")
 		return nil
 	}
 
@@ -105,7 +105,7 @@ func TestClient_Create(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/wallets", r.URL.Path)
 			assert.Equal(t, "POST", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			// Read and validate request body
 			body, err := io.ReadAll(r.Body)
@@ -162,7 +162,7 @@ func TestClient_Create(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/wallets", r.URL.Path)
 			assert.Equal(t, "POST", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			// Read and validate request body
 			body, err := io.ReadAll(r.Body)
@@ -571,7 +571,7 @@ func TestClient_Get(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/wallets/"+walletID.String(), r.URL.Path)
 			assert.Equal(t, "GET", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -641,7 +641,7 @@ func TestClient_List(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/wallets", r.URL.Path)
 			assert.Equal(t, "GET", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -821,7 +821,7 @@ func TestClient_Update(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/wallets/"+walletID.String(), r.URL.Path)
 			assert.Equal(t, "PATCH", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			// Read and validate request body
 			body, err := io.ReadAll(r.Body)
@@ -922,7 +922,7 @@ func TestClient_Delete(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/wallets/"+walletID.String(), r.URL.Path)
 			assert.Equal(t, "DELETE", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			w.WriteHeader(http.StatusOK)
 		}

@@ -26,7 +26,7 @@ func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest
 
 	// Add API key header to all requests
 	apiKeyEditor := func(ctx context.Context, req *http.Request) error {
-		req.Header.Set("Api-Key", "test-api-key")
+		req.Header.Set("Authorization", "Apikey test-api-key")
 		return nil
 	}
 
@@ -144,7 +144,7 @@ func TestClient_CreateWithService(t *testing.T) {
 			expectedPath := "/channels/" + channelID.String() + "/watchers"
 			assert.Equal(t, expectedPath, r.URL.Path)
 			assert.Equal(t, "POST", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
@@ -301,7 +301,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 			expectedPath := "/channels/" + channelID.String() + "/watchers"
 			assert.Equal(t, expectedPath, r.URL.Path)
 			assert.Equal(t, "POST", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
@@ -497,7 +497,7 @@ func TestClient_List(t *testing.T) {
 			expectedPath := "/channels/" + channelID.String() + "/watchers"
 			assert.Equal(t, expectedPath, r.URL.Path)
 			assert.Equal(t, "GET", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			query := r.URL.Query()
 			assert.Equal(t, "10", query.Get("limit"))
@@ -654,7 +654,7 @@ func TestClient_Get(t *testing.T) {
 			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
 			assert.Equal(t, expectedPath, r.URL.Path)
 			assert.Equal(t, "GET", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -782,7 +782,7 @@ func TestClient_Update(t *testing.T) {
 			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
 			assert.Equal(t, expectedPath, r.URL.Path)
 			assert.Equal(t, "PATCH", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
@@ -904,7 +904,7 @@ func TestClient_Delete(t *testing.T) {
 			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
 			assert.Equal(t, expectedPath, r.URL.Path)
 			assert.Equal(t, "DELETE", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			w.WriteHeader(http.StatusNoContent)
 		}
@@ -925,7 +925,7 @@ func TestClient_Delete(t *testing.T) {
 			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
 			assert.Equal(t, expectedPath, r.URL.Path)
 			assert.Equal(t, "DELETE", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
 			w.WriteHeader(http.StatusAccepted) // 202 for async deletion
 		}
@@ -1957,7 +1957,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		// Create client with very short eventual consistency window
 		// so that 404 is immediately treated as "watcher deleted"
 		apiKeyEditor := func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("Api-Key", "test-api-key")
+			req.Header.Set("Authorization", "Apikey test-api-key")
 			return nil
 		}
 		crecAPIClient, err := apiClient.NewClientWithResponses(

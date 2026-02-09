@@ -27,7 +27,7 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 	c, err := apiClient.NewClientWithResponses(
 		s.TestServer.URL,
 		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("Api-Key", "test-key")
+			req.Header.Set("Authorization", "Apikey test-key")
 			return nil
 		}),
 	)

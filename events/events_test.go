@@ -2133,7 +2133,7 @@ func newCRECClient(t *testing.T, baseURL string) *apiClient.ClientWithResponses 
 	crecClient, err := apiClient.NewClientWithResponses(
 		baseURL,
 		apiClient.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("Api-Key", testAPIKey)
+			req.Header.Set("Authorization", "Apikey "+testAPIKey)
 			return nil
 		}),
 	)

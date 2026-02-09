@@ -182,8 +182,8 @@ func TestNewClient(t *testing.T) {
 func TestNewClient_WithMockServer(t *testing.T) {
 	// Create a mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify API key header is set
-		assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+		// Verify Authorization header is set
+		assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -245,7 +245,7 @@ func TestClient_ListNetworks(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/networks", r.URL.Path)
 			assert.Equal(t, "GET", r.Method)
-			assert.Equal(t, "test-api-key", r.Header.Get("Api-Key"))
+			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(apiClient.NetworkList{
@@ -520,7 +520,7 @@ func TestNewClient_APIKeyHeader(t *testing.T) {
 	apiKeyReceived := ""
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		apiKeyReceived = r.Header.Get("Api-Key")
+		apiKeyReceived = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"data": [], "hasMore": false}`))
@@ -535,7 +535,7 @@ func TestNewClient_APIKeyHeader(t *testing.T) {
 	// Using Channels.List as it's a simple GET request
 	_, _, _ = client.Channels.List(context.Background(), channels.ListInput{})
 	// The request might fail but we don't care - we just want to verify the header was set
-	assert.Equal(t, "my-secret-api-key", apiKeyReceived)
+	assert.Equal(t, "Apikey my-secret-api-key", apiKeyReceived)
 }
 
 func TestNewAPIClient(t *testing.T) {
@@ -606,7 +606,7 @@ func TestNewAPIClient_APIKeyHeader(t *testing.T) {
 	apiKeyReceived := ""
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		apiKeyReceived = r.Header.Get("Api-Key")
+		apiKeyReceived = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"data": [], "hasMore": false}`))
@@ -623,7 +623,7 @@ func TestNewAPIClient_APIKeyHeader(t *testing.T) {
 
 	// Make a request to verify the API key is sent
 	_, _, _ = channelsClient.List(context.Background(), channels.ListInput{})
-	assert.Equal(t, "my-secret-api-key", apiKeyReceived)
+	assert.Equal(t, "Apikey my-secret-api-key", apiKeyReceived)
 }
 
 func TestNewAPIClient_UseWithSubClient(t *testing.T) {
