@@ -123,7 +123,7 @@ func TestClient_Create(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			response := apiClient.Wallet{
 				WalletId:      walletID,
-				Name:          &walletName,
+				Name:          walletName,
 				Address:       walletAddress,
 				ChainSelector: chainSelector,
 			}
@@ -146,7 +146,7 @@ func TestClient_Create(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, wallet)
 		assert.Equal(t, walletID, wallet.WalletId)
-		assert.Equal(t, walletName, *wallet.Name)
+		assert.Equal(t, walletName, wallet.Name)
 		assert.Equal(t, walletAddress, wallet.Address)
 		assert.Equal(t, chainSelector, wallet.ChainSelector)
 	})
@@ -182,7 +182,7 @@ func TestClient_Create(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			response := apiClient.Wallet{
 				WalletId:        walletID,
-				Name:            &walletName,
+				Name:            walletName,
 				Address:         walletAddress,
 				ChainSelector:   chainSelector,
 				StatusChannelId: &statusChannelID,
@@ -207,7 +207,7 @@ func TestClient_Create(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, wallet)
 		assert.Equal(t, walletID, wallet.WalletId)
-		assert.Equal(t, walletName, *wallet.Name)
+		assert.Equal(t, walletName, wallet.Name)
 		assert.Equal(t, walletAddress, wallet.Address)
 		assert.Equal(t, chainSelector, wallet.ChainSelector)
 		assert.NotNil(t, wallet.StatusChannelId)
@@ -451,7 +451,7 @@ func TestClient_Create(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			response := apiClient.Wallet{
 				WalletId:      walletID,
-				Name:          &walletName,
+				Name:          walletName,
 				Address:       walletAddress,
 				ChainSelector: chainSelector,
 			}
@@ -487,7 +487,7 @@ func TestClient_Create(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			response := apiClient.Wallet{
 				WalletId:      walletID,
-				Name:          &walletName,
+				Name:          walletName,
 				Address:       walletAddress,
 				ChainSelector: chainSelector,
 			}
@@ -577,7 +577,7 @@ func TestClient_Get(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			response := apiClient.Wallet{
 				WalletId:      walletID,
-				Name:          &walletName,
+				Name:          walletName,
 				Address:       walletAddress,
 				ChainSelector: chainSelector,
 			}
@@ -592,7 +592,7 @@ func TestClient_Get(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, wallet)
 		assert.Equal(t, walletID, wallet.WalletId)
-		assert.Equal(t, walletName, *wallet.Name)
+		assert.Equal(t, walletName, wallet.Name)
 		assert.Equal(t, walletAddress, wallet.Address)
 	})
 
@@ -649,13 +649,13 @@ func TestClient_List(t *testing.T) {
 				Data: []apiClient.Wallet{
 					{
 						WalletId:      walletID1,
-						Name:          &walletName1,
+						Name:          walletName1,
 						Address:       "0x1111111111111111111111111111111111111111",
 						ChainSelector: "ethereum-sepolia",
 					},
 					{
 						WalletId:      walletID2,
-						Name:          &walletName2,
+						Name:          walletName2,
 						Address:       "0x2222222222222222222222222222222222222222",
 						ChainSelector: "ethereum-mainnet",
 					},
