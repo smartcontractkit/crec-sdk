@@ -606,7 +606,8 @@ func (s *MockServer) PostWallets(w http.ResponseWriter, r *http.Request) {
 		WalletId:      id,
 		Address:       in.WalletOwnerAddress,
 		ChainSelector: in.ChainSelector,
-		Name:          &in.Name,
+		Name:          in.Name,
+		Description:   "",
 		CreatedAt:     &now,
 		Status:        stdserver.WalletStatusDeployed,
 	}
@@ -679,7 +680,8 @@ func (s *MockServer) PatchWalletsWalletId(w http.ResponseWriter, r *http.Request
 	// Find and update the wallet
 	for i, wallet := range s.wallets {
 		if wallet.WalletId == walletId {
-			s.wallets[i].Name = &request.Name
+			s.wallets[i].Name = request.Name
+			s.wallets[i].Description = request.Description
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(s.wallets[i])

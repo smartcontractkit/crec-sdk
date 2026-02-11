@@ -78,7 +78,7 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 	if updateResp.StatusCode() != http.StatusOK || updateResp.JSON200 == nil {
 		t.Fatalf("unexpected wallet update response")
 	}
-	if updateResp.JSON200.Name == nil || *updateResp.JSON200.Name != "Updated Wallet Name" {
+	if updateResp.JSON200.Name != "Updated Wallet Name" {
 		t.Fatalf("wallet name not updated correctly")
 	}
 }

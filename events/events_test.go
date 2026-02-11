@@ -660,7 +660,6 @@ func TestClient_OperationStatusHash(t *testing.T) {
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
 			Status:            apiClient.OperationStatusPending,
-			StatusCode:        "PENDING",
 			StatusReason:      "Operation pending",
 			VerifiableEvent:   nil,
 		}
@@ -678,7 +677,6 @@ func TestClient_OperationStatusHash(t *testing.T) {
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
 			Status:            apiClient.OperationStatusPending,
-			StatusCode:        "PENDING",
 			StatusReason:      "Operation pending",
 			VerifiableEvent:   &emptyVerifiableEvent,
 		}
@@ -1236,9 +1234,8 @@ func TestClient_Verify(t *testing.T) {
 
 		// Build a valid WatcherStatusPayload (not WatcherEventPayload)
 		statusPayload := apiClient.WatcherStatusPayload{
-			WatcherId:    "550e8400-e29b-41d4-a716-446655440000",
-			Status:       apiClient.WatcherEventStatusPending,
-			StatusCode:   "PENDING",
+			WatcherId:  "550e8400-e29b-41d4-a716-446655440000",
+			Status:     apiClient.WatcherEventStatusPending,
 			StatusReason: "Watcher is pending",
 		}
 
@@ -1591,8 +1588,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		operationStatusPayload := apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusConfirmed,
-			StatusCode:        "CONFIRMED",
+			Status: apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
 			VerifiableEvent:   nil,
 		}
@@ -1961,8 +1957,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		payload := &apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusConfirmed,
-			StatusCode:        "CONFIRMED",
+			Status: apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
 			VerifiableEvent:   &verifiableEventBase64,
 		}
@@ -2021,8 +2016,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		payload := &apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-456",
-			Status:            apiClient.OperationStatusFailed,
-			StatusCode:        "FAILED",
+			Status: apiClient.OperationStatusFailed,
 			StatusReason:      "Insufficient funds",
 			VerifiableEvent:   &verifiableEventBase64,
 		}
@@ -2059,8 +2053,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		payload := &apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusConfirmed,
-			StatusCode:        "CONFIRMED",
+			Status: apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
 			VerifiableEvent:   nil,
 		}
@@ -2077,8 +2070,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		payload := &apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusConfirmed,
-			StatusCode:        "CONFIRMED",
+			Status: apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
 			VerifiableEvent:   &emptyStr,
 		}
@@ -2095,8 +2087,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		payload := &apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusConfirmed,
-			StatusCode:        "CONFIRMED",
+			Status: apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
 			VerifiableEvent:   &invalidBase64,
 		}
@@ -2114,8 +2105,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		payload := &apiClient.OperationStatusPayload{
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status:            apiClient.OperationStatusConfirmed,
-			StatusCode:        "CONFIRMED",
+			Status: apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
 			VerifiableEvent:   &invalidJSON,
 		}
@@ -2284,7 +2274,6 @@ func createTestOperationStatusPayload(t *testing.T) apiClient.OperationStatusPay
 		OperationId:       operationId,
 		WalletOperationId: "wallet-op-123",
 		Status:            apiClient.OperationStatusConfirmed,
-		StatusCode:        "CONFIRMED",
 		StatusReason:      "Operation confirmed",
 		VerifiableEvent:   &verifiableEvent,
 	}
