@@ -10,22 +10,20 @@
 - [ ] Documentation update
 - [ ] Refactoring
 
-
 ## Release Checklist
 
-> **Note:** For changes that require a new SDK release, complete the following steps:
+> **Note:** Only complete this section when this PR will trigger a new SDK release.
 
-### 1. Create Release Candidate
-- [ ] Tag release candidate (e.g., `v1.1.1-rc1`)
-- [ ] Verify SDK CI passes (unit tests, static analysis)
+### 1. Release candidate (pre-release)
+- [ ] Create and push a release-candidate git tag (e.g. `v1.1.1-rc1`) in this repo
+- [ ] Wait for SDK CI to pass on that tag (unit tests, static analysis)
 
-### 2. Verify System Tests
-- [ ] Open PR in `crec-courier-service` with RC version
-- [ ] Update system test logic (if needed)
-- [ ] All system tests pass (mocked CRE using CTF v2)
+### 2. System tests against the RC
+- [ ] In `crec-courier-service`, open a PR that bumps the SDK dependency to the RC version (e.g. `v1.1.1-rc1`)
+- [ ] Adjust system test code in that PR if needed
+- [ ] Ensure all system tests pass (mocked CRE via CTF v2)
 
-### 3. Finalize Release
-- [ ] Publish final SDK tag (e.g., `v1.1.1`)
-- [ ] Update `crec-courier-service` to final SDK version
-- [ ] Confirm all CI passes in `crec-courier-service`
-
+### 3. Publish release
+- [ ] Create and push the final version tag in this repo (e.g. `v1.1.1`)
+- [ ] In `crec-courier-service`, update the SDK dependency to the final version and merge (or open a follow-up PR)
+- [ ] Confirm CI is green in `crec-courier-service`
