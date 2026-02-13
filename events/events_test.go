@@ -276,7 +276,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		createdLte := int64(1700000001)
 		createdGt := int64(1600000000)
 		createdGte := int64(1600000001)
-		chainSelector := "5009297550715157269"
+		chainSelectors := []string{"5009297550715157269"}
 		status := []string{string(apiClient.OperationStatusConfirmed)}
 		watcherID := uuid.New()
 		address := []string{"0x1234567890123456789012345678901234567890"}
@@ -321,7 +321,7 @@ func TestClient_SearchEvents(t *testing.T) {
 			CreatedLte:        &createdLte,
 			CreatedGt:         &createdGt,
 			CreatedGte:        &createdGte,
-			ChainSelector:     &chainSelector,
+			ChainSelector:     &chainSelectors,
 			Status:            &status,
 			WatcherId:         &watcherID,
 			Address:           &address,
