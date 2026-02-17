@@ -44,7 +44,7 @@
 //	    AllowedEcdsaSigners: &[]string{"0x123...", "0x456..."},
 //	})
 //	fmt.Printf("Created: %s (ID: %s, Address: %s)\n",
-//	    *wallet.Name, wallet.WalletId, wallet.Address)
+//	    wallet.Name, wallet.WalletId, wallet.Address)
 //
 // # Listing Smart Wallets
 //

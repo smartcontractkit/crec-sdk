@@ -657,10 +657,13 @@ func TestClient_OperationStatusHash(t *testing.T) {
 
 	t.Run("NilVerifiableEvent_ReturnsError", func(t *testing.T) {
 		eventPayload := apiClient.OperationStatusPayload{
+			Address:           "0x1234",
+			ChainSelector:     "16015286601757825753",
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
 			Status:            apiClient.OperationStatusPending,
 			StatusReason:      "Operation pending",
+			Timestamp:         1700000000,
 			VerifiableEvent:   nil,
 		}
 
@@ -674,10 +677,13 @@ func TestClient_OperationStatusHash(t *testing.T) {
 	t.Run("EmptyVerifiableEvent_ReturnsError", func(t *testing.T) {
 		emptyVerifiableEvent := ""
 		eventPayload := apiClient.OperationStatusPayload{
+			Address:           "0x1234",
+			ChainSelector:     "16015286601757825753",
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
 			Status:            apiClient.OperationStatusPending,
 			StatusReason:      "Operation pending",
+			Timestamp:         1700000000,
 			VerifiableEvent:   &emptyVerifiableEvent,
 		}
 
@@ -1234,9 +1240,11 @@ func TestClient_Verify(t *testing.T) {
 
 		// Build a valid WatcherStatusPayload (not WatcherEventPayload)
 		statusPayload := apiClient.WatcherStatusPayload{
-			WatcherId:  "550e8400-e29b-41d4-a716-446655440000",
-			Status:     apiClient.WatcherEventStatusPending,
-			StatusReason: "Watcher is pending",
+			ChainSelector: "16015286601757825753",
+			WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
+			Status:        apiClient.WatcherEventStatusPending,
+			StatusReason:  "Watcher is pending",
+			Timestamp:     1700000000,
 		}
 
 		payloadUnion := apiClient.Event_Payload{}
@@ -1586,10 +1594,13 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 
 		// Create operation status payload without VerifiableEvent
 		operationStatusPayload := apiClient.OperationStatusPayload{
+			Address:           "0x1234",
+			ChainSelector:     "16015286601757825753",
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status: apiClient.OperationStatusConfirmed,
+			Status:            apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
+			Timestamp:         1700000000,
 			VerifiableEvent:   nil,
 		}
 
@@ -1955,10 +1966,13 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		verifiableEventBase64 := base64.StdEncoding.EncodeToString(verifiableEventBytes)
 
 		payload := &apiClient.OperationStatusPayload{
+			Address:           "0x1234",
+			ChainSelector:     "5009297550715157269",
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status: apiClient.OperationStatusConfirmed,
+			Status:            apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
+			Timestamp:         1700000000,
 			VerifiableEvent:   &verifiableEventBase64,
 		}
 
@@ -2014,10 +2028,13 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		verifiableEventBase64 := base64.StdEncoding.EncodeToString(verifiableEventBytes)
 
 		payload := &apiClient.OperationStatusPayload{
+			Address:           "0x1234",
+			ChainSelector:     "16015286601757825753",
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-456",
-			Status: apiClient.OperationStatusFailed,
+			Status:            apiClient.OperationStatusFailed,
 			StatusReason:      "Insufficient funds",
+			Timestamp:         1700000000,
 			VerifiableEvent:   &verifiableEventBase64,
 		}
 
@@ -2051,10 +2068,13 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 
 	t.Run("Error_NilVerifiableEvent", func(t *testing.T) {
 		payload := &apiClient.OperationStatusPayload{
+			Address:           "0x1234",
+			ChainSelector:     "16015286601757825753",
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status: apiClient.OperationStatusConfirmed,
+			Status:            apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
+			Timestamp:         1700000000,
 			VerifiableEvent:   nil,
 		}
 
@@ -2068,10 +2088,13 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 	t.Run("Error_EmptyVerifiableEvent", func(t *testing.T) {
 		emptyStr := ""
 		payload := &apiClient.OperationStatusPayload{
+			Address:           "0x1234",
+			ChainSelector:     "16015286601757825753",
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status: apiClient.OperationStatusConfirmed,
+			Status:            apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
+			Timestamp:         1700000000,
 			VerifiableEvent:   &emptyStr,
 		}
 
@@ -2085,10 +2108,13 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 	t.Run("Error_InvalidBase64", func(t *testing.T) {
 		invalidBase64 := "not-valid-base64!!!"
 		payload := &apiClient.OperationStatusPayload{
+			Address:           "0x1234",
+			ChainSelector:     "16015286601757825753",
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status: apiClient.OperationStatusConfirmed,
+			Status:            apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
+			Timestamp:         1700000000,
 			VerifiableEvent:   &invalidBase64,
 		}
 
@@ -2103,10 +2129,13 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		// Valid base64 but invalid JSON
 		invalidJSON := base64.StdEncoding.EncodeToString([]byte("not valid json {{{"))
 		payload := &apiClient.OperationStatusPayload{
+			Address:           "0x1234",
+			ChainSelector:     "16015286601757825753",
 			OperationId:       uuid.New(),
 			WalletOperationId: "wallet-op-123",
-			Status: apiClient.OperationStatusConfirmed,
+			Status:            apiClient.OperationStatusConfirmed,
 			StatusReason:      "Operation confirmed",
+			Timestamp:         1700000000,
 			VerifiableEvent:   &invalidJSON,
 		}
 
@@ -2271,10 +2300,13 @@ func createTestOperationStatusPayload(t *testing.T) apiClient.OperationStatusPay
 	operationId := uuid.New()
 
 	return apiClient.OperationStatusPayload{
+		Address:           "0x1234",
+		ChainSelector:     "16015286601757825753",
 		OperationId:       operationId,
 		WalletOperationId: "wallet-op-123",
 		Status:            apiClient.OperationStatusConfirmed,
 		StatusReason:      "Operation confirmed",
+		Timestamp:         1700000000,
 		VerifiableEvent:   &verifiableEvent,
 	}
 }
