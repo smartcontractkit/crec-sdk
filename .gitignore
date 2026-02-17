@@ -18,6 +18,8 @@
 
 .idea
 .cache
+.task/
+coverage/
 
 list.md
 out_o.md

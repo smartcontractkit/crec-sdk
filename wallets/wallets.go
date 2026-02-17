@@ -182,13 +182,14 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 	var allowedRsaSigners *[]apiClient.RSAPublicKey
 
 	if input.AllowedRsaSigners != nil {
-		allowedRsaSigners := make([]apiClient.RSAPublicKey, len(*input.AllowedRsaSigners))
+		rs := make([]apiClient.RSAPublicKey, len(*input.AllowedRsaSigners))
 		for i, signer := range *input.AllowedRsaSigners {
-			allowedRsaSigners[i] = apiClient.RSAPublicKey{
+			rs[i] = apiClient.RSAPublicKey{
 				E: signer.E,
 				N: signer.N,
 			}
 		}
+		allowedRsaSigners = &rs
 	}
 
 	createWalletReq := apiClient.CreateWallet{

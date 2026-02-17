@@ -29,6 +29,7 @@ var (
 	ErrNameRequired          = errors.New("name is required")
 	ErrServiceRequired       = errors.New("service is required")
 	ErrAddressRequired       = errors.New("address is required")
+	ErrContractsRequired     = errors.New("contracts map is required for service-based watchers")
 	ErrEventsRequired        = errors.New("events list cannot be empty")
 	ErrABIRequired           = errors.New("abi cannot be empty")
 	ErrOptionsRequired       = errors.New("Options is required")
@@ -81,11 +82,11 @@ type EventABI struct {
 }
 
 type CreateWithServiceInput struct {
-	Name          *string  `json:"name,omitempty"`
-	ChainSelector string   `json:"chain_selector"`
-	Address       string   `json:"address"`
-	Service       string   `json:"service"`
-	Events        []string `json:"events"`
+	Name          *string           `json:"name,omitempty"`
+	ChainSelector string            `json:"chain_selector"`
+	Service       string            `json:"service"`
+	Events        []string          `json:"events"`
+	Contracts     map[string]string `json:"contracts"` // contract name -> address
 }
 
 type CreateWithABIInput struct {
@@ -175,8 +176,7 @@ func NewClient(opts *Options) (*Client, error) {
 func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, input CreateWithServiceInput) (*apiClient.Watcher, error) {
 	c.logger.Debug("Creating watcher with service",
 		"channel_id", channelID.String(),
-		"service", input.Service,
-		"address", input.Address)
+		"service", input.Service)
 
 	if err := validateChannelID(channelID); err != nil {
 		return nil, err
@@ -184,8 +184,8 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 	if input.ChainSelector == "" || input.ChainSelector == "0" {
 		return nil, ErrChainSelectorRequired
 	}
-	if input.Address == "" {
-		return nil, ErrAddressRequired
+	if len(input.Contracts) == 0 {
+		return nil, ErrContractsRequired
 	}
 	if input.Service == "" {
 		return nil, ErrServiceRequired
@@ -197,7 +197,7 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 	createWatcherWithService := apiClient.CreateWatcherWithService{
 		Name:          input.Name,
 		ChainSelector: input.ChainSelector,
-		Address:       input.Address,
+		Contracts:     input.Contracts,
 		Service:       input.Service,
 		Events:        input.Events,
 	}
@@ -662,6 +662,7 @@ func isTransientError(err error) bool {
 		errors.Is(err, ErrNameRequired) ||
 		errors.Is(err, ErrServiceRequired) ||
 		errors.Is(err, ErrAddressRequired) ||
+		errors.Is(err, ErrContractsRequired) ||
 		errors.Is(err, ErrEventsRequired) ||
 		errors.Is(err, ErrABIRequired) {
 		return false

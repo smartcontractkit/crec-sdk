@@ -1,0 +1,122 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+silent: true
+
+vars:
+  COVER_DIR: coverage
+
+tasks:
+  default:
+    desc: "List all available tasks"
+    cmds:
+      - task --list
+
+  tools:install:
+    desc: "Install all required dev tools"
+    deps: [tools:abigen, tools:mockery, tools:pkgsite, tools:gotestfmt]
+
+  tools:abigen:
+    desc: "Install abigen (Ethereum ABI binding generator)"
+    internal: true
+    cmds:
+      - |
+        if ! command -v abigen >/dev/null 2>&1; then
+          echo "Installing abigen ..."
+          go install github.com/ethereum/go-ethereum/cmd/abigen@latest
+        fi
+
+  tools:mockery:
+    desc: "Install mockery (mock generator)"
+    internal: true
+    cmds:
+      - |
+        if ! command -v mockery >/dev/null 2>&1; then
+          echo "Installing mockery ..."
+          go install github.com/vektra/mockery/v2@latest
+        fi
+
+  tools:pkgsite:
+    desc: "Install pkgsite (local Go docs server)"
+    internal: true
+    cmds:
+      - |
+        if ! command -v pkgsite >/dev/null 2>&1 && [ ! -x "$(go env GOPATH)/bin/pkgsite" ]; then
+          echo "Installing pkgsite ..."
+          go install golang.org/x/pkgsite/cmd/pkgsite@latest
+        fi
+
+  tools:gotestfmt:
+    desc: "Install gotestfmt (pretty Go test output)"
+    internal: true
+    cmds:
+      - |
+        if ! command -v gotestfmt >/dev/null 2>&1 && [ ! -x "$(go env GOPATH)/bin/gotestfmt" ]; then
+          echo "Installing gotestfmt ..."
+          go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+        fi
+
+  generate:
+    desc: "Run all code generation (mocks + ABI bindings)"
+    deps: [tools:mockery, tools:abigen]
+    cmds:
+      - mockery --name=KMSClient --dir=./transact/signer/kms --output=./transact/signer/kms/mocks --outpkg=mocks
+      - abigen --abi interfaces/abi/IERC20.abi.json --pkg erc20 --out interfaces/erc20/erc20.go
+      - abigen --abi interfaces/abi/IHoldManager.abi.json --pkg holdmanager --out interfaces/holdmanager/holdmanager.go
+
+  test:
+    desc: "Run all tests"
+    cmds:
+      - go test -v ./...
+
+  test:pretty:
+    desc: "Run all tests with pretty output via gotestfmt"
+    deps: [tools:gotestfmt]
+    cmds:
+      - mkdir -p {{.COVER_DIR}}
+      - |
+        set -o pipefail
+        go test -json ./... -count=1 -failfast 2>&1 | \
+          tee {{.COVER_DIR}}/test.json | \
+          grep '^{' | \
+          jq -c 'select(.Package != null and .Package != "")' | \
+          gotestfmt -hide empty-packages,successful-downloads
+    preconditions:
+      - sh: command -v jq
+        msg: "jq is required for pretty output — install with: brew install jq"
+
+  test:cover:
+    desc: "Run all tests with coverage summary"
+    cmds:
+      - go test -v ./... -cover
+
+  test:cover-report:
+    desc: "Run all tests with coverage profile and print report"
+    cmds:
+      - mkdir -p {{.COVER_DIR}}
+      - go test -v ./... -coverprofile={{.COVER_DIR}}/coverage.out -covermode=atomic
+      - go tool cover -func={{.COVER_DIR}}/coverage.out
+
+  vendor:
+    desc: "Tidy, download, and vendor dependencies"
+    cmds:
+      - go mod tidy
+      - go mod download
+      - go mod vendor
+
+  docs:
+    desc: "Start local Go documentation server"
+    deps: [tools:pkgsite]
+    cmds:
+      - echo "Docs server running at http://localhost:8080/github.com/smartcontractkit/crec-sdk"
+      - pkgsite -http :8080
+
+  lint:
+    desc: "Run golangci-lint"
+    cmds:
+      - golangci-lint run ./...
+
+  fmt:
+    desc: "Format Go code"
+    cmds:
+      - gofmt -w .

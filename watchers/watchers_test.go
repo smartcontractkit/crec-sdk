@@ -139,6 +139,7 @@ func TestClient_CreateWithService(t *testing.T) {
 		service := "dvp"
 		chainSelector := "1337"
 		address := "0x1234567890abcdef"
+		contracts := map[string]string{"TargetContract": address}
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			expectedPath := "/channels/" + channelID.String() + "/watchers"
@@ -159,7 +160,7 @@ func TestClient_CreateWithService(t *testing.T) {
 			assert.Equal(t, watcherName, *serviceWatcher.Name)
 			assert.Equal(t, service, serviceWatcher.Service)
 			assert.Equal(t, chainSelector, serviceWatcher.ChainSelector)
-			assert.Equal(t, address, serviceWatcher.Address)
+			assert.Equal(t, contracts, serviceWatcher.Contracts)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
@@ -180,7 +181,7 @@ func TestClient_CreateWithService(t *testing.T) {
 			Name:          &watcherName,
 			Service:       service,
 			ChainSelector: chainSelector,
-			Address:       address,
+			Contracts:     contracts,
 			Events:        []string{"TestEvent"},
 		})
 
@@ -207,7 +208,7 @@ func TestClient_CreateWithService(t *testing.T) {
 			Name:          &name,
 			Service:       "dvp",
 			ChainSelector: "1337",
-			Address:       "0x1234",
+			Contracts:     map[string]string{"TargetContract": "0x1234"},
 			Events:        []string{"TestEvent"},
 		})
 
@@ -229,7 +230,7 @@ func TestClient_CreateWithService(t *testing.T) {
 			Name:          &name,
 			Service:       "",
 			ChainSelector: "1337",
-			Address:       "0x1234",
+			Contracts:     map[string]string{"TargetContract": "0x1234"},
 			Events:        []string{"TestEvent"},
 		})
 
@@ -238,9 +239,9 @@ func TestClient_CreateWithService(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrServiceRequired), "Expected ErrServiceRequired, got: %v", err)
 	})
 
-	t.Run("EmptyAddress", func(t *testing.T) {
+	t.Run("EmptyContracts", func(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
-			t.Fatal("Should not make request with empty address")
+			t.Fatal("Should not make request with empty contracts")
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -251,13 +252,34 @@ func TestClient_CreateWithService(t *testing.T) {
 			Name:          &name,
 			Service:       "dvp",
 			ChainSelector: "1337",
-			Address:       "",
+			Contracts:     map[string]string{},
 			Events:        []string{"TestEvent"},
 		})
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
-		assert.True(t, errors.Is(err, ErrAddressRequired), "Expected ErrAddressRequired, got: %v", err)
+		assert.True(t, errors.Is(err, ErrContractsRequired), "Expected ErrContractsRequired, got: %v", err)
+	})
+
+	t.Run("NilContracts", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with nil contracts")
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		name := "test-watcher"
+		watcher, err := client.CreateWithService(context.Background(), uuid.New(), CreateWithServiceInput{
+			Name:          &name,
+			Service:       "dvp",
+			ChainSelector: "1337",
+			Events:        []string{"TestEvent"},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.True(t, errors.Is(err, ErrContractsRequired), "Expected ErrContractsRequired, got: %v", err)
 	})
 
 	t.Run("BadRequest", func(t *testing.T) {
@@ -279,7 +301,7 @@ func TestClient_CreateWithService(t *testing.T) {
 			Name:          &name,
 			Service:       "dvp",
 			ChainSelector: "1337",
-			Address:       "0x1234",
+			Contracts:     map[string]string{"TargetContract": "0x1234"},
 			Events:        []string{"TestEvent"},
 		})
 
@@ -1671,7 +1693,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		createInput := CreateWithServiceInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
-			Address:       "0x1234",
+			Contracts:     map[string]string{"TargetContract": "0x1234"},
 			Service:       "dvp",
 			Events:        []string{"TestEvent"},
 		}
@@ -1845,7 +1867,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		// Try to create with invalid data
 		createInput := CreateWithServiceInput{
 			ChainSelector: "0", // Invalid
-			Address:       "0x1234",
+			Contracts:     map[string]string{"TargetContract": "0x1234"},
 			Service:       "dvp",
 			Events:        []string{"TestEvent"},
 		}
@@ -1895,7 +1917,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		createInput := CreateWithServiceInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
-			Address:       "0x1234",
+			Contracts:     map[string]string{"TargetContract": "0x1234"},
 			Service:       "dvp",
 			Events:        []string{"TestEvent"},
 		}
@@ -1981,7 +2003,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		createInput := CreateWithServiceInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
-			Address:       "0x1234",
+			Contracts:     map[string]string{"TargetContract": "0x1234"},
 			Service:       "dvp",
 			Events:        []string{"TestEvent"},
 		}
