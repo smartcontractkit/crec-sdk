@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/crec-sdk/watcher/bundle"
+	"github.com/smartcontractkit/crec-sdk/extension/bundle"
 )
 
 func testBundle() *bundle.Bundle {
