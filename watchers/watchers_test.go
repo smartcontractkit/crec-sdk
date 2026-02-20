@@ -356,7 +356,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 		defer server.Close()
 
 		watcher, err := client.CreateWithABI(context.Background(), channelID, CreateWithABIInput{
-			Name:          &watcherName,
+			Name:          watcherName,
 			ChainSelector: chainSelector,
 			Address:       address,
 			Events:        []string{"Transfer"},
@@ -404,9 +404,8 @@ func TestClient_CreateWithABI(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		name := "test-watcher"
 		watcher, err := client.CreateWithABI(context.Background(), uuid.Nil, CreateWithABIInput{
-			Name:          &name,
+			Name:          "test-watcher",
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
@@ -424,7 +423,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 
 		name := "test-watcher"
 		watcher, err := client.CreateWithABI(context.Background(), uuid.New(), CreateWithABIInput{
-			Name:          &name,
+			Name:          name,
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestEvent"},
@@ -440,9 +439,8 @@ func TestClient_CreateWithABI(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
-		name := "test-watcher"
 		watcher, err := client.CreateWithABI(context.Background(), uuid.New(), CreateWithABIInput{
-			Name:          &name,
+			Name:          "test-watcher",
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"TestFunction"},
@@ -469,9 +467,8 @@ func TestClient_CreateWithABI(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
-		name := "test-watcher"
 		watcher, err := client.CreateWithABI(context.Background(), uuid.New(), CreateWithABIInput{
-			Name:          &name,
+			Name:          "test-watcher",
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Events:        []string{"Transfer", "Approval", "MissingEvent"}, // MissingEvent not in ABI
@@ -1822,7 +1819,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		ctx := context.Background()
 
 		createInput := CreateWithABIInput{
-			Name:          &watcherName,
+			Name:          watcherName,
 			ChainSelector: "1337",
 			Address:       "0x5678",
 			Events:        []string{"Transfer"},
