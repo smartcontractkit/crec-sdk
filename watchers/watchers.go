@@ -88,7 +88,7 @@ type CreateWithServiceInput struct {
 }
 
 type CreateWithABIInput struct {
-	Name          *string    `json:"name,omitempty"`
+	Name          string     `json:"name"`
 	ChainSelector string     `json:"chain_selector"`
 	Address       string     `json:"address"`
 	Events        []string   `json:"events"`
@@ -300,11 +300,8 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 		}
 	}
 
-	if input.Name == nil {
-		return nil, ErrNameRequired
-	}
 	createWatcherWithABI := apiClient.CreateWatcherWithABI{
-		Name:          *input.Name,
+		Name:          input.Name,
 		ChainSelector: input.ChainSelector,
 		Address:       input.Address,
 		Events:        input.Events,
@@ -547,7 +544,7 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 
 // Archive archives a watcher by transitioning it to archived status via PATCH.
 // Archiving is asynchronous: the PATCH returns 202 with the watcher in "archiving" status,
-// with a final transition to "archived" (or "archive_failed") communicated via events.
+// with a final transition to "archived" (or "archive_failed").
 func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) (*apiClient.Watcher, error) {
 	c.logger.Debug("Archiving watcher",
 		"channel_id", channelID.String(),
