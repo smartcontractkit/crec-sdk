@@ -43,11 +43,11 @@ var (
 	ErrInvalidOwnerAddress        = errors.New("owner address must be a valid hex address")
 
 	// API operation errors
-	ErrCreateWallet = errors.New("failed to create wallet")
-	ErrGetWallet    = errors.New("failed to get wallet")
-	ErrListWallets  = errors.New("failed to list wallets")
-	ErrUpdateWallet = errors.New("failed to update wallet")
-	ErrDeleteWallet = errors.New("failed to delete wallet")
+	ErrCreateWallet  = errors.New("failed to create wallet")
+	ErrGetWallet     = errors.New("failed to get wallet")
+	ErrListWallets   = errors.New("failed to list wallets")
+	ErrUpdateWallet  = errors.New("failed to update wallet")
+	ErrArchiveWallet = errors.New("failed to archive wallet")
 
 	// Response errors
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
@@ -387,7 +387,7 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 	}
 
 	updateWalletReq := apiClient.UpdateWallet{
-		Name: input.Name,
+		Name: &input.Name,
 	}
 
 	resp, err := c.apiClient.PatchWalletsWalletIdWithResponse(ctx, walletID, updateWalletReq)
@@ -413,24 +413,30 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 	return nil
 }
 
-// Delete deletes a wallet.
+// Archive archives a wallet by transitioning it to archived status via PATCH.
+// Archiving is synchronous and returns the wallet in "archived" status.
 //
 // Parameters:
 //   - ctx: The context for the request.
-//   - walletID: The UUID of the wallet to delete.
+//   - walletID: The UUID of the wallet to archive.
 //
 // Returns an error if the operation fails or the wallet is not found.
-func (c *Client) Delete(ctx context.Context, walletID uuid.UUID) error {
-	c.logger.Debug("Deleting wallet", "wallet_id", walletID.String())
+func (c *Client) Archive(ctx context.Context, walletID uuid.UUID) error {
+	c.logger.Debug("Archiving wallet", "wallet_id", walletID.String())
 
 	if walletID == uuid.Nil {
 		return ErrWalletIDRequired
 	}
 
-	resp, err := c.apiClient.DeleteWalletsWalletIdWithResponse(ctx, walletID)
+	archiveStatus := apiClient.WalletStatusArchived
+	archiveReq := apiClient.UpdateWallet{
+		Status: &archiveStatus,
+	}
+
+	resp, err := c.apiClient.PatchWalletsWalletIdWithResponse(ctx, walletID, archiveReq)
 	if err != nil {
-		c.logger.Error("Failed to delete wallet", "error", err)
-		return fmt.Errorf("%w: %w", ErrDeleteWallet, err)
+		c.logger.Error("Failed to archive wallet", "error", err)
+		return fmt.Errorf("%w: %w", ErrArchiveWallet, err)
 	}
 
 	if resp.StatusCode() == 404 {
@@ -439,13 +445,13 @@ func (c *Client) Delete(ctx context.Context, walletID uuid.UUID) error {
 	}
 
 	if resp.StatusCode() != 200 {
-		c.logger.Error("Unexpected status code when deleting wallet",
+		c.logger.Error("Unexpected status code when archiving wallet",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return fmt.Errorf("%w: %w (status code %d)", ErrDeleteWallet, ErrUnexpectedStatusCode, resp.StatusCode())
+		return fmt.Errorf("%w: %w (status code %d)", ErrArchiveWallet, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
-	c.logger.Info("Wallet deleted successfully", "wallet_id", walletID.String())
+	c.logger.Info("Wallet archived successfully", "wallet_id", walletID.String())
 
 	return nil
 }

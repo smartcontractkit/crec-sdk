@@ -830,7 +830,8 @@ func TestClient_Update(t *testing.T) {
 			var updateReq apiClient.UpdateWallet
 			err = json.Unmarshal(body, &updateReq)
 			require.NoError(t, err)
-			assert.Equal(t, newName, updateReq.Name)
+			require.NotNil(t, updateReq.Name)
+			assert.Equal(t, newName, *updateReq.Name)
 
 			w.WriteHeader(http.StatusOK)
 		}
@@ -915,22 +916,38 @@ func TestClient_Update(t *testing.T) {
 	})
 }
 
-func TestClient_Delete(t *testing.T) {
+func TestClient_Archive(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		walletID := uuid.New()
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/wallets/"+walletID.String(), r.URL.Path)
-			assert.Equal(t, "DELETE", r.Method)
+			assert.Equal(t, "PATCH", r.Method)
 			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var updateReq apiClient.UpdateWallet
+			err = json.Unmarshal(body, &updateReq)
+			require.NoError(t, err)
+			assert.NotNil(t, updateReq.Status)
+			assert.Equal(t, apiClient.WalletStatusArchived, *updateReq.Status)
+
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
+			response := apiClient.Wallet{
+				WalletId: walletID,
+				Name:     "test-wallet",
+				Status:   apiClient.WalletStatusArchived,
+			}
+			json.NewEncoder(w).Encode(response)
 		}
 
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), walletID)
+		err := client.Archive(context.Background(), walletID)
 
 		require.NoError(t, err)
 	})
@@ -939,7 +956,7 @@ func TestClient_Delete(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), uuid.Nil)
+		err := client.Archive(context.Background(), uuid.Nil)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWalletIDRequired))
@@ -960,7 +977,7 @@ func TestClient_Delete(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), walletID)
+		err := client.Archive(context.Background(), walletID)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWalletNotFound))
@@ -976,10 +993,10 @@ func TestClient_Delete(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), walletID)
+		err := client.Archive(context.Background(), walletID)
 
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrDeleteWallet))
+		assert.True(t, errors.Is(err, ErrArchiveWallet))
 		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
 	})
 }

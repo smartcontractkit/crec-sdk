@@ -327,7 +327,7 @@ func TestClient_GetOperation(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			response := apiClient.Operation{
 				OperationId:       operationID,
-				Status:            apiClient.OperationStatusPending,
+				Status:            apiClient.OperationStatusAccepted,
 				ChainSelector:     "1337",
 				Address:           "0x1234",
 				WalletOperationId: "op-123",
@@ -348,7 +348,7 @@ func TestClient_GetOperation(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, operation)
 		assert.Equal(t, operationID, operation.OperationId)
-		assert.Equal(t, apiClient.OperationStatusPending, operation.Status)
+		assert.Equal(t, apiClient.OperationStatusAccepted, operation.Status)
 		assert.Equal(t, "1337", operation.ChainSelector)
 		assert.Equal(t, "0x1234", operation.Address)
 	})
@@ -423,7 +423,7 @@ func TestClient_ListOperations(t *testing.T) {
 				Data: []apiClient.Operation{
 					{
 						OperationId:       operation1ID,
-						Status:            apiClient.OperationStatusPending,
+						Status:            apiClient.OperationStatusAccepted,
 						ChainSelector:     "1337",
 						Address:           "0x1234",
 						WalletOperationId: "op-1",
@@ -462,7 +462,7 @@ func TestClient_ListOperations(t *testing.T) {
 		assert.Len(t, operations, 2)
 		assert.False(t, hasMore)
 		assert.Equal(t, operation1ID, operations[0].OperationId)
-		assert.Equal(t, apiClient.OperationStatusPending, operations[0].Status)
+		assert.Equal(t, apiClient.OperationStatusAccepted, operations[0].Status)
 		assert.Equal(t, operation2ID, operations[1].OperationId)
 		assert.Equal(t, apiClient.OperationStatusConfirmed, operations[1].Status)
 	})
@@ -471,7 +471,7 @@ func TestClient_ListOperations(t *testing.T) {
 		channelID := uuid.New()
 		operationID := uuid.New()
 		createdAt := time.Now().Unix()
-		status := apiClient.OperationStatusPending
+		status := apiClient.OperationStatusAccepted
 		chainSelector := "1337"
 		address := "0x1234"
 
@@ -507,7 +507,7 @@ func TestClient_ListOperations(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		statusFilter := []apiClient.OperationStatus{apiClient.OperationStatusPending}
+		statusFilter := []apiClient.OperationStatus{apiClient.OperationStatusAccepted}
 
 		operations, hasMore, err := client.ListOperations(context.Background(), ListOperationsInput{
 			ChannelID:     channelID,
@@ -519,7 +519,7 @@ func TestClient_ListOperations(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, operations, 1)
 		assert.False(t, hasMore)
-		assert.Equal(t, apiClient.OperationStatusPending, operations[0].Status)
+		assert.Equal(t, apiClient.OperationStatusAccepted, operations[0].Status)
 		assert.Equal(t, "1337", operations[0].ChainSelector)
 		assert.Equal(t, address, operations[0].Address)
 	})
@@ -529,7 +529,7 @@ func TestClient_ListOperations(t *testing.T) {
 		operationID := uuid.New()
 		walletID := uuid.New()
 		createdAt := time.Now().Unix()
-		status := apiClient.OperationStatusPending
+		status := apiClient.OperationStatusAccepted
 		address := "0x1234"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {

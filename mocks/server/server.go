@@ -131,8 +131,11 @@ func (s *MockServer) GetChannels(w http.ResponseWriter, r *http.Request, params 
 	if params.Status != nil {
 		filtered := []stdserver.Channel{}
 		for _, ch := range filteredChannels {
-			if ch.Status == *params.Status {
-				filtered = append(filtered, ch)
+			for _, st := range *params.Status {
+				if ch.Status == st {
+					filtered = append(filtered, ch)
+					break
+				}
 			}
 		}
 		filteredChannels = filtered
@@ -168,8 +171,8 @@ func (s *MockServer) GetChannelsChannelId(w http.ResponseWriter, r *http.Request
 	http.Error(w, "channel not found", http.StatusNotFound)
 }
 
-func (s *MockServer) PutChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
-	var request stdserver.UpdateChannel
+func (s *MockServer) PatchChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	var request stdserver.PatchChannel
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -181,32 +184,20 @@ func (s *MockServer) PutChannelsChannelId(w http.ResponseWriter, r *http.Request
 	// Find and update the channel
 	for i, ch := range s.channels {
 		if ch.ChannelId == channelId {
-			s.channels[i].Name = request.Name
-			s.channels[i].Description = &request.Description
+			if request.Name != nil {
+				s.channels[i].Name = *request.Name
+			}
+			if request.Description != nil {
+				s.channels[i].Description = request.Description
+			}
+			if request.Status != nil {
+				s.channels[i].Status = *request.Status
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(s.channels[i])
 			return
 		}
-	}
-	http.Error(w, "channel not found", http.StatusNotFound)
-}
-
-func (s *MockServer) DeleteChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
-	s.mu.RLock()
-	found := false
-	for _, ch := range s.channels {
-		if ch.ChannelId == channelId {
-			found = true
-			break
-		}
-	}
-	s.mu.RUnlock()
-
-	if found {
-		// Just mark as accepted - in a real implementation would set deleted_at
-		w.WriteHeader(http.StatusAccepted)
-		return
 	}
 	http.Error(w, "channel not found", http.StatusNotFound)
 }
@@ -227,7 +218,7 @@ func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *h
 
 	operation := stdserver.Operation{
 		OperationId:       operationId,
-		Status:            stdserver.OperationStatusPending,
+		Status:            stdserver.OperationStatusAccepted,
 		ChainSelector:     request.ChainSelector,
 		Address:           request.Address,
 		WalletOperationId: request.WalletOperationId,
@@ -492,7 +483,7 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 
 	// Handle the union type - try to unmarshal as service first, then ABI
 	if svcReq, err := request.AsCreateWatcherWithService(); err == nil {
-		watcher.Name = svcReq.Name
+		watcher.Name = &svcReq.Name
 		serviceVal := svcReq.Service
 		watcher.Service = &serviceVal
 		for _, addr := range svcReq.Contracts {
@@ -502,7 +493,7 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 		watcher.ChainSelector = svcReq.ChainSelector
 		watcher.Events = svcReq.Events
 	} else if abiReq, err := request.AsCreateWatcherWithABI(); err == nil {
-		watcher.Name = abiReq.Name
+		watcher.Name = &abiReq.Name
 		watcher.Address = abiReq.Address
 		watcher.ChainSelector = abiReq.ChainSelector
 		watcher.Events = abiReq.Events
@@ -551,53 +542,36 @@ func (s *MockServer) PatchChannelsChannelIdWatchersWatcherId(w http.ResponseWrit
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Find and update the watcher
 	for i, watcher := range s.watchers {
 		if watcher.WatcherId == watcherId {
-			// Validate that the watcher belongs to the requested channel
 			if watcher.ChannelId != channelId {
 				http.Error(w, "watcher not found", http.StatusNotFound)
 				return
 			}
 
-			// Update name (always set since it's a required field in UpdateWatcher)
-			s.watchers[i].Name = &request.Name
+			if request.Name != nil {
+				s.watchers[i].Name = request.Name
+			}
+
+			if request.Status != nil && *request.Status == stdserver.WatcherStatusArchived {
+				s.watchers[i].Status = stdserver.WatcherStatusArchiving
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusAccepted)
+				_ = json.NewEncoder(w).Encode(s.watchers[i])
+
+				scheduleWatcherArchive(
+					watcherId,
+					50*time.Millisecond,
+					func(id uuid.UUID) bool {
+						return s.archiveWatcher(id)
+					},
+				)
+				return
+			}
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(s.watchers[i])
-			return
-		}
-	}
-	http.Error(w, "watcher not found", http.StatusNotFound)
-}
-
-func (s *MockServer) DeleteChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for i, watcher := range s.watchers {
-		if watcher.WatcherId == watcherId {
-			// Validate that the watcher belongs to the requested channel
-			if watcher.ChannelId != channelId {
-				http.Error(w, "watcher not found", http.StatusNotFound)
-				return
-			}
-
-			// Mark as deleting to simulate async deletion
-			s.watchers[i].Status = stdserver.WatcherStatusDeleting
-
-			// Schedule automatic removal of the watcher after a brief delay
-			// When a watcher is deleted, it should return 404 Not Found
-			scheduleWatcherRemoval(
-				watcherId,
-				50*time.Millisecond,
-				func(id uuid.UUID) bool {
-					return s.removeWatcherIfDeleting(id)
-				},
-			)
-
-			w.WriteHeader(http.StatusAccepted)
 			return
 		}
 	}
@@ -686,28 +660,17 @@ func (s *MockServer) PatchWalletsWalletId(w http.ResponseWriter, r *http.Request
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Find and update the wallet
 	for i, wallet := range s.wallets {
 		if wallet.WalletId == walletId {
-			s.wallets[i].Name = request.Name
+			if request.Name != nil {
+				s.wallets[i].Name = *request.Name
+			}
+			if request.Status != nil {
+				s.wallets[i].Status = *request.Status
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(s.wallets[i])
-			return
-		}
-	}
-	http.Error(w, "wallet not found", http.StatusNotFound)
-}
-
-func (s *MockServer) DeleteWalletsWalletId(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Soft delete: set status to deleted instead of removing
-	for i, wallet := range s.wallets {
-		if wallet.WalletId == walletId {
-			s.wallets[i].Status = stdserver.WalletStatusDeleted
-			w.WriteHeader(http.StatusOK)
 			return
 		}
 	}
@@ -718,25 +681,22 @@ func (s *MockServer) DeleteWalletsWalletId(w http.ResponseWriter, r *http.Reques
 // HELPER METHODS (INTERNAL)
 // ============================================================================
 
-// scheduleWatcherRemoval schedules the removal of a watcher after a delay.
-// This simulates the async deletion behavior where a watcher transitions from "deleting"
-// to being fully removed (returning 404 on subsequent GET requests).
-func scheduleWatcherRemoval(id uuid.UUID, delay time.Duration, removeFn func(uuid.UUID) bool) {
+// scheduleWatcherArchive schedules the transition of a watcher from "archiving" to "archived" after a delay.
+func scheduleWatcherArchive(id uuid.UUID, delay time.Duration, archiveFn func(uuid.UUID) bool) {
 	go func() {
 		time.Sleep(delay)
-		removeFn(id)
+		archiveFn(id)
 	}()
 }
 
-// removeWatcherIfDeleting removes a watcher from the slice if it's in "deleting" status.
-// Returns true if the watcher was removed.
-func (s *MockServer) removeWatcherIfDeleting(watcherID uuid.UUID) bool {
+// archiveWatcher transitions a watcher from "archiving" to "archived" status.
+func (s *MockServer) archiveWatcher(watcherID uuid.UUID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for i, w := range s.watchers {
-		if w.WatcherId == watcherID && w.Status == stdserver.WatcherStatusDeleting {
-			s.watchers = append(s.watchers[:i], s.watchers[i+1:]...)
+		if w.WatcherId == watcherID && w.Status == stdserver.WatcherStatusArchiving {
+			s.watchers[i].Status = stdserver.WatcherStatusArchived
 			return true
 		}
 	}

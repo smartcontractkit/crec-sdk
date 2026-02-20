@@ -62,7 +62,7 @@
 //	    Limit:         ptr(10),
 //	})
 //
-// # Getting and Updating Smart Wallets
+// # Getting, Updating, and Archiving Smart Wallets
 //
 // Retrieve a specific Smart Wallet by ID:
 //
@@ -73,6 +73,10 @@
 //	err := client.Wallets.Update(ctx, walletID, UpdateInput{
 //	    Name: "updated-wallet-name",
 //	})
+//
+// Archive a Smart Wallet (sets status to "archived"):
+//
+//	wallet, err := client.Wallets.Archive(ctx, walletID)
 //
 // # Error Handling
 //

@@ -463,7 +463,7 @@ func TestClient_List(t *testing.T) {
 	t.Run("WithStatusFilter", func(t *testing.T) {
 		channelID := uuid.New()
 		createdAt := time.Now().Unix()
-		filterStatus := apiClient.ChannelStatusActive
+		filterStatus := []apiClient.ChannelStatus{apiClient.ChannelStatusActive}
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/channels", r.URL.Path)
@@ -563,20 +563,20 @@ func TestClient_Update(t *testing.T) {
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/channels/"+channelID.String(), r.URL.Path)
-			assert.Equal(t, "PUT", r.Method)
+			assert.Equal(t, "PATCH", r.Method)
 			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
-			// Read and validate request body
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
 
-			var updateReq apiClient.UpdateChannel
-			err = json.Unmarshal(body, &updateReq)
+			var patchReq apiClient.PatchChannel
+			err = json.Unmarshal(body, &patchReq)
 			require.NoError(t, err)
-			assert.Equal(t, newName, updateReq.Name)
-			assert.Equal(t, newDescription, updateReq.Description)
+			require.NotNil(t, patchReq.Name)
+			assert.Equal(t, newName, *patchReq.Name)
+			require.NotNil(t, patchReq.Description)
+			assert.Equal(t, newDescription, *patchReq.Description)
 
-			// Return success response
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			channelStatus := apiClient.ChannelStatusActive
@@ -595,7 +595,7 @@ func TestClient_Update(t *testing.T) {
 
 		channel, err := client.Update(context.Background(), channelID, UpdateInput{
 			Name:        newName,
-			Description: newDescription,
+			Description: &newDescription,
 		})
 
 		require.NoError(t, err)
@@ -615,9 +615,10 @@ func TestClient_Update(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
+		desc := "description"
 		channel, err := client.Update(context.Background(), uuid.New(), UpdateInput{
 			Name:        "",
-			Description: "description",
+			Description: &desc,
 		})
 
 		require.Error(t, err)
@@ -638,9 +639,10 @@ func TestClient_Update(t *testing.T) {
 			longName[i] = 'a'
 		}
 
+		desc := "description"
 		channel, err := client.Update(context.Background(), uuid.New(), UpdateInput{
 			Name:        string(longName),
-			Description: "description",
+			Description: &desc,
 		})
 
 		require.Error(t, err)
@@ -663,9 +665,10 @@ func TestClient_Update(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
+		desc := "description"
 		channel, err := client.Update(context.Background(), channelID, UpdateInput{
 			Name:        "updated-channel",
-			Description: "description",
+			Description: &desc,
 		})
 
 		require.Error(t, err)
@@ -683,9 +686,10 @@ func TestClient_Update(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
+		desc := "description"
 		channel, err := client.Update(context.Background(), channelID, UpdateInput{
 			Name:        "updated-channel",
-			Description: "description",
+			Description: &desc,
 		})
 
 		require.Error(t, err)
@@ -695,43 +699,45 @@ func TestClient_Update(t *testing.T) {
 	})
 }
 
-func TestClient_Delete(t *testing.T) {
-	t.Run("SuccessAsync", func(t *testing.T) {
+func TestClient_Archive(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
 		channelID := uuid.New()
+		createdAt := time.Now().Unix()
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/channels/"+channelID.String(), r.URL.Path)
-			assert.Equal(t, "DELETE", r.Method)
+			assert.Equal(t, "PATCH", r.Method)
 			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
-			w.WriteHeader(http.StatusAccepted) // 202 for async deletion
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var patchReq apiClient.PatchChannel
+			err = json.Unmarshal(body, &patchReq)
+			require.NoError(t, err)
+			require.NotNil(t, patchReq.Status)
+			assert.Equal(t, apiClient.ChannelStatusArchived, *patchReq.Status)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := apiClient.Channel{
+				ChannelId: channelID,
+				Name:      "test-channel",
+				CreatedAt: createdAt,
+				Status:    apiClient.ChannelStatusArchived,
+			}
+			json.NewEncoder(w).Encode(response)
 		}
 
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), channelID)
+		channel, err := client.Archive(context.Background(), channelID)
 
 		require.NoError(t, err)
-	})
-
-	t.Run("SuccessSync", func(t *testing.T) {
-		channelID := uuid.New()
-
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/channels/"+channelID.String(), r.URL.Path)
-			assert.Equal(t, "DELETE", r.Method)
-			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
-
-			w.WriteHeader(http.StatusNoContent) // 204 for sync deletion
-		}
-
-		client, server := setupTestClient(t, handler)
-		defer server.Close()
-
-		err := client.Delete(context.Background(), channelID)
-
-		require.NoError(t, err)
+		assert.NotNil(t, channel)
+		assert.Equal(t, channelID, channel.ChannelId)
+		assert.Equal(t, apiClient.ChannelStatusArchived, channel.Status)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -748,9 +754,10 @@ func TestClient_Delete(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), channelID)
+		channel, err := client.Archive(context.Background(), channelID)
 
 		require.Error(t, err)
+		assert.Nil(t, channel)
 		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
 	})
 
@@ -768,10 +775,11 @@ func TestClient_Delete(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), channelID)
+		channel, err := client.Archive(context.Background(), channelID)
 
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrDeleteChannel), "Expected ErrDeleteChannel, got: %v", err)
+		assert.Nil(t, channel)
+		assert.True(t, errors.Is(err, ErrArchiveChannel), "Expected ErrArchiveChannel, got: %v", err)
 		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 }

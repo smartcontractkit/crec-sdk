@@ -45,20 +45,20 @@
 //	})
 //
 //	// Filter by status
-//	status := apiClient.ChannelStatusActive
+//	statuses := []apiClient.ChannelStatus{apiClient.ChannelStatusActive}
 //	channels, hasMore, err = client.Channels.List(ctx, ListInput{
-//	    Status: &status,
+//	    Status: &statuses,
 //	})
 //
-// # Getting and Deleting
+// # Getting and Archiving
 //
 // Retrieve a specific channel by ID:
 //
 //	channel, err := client.Channels.Get(ctx, channelID)
 //
-// Delete a channel (soft delete):
+// Archive a channel (sets status to "archived"):
 //
-//	err := client.Channels.Delete(ctx, channelID)
+//	channel, err := client.Channels.Archive(ctx, channelID)
 //
 // # Integration with Other Clients
 //

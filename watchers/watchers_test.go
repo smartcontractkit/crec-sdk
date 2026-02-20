@@ -156,8 +156,7 @@ func TestClient_CreateWithService(t *testing.T) {
 
 			serviceWatcher, err := createReq.AsCreateWatcherWithService()
 			require.NoError(t, err)
-			require.NotNil(t, serviceWatcher.Name)
-			assert.Equal(t, watcherName, *serviceWatcher.Name)
+			assert.Equal(t, watcherName, serviceWatcher.Name)
 			assert.Equal(t, service, serviceWatcher.Service)
 			assert.Equal(t, chainSelector, serviceWatcher.ChainSelector)
 			assert.Equal(t, contracts, serviceWatcher.Contracts)
@@ -334,8 +333,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 
 			abiWatcher, err := createReq.AsCreateWatcherWithABI()
 			require.NoError(t, err)
-			require.NotNil(t, abiWatcher.Name)
-			assert.Equal(t, watcherName, *abiWatcher.Name)
+			assert.Equal(t, watcherName, abiWatcher.Name)
 			assert.Equal(t, chainSelector, abiWatcher.ChainSelector)
 			assert.Equal(t, address, abiWatcher.Address)
 			assert.Len(t, abiWatcher.Abi, 1)
@@ -812,9 +810,9 @@ func TestClient_Update(t *testing.T) {
 			var updateReq apiClient.UpdateWatcher
 			err = json.Unmarshal(body, &updateReq)
 			require.NoError(t, err)
-			assert.Equal(t, newName, updateReq.Name)
+			require.NotNil(t, updateReq.Name)
+			assert.Equal(t, newName, *updateReq.Name)
 
-			// Return success response
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			response := apiClient.Watcher{
@@ -917,28 +915,7 @@ func TestClient_Update(t *testing.T) {
 	})
 }
 
-func TestClient_Delete(t *testing.T) {
-	t.Run("SuccessSync", func(t *testing.T) {
-		channelID := uuid.New()
-		watcherID := uuid.New()
-
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
-			assert.Equal(t, expectedPath, r.URL.Path)
-			assert.Equal(t, "DELETE", r.Method)
-			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
-
-			w.WriteHeader(http.StatusNoContent)
-		}
-
-		client, server := setupTestClient(t, handler)
-		defer server.Close()
-
-		err := client.Delete(context.Background(), channelID, watcherID)
-
-		require.NoError(t, err)
-	})
-
+func TestClient_Archive(t *testing.T) {
 	t.Run("SuccessAsync", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -946,18 +923,38 @@ func TestClient_Delete(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			expectedPath := "/channels/" + channelID.String() + "/watchers/" + watcherID.String()
 			assert.Equal(t, expectedPath, r.URL.Path)
-			assert.Equal(t, "DELETE", r.Method)
+			assert.Equal(t, "PATCH", r.Method)
 			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 
-			w.WriteHeader(http.StatusAccepted) // 202 for async deletion
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var updateReq apiClient.UpdateWatcher
+			err = json.Unmarshal(body, &updateReq)
+			require.NoError(t, err)
+			require.NotNil(t, updateReq.Status)
+			assert.Equal(t, apiClient.WatcherStatusArchived, *updateReq.Status)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: "1337",
+				Address:       "0x1234",
+				Status:        apiClient.WatcherStatusArchiving,
+			}
+			json.NewEncoder(w).Encode(response)
 		}
 
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), channelID, watcherID)
+		watcher, err := client.Archive(context.Background(), channelID, watcherID)
 
 		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, apiClient.WatcherStatusArchiving, watcher.Status)
 	})
 
 	t.Run("EmptyChannelID", func(t *testing.T) {
@@ -968,9 +965,10 @@ func TestClient_Delete(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), uuid.Nil, uuid.New())
+		watcher, err := client.Archive(context.Background(), uuid.Nil, uuid.New())
 
 		require.Error(t, err)
+		assert.Nil(t, watcher)
 		assert.True(t, errors.Is(err, ErrChannelIDRequired), "Expected ErrChannelIDRequired, got: %v", err)
 	})
 
@@ -982,9 +980,10 @@ func TestClient_Delete(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), uuid.New(), uuid.Nil)
+		watcher, err := client.Archive(context.Background(), uuid.New(), uuid.Nil)
 
 		require.Error(t, err)
+		assert.Nil(t, watcher)
 		assert.True(t, errors.Is(err, ErrWatcherIDRequired), "Expected ErrWatcherIDRequired, got: %v", err)
 	})
 
@@ -1003,9 +1002,10 @@ func TestClient_Delete(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), channelID, watcherID)
+		watcher, err := client.Archive(context.Background(), channelID, watcherID)
 
 		require.Error(t, err)
+		assert.Nil(t, watcher)
 		assert.True(t, errors.Is(err, ErrWatcherNotFound), "Expected ErrWatcherNotFound, got: %v", err)
 	})
 
@@ -1024,10 +1024,11 @@ func TestClient_Delete(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.Delete(context.Background(), channelID, watcherID)
+		watcher, err := client.Archive(context.Background(), channelID, watcherID)
 
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrDeleteWatcher), "Expected ErrDeleteWatcher, got: %v", err)
+		assert.Nil(t, watcher)
+		assert.True(t, errors.Is(err, ErrArchiveWatcher), "Expected ErrArchiveWatcher, got: %v", err)
 	})
 }
 
@@ -1185,7 +1186,7 @@ func TestClient_WaitForActive(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrWatcherIDRequired), "Expected ErrWatcherIDRequired, got: %v", err)
 	})
 
-	t.Run("DeletingStatus", func(t *testing.T) {
+	t.Run("ArchivingStatus", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 
@@ -1198,7 +1199,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.WatcherStatusDeleting,
+				Status:        apiClient.WatcherStatusArchiving,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1210,7 +1211,7 @@ func TestClient_WaitForActive(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
-		assert.True(t, errors.Is(err, ErrWatcherIsDeleting), "Expected ErrWatcherIsDeleting, got: %v", err)
+		assert.True(t, errors.Is(err, ErrWatcherIsArchiving), "Expected ErrWatcherIsArchiving, got: %v", err)
 	})
 
 	t.Run("ContextCancellation", func(t *testing.T) {
@@ -1381,7 +1382,7 @@ func TestClient_WaitForActive(t *testing.T) {
 	})
 }
 
-func TestClient_WaitForDeleted(t *testing.T) {
+func TestClient_WaitForArchived(t *testing.T) {
 	t.Run("SuccessAfterPolling", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
@@ -1391,54 +1392,63 @@ func TestClient_WaitForDeleted(t *testing.T) {
 			callCount++
 			w.Header().Set("Content-Type", "application/json")
 
-			// First 2 calls return "deleting" status, then return 404 (watcher removed)
+			name := "test-watcher"
 			if callCount < 3 {
 				w.WriteHeader(http.StatusOK)
-				name := "test-watcher"
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
 					Name:          &name,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.WatcherStatusDeleting,
+					Status:        apiClient.WatcherStatusArchiving,
 				}
 				json.NewEncoder(w).Encode(response)
 			} else {
-				// Return 404 - watcher has been deleted
-				w.WriteHeader(http.StatusNotFound)
-				json.NewEncoder(w).Encode(map[string]string{
-					"error": "Watcher not found",
-				})
+				w.WriteHeader(http.StatusOK)
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &name,
+					ChainSelector: "1337",
+					Address:       "0x1234",
+					Status:        apiClient.WatcherStatusArchived,
+				}
+				json.NewEncoder(w).Encode(response)
 			}
 		}
 
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+		err := client.WaitForArchived(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, callCount, 3)
 	})
 
-	t.Run("SuccessNotFound", func(t *testing.T) {
+	t.Run("SuccessImmediate", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
-				"error": "Watcher not found",
-			})
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: "1337",
+				Address:       "0x1234",
+				Status:        apiClient.WatcherStatusArchived,
+			}
+			json.NewEncoder(w).Encode(response)
 		}
 
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+		err := client.WaitForArchived(context.Background(), channelID, watcherID, 5*time.Second)
 
-		require.NoError(t, err) // 404 means it's been deleted
+		require.NoError(t, err)
 	})
 
 	t.Run("Timeout", func(t *testing.T) {
@@ -1454,7 +1464,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.WatcherStatusDeleting,
+				Status:        apiClient.WatcherStatusArchiving,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1462,11 +1472,10 @@ func TestClient_WaitForDeleted(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		// Use a very short timeout to test timeout behavior
-		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 100*time.Millisecond)
+		err := client.WaitForArchived(context.Background(), channelID, watcherID, 100*time.Millisecond)
 
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrWaitForDeletedTimeout), "Expected ErrWaitForDeletedTimeout, got: %v", err)
+		assert.True(t, errors.Is(err, ErrWaitForArchivedTimeout), "Expected ErrWaitForArchivedTimeout, got: %v", err)
 	})
 
 	t.Run("ContextCancellation", func(t *testing.T) {
@@ -1474,7 +1483,6 @@ func TestClient_WaitForDeleted(t *testing.T) {
 		watcherID := uuid.New()
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
-			// Simulate slow deletion - always return deleting status
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			name := "test-watcher"
@@ -1483,7 +1491,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.WatcherStatusDeleting,
+				Status:        apiClient.WatcherStatusArchiving,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1491,19 +1499,16 @@ func TestClient_WaitForDeleted(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		// Create a context that will be cancelled
 		ctx, cancel := context.WithCancel(context.Background())
 
-		// Cancel the context after a short delay
 		go func() {
 			time.Sleep(50 * time.Millisecond)
 			cancel()
 		}()
 
-		err := client.WaitForDeleted(ctx, channelID, watcherID, 5*time.Second)
+		err := client.WaitForArchived(ctx, channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
-		// The error should be either context.Canceled directly or wrapped
 		assert.True(t, err == context.Canceled || strings.Contains(err.Error(), "context canceled"),
 			"Expected context cancellation error, got: %v", err)
 	})
@@ -1521,7 +1526,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.WatcherStatusActive, // Unexpected status while waiting for deletion
+				Status:        apiClient.WatcherStatusActive,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1529,10 +1534,10 @@ func TestClient_WaitForDeleted(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+		err := client.WaitForArchived(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrWatcherDeletionFailed), "Expected ErrWatcherDeletionFailed, got: %v", err)
+		assert.True(t, errors.Is(err, ErrWatcherArchiveFailed), "Expected ErrWatcherArchiveFailed, got: %v", err)
 		assert.Contains(t, err.Error(), "active")
 	})
 
@@ -1544,7 +1549,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.WaitForDeleted(context.Background(), uuid.Nil, uuid.New(), 5*time.Second)
+		err := client.WaitForArchived(context.Background(), uuid.Nil, uuid.New(), 5*time.Second)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrChannelIDRequired), "Expected ErrChannelIDRequired, got: %v", err)
@@ -1558,7 +1563,7 @@ func TestClient_WaitForDeleted(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.WaitForDeleted(context.Background(), uuid.New(), uuid.Nil, 5*time.Second)
+		err := client.WaitForArchived(context.Background(), uuid.New(), uuid.Nil, 5*time.Second)
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrWatcherIDRequired), "Expected ErrWatcherIDRequired, got: %v", err)
@@ -1573,22 +1578,28 @@ func TestClient_WaitForDeleted(t *testing.T) {
 			attemptCount++
 			w.Header().Set("Content-Type", "application/json")
 
-			// First 2 attempts return 502 (transient error)
 			if attemptCount <= 2 {
 				w.WriteHeader(http.StatusBadGateway)
 				w.Write([]byte(`{"error": "bad gateway"}`))
 				return
 			}
 
-			// Third attempt succeeds with 404 (watcher deleted)
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(`{"error": "not found"}`))
+			w.WriteHeader(http.StatusOK)
+			name := "test-watcher"
+			response := apiClient.Watcher{
+				WatcherId:     watcherID,
+				Name:          &name,
+				ChainSelector: "1337",
+				Address:       "0x1234",
+				Status:        apiClient.WatcherStatusArchived,
+			}
+			json.NewEncoder(w).Encode(response)
 		}
 
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 5*time.Second)
+		err := client.WaitForArchived(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, attemptCount, 3, "Should have retried after transient errors")
@@ -1601,7 +1612,6 @@ func TestClient_WaitForDeleted(t *testing.T) {
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			attemptCount++
-			// Always return 500 (transient error)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{"error": "internal server error"}`))
@@ -1610,16 +1620,16 @@ func TestClient_WaitForDeleted(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		err := client.WaitForDeleted(context.Background(), channelID, watcherID, 200*time.Millisecond)
+		err := client.WaitForArchived(context.Background(), channelID, watcherID, 200*time.Millisecond)
 
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrWaitForDeletedTimeout), "Expected timeout error, got: %v", err)
+		assert.True(t, errors.Is(err, ErrWaitForArchivedTimeout), "Expected timeout error, got: %v", err)
 		assert.Greater(t, attemptCount, 1, "Should have retried multiple times before timeout")
 	})
 }
 
 func TestEndToEnd_WatcherLifecycle(t *testing.T) {
-	t.Run("CreateWithService_WaitActive_Update_Delete", func(t *testing.T) {
+	t.Run("CreateWithService_WaitActive_Update_Archive", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 		watcherName := "integration-test-watcher"
@@ -1631,7 +1641,6 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 
 			switch {
-			// 1. Create watcher
 			case r.Method == "POST" && strings.Contains(r.URL.Path, "/channels/"+channelID.String()+"/watchers"):
 				w.WriteHeader(http.StatusCreated)
 				response := apiClient.Watcher{
@@ -1643,7 +1652,6 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				}
 				json.NewEncoder(w).Encode(response)
 
-			// 2-3. Wait for active (first pending, then active)
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
 				status := apiClient.WatcherStatusPending
@@ -1663,21 +1671,32 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				}
 				json.NewEncoder(w).Encode(response)
 
-			// 4. Update watcher
 			case r.Method == "PATCH" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
-				w.WriteHeader(http.StatusOK)
-				response := apiClient.Watcher{
-					WatcherId:     watcherID,
-					Name:          &updatedName,
-					ChainSelector: "1337",
-					Address:       "0x1234",
-					Status:        apiClient.WatcherStatusActive,
-				}
-				json.NewEncoder(w).Encode(response)
+				body, _ := io.ReadAll(r.Body)
+				var updateReq apiClient.UpdateWatcher
+				json.Unmarshal(body, &updateReq)
 
-			// 5. Delete watcher
-			case r.Method == "DELETE" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
-				w.WriteHeader(http.StatusNoContent)
+				if updateReq.Status != nil && *updateReq.Status == apiClient.WatcherStatusArchived {
+					w.WriteHeader(http.StatusOK)
+					response := apiClient.Watcher{
+						WatcherId:     watcherID,
+						Name:          &updatedName,
+						ChainSelector: "1337",
+						Address:       "0x1234",
+						Status:        apiClient.WatcherStatusArchived,
+					}
+					json.NewEncoder(w).Encode(response)
+				} else {
+					w.WriteHeader(http.StatusOK)
+					response := apiClient.Watcher{
+						WatcherId:     watcherID,
+						Name:          &updatedName,
+						ChainSelector: "1337",
+						Address:       "0x1234",
+						Status:        apiClient.WatcherStatusActive,
+					}
+					json.NewEncoder(w).Encode(response)
+				}
 
 			default:
 				t.Fatalf("Unexpected request: %s %s", r.Method, r.URL.Path)
@@ -1689,7 +1708,6 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 
 		ctx := context.Background()
 
-		// Step 1: Create watcher with service
 		createInput := CreateWithServiceInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
@@ -1702,18 +1720,15 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		assert.Equal(t, watcherID, created.WatcherId)
 		assert.Equal(t, apiClient.WatcherStatusPending, created.Status)
 
-		// Step 2: Wait for watcher to become active
 		active, err := client.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, apiClient.WatcherStatusActive, active.Status)
 
-		// Step 3: Find the watcher
 		found, err := client.Get(ctx, channelID, watcherID)
 		require.NoError(t, err)
 		assert.Equal(t, watcherID, found.WatcherId)
 		assert.Equal(t, watcherName, *found.Name)
 
-		// Step 4: Update the watcher
 		updateInput := UpdateInput{
 			Name: updatedName,
 		}
@@ -1721,20 +1736,18 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, updatedName, *updated.Name)
 
-		// Step 5: Verify update
 		found, err = client.Get(ctx, channelID, watcherID)
 		require.NoError(t, err)
 		assert.Equal(t, updatedName, *found.Name)
 
-		// Step 6: Delete the watcher
-		err = client.Delete(ctx, channelID, watcherID)
+		archived, err := client.Archive(ctx, channelID, watcherID)
 		require.NoError(t, err)
+		assert.Equal(t, apiClient.WatcherStatusArchived, archived.Status)
 
-		// Verify we made all expected calls
 		assert.GreaterOrEqual(t, callCount, 6, "Should have made at least 6 API calls")
 	})
 
-	t.Run("CreateWithABI_WaitActive_List_Delete", func(t *testing.T) {
+	t.Run("CreateWithABI_WaitActive_List_Archive", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 		watcherName := "abi-test-watcher"
@@ -1745,7 +1758,6 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 
 			switch {
-			// 1. Create watcher with ABI
 			case r.Method == "POST" && strings.Contains(r.URL.Path, "/channels/"+channelID.String()+"/watchers"):
 				w.WriteHeader(http.StatusCreated)
 				response := apiClient.Watcher{
@@ -1757,7 +1769,6 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				}
 				json.NewEncoder(w).Encode(response)
 
-			// 2. Wait for active (immediately active)
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
 				response := apiClient.Watcher{
@@ -1769,7 +1780,6 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				}
 				json.NewEncoder(w).Encode(response)
 
-			// 3. List watchers
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/channels/"+channelID.String()+"/watchers") && !strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
 				response := apiClient.WatcherList{
@@ -1790,9 +1800,16 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				}
 				json.NewEncoder(w).Encode(response)
 
-			// 4. Delete watcher (async)
-			case r.Method == "DELETE" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
+			case r.Method == "PATCH" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusAccepted)
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &watcherName,
+					ChainSelector: "1337",
+					Address:       "0x5678",
+					Status:        apiClient.WatcherStatusArchiving,
+				}
+				json.NewEncoder(w).Encode(response)
 
 			default:
 				t.Fatalf("Unexpected request: %s %s", r.Method, r.URL.Path)
@@ -1804,7 +1821,6 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 
 		ctx := context.Background()
 
-		// Step 1: Create watcher with custom ABI
 		createInput := CreateWithABIInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
@@ -1827,21 +1843,19 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, watcherID, created.WatcherId)
 
-		// Step 2: Wait for active
 		active, err := client.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, apiClient.WatcherStatusActive, active.Status)
 
-		// Step 3: List all watchers in the channel
 		filters := ListFilters{}
 		list, err := client.List(ctx, channelID, filters)
 		require.NoError(t, err)
 		assert.Len(t, list.Data, 1)
 		assert.Equal(t, watcherID, list.Data[0].WatcherId)
 
-		// Step 4: Delete the watcher (async)
-		err = client.Delete(ctx, channelID, watcherID)
+		archived, err := client.Archive(ctx, channelID, watcherID)
 		require.NoError(t, err)
+		assert.Equal(t, apiClient.WatcherStatusArchiving, archived.Status)
 
 		assert.Equal(t, 4, callCount, "Should have made 4 API calls")
 	})
@@ -1930,10 +1944,10 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrWatcherDeploymentFailed), "Expected ErrWatcherDeploymentFailed, got: %v", err)
 	})
 
-	t.Run("WatcherIsDeleted_WhileWaitingForActive", func(t *testing.T) {
+	t.Run("WatcherIsArchived_WhileWaitingForActive", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
-		watcherName := "deleted-watcher"
+		watcherName := "archived-watcher"
 
 		getCallCount := 0
 		handler := func(w http.ResponseWriter, r *http.Request) {
@@ -1951,8 +1965,6 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 				json.NewEncoder(w).Encode(response)
 			} else if r.Method == "GET" {
 				getCallCount++
-				// First GET call returns pending (within consistency window)
-				// Subsequent GET calls return 404 (watcher deleted, after consistency window)
 				if getCallCount == 1 {
 					w.WriteHeader(http.StatusOK)
 					response := apiClient.Watcher{
@@ -1964,11 +1976,15 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					}
 					json.NewEncoder(w).Encode(response)
 				} else {
-					// Return 404 - watcher was deleted
-					w.WriteHeader(http.StatusNotFound)
-					json.NewEncoder(w).Encode(map[string]string{
-						"error": "Watcher not found",
-					})
+					w.WriteHeader(http.StatusOK)
+					response := apiClient.Watcher{
+						WatcherId:     watcherID,
+						Name:          &watcherName,
+						ChainSelector: "1337",
+						Address:       "0x1234",
+						Status:        apiClient.WatcherStatusArchived,
+					}
+					json.NewEncoder(w).Encode(response)
 				}
 			}
 		}
@@ -1976,8 +1992,6 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(handler))
 		defer server.Close()
 
-		// Create client with very short eventual consistency window
-		// so that 404 is immediately treated as "watcher deleted"
 		apiKeyEditor := func(ctx context.Context, req *http.Request) error {
 			req.Header.Set("Authorization", "Apikey test-api-key")
 			return nil
@@ -1993,13 +2007,12 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 			Logger:                    logger,
 			APIClient:                 crecAPIClient,
 			PollInterval:              10 * time.Millisecond,
-			EventualConsistencyWindow: 1 * time.Millisecond, // Very short window for test
+			EventualConsistencyWindow: 1 * time.Millisecond,
 		})
 		require.NoError(t, err)
 
 		ctx := context.Background()
 
-		// Create watcher
 		createInput := CreateWithServiceInput{
 			Name:          &watcherName,
 			ChainSelector: "1337",
@@ -2010,10 +2023,9 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		created, err := client.CreateWithService(ctx, channelID, createInput)
 		require.NoError(t, err)
 
-		// Wait for active - should fail because watcher was deleted (404 after consistency window)
 		_, err = client.WaitForActive(ctx, channelID, created.WatcherId, 5*time.Second)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrWatcherAlreadyDeleted), "Expected ErrWatcherAlreadyDeleted, got: %v", err)
+		assert.True(t, errors.Is(err, ErrWatcherAlreadyArchived), "Expected ErrWatcherAlreadyArchived, got: %v", err)
 	})
 
 	t.Run("UpdateNonExistentWatcher", func(t *testing.T) {
@@ -2041,37 +2053,50 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrWatcherNotFound), "Expected ErrWatcherNotFound, got: %v", err)
 	})
 
-	t.Run("DeleteDuringWaitForDeleted_CompletesSuccessfully", func(t *testing.T) {
+	t.Run("ArchiveDuringWaitForArchived_CompletesSuccessfully", func(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 
 		getCallCount := 0
+		patchDone := false
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 
-			if r.Method == "DELETE" {
-				// Async deletion
+			if r.Method == "PATCH" && !patchDone {
+				patchDone = true
 				w.WriteHeader(http.StatusAccepted)
+				name := "test-watcher"
+				response := apiClient.Watcher{
+					WatcherId:     watcherID,
+					Name:          &name,
+					ChainSelector: "1337",
+					Address:       "0x1234",
+					Status:        apiClient.WatcherStatusArchiving,
+				}
+				json.NewEncoder(w).Encode(response)
 			} else if r.Method == "GET" {
 				getCallCount++
-				// First 2 GET calls return "deleting" status, then return 404 (watcher removed)
+				name := "test-watcher"
 				if getCallCount <= 2 {
 					w.WriteHeader(http.StatusOK)
-					name := "test-watcher"
 					response := apiClient.Watcher{
 						WatcherId:     watcherID,
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        apiClient.WatcherStatusDeleting,
+						Status:        apiClient.WatcherStatusArchiving,
 					}
 					json.NewEncoder(w).Encode(response)
 				} else {
-					// Return 404 - watcher has been deleted
-					w.WriteHeader(http.StatusNotFound)
-					json.NewEncoder(w).Encode(map[string]string{
-						"error": "Watcher not found",
-					})
+					w.WriteHeader(http.StatusOK)
+					response := apiClient.Watcher{
+						WatcherId:     watcherID,
+						Name:          &name,
+						ChainSelector: "1337",
+						Address:       "0x1234",
+						Status:        apiClient.WatcherStatusArchived,
+					}
+					json.NewEncoder(w).Encode(response)
 				}
 			}
 		}
@@ -2081,12 +2106,11 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 
 		ctx := context.Background()
 
-		// Delete watcher (async)
-		err := client.Delete(ctx, channelID, watcherID)
+		archived, err := client.Archive(ctx, channelID, watcherID)
 		require.NoError(t, err)
+		assert.Equal(t, apiClient.WatcherStatusArchiving, archived.Status)
 
-		// Wait for deletion to complete
-		err = client.WaitForDeleted(ctx, channelID, watcherID, 5*time.Second)
+		err = client.WaitForArchived(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
 	})
 }
