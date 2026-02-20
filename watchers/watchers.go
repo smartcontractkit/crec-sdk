@@ -26,7 +26,7 @@ var (
 	// Validation errors
 	ErrChannelIDRequired     = errors.New("channel_id cannot be empty")
 	ErrWatcherIDRequired     = errors.New("watcher_id cannot be empty")
-	ErrNameRequired          = errors.New("name is required")
+	ErrNameRequired          = errors.New("name cannot be an empty string")
 	ErrServiceRequired       = errors.New("service is required")
 	ErrAddressRequired       = errors.New("address is required")
 	ErrContractsRequired     = errors.New("contracts map is required for service-based watchers")
