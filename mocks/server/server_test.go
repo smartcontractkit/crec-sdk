@@ -68,8 +68,9 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 	}
 
 	// Test updating wallet name
+	updatedName := "Updated Wallet Name"
 	updateRequest := apiClient.UpdateWallet{
-		Name: "Updated Wallet Name",
+		Name: &updatedName,
 	}
 	updateResp, err := c.PatchWalletsWalletIdWithResponse(context.Background(), wallet.JSON201.WalletId, updateRequest)
 	if err != nil {

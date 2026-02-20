@@ -29,11 +29,11 @@ var (
 	ErrChannelNameTooLong  = errors.New("channel name too long")
 
 	// API operation errors
-	ErrCreateChannel = errors.New("failed to create channel")
-	ErrGetChannel    = errors.New("failed to get channel")
-	ErrListChannels  = errors.New("failed to list channels")
-	ErrUpdateChannel = errors.New("failed to update channel")
-	ErrDeleteChannel = errors.New("failed to delete channel")
+	ErrCreateChannel  = errors.New("failed to create channel")
+	ErrGetChannel     = errors.New("failed to get channel")
+	ErrListChannels   = errors.New("failed to list channels")
+	ErrUpdateChannel  = errors.New("failed to update channel")
+	ErrArchiveChannel = errors.New("failed to archive channel")
 
 	// Response errors
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
@@ -177,12 +177,12 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID) (*apiClient.Chann
 
 // ListInput defines the input parameters for listing channels.
 //   - Name: Optional filter to search channels by name.
-//   - Status: Optional filter to search channels by status (e.g., active, inactive).
+//   - Status: Optional filter to search channels by status (e.g., active, archived). Archived channels are excluded by default.
 //   - Limit: Maximum number of channels to return (1-50, default: 20).
 //   - Offset: Number of channels to skip for pagination (default: 0).
 type ListInput struct {
 	Name   *string
-	Status *apiClient.ChannelStatus
+	Status *[]apiClient.ChannelStatus
 	Limit  *int
 	Offset *int64
 }
@@ -230,10 +230,10 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Channel
 
 // UpdateInput defines the input parameters for updating a channel.
 //   - Name: The new name for the channel.
-//   - Description: The new description for the channel.
+//   - Description: Optional new description for the channel.
 type UpdateInput struct {
 	Name        string
-	Description string
+	Description *string
 }
 
 // Update updates a channel's information.
@@ -255,12 +255,12 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateIn
 		return nil, fmt.Errorf("%w: cannot exceed %d characters", ErrChannelNameTooLong, MaxChannelNameLength)
 	}
 
-	updateChannelReq := apiClient.UpdateChannel{
-		Name:        input.Name,
+	patchChannelReq := apiClient.PatchChannel{
+		Name:        &input.Name,
 		Description: input.Description,
 	}
 
-	resp, err := c.apiClient.PutChannelsChannelIdWithResponse(ctx, channelID, updateChannelReq)
+	resp, err := c.apiClient.PatchChannelsChannelIdWithResponse(ctx, channelID, patchChannelReq)
 	if err != nil {
 		c.logger.Error("Failed to update channel", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, err)
@@ -289,40 +289,46 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateIn
 	return resp.JSON200, nil
 }
 
-// Delete deletes a channel.
+// Archive archives a channel by transitioning it to archived status via PATCH.
+// Archiving is synchronous and returns the channel in "archived" status.
+// A channel cannot be archived if it has active watchers.
 //
 // Parameters:
 //   - ctx: The context for the request.
-//   - channelID: The UUID of the channel to delete.
+//   - channelID: The UUID of the channel to archive.
 //
-// Returns an error if the operation fails or the channel is not found.
-func (c *Client) Delete(ctx context.Context, channelID uuid.UUID) error {
-	c.logger.Debug("Deleting channel", "channel_id", channelID.String())
+// Returns the archived channel or an error if the operation fails or the channel is not found.
+func (c *Client) Archive(ctx context.Context, channelID uuid.UUID) (*apiClient.Channel, error) {
+	c.logger.Debug("Archiving channel", "channel_id", channelID.String())
 
-	resp, err := c.apiClient.DeleteChannelsChannelIdWithResponse(ctx, channelID)
-	if err != nil {
-		c.logger.Error("Failed to delete channel", "error", err)
-		return fmt.Errorf("%w: %w", ErrDeleteChannel, err)
+	archiveStatus := apiClient.ChannelStatusArchived
+	patchReq := apiClient.PatchChannel{
+		Status: &archiveStatus,
 	}
 
-	if resp.StatusCode() != 202 && resp.StatusCode() != 204 {
-		c.logger.Error("Unexpected status code when deleting channel",
+	resp, err := c.apiClient.PatchChannelsChannelIdWithResponse(ctx, channelID, patchReq)
+	if err != nil {
+		c.logger.Error("Failed to archive channel", "error", err)
+		return nil, fmt.Errorf("%w: %w", ErrArchiveChannel, err)
+	}
+
+	if resp.StatusCode() == 404 {
+		c.logger.Warn("Channel not found", "channel_id", channelID.String())
+		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+	}
+
+	if resp.StatusCode() != 200 {
+		c.logger.Error("Unexpected status code when archiving channel",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-
-		if resp.StatusCode() == 404 {
-			c.logger.Warn("Channel not found", "channel_id", channelID.String())
-			return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
-		}
-
-		return fmt.Errorf("%w: %w (status code %d)", ErrDeleteChannel, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrArchiveChannel, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 
-	if resp.StatusCode() == 202 {
-		c.logger.Info("Channel deletion initiated (async)", "channel_id", channelID.String())
-	} else {
-		c.logger.Info("Channel deleted successfully (sync)", "channel_id", channelID.String())
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("%w: %w", ErrArchiveChannel, ErrNilResponseBody)
 	}
 
-	return nil
+	c.logger.Info("Channel archived successfully", "channel_id", channelID.String())
+
+	return resp.JSON200, nil
 }

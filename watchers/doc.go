@@ -70,7 +70,9 @@
 //   - pending: Created, deployment in progress
 //   - active: Deployed and monitoring events
 //   - failed: Deployment failed (terminal)
-//   - deleting: Deletion in progress (watcher returns 404 Not Found once fully deleted)
+//   - archiving: Archive in progress
+//   - archived: Successfully archived (terminal)
+//   - archive_failed: Archive operation failed
 //
 // # Listing and Filtering
 //
@@ -100,5 +102,5 @@
 //	}
 //
 // The client automatically retries transient errors (5xx, 429, network issues)
-// during polling operations like [Client.WaitForActive] and [Client.WaitForDeleted].
+// during polling operations like [Client.WaitForActive] and [Client.WaitForArchived].
 package watchers

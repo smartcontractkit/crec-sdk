@@ -26,7 +26,7 @@ var (
 	// Validation errors
 	ErrChannelIDRequired     = errors.New("channel_id cannot be empty")
 	ErrWatcherIDRequired     = errors.New("watcher_id cannot be empty")
-	ErrNameRequired          = errors.New("name is required")
+	ErrNameRequired          = errors.New("name cannot be an empty string")
 	ErrServiceRequired       = errors.New("service is required")
 	ErrAddressRequired       = errors.New("address is required")
 	ErrContractsRequired     = errors.New("contracts map is required for service-based watchers")
@@ -39,14 +39,14 @@ var (
 	ErrEventNotInABI         = errors.New("event not found in provided ABI")
 
 	// Timeout errors
-	ErrWaitForActiveTimeout  = errors.New("timeout waiting for watcher to become active")
-	ErrWaitForDeletedTimeout = errors.New("timeout waiting for watcher to be deleted")
+	ErrWaitForActiveTimeout   = errors.New("timeout waiting for watcher to become active")
+	ErrWaitForArchivedTimeout = errors.New("timeout waiting for watcher to be archived")
 
 	// Watcher state errors
 	ErrWatcherDeploymentFailed = errors.New("watcher deployment failed")
-	ErrWatcherIsDeleting       = errors.New("watcher is being deleted and cannot become active")
-	ErrWatcherAlreadyDeleted   = errors.New("watcher has been deleted and cannot become active")
-	ErrWatcherDeletionFailed   = errors.New("watcher deletion failed")
+	ErrWatcherIsArchiving      = errors.New("watcher is being archived and cannot become active")
+	ErrWatcherAlreadyArchived  = errors.New("watcher has been archived and cannot become active")
+	ErrWatcherArchiveFailed    = errors.New("watcher archive failed")
 
 	// API response errors
 	ErrEmptyResponse    = errors.New("unexpected empty response from API")
@@ -59,13 +59,11 @@ var (
 	ErrListWatchers         = errors.New("failed to list watchers")
 	ErrGetWatcher           = errors.New("failed to get watcher")
 	ErrUpdateWatcher        = errors.New("failed to update watcher")
-	ErrDeleteWatcher        = errors.New("failed to delete watcher")
+	ErrArchiveWatcher       = errors.New("failed to archive watcher")
 	ErrCheckWatcherStatus   = errors.New("failed to check watcher status")
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 )
 
-// watcherStatusDeleted is the status value for a deleted watcher (API may return it even if not in WatcherStatus constants).
-const watcherStatusDeleted apiClient.WatcherStatus = "deleted"
 
 type EventABIInput struct {
 	Indexed      bool   `json:"indexed"`
@@ -90,7 +88,7 @@ type CreateWithServiceInput struct {
 }
 
 type CreateWithABIInput struct {
-	Name          *string    `json:"name,omitempty"`
+	Name          string     `json:"name"`
 	ChainSelector string     `json:"chain_selector"`
 	Address       string     `json:"address"`
 	Events        []string   `json:"events"`
@@ -194,8 +192,12 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 		return nil, ErrEventsRequired
 	}
 
+	var name string
+	if input.Name != nil {
+		name = *input.Name
+	}
 	createWatcherWithService := apiClient.CreateWatcherWithService{
-		Name:          input.Name,
+		Name:          name,
 		ChainSelector: input.ChainSelector,
 		Contracts:     input.Contracts,
 		Service:       input.Service,
@@ -431,7 +433,7 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, watcherID uuid
 	}
 
 	updateReq := apiClient.UpdateWatcher{
-		Name: input.Name,
+		Name: &input.Name,
 	}
 
 	resp, err := c.apiClient.PatchChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID, updateReq)
@@ -502,10 +504,9 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 							"window", c.eventualConsistencyWindow)
 						continue
 					}
-					// After the window, 404 means the watcher was deleted
-					c.logger.Error("Watcher was deleted",
+					c.logger.Error("Watcher not found after consistency window",
 						"elapsed", elapsedTime)
-					return nil, ErrWatcherAlreadyDeleted
+					return nil, ErrWatcherNotFound
 				}
 
 				// Check if error is transient (network issues, 5xx, etc.)
@@ -525,15 +526,14 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 				c.logger.Error("Watcher deployment failed")
 				return nil, ErrWatcherDeploymentFailed
 			case apiClient.WatcherStatusPending:
-				// Continue waiting
 				c.logger.Debug("Watcher still pending, continuing to wait")
 				continue
-			case apiClient.WatcherStatusDeleting:
-				c.logger.Error("Watcher is being deleted")
-				return nil, ErrWatcherIsDeleting
-			case watcherStatusDeleted:
-				c.logger.Error("Watcher has been deleted")
-				return nil, ErrWatcherAlreadyDeleted
+			case apiClient.WatcherStatusArchiving:
+				c.logger.Error("Watcher is being archived")
+				return nil, ErrWatcherIsArchiving
+			case apiClient.WatcherStatusArchived:
+				c.logger.Error("Watcher has been archived")
+				return nil, ErrWatcherAlreadyArchived
 			default:
 				c.logger.Error("Unexpected watcher status while waiting for active", "status", watcher.Status)
 				return nil, fmt.Errorf("%w: %s", ErrUnexpectedStatus, watcher.Status)
@@ -542,51 +542,63 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 	}
 }
 
-// Delete deletes a watcher from a channel
-func (c *Client) Delete(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) error {
-	c.logger.Debug("Deleting watcher",
+// Archive archives a watcher by transitioning it to archived status via PATCH.
+// Archiving is asynchronous: the PATCH returns 202 with the watcher in "archiving" status,
+// with a final transition to "archived" (or "archive_failed").
+func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) (*apiClient.Watcher, error) {
+	c.logger.Debug("Archiving watcher",
 		"channel_id", channelID.String(),
 		"watcher_id", watcherID.String())
 
 	if err := validateChannelID(channelID); err != nil {
-		return err
+		return nil, err
 	}
 	if watcherID == uuid.Nil {
-		return ErrWatcherIDRequired
+		return nil, ErrWatcherIDRequired
 	}
 
-	resp, err := c.apiClient.DeleteChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID)
+	archiveStatus := apiClient.WatcherStatusArchived
+	updateReq := apiClient.UpdateWatcher{
+		Status: &archiveStatus,
+	}
+
+	resp, err := c.apiClient.PatchChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID, updateReq)
 	if err != nil {
-		c.logger.Error("Failed to delete watcher", "error", err)
-		return fmt.Errorf("%w: %w", ErrDeleteWatcher, err)
+		c.logger.Error("Failed to archive watcher", "error", err)
+		return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, err)
 	}
 
-	// Accept both 202 (Accepted - async deletion) and 204 (No Content - sync deletion)
-	if resp.StatusCode() != 202 && resp.StatusCode() != 204 {
-		c.logger.Error("Failed to delete watcher - unexpected status code",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-
-		if resp.StatusCode() == 404 {
-			return fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
-		}
-
-		return fmt.Errorf("%w: %w (status code %d)", ErrDeleteWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
+	if resp.StatusCode() == 404 {
+		return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
 	}
 
 	if resp.StatusCode() == 202 {
-		c.logger.Info("Watcher deletion initiated (async)", "watcher_id", watcherID.String())
-	} else {
-		c.logger.Info("Watcher deleted successfully (sync)", "watcher_id", watcherID.String())
+		if resp.JSON202 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, ErrEmptyResponse)
+		}
+		c.logger.Info("Watcher archive initiated (async)", "watcher_id", watcherID.String())
+		return resp.JSON202, nil
 	}
 
-	return nil
+	if resp.StatusCode() != 200 {
+		c.logger.Error("Failed to archive watcher - unexpected status code",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrArchiveWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, ErrEmptyResponse)
+	}
+
+	c.logger.Info("Watcher archived successfully", "watcher_id", watcherID.String())
+	return resp.JSON200, nil
 }
 
-// WaitForDeleted waits for a watcher to be fully deleted.
-// The method polls the watcher status until it reaches "deleted" state or the timeout is reached.
-func (c *Client) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, maxWaitTime time.Duration) error {
-	c.logger.Debug("Waiting for watcher to be deleted",
+// WaitForArchived waits for a watcher to be fully archived.
+// The method polls the watcher status until it reaches "archived" state or the timeout is reached.
+func (c *Client) WaitForArchived(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, maxWaitTime time.Duration) error {
+	c.logger.Debug("Waiting for watcher to be archived",
 		"channel_id", channelID.String(),
 		"watcher_id", watcherID.String(),
 		"max_wait_time", maxWaitTime)
@@ -605,41 +617,33 @@ func (c *Client) WaitForDeleted(ctx context.Context, channelID uuid.UUID, watche
 	for {
 		select {
 		case <-timeout:
-			c.logger.Error("Timeout waiting for watcher to be deleted")
-			return ErrWaitForDeletedTimeout
+			c.logger.Error("Timeout waiting for watcher to be archived")
+			return ErrWaitForArchivedTimeout
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
 			watcher, err := c.Get(ctx, channelID, watcherID)
 			if err != nil {
-				// If watcher is not found (404), it's been deleted
-				if errors.Is(err, ErrWatcherNotFound) {
-					c.logger.Debug("Watcher has been deleted (404 not found)")
-					return nil
-				}
-				// Check if error is transient (network issues, 5xx, etc.)
 				if isTransientError(err) {
-					c.logger.Warn("Transient error while checking watcher deletion status, will retry", "error", err)
+					c.logger.Warn("Transient error while checking watcher archive status, will retry", "error", err)
 					continue
 				}
-				// Permanent error - fail immediately
 				return fmt.Errorf("%w: %w", ErrCheckWatcherStatus, err)
 			}
 
 			switch watcher.Status {
-			case watcherStatusDeleted:
-				c.logger.Debug("Watcher is now deleted (status confirmed)")
+			case apiClient.WatcherStatusArchived:
+				c.logger.Debug("Watcher is now archived")
 				return nil
-			case apiClient.WatcherStatusDeleting:
-				c.logger.Debug("Watcher is being deleted, continuing to wait")
+			case apiClient.WatcherStatusArchiving:
+				c.logger.Debug("Watcher is being archived, continuing to wait")
 				continue
 			case apiClient.WatcherStatusActive, apiClient.WatcherStatusPending, apiClient.WatcherStatusFailed:
-				// If the watcher is in any other valid state, it means deletion was rolled back or failed
-				c.logger.Error("Watcher deletion appears to have failed", "status", watcher.Status)
-				return fmt.Errorf("%w, watcher is in %s state", ErrWatcherDeletionFailed, watcher.Status)
+				c.logger.Error("Watcher archive appears to have failed", "status", watcher.Status)
+				return fmt.Errorf("%w, watcher is in %s state", ErrWatcherArchiveFailed, watcher.Status)
 			default:
-				c.logger.Error("Unexpected watcher status while waiting for deletion", "status", watcher.Status)
-				return fmt.Errorf("%w while waiting for deletion: %s", ErrUnexpectedStatus, watcher.Status)
+				c.logger.Error("Unexpected watcher status while waiting for archive", "status", watcher.Status)
+				return fmt.Errorf("%w while waiting for archive: %s", ErrUnexpectedStatus, watcher.Status)
 			}
 		}
 	}
