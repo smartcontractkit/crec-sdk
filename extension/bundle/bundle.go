@@ -1,10 +1,30 @@
 package bundle
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strings"
 )
+
+//go:embed config.tmpl
+var defaultConfigTemplate []byte
+
+// DefaultConfigTemplate returns the shared gomplate template for generating
+// config.yaml. This covers the standard watcher config used extensions.
+func DefaultConfigTemplate() []byte {
+	return defaultConfigTemplate
+}
+
+// ResolveConfigTemplate returns the bundle's custom template if set,
+// otherwise the shared default. Extensions with custom config fields
+// can override the default by setting Bundle.ConfigTemplate.
+func ResolveConfigTemplate(b *Bundle) []byte {
+	if len(b.ConfigTemplate) > 0 {
+		return b.ConfigTemplate
+	}
+	return defaultConfigTemplate
+}
 
 // Bundle is the deployment artifact for an extension watcher workflow.
 // Extensions produce these; Courier consumes them.
@@ -16,7 +36,10 @@ type Bundle struct {
 	// WasmBinary is the pre-compiled WASM binary, populated via //go:embed.
 	WasmBinary []byte
 
-	// ConfigTemplate is a gomplate template for generating config.yaml, populated via //go:embed.
+	// ConfigTemplate is an optional gomplate template for generating config.yaml.
+	// When nil, ResolveConfigTemplate falls back to the shared default template.
+	// Set this only when an extension needs custom config fields beyond the
+	// standard event-listener structure.
 	ConfigTemplate []byte
 
 	// Contracts lists the on-chain contracts this extension interacts with.
@@ -65,10 +88,6 @@ func (b *Bundle) Validate() error {
 	if len(b.WasmBinary) == 0 {
 		errs = append(errs, "WasmBinary is empty")
 	}
-	if len(b.ConfigTemplate) == 0 {
-		errs = append(errs, "ConfigTemplate is empty")
-	}
-
 	contractNames := make(map[string]bool, len(b.Contracts))
 	for i, c := range b.Contracts {
 		if c.Name == "" {

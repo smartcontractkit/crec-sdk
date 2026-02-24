@@ -159,12 +159,12 @@ func TestBundle_Validate(t *testing.T) {
 			wantErr: "WasmBinary is empty",
 		},
 		{
-			name: "empty ConfigTemplate",
+			name: "nil ConfigTemplate passes validation",
 			bundle: &bundle.Bundle{
 				Service:    "test",
 				WasmBinary: []byte("wasm"),
 			},
-			wantErr: "ConfigTemplate is empty",
+			wantErr: "",
 		},
 		{
 			name: "duplicate contract name",
@@ -272,6 +272,52 @@ func TestBundle_Validate(t *testing.T) {
 			} else {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBundle_DefaultConfigTemplate(t *testing.T) {
+	tmpl := bundle.DefaultConfigTemplate()
+	require.NotEmpty(t, tmpl, "default config template should be embedded")
+	assert.Contains(t, string(tmpl), "detectEventTriggerConfig")
+	assert.Contains(t, string(tmpl), "contractName")
+	assert.Contains(t, string(tmpl), "contractReaderConfig")
+}
+
+func TestBundle_ResolveConfigTemplate(t *testing.T) {
+	tests := []struct {
+		name           string
+		configTemplate []byte
+		wantDefault    bool
+	}{
+		{
+			name:           "nil ConfigTemplate returns default",
+			configTemplate: nil,
+			wantDefault:    true,
+		},
+		{
+			name:           "empty ConfigTemplate returns default",
+			configTemplate: []byte{},
+			wantDefault:    true,
+		},
+		{
+			name:           "custom ConfigTemplate is returned",
+			configTemplate: []byte("custom-template-content"),
+			wantDefault:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &bundle.Bundle{
+				ConfigTemplate: tt.configTemplate,
+			}
+			result := bundle.ResolveConfigTemplate(b)
+			if tt.wantDefault {
+				assert.Equal(t, bundle.DefaultConfigTemplate(), result)
+			} else {
+				assert.Equal(t, tt.configTemplate, result)
 			}
 		})
 	}
