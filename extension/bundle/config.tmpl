@@ -1,0 +1,40 @@
+{{- $config := datasource "config" -}}
+network: "{{ $config.network }}"
+chainID: "{{ $config.chainId }}"
+chainSelector: {{ $config.chainSelector }}
+workflowEventOtelEndpoint: ""
+courierURL: "{{ $config.courierUrl }}"
+service: "{{ $config.service }}"
+watcherID: "{{ $config.watcherID }}"
+workflowName: "{{ $config.workflowName }}"
+detectEventTriggerConfig:
+  contractName: "{{ $config.contractName }}"
+  contractAddress: "{{ $config.contractAddress }}"
+  contractEventNames:
+{{- range $config.eventNames }}
+    - "{{ . }}"
+{{- end }}
+  contractReaderConfig:
+    contracts:
+{{- range $config.contracts }}
+      {{ .name }}:
+        contractABI: '{{ .abi }}'
+        {{- if eq .name ($config.contractName) }}
+        configs:
+{{- range $config.eventNames }}
+          {{ . }}: '{"chainSpecificName": "{{ . }}", "readType": "event"}'
+{{- end }}
+        contractPollingFilter:
+          genericEventNames:
+{{- range $config.eventNames }}
+            - "{{ . }}"
+{{- end }}
+          pollingFilter:
+            logsPerBlock: 0
+            maxLogsKept: 0
+            retention: "0s"
+            topic2: null
+            topic3: null
+            topic4: null
+        {{- end }}
+{{- end }}
