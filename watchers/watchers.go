@@ -28,8 +28,7 @@ var (
 	ErrWatcherIDRequired     = errors.New("watcher_id cannot be empty")
 	ErrNameRequired          = errors.New("name cannot be an empty string")
 	ErrServiceRequired       = errors.New("service is required")
-	ErrAddressRequired       = errors.New("address is required")
-	ErrContractsRequired     = errors.New("contracts map is required for service-based watchers")
+	ErrAddressRequired = errors.New("address is required")
 	ErrEventsRequired        = errors.New("events list cannot be empty")
 	ErrABIRequired           = errors.New("abi cannot be empty")
 	ErrOptionsRequired       = errors.New("Options is required")
@@ -80,11 +79,11 @@ type EventABI struct {
 }
 
 type CreateWithServiceInput struct {
-	Name          *string           `json:"name,omitempty"`
-	ChainSelector string            `json:"chain_selector"`
-	Service       string            `json:"service"`
-	Events        []string          `json:"events"`
-	Contracts     map[string]string `json:"contracts"` // contract name -> address
+	Name          *string  `json:"name,omitempty"`
+	ChainSelector string   `json:"chain_selector"`
+	Service       string   `json:"service"`
+	Events        []string `json:"events"`
+	Address       string   `json:"address"`
 }
 
 type CreateWithABIInput struct {
@@ -182,8 +181,8 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 	if input.ChainSelector == "" || input.ChainSelector == "0" {
 		return nil, ErrChainSelectorRequired
 	}
-	if len(input.Contracts) == 0 {
-		return nil, ErrContractsRequired
+	if input.Address == "" {
+		return nil, ErrAddressRequired
 	}
 	if input.Service == "" {
 		return nil, ErrServiceRequired
@@ -199,7 +198,7 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 	createWatcherWithService := apiClient.CreateWatcherWithService{
 		Name:          name,
 		ChainSelector: input.ChainSelector,
-		Contracts:     input.Contracts,
+		Address:       input.Address,
 		Service:       input.Service,
 		Events:        input.Events,
 	}
@@ -666,7 +665,6 @@ func isTransientError(err error) bool {
 		errors.Is(err, ErrNameRequired) ||
 		errors.Is(err, ErrServiceRequired) ||
 		errors.Is(err, ErrAddressRequired) ||
-		errors.Is(err, ErrContractsRequired) ||
 		errors.Is(err, ErrEventsRequired) ||
 		errors.Is(err, ErrABIRequired) {
 		return false
