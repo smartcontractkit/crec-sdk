@@ -49,14 +49,11 @@
 //
 // ## Verifying Watcher Events
 //
-// Use [Client.Verify] to verify watcher events (blockchain events captured by watchers):
-//
-//	// The workflowId is the CID (Content Identifier) of the workflow that should
-//	// have generated this event. Use workflowId from corresponding watcher.
-//	workflowId := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+// Use [Client.Verify] to verify watcher events using your organization ID.
+// The workflow owner address is derived automatically from the org ID:
 //
 //	for _, event := range events {
-//	    verified, err := client.Events.Verify(&event, workflowId)
+//	    verified, err := client.Events.Verify(&event, orgID)
 //	    if err != nil {
 //	        // Handle verification error
 //	        continue
@@ -70,19 +67,32 @@
 //	    processEvent(event)
 //	}
 //
+// If you already have the workflow owner address, use [Client.VerifyWithWorkflowOwner]:
+//
+//	verified, err := client.Events.VerifyWithWorkflowOwner(&event, workflowOwnerAddress)
+//
 // ## Verifying Operation Status Events
 //
-// Use [Client.VerifyOperationStatus] to verify operation status events:
+// Use [Client.VerifyOperationStatus] to verify operation status events using your org ID:
 //
-//	workflowId := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-//
-//	verified, err := client.Events.VerifyOperationStatus(&event, workflowId)
+//	verified, err := client.Events.VerifyOperationStatus(&event, orgID)
 //	if err != nil {
 //	    // Handle verification error
 //	}
 //	if !verified {
 //	    // Not enough valid signatures or workflow mismatch
 //	}
+//
+// Or with a known workflow owner address via [Client.VerifyOperationStatusWithWorkflowOwner]:
+//
+//	verified, err := client.Events.VerifyOperationStatusWithWorkflowOwner(&event, workflowOwnerAddress)
+//
+// ## Deriving Workflow Owner from Org ID
+//
+// Use [WorkflowOwnerFromOrgID] to derive the workflow owner Ethereum address
+// from an org ID without performing verification:
+//
+//	ownerAddress, err := events.WorkflowOwnerFromOrgID(orgID)
 //
 // # Decoding Events
 //
@@ -174,5 +184,8 @@
 //	}
 //	if errors.Is(err, ErrDecodeVerifiableEvent) {
 //	    // Failed to decode base64 verifiable event (invalid base64 or JSON)
+//	}
+//	if errors.Is(err, ErrDeriveWorkflowOwner) {
+//	    // Failed to derive workflow owner address from org ID
 //	}
 package events

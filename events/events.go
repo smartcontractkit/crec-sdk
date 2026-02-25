@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/workflows"
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/models"
 )
@@ -61,6 +62,9 @@ var (
 
 	// Configuration errors
 	ErrVerificationNotConfigured = errors.New("event verification not configured: no valid signers")
+
+	// Derivation errors
+	ErrDeriveWorkflowOwner = errors.New("failed to derive workflow owner from org ID")
 )
 
 // Options holds the configuration options for the CREC events client.
@@ -109,6 +113,17 @@ func NewClient(opts *Options) (*Client, error) {
 		minRequiredSignatures: opts.MinRequiredSignatures,
 		validSigners:          opts.ValidSigners,
 	}, nil
+}
+
+// WorkflowOwnerFromOrgID derives the workflow owner Ethereum address from an
+// organization ID. It uses the CRE canonical CREATE2-style address derivation
+// with an empty prefix (to be replaced with tenant_id in a future release).
+func WorkflowOwnerFromOrgID(orgID string) (string, error) {
+	addrBytes, err := workflows.GenerateWorkflowOwnerAddress("", orgID)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", ErrDeriveWorkflowOwner, err)
+	}
+	return common.BytesToAddress(addrBytes).Hex(), nil
 }
 
 // Poll retrieves events from the CREC service for a specific channel.
@@ -235,13 +250,28 @@ func (c *Client) SearchEvents(
 	return resp.JSON200.Events, resp.JSON200.HasMore, nil
 }
 
-// Verify verifies the authenticity of a given event.
-// It checks whether the event was signed by at least a minimum number of authorized signers.
+// Verify verifies the authenticity of a given watcher event using an org ID.
+// It derives the expected workflow owner address from the org ID and delegates
+// to [Client.VerifyWithWorkflowOwner].
 //   - event: The event to verify.
-//   - workflowOwner: The expected workflow owner address (Ethereum address) that deployed the workflow. This is used to verify the event originated from a workflow owned by the expected address.
+//   - orgID: The organization ID used to derive the workflow owner address.
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
-func (c *Client) Verify(event *apiClient.Event, workflowOwner string) (bool, error) {
+func (c *Client) Verify(event *apiClient.Event, orgID string) (bool, error) {
+	workflowOwner, err := WorkflowOwnerFromOrgID(orgID)
+	if err != nil {
+		return false, err
+	}
+	return c.VerifyWithWorkflowOwner(event, workflowOwner)
+}
+
+// VerifyWithWorkflowOwner verifies the authenticity of a given watcher event
+// using a known workflow owner address.
+//   - event: The event to verify.
+//   - workflowOwner: The expected workflow owner address (Ethereum address) that deployed the workflow.
+//
+// Returns true if the event is valid and signed by enough authorized signers, false otherwise.
+func (c *Client) VerifyWithWorkflowOwner(event *apiClient.Event, workflowOwner string) (bool, error) {
 	ocrProof, payload, err := c.prepareVerification(event)
 	if err != nil {
 		return false, err
@@ -295,13 +325,28 @@ func (c *Client) Verify(event *apiClient.Event, workflowOwner string) (bool, err
 	return verified, nil
 }
 
-// VerifyOperationStatus verifies the authenticity of an operation status event.
-// It checks whether the event was signed by at least a minimum number of authorized signers.
+// VerifyOperationStatus verifies the authenticity of an operation status event using an org ID.
+// It derives the expected workflow owner address from the org ID and delegates
+// to [Client.VerifyOperationStatusWithWorkflowOwner].
 //   - event: The event to verify.
-//   - workflowOwner: The expected workflow owner address (Ethereum address) that deployed the workflow. This is used to verify the event originated from a workflow owned by the expected address.
+//   - orgID: The organization ID used to derive the workflow owner address.
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
-func (c *Client) VerifyOperationStatus(event *apiClient.Event, workflowOwner string) (bool, error) {
+func (c *Client) VerifyOperationStatus(event *apiClient.Event, orgID string) (bool, error) {
+	workflowOwner, err := WorkflowOwnerFromOrgID(orgID)
+	if err != nil {
+		return false, err
+	}
+	return c.VerifyOperationStatusWithWorkflowOwner(event, workflowOwner)
+}
+
+// VerifyOperationStatusWithWorkflowOwner verifies the authenticity of an operation status event
+// using a known workflow owner address.
+//   - event: The event to verify.
+//   - workflowOwner: The expected workflow owner address (Ethereum address) that deployed the workflow.
+//
+// Returns true if the event is valid and signed by enough authorized signers, false otherwise.
+func (c *Client) VerifyOperationStatusWithWorkflowOwner(event *apiClient.Event, workflowOwner string) (bool, error) {
 	ocrProof, payload, err := c.prepareVerification(event)
 	if err != nil {
 		return false, err
