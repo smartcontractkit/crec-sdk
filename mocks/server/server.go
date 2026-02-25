@@ -48,13 +48,6 @@ func (s *MockServer) Close() {
 	}
 }
 
-func (s *MockServer) GetExtensions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	data := make([]stdserver.Extension, 0)
-	_ = json.NewEncoder(w).Encode(stdserver.ExtensionList{Data: &data})
-}
-
 func (s *MockServer) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -486,10 +479,7 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 		watcher.Name = &svcReq.Name
 		serviceVal := svcReq.Service
 		watcher.Service = &serviceVal
-		for _, addr := range svcReq.Contracts {
-			watcher.Address = addr
-			break
-		}
+		watcher.Address = svcReq.Address
 		watcher.ChainSelector = svcReq.ChainSelector
 		watcher.Events = svcReq.Events
 	} else if abiReq, err := request.AsCreateWatcherWithABI(); err == nil {
