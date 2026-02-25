@@ -696,6 +696,88 @@ func TestClient_OperationStatusHash(t *testing.T) {
 	})
 }
 
+func TestEvents_WorkflowOwnerFromOrgID(t *testing.T) {
+	tests := []struct {
+		name  string
+		orgID string
+	}{
+		{name: "SimpleOrgID", orgID: "test-org-123"},
+		{name: "UUIDOrgID", orgID: "550e8400-e29b-41d4-a716-446655440000"},
+		{name: "EmptyOrgID", orgID: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr, err := WorkflowOwnerFromOrgID(tt.orgID)
+			require.NoError(t, err)
+			assert.NotEmpty(t, addr)
+			assert.Regexp(t, `^0x[0-9a-fA-F]{40}$`, addr)
+		})
+	}
+
+	t.Run("Deterministic", func(t *testing.T) {
+		addr1, err := WorkflowOwnerFromOrgID("my-org")
+		require.NoError(t, err)
+		addr2, err := WorkflowOwnerFromOrgID("my-org")
+		require.NoError(t, err)
+		assert.Equal(t, addr1, addr2)
+	})
+
+	t.Run("DifferentOrgIDsProduceDifferentAddresses", func(t *testing.T) {
+		addr1, err := WorkflowOwnerFromOrgID("org-alpha")
+		require.NoError(t, err)
+		addr2, err := WorkflowOwnerFromOrgID("org-beta")
+		require.NoError(t, err)
+		assert.NotEqual(t, addr1, addr2)
+	})
+}
+
+func TestClient_Verify(t *testing.T) {
+	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
+	require.NoError(t, err)
+
+	t.Run("HappyPath", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 2,
+			ValidSigners:          addresses,
+		})
+		require.NoError(t, err)
+
+		ok, err := c.Verify(event, testOrgID)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("WrongOrgID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 2,
+			ValidSigners:          addresses,
+		})
+		require.NoError(t, err)
+
+		ok, err := c.Verify(event, "wrong-org-id")
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrInvalidEventHash))
+	})
+}
+
 func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
 		// Create client WITHOUT configuring signers
@@ -1264,6 +1346,52 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, ErrOnlyWatcherEventsSupported))
+	})
+}
+
+func TestClient_VerifyOperationStatus(t *testing.T) {
+	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
+	require.NoError(t, err)
+
+	t.Run("HappyPath", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 2,
+			ValidSigners:          addresses,
+		})
+		require.NoError(t, err)
+
+		ok, err := c.VerifyOperationStatus(event, testOrgID)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("WrongOrgID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		crecClient := newCRECClient(t, "http://localhost:8080")
+		logger := slog.New(slog.DiscardHandler)
+		c, err := NewClient(&Options{
+			Logger:                logger,
+			CRECClient:            crecClient,
+			MinRequiredSignatures: 2,
+			ValidSigners:          addresses,
+		})
+		require.NoError(t, err)
+
+		ok, err := c.VerifyOperationStatus(event, "wrong-org-id")
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.True(t, errors.Is(err, ErrInvalidEventHash))
 	})
 }
 
@@ -2235,62 +2363,7 @@ func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
 // createValidEventWithSignatures creates a valid event with proper OCR report and signatures
 func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKey, eventPayload *apiClient.WatcherEventPayload) *apiClient.Event {
 	t.Helper()
-
-	// Create a valid OCR report with the proper structure (141 bytes minimum)
-	ocrReport := make([]byte, 141)
-	ocrReport[0] = 0x01 // version
-
-	// Place workflow owner at offset 87 (20 bytes)
-	workflowOwner := common.HexToAddress(testWorkflowOwner)
-	copy(ocrReport[87:107], workflowOwner.Bytes())
-
-	// Compute event hash - now just keccak256(verifiableEvent)
-	eventHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
-
-	// Place event hash at offset 109
-	copy(ocrReport[109:], eventHash.Bytes())
-
-	ocrContext := []byte("test-context-data")
-
-	// Generate report hash for signing
-	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
-
-	// Generate signatures
-	var signatures []string
-	for _, privKey := range privateKeys {
-		sig, err := crypto.Sign(reportHash.Bytes(), privKey)
-		require.NoError(t, err)
-		sig[64] += 27 // Adjust v value for Ethereum format
-		signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
-	}
-
-	// Create OCR proof
-	ocrProof := apiClient.OCRProof{
-		Alg:        "ecdsa-secp256k1",
-		OcrContext: "0x" + common.Bytes2Hex(ocrContext),
-		OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
-		Signatures: signatures,
-	}
-
-	proofUnion := apiClient.EventHeaders_Proofs_Item{}
-	err := proofUnion.FromOCRProof(ocrProof)
-	require.NoError(t, err)
-
-	// Create event payload union
-	payloadUnion := apiClient.Event_Payload{}
-	err = payloadUnion.FromWatcherEventPayload(*eventPayload)
-	require.NoError(t, err)
-
-	event := &apiClient.Event{
-		Headers: apiClient.EventHeaders{
-			Type:   apiClient.EventTypeWatcherEvent,
-			Offset: int64(12345),
-			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
-		},
-		Payload: payloadUnion,
-	}
-
-	return event
+	return createValidEventForOwner(t, privateKeys, eventPayload, testWorkflowOwner)
 }
 
 // createTestOperationStatusPayload creates a standard test operation status payload
@@ -2418,131 +2491,3 @@ func createValidEventForOwner(t *testing.T, privateKeys []*ecdsa.PrivateKey, eve
 	}
 }
 
-func TestEvents_WorkflowOwnerFromOrgID(t *testing.T) {
-	tests := []struct {
-		name  string
-		orgID string
-	}{
-		{name: "SimpleOrgID", orgID: "test-org-123"},
-		{name: "UUIDOrgID", orgID: "550e8400-e29b-41d4-a716-446655440000"},
-		{name: "EmptyOrgID", orgID: ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			addr, err := WorkflowOwnerFromOrgID(tt.orgID)
-			require.NoError(t, err)
-			assert.NotEmpty(t, addr)
-			// Must be a valid checksummed hex address (0x + 40 hex chars)
-			assert.Regexp(t, `^0x[0-9a-fA-F]{40}$`, addr)
-		})
-	}
-
-	t.Run("Deterministic", func(t *testing.T) {
-		addr1, err := WorkflowOwnerFromOrgID("my-org")
-		require.NoError(t, err)
-		addr2, err := WorkflowOwnerFromOrgID("my-org")
-		require.NoError(t, err)
-		assert.Equal(t, addr1, addr2)
-	})
-
-	t.Run("DifferentOrgIDsProduceDifferentAddresses", func(t *testing.T) {
-		addr1, err := WorkflowOwnerFromOrgID("org-alpha")
-		require.NoError(t, err)
-		addr2, err := WorkflowOwnerFromOrgID("org-beta")
-		require.NoError(t, err)
-		assert.NotEqual(t, addr1, addr2)
-	})
-}
-
-func TestClient_Verify(t *testing.T) {
-	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
-	require.NoError(t, err)
-
-	t.Run("HappyPath", func(t *testing.T) {
-		privKeys, addresses := generateTestKeys(t, 2)
-		eventPayload := createTestEventPayload(t)
-		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
-
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 2,
-			ValidSigners:          addresses,
-		})
-		require.NoError(t, err)
-
-		ok, err := c.Verify(event, testOrgID)
-		require.NoError(t, err)
-		assert.True(t, ok)
-	})
-
-	t.Run("WrongOrgID", func(t *testing.T) {
-		privKeys, addresses := generateTestKeys(t, 2)
-		eventPayload := createTestEventPayload(t)
-		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
-
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 2,
-			ValidSigners:          addresses,
-		})
-		require.NoError(t, err)
-
-		ok, err := c.Verify(event, "wrong-org-id")
-		require.Error(t, err)
-		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrInvalidEventHash))
-	})
-}
-
-func TestClient_VerifyOperationStatus(t *testing.T) {
-	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
-	require.NoError(t, err)
-
-	t.Run("HappyPath", func(t *testing.T) {
-		privKeys, addresses := generateTestKeys(t, 2)
-		eventPayload := createTestOperationStatusPayload(t)
-		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
-
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 2,
-			ValidSigners:          addresses,
-		})
-		require.NoError(t, err)
-
-		ok, err := c.VerifyOperationStatus(event, testOrgID)
-		require.NoError(t, err)
-		assert.True(t, ok)
-	})
-
-	t.Run("WrongOrgID", func(t *testing.T) {
-		privKeys, addresses := generateTestKeys(t, 2)
-		eventPayload := createTestOperationStatusPayload(t)
-		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
-
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 2,
-			ValidSigners:          addresses,
-		})
-		require.NoError(t, err)
-
-		ok, err := c.VerifyOperationStatus(event, "wrong-org-id")
-		require.Error(t, err)
-		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrInvalidEventHash))
-	})
-}
