@@ -79,11 +79,12 @@ type EventABI struct {
 }
 
 type CreateWithServiceInput struct {
-	Name          *string  `json:"name,omitempty"`
-	ChainSelector string   `json:"chain_selector"`
-	Service       string   `json:"service"`
-	Events        []string `json:"events"`
-	Address       string   `json:"address"`
+	Name          *string                `json:"name,omitempty"`
+	ChainSelector string                 `json:"chain_selector"`
+	Service       string                 `json:"service"`
+	Events        []string               `json:"events"`
+	Address       string                 `json:"address"`
+	ServiceConfig map[string]interface{} `json:"service_config,omitempty"`
 }
 
 type CreateWithABIInput struct {
@@ -201,6 +202,9 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 		Address:       input.Address,
 		Service:       input.Service,
 		Events:        input.Events,
+	}
+	if input.ServiceConfig != nil {
+		createWatcherWithService.ServiceConfig = &input.ServiceConfig
 	}
 
 	var createWatcherReq apiClient.CreateWatcher
