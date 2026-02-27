@@ -65,6 +65,9 @@ var (
 
 	// Derivation errors
 	ErrDeriveWorkflowOwner = errors.New("failed to derive workflow owner from org ID")
+
+	// Configuration errors for verification identity
+	ErrOrgIDRequired = errors.New("org ID required for verification (set in client options or pass as parameter)")
 )
 
 // Options holds the configuration options for the CREC events client.
@@ -73,11 +76,15 @@ var (
 //   - CRECClient: A client instance for interacting with the CREC system (required).
 //   - MinRequiredSignatures: Minimum number of valid signatures required to verify an event.
 //   - ValidSigners: List of valid signer addresses (as hex strings).
+//   - OrgID: Optional default organization ID for [Client.Verify] and [Client.VerifyOperationStatus].
+//     When set, those methods can be called without passing org ID. For multi-org use, omit and use
+//     [Client.VerifyWithOrgID] or [Client.VerifyOperationStatusWithOrgID] with explicit org ID.
 type Options struct {
 	Logger                *slog.Logger
 	CRECClient            *apiClient.ClientWithResponses
 	MinRequiredSignatures int
 	ValidSigners          []string
+	OrgID                 string
 }
 
 // Client provides operations for polling and verifying events from CREC.
@@ -86,6 +93,7 @@ type Client struct {
 	logger                *slog.Logger
 	minRequiredSignatures int
 	validSigners          []string
+	orgID                 string
 }
 
 // NewClient creates a new CREC events client with the provided CREC client and options.
@@ -112,6 +120,7 @@ func NewClient(opts *Options) (*Client, error) {
 		logger:                logger,
 		minRequiredSignatures: opts.MinRequiredSignatures,
 		validSigners:          opts.ValidSigners,
+		orgID:                 opts.OrgID,
 	}, nil
 }
 
@@ -250,14 +259,29 @@ func (c *Client) SearchEvents(
 	return resp.JSON200.Events, resp.JSON200.HasMore, nil
 }
 
-// Verify verifies the authenticity of a given watcher event using an org ID.
+// Verify verifies the authenticity of a given watcher event using the default org ID
+// configured on the client. It derives the expected workflow owner address from the org ID
+// and delegates to [Client.VerifyWithWorkflowOwner].
+//   - event: The event to verify.
+//
+// Returns true if the event is valid and signed by enough authorized signers, false otherwise.
+// Returns [ErrOrgIDRequired] if the client has no default org ID configured.
+func (c *Client) Verify(event *apiClient.Event) (bool, error) {
+	if c.orgID == "" {
+		return false, ErrOrgIDRequired
+	}
+	return c.VerifyWithOrgID(event, c.orgID)
+}
+
+// VerifyWithOrgID verifies the authenticity of a given watcher event using an explicit org ID.
 // It derives the expected workflow owner address from the org ID and delegates
-// to [Client.VerifyWithWorkflowOwner].
+// to [Client.VerifyWithWorkflowOwner]. Use this for multi-org scenarios where a single client
+// verifies events from different organizations.
 //   - event: The event to verify.
 //   - orgID: The organization ID used to derive the workflow owner address.
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
-func (c *Client) Verify(event *apiClient.Event, orgID string) (bool, error) {
+func (c *Client) VerifyWithOrgID(event *apiClient.Event, orgID string) (bool, error) {
 	workflowOwner, err := WorkflowOwnerFromOrgID(orgID)
 	if err != nil {
 		return false, err
@@ -325,14 +349,28 @@ func (c *Client) VerifyWithWorkflowOwner(event *apiClient.Event, workflowOwner s
 	return verified, nil
 }
 
-// VerifyOperationStatus verifies the authenticity of an operation status event using an org ID.
-// It derives the expected workflow owner address from the org ID and delegates
-// to [Client.VerifyOperationStatusWithWorkflowOwner].
+// VerifyOperationStatus verifies the authenticity of an operation status event using the default
+// org ID configured on the client. It derives the expected workflow owner address from the org ID
+// and delegates to [Client.VerifyOperationStatusWithWorkflowOwner].
+//   - event: The event to verify.
+//
+// Returns true if the event is valid and signed by enough authorized signers, false otherwise.
+// Returns [ErrOrgIDRequired] if the client has no default org ID configured.
+func (c *Client) VerifyOperationStatus(event *apiClient.Event) (bool, error) {
+	if c.orgID == "" {
+		return false, ErrOrgIDRequired
+	}
+	return c.VerifyOperationStatusWithOrgID(event, c.orgID)
+}
+
+// VerifyOperationStatusWithOrgID verifies the authenticity of an operation status event using
+// an explicit org ID. It derives the expected workflow owner address from the org ID and delegates
+// to [Client.VerifyOperationStatusWithWorkflowOwner]. Use this for multi-org scenarios.
 //   - event: The event to verify.
 //   - orgID: The organization ID used to derive the workflow owner address.
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
-func (c *Client) VerifyOperationStatus(event *apiClient.Event, orgID string) (bool, error) {
+func (c *Client) VerifyOperationStatusWithOrgID(event *apiClient.Event, orgID string) (bool, error) {
 	workflowOwner, err := WorkflowOwnerFromOrgID(orgID)
 	if err != nil {
 		return false, err

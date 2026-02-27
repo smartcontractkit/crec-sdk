@@ -65,7 +65,7 @@
 //	    Limit: ptr(100),
 //	})
 //
-//	// Verify an event's authenticity
+//	// Verify an event's authenticity (requires crec.WithOrgID or use VerifyWithOrgID for multi-org)
 //	valid, err := client.Events.Verify(&event)
 //
 // # Signing and Sending Operations
@@ -95,6 +95,7 @@
 //	    apiKey,
 //	    crec.WithLogger(logger),
 //	    crec.WithHTTPClient(customHTTPClient),
+//	    crec.WithOrgID("my-org-id"),
 //	    crec.WithEventVerification(2, []string{"0xSigner1", "0xSigner2", "0xSigner3"}),
 //	    crec.WithWatcherPolling(5*time.Second, 10*time.Second),
 //	)

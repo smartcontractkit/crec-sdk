@@ -675,7 +675,7 @@ func TestClient_Verify(t *testing.T) {
 	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
 	require.NoError(t, err)
 
-	t.Run("HappyPath", func(t *testing.T) {
+	t.Run("VerifyWithDefaultOrgID", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
 		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
@@ -683,14 +683,15 @@ func TestClient_Verify(t *testing.T) {
 		c := setupLocalClient(t, func(opts *Options) {
 			opts.MinRequiredSignatures = 2
 			opts.ValidSigners = addresses
+			opts.OrgID = testOrgID
 		})
 
-		ok, err := c.Verify(event, testOrgID)
+		ok, err := c.Verify(event)
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
-	t.Run("WrongOrgID", func(t *testing.T) {
+	t.Run("ErrOrgIDRequired", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
 		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
@@ -700,7 +701,38 @@ func TestClient_Verify(t *testing.T) {
 			opts.ValidSigners = addresses
 		})
 
-		ok, err := c.Verify(event, "wrong-org-id")
+		ok, err := c.Verify(event)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrOrgIDRequired)
+	})
+
+	t.Run("VerifyWithOrgID_HappyPath", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyWithOrgID(event, testOrgID)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("VerifyWithOrgID_WrongOrgID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyWithOrgID(event, "wrong-org-id")
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.ErrorIs(t, err, ErrInvalidEventHash)
@@ -1237,7 +1269,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
 	require.NoError(t, err)
 
-	t.Run("HappyPath", func(t *testing.T) {
+	t.Run("VerifyWithDefaultOrgID", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestOperationStatusPayload(t)
 		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
@@ -1245,14 +1277,15 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		c := setupLocalClient(t, func(opts *Options) {
 			opts.MinRequiredSignatures = 2
 			opts.ValidSigners = addresses
+			opts.OrgID = testOrgID
 		})
 
-		ok, err := c.VerifyOperationStatus(event, testOrgID)
+		ok, err := c.VerifyOperationStatus(event)
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
-	t.Run("WrongOrgID", func(t *testing.T) {
+	t.Run("ErrOrgIDRequired", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestOperationStatusPayload(t)
 		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
@@ -1262,7 +1295,38 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 			opts.ValidSigners = addresses
 		})
 
-		ok, err := c.VerifyOperationStatus(event, "wrong-org-id")
+		ok, err := c.VerifyOperationStatus(event)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrOrgIDRequired)
+	})
+
+	t.Run("VerifyOperationStatusWithOrgID_HappyPath", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyOperationStatusWithOrgID(event, testOrgID)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("VerifyOperationStatusWithOrgID_WrongOrgID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyOperationStatusWithOrgID(event, "wrong-org-id")
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.ErrorIs(t, err, ErrInvalidEventHash)

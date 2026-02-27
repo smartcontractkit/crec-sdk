@@ -12,6 +12,7 @@
 //	client, _ := crec.NewClient(
 //	    baseURL,
 //	    apiKey,
+//	    crec.WithOrgID("my-org-id"),
 //	    crec.WithEventVerification(3, []string{
 //	        "0x5db070ceabcf97e45d96b4f951a1df050ddb5559",
 //	        "0xadebb9657c04692275973230b06adfabacc899bc",
@@ -27,6 +28,7 @@
 //	    CRECClient:            apiClient,
 //	    MinRequiredSignatures: 3,
 //	    ValidSigners:          []string{"0x...", "0x...", "0x..."},
+//	    OrgID:                 "my-org-id", // optional; enables Verify(event) without passing org ID
 //	})
 //
 // # Polling Events
@@ -49,23 +51,25 @@
 //
 // ## Verifying Watcher Events
 //
-// Use [Client.Verify] to verify watcher events using your organization ID.
-// The workflow owner address is derived automatically from the org ID:
+// For single-org use, set OrgID when creating the client (or use crec.WithOrgID) and call [Client.Verify]:
 //
 //	for _, event := range events {
-//	    verified, err := client.Events.Verify(&event, orgID)
+//	    verified, err := client.Events.Verify(&event)
 //	    if err != nil {
-//	        // Handle verification error
+//	        // Handle verification error (e.g., ErrOrgIDRequired if no default org configured)
 //	        continue
 //	    }
 //	    if !verified {
 //	        // Not enough valid signatures or workflow mismatch, skip this event
 //	        continue
 //	    }
-//
-//	    // Event is verified, safe to process
 //	    processEvent(event)
 //	}
+//
+// For multi-org use, you can either create separate clients (one per org) with OrgID set,
+// or use a single client and call [Client.VerifyWithOrgID] with an explicit org ID per event:
+//
+//	verified, err := client.Events.VerifyWithOrgID(&event, orgID)
 //
 // If you already have the workflow owner address, use [Client.VerifyWithWorkflowOwner]:
 //
@@ -73,17 +77,14 @@
 //
 // ## Verifying Operation Status Events
 //
-// Use [Client.VerifyOperationStatus] to verify operation status events using your org ID:
+// Use [Client.VerifyOperationStatus] when the client has a default OrgID, or [Client.VerifyOperationStatusWithOrgID]
+// for multi-org with an explicit org ID:
 //
-//	verified, err := client.Events.VerifyOperationStatus(&event, orgID)
-//	if err != nil {
-//	    // Handle verification error
-//	}
-//	if !verified {
-//	    // Not enough valid signatures or workflow mismatch
-//	}
+//	verified, err := client.Events.VerifyOperationStatus(&event)
+//	// or
+//	verified, err := client.Events.VerifyOperationStatusWithOrgID(&event, orgID)
 //
-// Or with a known workflow owner address via [Client.VerifyOperationStatusWithWorkflowOwner]:
+// With a known workflow owner address, use [Client.VerifyOperationStatusWithWorkflowOwner]:
 //
 //	verified, err := client.Events.VerifyOperationStatusWithWorkflowOwner(&event, workflowOwnerAddress)
 //
@@ -187,5 +188,8 @@
 //	}
 //	if errors.Is(err, ErrDeriveWorkflowOwner) {
 //	    // Failed to derive workflow owner address from org ID
+//	}
+//	if errors.Is(err, ErrOrgIDRequired) {
+//	    // Called Verify or VerifyOperationStatus without default org ID or explicit org ID
 //	}
 package events

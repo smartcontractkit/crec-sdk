@@ -191,6 +191,7 @@ func (c *Client) initSubClients(cfg *clientConfig) error {
 		CRECClient:            c.apiClient,
 		MinRequiredSignatures: cfg.minRequiredSignatures,
 		ValidSigners:          cfg.validSigners,
+		OrgID:                 cfg.orgID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create events client: %w", err)

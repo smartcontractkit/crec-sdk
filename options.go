@@ -41,6 +41,7 @@ type clientConfig struct {
 	minRequiredSignatures            int
 	validSigners                     []string
 	disableEventVerification         bool
+	orgID                            string
 	watcherPollInterval              time.Duration
 	watcherEventualConsistencyWindow time.Duration
 }
@@ -83,6 +84,16 @@ func WithEventVerification(minRequiredSignatures int, validSigners []string) Opt
 func WithoutEventVerification() Option {
 	return func(cfg *clientConfig) {
 		cfg.disableEventVerification = true
+	}
+}
+
+// WithOrgID sets the default organization ID for the events client.
+// When set, [Client.Events].Verify and [Client.Events].VerifyOperationStatus can be called
+// without passing an org ID. For multi-org use, omit this and use VerifyWithOrgID or
+// VerifyOperationStatusWithOrgID with an explicit org ID per call.
+func WithOrgID(orgID string) Option {
+	return func(cfg *clientConfig) {
+		cfg.orgID = orgID
 	}
 }
 
