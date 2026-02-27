@@ -691,7 +691,23 @@ func TestClient_Verify(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("ErrOrgIDRequired", func(t *testing.T) {
+	t.Run("VerifyWithDefaultWorkflowOwner", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.WorkflowOwner = testWorkflowOwner
+		})
+
+		ok, err := c.Verify(event)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("ErrOrgIDOrWorkflowOwnerReq", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
 		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
@@ -704,7 +720,7 @@ func TestClient_Verify(t *testing.T) {
 		ok, err := c.Verify(event)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.ErrorIs(t, err, ErrOrgIDRequired)
+		assert.ErrorIs(t, err, ErrOrgIDOrWorkflowOwnerReq)
 	})
 
 	t.Run("VerifyWithOrgID_HappyPath", func(t *testing.T) {
@@ -740,6 +756,22 @@ func TestClient_Verify(t *testing.T) {
 }
 
 func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
+	t.Run("VerifyWithExplicitWorkflowOwner", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.WorkflowOwner = testWorkflowOwner
+		})
+
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
 	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
 		c := setupLocalClient(t, func(opts *Options) {
 			opts.MinRequiredSignatures = 0
@@ -1285,7 +1317,23 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("ErrOrgIDRequired", func(t *testing.T) {
+	t.Run("VerifyOperationStatusWithDefaultWorkflowOwner", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.WorkflowOwner = testWorkflowOwner
+		})
+
+		ok, err := c.VerifyOperationStatus(event)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("ErrOrgIDOrWorkflowOwnerReq", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestOperationStatusPayload(t)
 		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
@@ -1298,7 +1346,7 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		ok, err := c.VerifyOperationStatus(event)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.ErrorIs(t, err, ErrOrgIDRequired)
+		assert.ErrorIs(t, err, ErrOrgIDOrWorkflowOwnerReq)
 	})
 
 	t.Run("VerifyOperationStatusWithOrgID_HappyPath", func(t *testing.T) {
@@ -1334,6 +1382,22 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 }
 
 func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
+	t.Run("VerifyWithExplicitWorkflowOwner", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.WorkflowOwner = testWorkflowOwner
+		})
+
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
 	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
 		c := setupLocalClient(t, func(opts *Options) {
 			opts.MinRequiredSignatures = 0

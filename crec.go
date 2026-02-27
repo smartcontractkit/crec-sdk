@@ -192,6 +192,7 @@ func (c *Client) initSubClients(cfg *clientConfig) error {
 		MinRequiredSignatures: cfg.minRequiredSignatures,
 		ValidSigners:          cfg.validSigners,
 		OrgID:                 cfg.orgID,
+		WorkflowOwner:         cfg.workflowOwner,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create events client: %w", err)

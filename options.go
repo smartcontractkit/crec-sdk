@@ -42,6 +42,7 @@ type clientConfig struct {
 	validSigners                     []string
 	disableEventVerification         bool
 	orgID                            string
+	workflowOwner                    string
 	watcherPollInterval              time.Duration
 	watcherEventualConsistencyWindow time.Duration
 }
@@ -94,6 +95,15 @@ func WithoutEventVerification() Option {
 func WithOrgID(orgID string) Option {
 	return func(cfg *clientConfig) {
 		cfg.orgID = orgID
+	}
+}
+
+// WithWorkflowOwner sets the default workflow owner address for the events client.
+// When set, [Client.Events].VerifyWithWorkflowOwner and [Client.Events].VerifyOperationStatusWithWorkflowOwner
+// can be called without passing the workflow owner. For multi-org or per-event workflow owner, pass it explicitly.
+func WithWorkflowOwner(workflowOwner string) Option {
+	return func(cfg *clientConfig) {
+		cfg.workflowOwner = workflowOwner
 	}
 }
 

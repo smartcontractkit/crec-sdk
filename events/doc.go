@@ -71,8 +71,11 @@
 //
 //	verified, err := client.Events.VerifyWithOrgID(&event, orgID)
 //
-// If you already have the workflow owner address, use [Client.VerifyWithWorkflowOwner]:
+// If you have the workflow owner address, use [Client.Verify] when the client has it as default
+// (Options.WorkflowOwner), or [Client.VerifyWithWorkflowOwner] with explicit address per event:
 //
+//	verified, err := client.Events.Verify(&event)
+//	// or
 //	verified, err := client.Events.VerifyWithWorkflowOwner(&event, workflowOwnerAddress)
 //
 // ## Verifying Operation Status Events
@@ -84,8 +87,11 @@
 //	// or
 //	verified, err := client.Events.VerifyOperationStatusWithOrgID(&event, orgID)
 //
-// With a known workflow owner address, use [Client.VerifyOperationStatusWithWorkflowOwner]:
+// With a known workflow owner address, use [Client.VerifyOperationStatus] when the client has it
+// as default, or [Client.VerifyOperationStatusWithWorkflowOwner] with explicit address per event:
 //
+//	verified, err := client.Events.VerifyOperationStatus(&event)
+//	// or
 //	verified, err := client.Events.VerifyOperationStatusWithWorkflowOwner(&event, workflowOwnerAddress)
 //
 // ## Deriving Workflow Owner from Org ID
@@ -189,7 +195,10 @@
 //	if errors.Is(err, ErrDeriveWorkflowOwner) {
 //	    // Failed to derive workflow owner address from org ID
 //	}
-//	if errors.Is(err, ErrOrgIDRequired) {
-//	    // Called Verify or VerifyOperationStatus without default org ID or explicit org ID
+//	if errors.Is(err, ErrOrgIDOrWorkflowOwnerReq) {
+//	    // Called Verify or VerifyOperationStatus without org ID or workflow owner configured
+//	}
+//	if errors.Is(err, ErrWorkflowOwnerRequired) {
+//	    // Passed empty workflow owner to VerifyWithWorkflowOwner or VerifyOperationStatusWithWorkflowOwner
 //	}
 package events
