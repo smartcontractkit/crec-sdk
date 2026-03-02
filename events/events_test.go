@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -25,6 +24,7 @@ import (
 const (
 	testAPIKey        = "test-api-key"
 	testWorkflowOwner = "0x853d51d5d9935964267a5050aC53aa63ECA39bc5"
+	testOrgID         = "test-org-123"
 )
 
 func TestNewClient(t *testing.T) {
@@ -42,7 +42,7 @@ func TestNewClient(t *testing.T) {
 		c, err := NewClient(nil)
 		require.Error(t, err)
 		assert.Nil(t, c)
-		assert.True(t, errors.Is(err, ErrOptionsRequired))
+		assert.ErrorIs(t, err, ErrOptionsRequired)
 	})
 
 	t.Run("NilCRECClient", func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestNewClient(t *testing.T) {
 		c, err := NewClient(&Options{Logger: logger})
 		require.Error(t, err)
 		assert.Nil(t, c)
-		assert.True(t, errors.Is(err, ErrCRECClientRequired))
+		assert.ErrorIs(t, err, ErrCRECClientRequired)
 	})
 
 	t.Run("DefaultLogger", func(t *testing.T) {
@@ -62,21 +62,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestClient_ListEvents(t *testing.T) {
-	// Helper to create test events programmatically
 	privKeys, addresses := generateTestKeys(t, 2)
-
-	// Helper to create test events with specific keys
-	createTestEventsWithKeys := func(t *testing.T, count int, keys []*ecdsa.PrivateKey) []apiClient.Event {
-		t.Helper()
-		events := make([]apiClient.Event, count)
-		for i := 0; i < count; i++ {
-			eventPayload := createTestEventPayload(t)
-			event := createValidEventWithSignatures(t, keys, &eventPayload)
-			events[i] = *event
-		}
-		return events
-	}
-
 	channelID := uuid.New()
 
 	t.Run("Success", func(t *testing.T) {
@@ -105,7 +91,7 @@ func TestClient_ListEvents(t *testing.T) {
 		assert.Len(t, eventsList, 3)
 		assert.False(t, hasMore)
 
-		isEventVerified, err := c.Verify(&eventsList[0], testWorkflowOwner)
+		isEventVerified, err := c.VerifyWithWorkflowOwner(&eventsList[0], testWorkflowOwner)
 		require.NoError(t, err)
 		require.True(t, isEventVerified)
 	})
@@ -147,7 +133,7 @@ func TestClient_ListEvents(t *testing.T) {
 		_, _, err := c.Poll(context.Background(), uuid.Nil, nil)
 		require.Error(t, err)
 		// nil response checked
-		assert.True(t, errors.Is(err, ErrChannelIDRequired))
+		assert.ErrorIs(t, err, ErrChannelIDRequired)
 	})
 
 	t.Run("ChannelNotFound", func(t *testing.T) {
@@ -160,7 +146,7 @@ func TestClient_ListEvents(t *testing.T) {
 		_, _, err := c.Poll(context.Background(), channelID, nil)
 		require.Error(t, err)
 		// nil response checked
-		assert.True(t, errors.Is(err, ErrChannelNotFound))
+		assert.ErrorIs(t, err, ErrChannelNotFound)
 	})
 
 	t.Run("UnexpectedStatusCode", func(t *testing.T) {
@@ -173,8 +159,8 @@ func TestClient_ListEvents(t *testing.T) {
 		_, _, err := c.Poll(context.Background(), channelID, nil)
 		require.Error(t, err)
 		// nil response checked
-		assert.True(t, errors.Is(err, ErrPollEvents))
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
+		assert.ErrorIs(t, err, ErrPollEvents)
+		assert.ErrorIs(t, err, ErrUnexpectedStatusCode)
 	})
 
 	t.Run("NilResponseBody", func(t *testing.T) {
@@ -186,7 +172,7 @@ func TestClient_ListEvents(t *testing.T) {
 
 		_, _, err := c.Poll(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrNilResponseBody))
+		assert.ErrorIs(t, err, ErrNilResponseBody)
 	})
 
 	t.Run("WithPagination", func(t *testing.T) {
@@ -224,18 +210,6 @@ func TestClient_ListEvents(t *testing.T) {
 
 func TestClient_SearchEvents(t *testing.T) {
 	privKeys, addresses := generateTestKeys(t, 2)
-
-	createTestEventsWithKeys := func(t *testing.T, count int, keys []*ecdsa.PrivateKey) []apiClient.Event {
-		t.Helper()
-		events := make([]apiClient.Event, count)
-		for i := 0; i < count; i++ {
-			eventPayload := createTestEventPayload(t)
-			event := createValidEventWithSignatures(t, keys, &eventPayload)
-			events[i] = *event
-		}
-		return events
-	}
-
 	channelID := uuid.New()
 
 	t.Run("Success", func(t *testing.T) {
@@ -262,7 +236,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		assert.Len(t, eventsList, 3)
 		assert.False(t, hasMore)
 
-		isEventVerified, err := c.Verify(&eventsList[0], testWorkflowOwner)
+		isEventVerified, err := c.VerifyWithWorkflowOwner(&eventsList[0], testWorkflowOwner)
 		require.NoError(t, err)
 		require.True(t, isEventVerified)
 	})
@@ -397,7 +371,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		c := setupLocalClient(t)
 		_, _, err := c.SearchEvents(context.Background(), uuid.Nil, nil)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrChannelIDRequired))
+		assert.ErrorIs(t, err, ErrChannelIDRequired)
 	})
 
 	t.Run("ChannelNotFound", func(t *testing.T) {
@@ -409,7 +383,7 @@ func TestClient_SearchEvents(t *testing.T) {
 
 		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrChannelNotFound))
+		assert.ErrorIs(t, err, ErrChannelNotFound)
 	})
 
 	t.Run("BadRequest", func(t *testing.T) {
@@ -427,8 +401,8 @@ func TestClient_SearchEvents(t *testing.T) {
 
 		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrSearchEvents))
-		assert.True(t, errors.Is(err, ErrBadRequest))
+		assert.ErrorIs(t, err, ErrSearchEvents)
+		assert.ErrorIs(t, err, ErrBadRequest)
 		assert.Contains(t, err.Error(), "Invalid parameter combination")
 	})
 
@@ -442,8 +416,8 @@ func TestClient_SearchEvents(t *testing.T) {
 
 		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrSearchEvents))
-		assert.True(t, errors.Is(err, ErrBadRequest))
+		assert.ErrorIs(t, err, ErrSearchEvents)
+		assert.ErrorIs(t, err, ErrBadRequest)
 		assert.Contains(t, err.Error(), "Invalid request parameters")
 	})
 
@@ -456,8 +430,8 @@ func TestClient_SearchEvents(t *testing.T) {
 
 		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrSearchEvents))
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
+		assert.ErrorIs(t, err, ErrSearchEvents)
+		assert.ErrorIs(t, err, ErrUnexpectedStatusCode)
 	})
 
 	t.Run("NilResponseBody", func(t *testing.T) {
@@ -469,7 +443,7 @@ func TestClient_SearchEvents(t *testing.T) {
 
 		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrNilResponseBody))
+		assert.ErrorIs(t, err, ErrNilResponseBody)
 	})
 
 	t.Run("WithPagination", func(t *testing.T) {
@@ -506,13 +480,7 @@ func TestClient_SearchEvents(t *testing.T) {
 }
 
 func TestClient_EventHash(t *testing.T) {
-	crecClient := newCRECClient(t, "http://localhost:8080")
-	logger := slog.New(slog.DiscardHandler)
-	c, err := NewClient(&Options{
-		Logger:     logger,
-		CRECClient: crecClient,
-	})
-	require.NoError(t, err)
+	c := setupLocalClient(t)
 
 	t.Run("ComputesValidHash", func(t *testing.T) {
 		eventPayload := createTestEventPayload(t)
@@ -538,35 +506,13 @@ func TestClient_EventHash(t *testing.T) {
 		assert.Equal(t, hash1, hash2, "same event payload should produce same hash")
 	})
 
-	t.Run("DifferentVerifiableEventProducesDifferentHash", func(t *testing.T) {
-		eventPayload1 := createTestEventPayload(t)
-		eventPayload2 := createTestEventPayload(t)
-		// Create different verifiable event data
-		differentData := map[string]interface{}{
-			"from":  "0x0000000000000000000000000000000000000000",
-			"to":    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-			"value": "9999999999999999999",
-		}
-		differentDataBytes, _ := json.Marshal(differentData)
-		eventPayload2.VerifiableEvent = base64.StdEncoding.EncodeToString(differentDataBytes)
-
-		hash1, err := c.EventHash(&eventPayload1)
-		require.NoError(t, err)
-
-		hash2, err := c.EventHash(&eventPayload2)
-		require.NoError(t, err)
-
-		assert.NotEqual(t, hash1, hash2, "different verifiable events should produce different hashes")
-	})
-
 	t.Run("DifferentDataProducesDifferentHash", func(t *testing.T) {
 		eventPayload1 := createTestEventPayload(t)
 		eventPayload2 := createTestEventPayload(t)
-		// Create different verifiable event data
 		differentData := map[string]interface{}{
 			"from":  "0x0000000000000000000000000000000000000000",
 			"to":    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-			"value": "2000000000000000000", // Different value
+			"value": "2000000000000000000",
 		}
 		differentDataBytes, _ := json.Marshal(differentData)
 		eventPayload2.VerifiableEvent = base64.StdEncoding.EncodeToString(differentDataBytes)
@@ -577,7 +523,7 @@ func TestClient_EventHash(t *testing.T) {
 		hash2, err := c.EventHash(&eventPayload2)
 		require.NoError(t, err)
 
-		assert.NotEqual(t, hash1, hash2, "different event data should produce different hashes")
+		assert.NotEqual(t, hash1, hash2)
 	})
 
 	t.Run("VerifyHashFormat", func(t *testing.T) {
@@ -594,13 +540,7 @@ func TestClient_EventHash(t *testing.T) {
 }
 
 func TestClient_OperationStatusHash(t *testing.T) {
-	crecClient := newCRECClient(t, "http://localhost:8080")
-	logger := slog.New(slog.DiscardHandler)
-	c, err := NewClient(&Options{
-		Logger:     logger,
-		CRECClient: crecClient,
-	})
-	require.NoError(t, err)
+	c := setupLocalClient(t)
 
 	t.Run("ComputesValidHash", func(t *testing.T) {
 		eventPayload := createTestOperationStatusPayload(t)
@@ -670,7 +610,7 @@ func TestClient_OperationStatusHash(t *testing.T) {
 		hash, err := c.OperationStatusHash(&eventPayload)
 		require.Error(t, err)
 		assert.Equal(t, common.Hash{}, hash)
-		assert.True(t, errors.Is(err, ErrVerifyEvent))
+		assert.ErrorIs(t, err, ErrVerifyEvent)
 		assert.Contains(t, err.Error(), "verifiable event is required")
 	})
 
@@ -690,74 +630,191 @@ func TestClient_OperationStatusHash(t *testing.T) {
 		hash, err := c.OperationStatusHash(&eventPayload)
 		require.Error(t, err)
 		assert.Equal(t, common.Hash{}, hash)
-		assert.True(t, errors.Is(err, ErrVerifyEvent))
+		assert.ErrorIs(t, err, ErrVerifyEvent)
 		assert.Contains(t, err.Error(), "verifiable event is required")
 	})
 }
 
-func TestClient_Verify(t *testing.T) {
-	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
-		// Create client WITHOUT configuring signers
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 0,
-			ValidSigners:          nil, // No signers configured
+func TestEvents_WorkflowOwnerFromOrgID(t *testing.T) {
+	tests := []struct {
+		name  string
+		orgID string
+	}{
+		{name: "SimpleOrgID", orgID: "test-org-123"},
+		{name: "UUIDOrgID", orgID: "550e8400-e29b-41d4-a716-446655440000"},
+		{name: "EmptyOrgID", orgID: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr, err := WorkflowOwnerFromOrgID(tt.orgID)
+			require.NoError(t, err)
+			assert.NotEmpty(t, addr)
+			assert.Regexp(t, `^0x[0-9a-fA-F]{40}$`, addr)
 		})
+	}
+
+	t.Run("Deterministic", func(t *testing.T) {
+		addr1, err := WorkflowOwnerFromOrgID("my-org")
 		require.NoError(t, err)
+		addr2, err := WorkflowOwnerFromOrgID("my-org")
+		require.NoError(t, err)
+		assert.Equal(t, addr1, addr2)
+	})
 
-		// Create a valid event
-		privKeys, _ := generateTestKeys(t, 2)
+	t.Run("DifferentOrgIDsProduceDifferentAddresses", func(t *testing.T) {
+		addr1, err := WorkflowOwnerFromOrgID("org-alpha")
+		require.NoError(t, err)
+		addr2, err := WorkflowOwnerFromOrgID("org-beta")
+		require.NoError(t, err)
+		assert.NotEqual(t, addr1, addr2)
+	})
+}
+
+func TestClient_Verify(t *testing.T) {
+	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
+	require.NoError(t, err)
+
+	t.Run("VerifyWithDefaultOrgID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
-		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
 
-		// Verify should fail because no signers are configured
-		ok, err := c.Verify(event, testWorkflowOwner)
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.OrgID = testOrgID
+		})
+
+		ok, err := c.Verify(event)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("VerifyWithDefaultWorkflowOwner", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.WorkflowOwner = testWorkflowOwner
+		})
+
+		ok, err := c.Verify(event)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("ErrOrgIDOrWorkflowOwnerReq", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.Verify(event)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+		assert.ErrorIs(t, err, ErrOrgIDOrWorkflowOwnerReq)
+	})
+
+	t.Run("VerifyWithOrgID_HappyPath", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyWithOrgID(event, testOrgID)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("VerifyWithOrgID_WrongOrgID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyWithOrgID(event, "wrong-org-id")
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrInvalidEventHash)
+	})
+}
+
+func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
+	t.Run("VerifyWithExplicitWorkflowOwner", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.WorkflowOwner = testWorkflowOwner
+		})
+
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 0
+			opts.ValidSigners = nil
+		})
+
+		privKeys, _ := generateTestKeys(t, 2)
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
+
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerificationNotConfigured)
 	})
 
 	t.Run("ErrVerificationNotConfigured_EmptySigners", func(t *testing.T) {
-		// Create client with empty signers slice
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 0,
-			ValidSigners:          []string{}, // Empty signers slice
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 0
+			opts.ValidSigners = []string{}
 		})
-		require.NoError(t, err)
 
 		privKeys, _ := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
-		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+		assert.ErrorIs(t, err, ErrVerificationNotConfigured)
 	})
 
 	t.Run("HappyPath_TwoValidSignatures", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
-		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 2,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
 		})
-		require.NoError(t, err)
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -765,19 +822,14 @@ func TestClient_Verify(t *testing.T) {
 	t.Run("NotEnoughSignatures", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 3)
 		eventPayload := createTestEventPayload(t)
-		event := createValidEventWithSignatures(t, privKeys[:2], &eventPayload)
+		event := createValidEventForOwner(t, privKeys[:2], &eventPayload, testWorkflowOwner)
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 3,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 3
+			opts.ValidSigners = addresses
 		})
-		require.NoError(t, err)
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
@@ -786,19 +838,14 @@ func TestClient_Verify(t *testing.T) {
 		signingKeys, _ := generateTestKeys(t, 2)
 		_, validAddresses := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
-		event := createValidEventWithSignatures(t, signingKeys, &eventPayload)
+		event := createValidEventForOwner(t, signingKeys, &eventPayload, testWorkflowOwner)
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 2,
-			ValidSigners:          validAddresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = validAddresses
 		})
-		require.NoError(t, err)
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
@@ -819,11 +866,11 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrVerifyEvent))
-		assert.True(t, errors.Is(err, ErrNoOCRProofs))
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrNoOCRProofs)
 	})
 
 	t.Run("ErrOCRReportTooShort", func(t *testing.T) {
@@ -858,10 +905,10 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrOCRReportTooShort))
+		assert.ErrorIs(t, err, ErrOCRReportTooShort)
 	})
 
 	t.Run("ErrInvalidWorkflowOwner", func(t *testing.T) {
@@ -908,19 +955,15 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 1,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 1
+			opts.ValidSigners = addresses
 		})
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrInvalidEventHash))
+		assert.ErrorIs(t, err, ErrInvalidEventHash)
 	})
 
 	t.Run("ErrInvalidEventHash", func(t *testing.T) {
@@ -967,19 +1010,15 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 1,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 1
+			opts.ValidSigners = addresses
 		})
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrInvalidEventHash))
+		assert.ErrorIs(t, err, ErrInvalidEventHash)
 	})
 
 	t.Run("ErrMultipleOCRProofs", func(t *testing.T) {
@@ -1030,11 +1069,11 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrVerifyEvent))
-		assert.True(t, errors.Is(err, ErrMultipleOCRProofs))
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrMultipleOCRProofs)
 	})
 
 	t.Run("ErrParseOCRReport", func(t *testing.T) {
@@ -1066,10 +1105,10 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrParseOCRReport))
+		assert.ErrorIs(t, err, ErrParseOCRReport)
 	})
 
 	t.Run("ErrParseOCRContext", func(t *testing.T) {
@@ -1102,10 +1141,10 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrParseOCRContext))
+		assert.ErrorIs(t, err, ErrParseOCRContext)
 	})
 
 	t.Run("ErrParseSignature", func(t *testing.T) {
@@ -1149,19 +1188,15 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 1,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 1
+			opts.ValidSigners = addresses
 		})
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrParseSignature))
+		assert.ErrorIs(t, err, ErrParseSignature)
 	})
 
 	t.Run("ErrRecoverPubKeyFromSignature", func(t *testing.T) {
@@ -1208,19 +1243,15 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 1,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 1
+			opts.ValidSigners = addresses
 		})
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrRecoverPubKeyFromSignature))
+		assert.ErrorIs(t, err, ErrRecoverPubKeyFromSignature)
 	})
 
 	// Test that wrong header type returns error
@@ -1259,72 +1290,157 @@ func TestClient_Verify(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.Verify(event, testWorkflowOwner)
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrOnlyWatcherEventsSupported))
+		assert.ErrorIs(t, err, ErrOnlyWatcherEventsSupported)
 	})
 }
 
 func TestClient_VerifyOperationStatus(t *testing.T) {
-	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 0,
-			ValidSigners:          nil,
+	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
+	require.NoError(t, err)
+
+	t.Run("VerifyWithDefaultOrgID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.OrgID = testOrgID
 		})
+
+		ok, err := c.VerifyOperationStatus(event)
 		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("VerifyOperationStatusWithDefaultWorkflowOwner", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.WorkflowOwner = testWorkflowOwner
+		})
+
+		ok, err := c.VerifyOperationStatus(event)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("ErrOrgIDOrWorkflowOwnerReq", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyOperationStatus(event)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrOrgIDOrWorkflowOwnerReq)
+	})
+
+	t.Run("VerifyOperationStatusWithOrgID_HappyPath", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyOperationStatusWithOrgID(event, testOrgID)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("VerifyOperationStatusWithOrgID_WrongOrgID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, orgOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyOperationStatusWithOrgID(event, "wrong-org-id")
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrInvalidEventHash)
+	})
+}
+
+func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
+	t.Run("VerifyWithExplicitWorkflowOwner", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestOperationStatusPayload(t)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+			opts.WorkflowOwner = testWorkflowOwner
+		})
+
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 0
+			opts.ValidSigners = nil
+		})
 
 		privKeys, _ := generateTestKeys(t, 2)
 		eventPayload := createTestOperationStatusPayload(t)
-		event := createValidOperationStatusEventWithSignatures(t, privKeys, &eventPayload)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+		assert.ErrorIs(t, err, ErrVerificationNotConfigured)
 	})
 
 	t.Run("ErrVerificationNotConfigured_EmptySigners", func(t *testing.T) {
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 0,
-			ValidSigners:          []string{},
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 0
+			opts.ValidSigners = []string{}
 		})
-		require.NoError(t, err)
 
 		privKeys, _ := generateTestKeys(t, 2)
 		eventPayload := createTestOperationStatusPayload(t)
-		event := createValidOperationStatusEventWithSignatures(t, privKeys, &eventPayload)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+		assert.ErrorIs(t, err, ErrVerificationNotConfigured)
 	})
 
 	t.Run("HappyPath_TwoValidSignatures", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 2)
 		eventPayload := createTestOperationStatusPayload(t)
-		event := createValidOperationStatusEventWithSignatures(t, privKeys, &eventPayload)
+		event := createValidOperationStatusEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 2,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
 		})
-		require.NoError(t, err)
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -1332,19 +1448,14 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 	t.Run("NotEnoughSignatures", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 3)
 		eventPayload := createTestOperationStatusPayload(t)
-		event := createValidOperationStatusEventWithSignatures(t, privKeys[:2], &eventPayload)
+		event := createValidOperationStatusEventForOwner(t, privKeys[:2], &eventPayload, testWorkflowOwner)
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 3,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 3
+			opts.ValidSigners = addresses
 		})
-		require.NoError(t, err)
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
@@ -1353,19 +1464,14 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		signingKeys, _ := generateTestKeys(t, 2)
 		_, validAddresses := generateTestKeys(t, 2)
 		eventPayload := createTestOperationStatusPayload(t)
-		event := createValidOperationStatusEventWithSignatures(t, signingKeys, &eventPayload)
+		event := createValidOperationStatusEventForOwner(t, signingKeys, &eventPayload, testWorkflowOwner)
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 2,
-			ValidSigners:          validAddresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = validAddresses
 		})
-		require.NoError(t, err)
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
@@ -1385,11 +1491,11 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrVerifyEvent))
-		assert.True(t, errors.Is(err, ErrNoOCRProofs))
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrNoOCRProofs)
 	})
 
 	t.Run("ErrOCRReportTooShort", func(t *testing.T) {
@@ -1423,10 +1529,10 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrOCRReportTooShort))
+		assert.ErrorIs(t, err, ErrOCRReportTooShort)
 	})
 
 	t.Run("ErrInvalidWorkflowOwner", func(t *testing.T) {
@@ -1474,20 +1580,15 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 1,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 1
+			opts.ValidSigners = addresses
 		})
-		require.NoError(t, err)
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrInvalidEventHash))
+		assert.ErrorIs(t, err, ErrInvalidEventHash)
 	})
 
 	t.Run("ErrInvalidEventHash", func(t *testing.T) {
@@ -1539,20 +1640,15 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		crecClient := newCRECClient(t, "http://localhost:8080")
-		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{
-			Logger:                logger,
-			CRECClient:            crecClient,
-			MinRequiredSignatures: 2,
-			ValidSigners:          addresses,
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
 		})
-		require.NoError(t, err)
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrInvalidEventHash))
+		assert.ErrorIs(t, err, ErrInvalidEventHash)
 	})
 
 	t.Run("ErrOnlyOperationStatusSupported_WrongHeaderType", func(t *testing.T) {
@@ -1583,10 +1679,10 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrOnlyOperationStatusSupported))
+		assert.ErrorIs(t, err, ErrOnlyOperationStatusSupported)
 	})
 
 	t.Run("ErrVerifiableEventRequired", func(t *testing.T) {
@@ -1626,10 +1722,10 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 			Payload: payloadUnion,
 		}
 
-		ok, err := c.VerifyOperationStatus(event, testWorkflowOwner)
+		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.True(t, errors.Is(err, ErrVerifyEvent))
+		assert.ErrorIs(t, err, ErrVerifyEvent)
 		assert.Contains(t, err.Error(), "verifiable event is required")
 	})
 }
@@ -1674,7 +1770,7 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 		valid, err := c.VerifyOCRSignatures("0x01", "0x01", []string{})
 		require.Error(t, err)
 		assert.False(t, valid)
-		assert.True(t, errors.Is(err, ErrVerificationNotConfigured))
+		assert.ErrorIs(t, err, ErrVerificationNotConfigured)
 	})
 
 	t.Run("NotEnoughValidSignatures", func(t *testing.T) {
@@ -1720,7 +1816,7 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 		valid, err := c.VerifyOCRSignatures("0x01", "0x01", []string{})
 		require.Error(t, err)
 		assert.False(t, valid)
-		assert.True(t, errors.Is(err, ErrOCRReportTooShort))
+		assert.ErrorIs(t, err, ErrOCRReportTooShort)
 	})
 
 	t.Run("InvalidOCRContextFormat", func(t *testing.T) {
@@ -1735,23 +1831,17 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 		valid, err := c.VerifyOCRSignatures("0x"+common.Bytes2Hex(ocrReport), "0xZZZ", []string{})
 		require.Error(t, err)
 		assert.False(t, valid)
-		assert.True(t, errors.Is(err, ErrParseOCRContext))
+		assert.ErrorIs(t, err, ErrParseOCRContext)
 	})
 }
 
 func TestClient_Decode(t *testing.T) {
-	crecClient := newCRECClient(t, "http://localhost:8080")
-	logger := slog.New(slog.DiscardHandler)
-	c, err := NewClient(&Options{
-		Logger:     logger,
-		CRECClient: crecClient,
-	})
-	require.NoError(t, err)
+	c := setupLocalClient(t)
 
 	t.Run("Success", func(t *testing.T) {
 		privKeys, _ := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
-		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
 
 		var decoded map[string]interface{}
 		err := c.Decode(event, &decoded)
@@ -1761,18 +1851,12 @@ func TestClient_Decode(t *testing.T) {
 }
 
 func TestClient_ToJson(t *testing.T) {
-	crecClient := newCRECClient(t, "http://localhost:8080")
-	logger := slog.New(slog.DiscardHandler)
-	c, err := NewClient(&Options{
-		Logger:     logger,
-		CRECClient: crecClient,
-	})
-	require.NoError(t, err)
+	c := setupLocalClient(t)
 
 	t.Run("Success", func(t *testing.T) {
 		privKeys, _ := generateTestKeys(t, 2)
 		eventPayload := createTestEventPayload(t)
-		event := createValidEventWithSignatures(t, privKeys, &eventPayload)
+		event := createValidEventForOwner(t, privKeys, &eventPayload, testWorkflowOwner)
 
 		jsonBytes, err := c.ToJSON(*event)
 		require.NoError(t, err)
@@ -1786,13 +1870,7 @@ func TestClient_ToJson(t *testing.T) {
 }
 
 func TestClient_DecodeVerifiableEvent(t *testing.T) {
-	crecClient := newCRECClient(t, "http://localhost:8080")
-	logger := slog.New(slog.DiscardHandler)
-	c, err := NewClient(&Options{
-		Logger:     logger,
-		CRECClient: crecClient,
-	})
-	require.NoError(t, err)
+	c := setupLocalClient(t)
 
 	t.Run("Success_WithEVMChainEvent", func(t *testing.T) {
 		// Watcher events always have chain events - create a proper EVMEvent
@@ -1874,7 +1952,7 @@ func TestClient_DecodeVerifiableEvent(t *testing.T) {
 		decoded, err := c.DecodeVerifiableEvent(nil)
 		require.Error(t, err)
 		assert.Nil(t, decoded)
-		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
 		assert.Contains(t, err.Error(), "payload is nil")
 	})
 
@@ -1888,7 +1966,7 @@ func TestClient_DecodeVerifiableEvent(t *testing.T) {
 		decoded, err := c.DecodeVerifiableEvent(payload)
 		require.Error(t, err)
 		assert.Nil(t, decoded)
-		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
 		assert.Contains(t, err.Error(), "verifiable event is empty")
 	})
 
@@ -1902,7 +1980,7 @@ func TestClient_DecodeVerifiableEvent(t *testing.T) {
 		decoded, err := c.DecodeVerifiableEvent(payload)
 		require.Error(t, err)
 		assert.Nil(t, decoded)
-		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
 		assert.Contains(t, err.Error(), "invalid base64")
 	})
 
@@ -1918,19 +1996,13 @@ func TestClient_DecodeVerifiableEvent(t *testing.T) {
 		decoded, err := c.DecodeVerifiableEvent(payload)
 		require.Error(t, err)
 		assert.Nil(t, decoded)
-		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
 		assert.Contains(t, err.Error(), "invalid JSON")
 	})
 }
 
 func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
-	crecClient := newCRECClient(t, "http://localhost:8080")
-	logger := slog.New(slog.DiscardHandler)
-	c, err := NewClient(&Options{
-		Logger:     logger,
-		CRECClient: crecClient,
-	})
-	require.NoError(t, err)
+	c := setupLocalClient(t)
 
 	t.Run("Success_ConfirmedWithChainEvent", func(t *testing.T) {
 		// Confirmed operation status events have chain events (the on-chain transaction)
@@ -2062,7 +2134,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		decoded, err := c.DecodeOperationStatusVerifiableEvent(nil)
 		require.Error(t, err)
 		assert.Nil(t, decoded)
-		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
 		assert.Contains(t, err.Error(), "payload is nil")
 	})
 
@@ -2081,7 +2153,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
 		require.Error(t, err)
 		assert.Nil(t, decoded)
-		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
 		assert.Contains(t, err.Error(), "verifiable event is nil or empty")
 	})
 
@@ -2101,7 +2173,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
 		require.Error(t, err)
 		assert.Nil(t, decoded)
-		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
 		assert.Contains(t, err.Error(), "verifiable event is nil or empty")
 	})
 
@@ -2121,7 +2193,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
 		require.Error(t, err)
 		assert.Nil(t, decoded)
-		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
 		assert.Contains(t, err.Error(), "invalid base64")
 	})
 
@@ -2142,7 +2214,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		decoded, err := c.DecodeOperationStatusVerifiableEvent(payload)
 		require.Error(t, err)
 		assert.Nil(t, decoded)
-		assert.True(t, errors.Is(err, ErrDecodeVerifiableEvent))
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
 		assert.Contains(t, err.Error(), "invalid JSON")
 	})
 }
@@ -2207,7 +2279,16 @@ func generateTestKeys(t *testing.T, count int) ([]*ecdsa.PrivateKey, []string) {
 	return keys, addresses
 }
 
-// createTestEventPayload creates a standard test event payload
+func createTestEventsWithKeys(t *testing.T, count int, keys []*ecdsa.PrivateKey) []apiClient.Event {
+	t.Helper()
+	events := make([]apiClient.Event, count)
+	for i := range count {
+		eventPayload := createTestEventPayload(t)
+		events[i] = *createValidEventForOwner(t, keys, &eventPayload, testWorkflowOwner)
+	}
+	return events
+}
+
 func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
 	t.Helper()
 
@@ -2231,67 +2312,6 @@ func createTestEventPayload(t *testing.T) apiClient.WatcherEventPayload {
 	}
 }
 
-// createValidEventWithSignatures creates a valid event with proper OCR report and signatures
-func createValidEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKey, eventPayload *apiClient.WatcherEventPayload) *apiClient.Event {
-	t.Helper()
-
-	// Create a valid OCR report with the proper structure (141 bytes minimum)
-	ocrReport := make([]byte, 141)
-	ocrReport[0] = 0x01 // version
-
-	// Place workflow owner at offset 87 (20 bytes)
-	workflowOwner := common.HexToAddress(testWorkflowOwner)
-	copy(ocrReport[87:107], workflowOwner.Bytes())
-
-	// Compute event hash - now just keccak256(verifiableEvent)
-	eventHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
-
-	// Place event hash at offset 109
-	copy(ocrReport[109:], eventHash.Bytes())
-
-	ocrContext := []byte("test-context-data")
-
-	// Generate report hash for signing
-	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
-
-	// Generate signatures
-	var signatures []string
-	for _, privKey := range privateKeys {
-		sig, err := crypto.Sign(reportHash.Bytes(), privKey)
-		require.NoError(t, err)
-		sig[64] += 27 // Adjust v value for Ethereum format
-		signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
-	}
-
-	// Create OCR proof
-	ocrProof := apiClient.OCRProof{
-		Alg:        "ecdsa-secp256k1",
-		OcrContext: "0x" + common.Bytes2Hex(ocrContext),
-		OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
-		Signatures: signatures,
-	}
-
-	proofUnion := apiClient.EventHeaders_Proofs_Item{}
-	err := proofUnion.FromOCRProof(ocrProof)
-	require.NoError(t, err)
-
-	// Create event payload union
-	payloadUnion := apiClient.Event_Payload{}
-	err = payloadUnion.FromWatcherEventPayload(*eventPayload)
-	require.NoError(t, err)
-
-	event := &apiClient.Event{
-		Headers: apiClient.EventHeaders{
-			Type:   apiClient.EventTypeWatcherEvent,
-			Offset: int64(12345),
-			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
-		},
-		Payload: payloadUnion,
-	}
-
-	return event
-}
-
 // createTestOperationStatusPayload creates a standard test operation status payload
 func createTestOperationStatusPayload(t *testing.T) apiClient.OperationStatusPayload {
 	t.Helper()
@@ -2311,15 +2331,61 @@ func createTestOperationStatusPayload(t *testing.T) apiClient.OperationStatusPay
 	}
 }
 
-// createValidOperationStatusEventWithSignatures creates a valid operation status event with proper OCR report and signatures
-func createValidOperationStatusEventWithSignatures(t *testing.T, privateKeys []*ecdsa.PrivateKey, eventPayload *apiClient.OperationStatusPayload) *apiClient.Event {
+func createValidEventForOwner(t *testing.T, privateKeys []*ecdsa.PrivateKey, eventPayload *apiClient.WatcherEventPayload, owner string) *apiClient.Event {
 	t.Helper()
 
 	ocrReport := make([]byte, 141)
 	ocrReport[0] = 0x01
 
-	// Place workflow owner at offset 87 (20 bytes)
-	workflowOwner := common.HexToAddress(testWorkflowOwner)
+	workflowOwner := common.HexToAddress(owner)
+	copy(ocrReport[87:107], workflowOwner.Bytes())
+
+	eventHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
+	copy(ocrReport[109:], eventHash.Bytes())
+	ocrContext := []byte("test-context-data")
+
+	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+	var signatures []string
+	for _, privKey := range privateKeys {
+		sig, err := crypto.Sign(reportHash.Bytes(), privKey)
+		require.NoError(t, err)
+		sig[64] += 27
+		signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
+	}
+
+	ocrProof := apiClient.OCRProof{
+		Alg:        "ecdsa-secp256k1",
+		OcrContext: "0x" + common.Bytes2Hex(ocrContext),
+		OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+		Signatures: signatures,
+	}
+
+	proofUnion := apiClient.EventHeaders_Proofs_Item{}
+	err := proofUnion.FromOCRProof(ocrProof)
+	require.NoError(t, err)
+
+	payloadUnion := apiClient.Event_Payload{}
+	err = payloadUnion.FromWatcherEventPayload(*eventPayload)
+	require.NoError(t, err)
+
+	return &apiClient.Event{
+		Headers: apiClient.EventHeaders{
+			Type:   apiClient.EventTypeWatcherEvent,
+			Offset: int64(12345),
+			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+		},
+		Payload: payloadUnion,
+	}
+}
+
+func createValidOperationStatusEventForOwner(t *testing.T, privateKeys []*ecdsa.PrivateKey, eventPayload *apiClient.OperationStatusPayload, owner string) *apiClient.Event {
+	t.Helper()
+
+	ocrReport := make([]byte, 141)
+	ocrReport[0] = 0x01
+
+	workflowOwner := common.HexToAddress(owner)
 	copy(ocrReport[87:107], workflowOwner.Bytes())
 
 	eventHash := crypto.Keccak256Hash([]byte(*eventPayload.VerifiableEvent))
@@ -2352,7 +2418,7 @@ func createValidOperationStatusEventWithSignatures(t *testing.T, privateKeys []*
 	err = payloadUnion.FromOperationStatusPayload(*eventPayload)
 	require.NoError(t, err)
 
-	event := &apiClient.Event{
+	return &apiClient.Event{
 		Headers: apiClient.EventHeaders{
 			Type:   apiClient.EventTypeOperationStatus,
 			Offset: int64(12345),
@@ -2360,6 +2426,5 @@ func createValidOperationStatusEventWithSignatures(t *testing.T, privateKeys []*
 		},
 		Payload: payloadUnion,
 	}
-
-	return event
 }
+
