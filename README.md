@@ -185,7 +185,12 @@ Protocol-specific helpers for common Chainlink systems:
 
 - [crec-sdk-ext-ccip](https://github.com/smartcontractkit/crec-sdk-ext-ccip) - Cross-Chain Interoperability Protocol
 - [crec-sdk-ext-dvp](https://github.com/smartcontractkit/crec-sdk-ext-dvp) - Delivery versus Payment
-- [crec-sdk-ext-dta](https://github.com/smartcontractkit/crec-sdk-ext-dta) - Digital Token Assets
+- [crec-sdk-ext-dta](https://github.com/smartcontractkit/crec-sdk-ext-dta) - Digital Transfer Agent
+
+## Related
+
+- [crec-workflow-utils](https://github.com/smartcontractkit/crec-workflow-utils) - Shared utilities for event-listener workflows
+- [crec-sdk-ext-template](https://github.com/smartcontractkit/crec-sdk-ext-template) - Code generator for building CREC SDK extensions
 
 ## Event Verification Keys (Mainnet)
 
