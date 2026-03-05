@@ -27,7 +27,7 @@ func ResolveConfigTemplate(b *Bundle) []byte {
 }
 
 // Bundle is the deployment artifact for an extension watcher workflow.
-// Extensions produce these; Courier consumes them.
+// Extensions produce these; the CREC backend consumes them.
 type Bundle struct {
 	// Service identifies the extension (e.g. "dta", "dvp", "test_consumer").
 	// An empty string means this is the generic/fallback event-listener.
