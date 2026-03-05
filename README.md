@@ -68,6 +68,7 @@ The unified client provides access to all sub-clients:
 client.Channels   // Channel CRUD operations
 client.Events     // Event polling and verification
 client.Transact   // Operation signing and sending
+client.Wallets    // Smart wallet management
 client.Watchers   // Watcher CRUD operations
 ```
 
@@ -159,9 +160,10 @@ For complete API documentation, use Go's built-in documentation tools:
 
 ```bash
 go doc github.com/smartcontractkit/crec-sdk
+go doc github.com/smartcontractkit/crec-sdk/channels
 go doc github.com/smartcontractkit/crec-sdk/events
 go doc github.com/smartcontractkit/crec-sdk/transact
-go doc github.com/smartcontractkit/crec-sdk/channels
+go doc github.com/smartcontractkit/crec-sdk/wallets
 go doc github.com/smartcontractkit/crec-sdk/watchers
 ```
 
@@ -250,3 +252,7 @@ client, err := crec.NewClient(
 | **Operation**           | Bundle of transactions executed atomically by a smart account                           |
 | **EIP-712**             | Ethereum standard for typed data signing, used for operation signatures                 |
 | **CCIP**                | Cross-Chain Interoperability Protocol for cross-chain transfers                         |
+
+## License
+
+[MIT](LICENSE.md)
