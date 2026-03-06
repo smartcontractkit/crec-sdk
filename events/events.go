@@ -19,6 +19,7 @@ import (
 
 const (
 	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
+	creMainlineTenant      = "1" // CRE mainline tenant ID used for workflow owner address derivation
 )
 
 var (
@@ -135,9 +136,9 @@ func NewClient(opts *Options) (*Client, error) {
 
 // WorkflowOwnerFromOrgID derives the workflow owner Ethereum address from an
 // organization ID. It uses the CRE canonical CREATE2-style address derivation
-// with an empty prefix (to be replaced with tenant_id in a future release).
+// with the CRE mainline tenant ID.
 func WorkflowOwnerFromOrgID(orgID string) (string, error) {
-	addrBytes, err := workflows.GenerateWorkflowOwnerAddress("", orgID)
+	addrBytes, err := workflows.GenerateWorkflowOwnerAddress(creMainlineTenant, orgID)
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrDeriveWorkflowOwner, err)
 	}
