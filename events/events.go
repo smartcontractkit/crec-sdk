@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
+	ocrReportPayloadOffset   = 109 // Offset of the report payload (event hash) in the OCR report
+	CreMainlineTenantID      = "1" // CRE mainline tenant ID used as default for workflow owner address derivation
 )
 
 var (
@@ -85,6 +86,7 @@ var (
 //     [Client.VerifyOperationStatus]. When set (and OrgID is not), those methods use it.
 //     For explicit workflow owner per event, use [Client.VerifyWithWorkflowOwner] or
 //     [Client.VerifyOperationStatusWithWorkflowOwner].
+//   - CRETenantID: CRE tenant ID referring to different environments of CRE, used for workflow owner address derivation. Defaults to CreMainlineTenantID ("1") if not provided.
 type Options struct {
 	Logger                *slog.Logger
 	CRECClient            *apiClient.ClientWithResponses
@@ -92,6 +94,7 @@ type Options struct {
 	ValidSigners          []string
 	OrgID                 string
 	WorkflowOwner         string
+	CRETenantID           string
 }
 
 // Client provides operations for polling and verifying events from CREC.
@@ -102,6 +105,7 @@ type Client struct {
 	validSigners          []string
 	orgID                 string
 	workflowOwner         string
+	creTenantID           string
 }
 
 // NewClient creates a new CREC events client with the provided CREC client and options.
@@ -123,6 +127,11 @@ func NewClient(opts *Options) (*Client, error) {
 
 	logger.Debug("Creating CREC events client")
 
+	creTenantID := opts.CRETenantID
+	if creTenantID == "" {
+		creTenantID = CreMainlineTenantID
+	}
+
 	return &Client{
 		crecClient:            opts.CRECClient,
 		logger:                logger,
@@ -130,14 +139,15 @@ func NewClient(opts *Options) (*Client, error) {
 		validSigners:          opts.ValidSigners,
 		orgID:                 opts.OrgID,
 		workflowOwner:         opts.WorkflowOwner,
+		creTenantID:           creTenantID,
 	}, nil
 }
 
 // WorkflowOwnerFromOrgID derives the workflow owner Ethereum address from an
 // organization ID. It uses the CRE canonical CREATE2-style address derivation
-// with an empty prefix (to be replaced with tenant_id in a future release).
-func WorkflowOwnerFromOrgID(orgID string) (string, error) {
-	addrBytes, err := workflows.GenerateWorkflowOwnerAddress("", orgID)
+// with the client's configured CRE tenant ID.
+func (c *Client) WorkflowOwnerFromOrgID(orgID string) (string, error) {
+	addrBytes, err := workflows.GenerateWorkflowOwnerAddress(c.creTenantID, orgID)
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrDeriveWorkflowOwner, err)
 	}
@@ -293,7 +303,7 @@ func (c *Client) Verify(event *apiClient.Event) (bool, error) {
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
 func (c *Client) VerifyWithOrgID(event *apiClient.Event, orgID string) (bool, error) {
-	workflowOwner, err := WorkflowOwnerFromOrgID(orgID)
+	workflowOwner, err := c.WorkflowOwnerFromOrgID(orgID)
 	if err != nil {
 		return false, err
 	}
@@ -388,7 +398,7 @@ func (c *Client) VerifyOperationStatus(event *apiClient.Event) (bool, error) {
 //
 // Returns true if the event is valid and signed by enough authorized signers, false otherwise.
 func (c *Client) VerifyOperationStatusWithOrgID(event *apiClient.Event, orgID string) (bool, error) {
-	workflowOwner, err := WorkflowOwnerFromOrgID(orgID)
+	workflowOwner, err := c.WorkflowOwnerFromOrgID(orgID)
 	if err != nil {
 		return false, err
 	}
