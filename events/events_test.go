@@ -636,6 +636,8 @@ func TestClient_OperationStatusHash(t *testing.T) {
 }
 
 func TestEvents_WorkflowOwnerFromOrgID(t *testing.T) {
+	c := setupLocalClient(t)
+
 	tests := []struct {
 		name  string
 		orgID string
@@ -647,7 +649,7 @@ func TestEvents_WorkflowOwnerFromOrgID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addr, err := WorkflowOwnerFromOrgID(tt.orgID)
+			addr, err := c.WorkflowOwnerFromOrgID(tt.orgID)
 			require.NoError(t, err)
 			assert.NotEmpty(t, addr)
 			assert.Regexp(t, `^0x[0-9a-fA-F]{40}$`, addr)
@@ -655,24 +657,25 @@ func TestEvents_WorkflowOwnerFromOrgID(t *testing.T) {
 	}
 
 	t.Run("Deterministic", func(t *testing.T) {
-		addr1, err := WorkflowOwnerFromOrgID("my-org")
+		addr1, err := c.WorkflowOwnerFromOrgID("my-org")
 		require.NoError(t, err)
-		addr2, err := WorkflowOwnerFromOrgID("my-org")
+		addr2, err := c.WorkflowOwnerFromOrgID("my-org")
 		require.NoError(t, err)
 		assert.Equal(t, addr1, addr2)
 	})
 
 	t.Run("DifferentOrgIDsProduceDifferentAddresses", func(t *testing.T) {
-		addr1, err := WorkflowOwnerFromOrgID("org-alpha")
+		addr1, err := c.WorkflowOwnerFromOrgID("org-alpha")
 		require.NoError(t, err)
-		addr2, err := WorkflowOwnerFromOrgID("org-beta")
+		addr2, err := c.WorkflowOwnerFromOrgID("org-beta")
 		require.NoError(t, err)
 		assert.NotEqual(t, addr1, addr2)
 	})
 }
 
 func TestClient_Verify(t *testing.T) {
-	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
+	c := setupLocalClient(t)
+	orgOwner, err := c.WorkflowOwnerFromOrgID(testOrgID)
 	require.NoError(t, err)
 
 	t.Run("VerifyWithDefaultOrgID", func(t *testing.T) {
@@ -1298,7 +1301,8 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 }
 
 func TestClient_VerifyOperationStatus(t *testing.T) {
-	orgOwner, err := WorkflowOwnerFromOrgID(testOrgID)
+	c := setupLocalClient(t)
+	orgOwner, err := c.WorkflowOwnerFromOrgID(testOrgID)
 	require.NoError(t, err)
 
 	t.Run("VerifyWithDefaultOrgID", func(t *testing.T) {

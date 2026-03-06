@@ -96,10 +96,10 @@
 //
 // ## Deriving Workflow Owner from Org ID
 //
-// Use [WorkflowOwnerFromOrgID] to derive the workflow owner Ethereum address
+// Use [Client.WorkflowOwnerFromOrgID] to derive the workflow owner Ethereum address
 // from an org ID without performing verification:
 //
-//	ownerAddress, err := events.WorkflowOwnerFromOrgID(orgID)
+//	ownerAddress, err := client.Events.WorkflowOwnerFromOrgID(orgID)
 //
 // # Decoding Events
 //

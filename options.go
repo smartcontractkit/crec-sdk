@@ -43,6 +43,7 @@ type clientConfig struct {
 	disableEventVerification         bool
 	orgID                            string
 	workflowOwner                    string
+	creTenantID                      string
 	watcherPollInterval              time.Duration
 	watcherEventualConsistencyWindow time.Duration
 }
@@ -104,6 +105,14 @@ func WithOrgID(orgID string) Option {
 func WithWorkflowOwner(workflowOwner string) Option {
 	return func(cfg *clientConfig) {
 		cfg.workflowOwner = workflowOwner
+	}
+}
+
+// WithCRETenantID sets the CRE tenant ID referring to different environments of CRE
+// for workflow owner address derivation. Defaults to events.CreMainlineTenantID ("1") if not provided.
+func WithCRETenantID(creTenantID string) Option {
+	return func(cfg *clientConfig) {
+		cfg.creTenantID = creTenantID
 	}
 }
 
