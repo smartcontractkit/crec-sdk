@@ -10,15 +10,14 @@ import (
 //go:embed config.tmpl
 var defaultConfigTemplate []byte
 
-// DefaultConfigTemplate returns the shared gomplate template for generating
-// config.yaml. This covers the standard watcher config used extensions.
+// DefaultConfigTemplate returns the shared gomplate template for generating config.yaml.
+// It covers the standard watcher config used by extensions.
 func DefaultConfigTemplate() []byte {
 	return defaultConfigTemplate
 }
 
-// ResolveConfigTemplate returns the bundle's custom template if set,
-// otherwise the shared default. Extensions with custom config fields
-// can override the default by setting Bundle.ConfigTemplate.
+// ResolveConfigTemplate returns the bundle's custom template if ConfigTemplate is set,
+// otherwise the shared default from DefaultConfigTemplate.
 func ResolveConfigTemplate(b *Bundle) []byte {
 	if len(b.ConfigTemplate) > 0 {
 		return b.ConfigTemplate
@@ -79,9 +78,8 @@ type Event struct {
 }
 
 // Validate checks the bundle for configuration errors.
-// It verifies that required fields are set, that contract and event names
-// are unique, that ABI strings are valid JSON, and that every event's
-// TriggerContract references an existing contract.
+// It verifies that WasmBinary is set, contract and event names are unique,
+// ABI strings are valid JSON, and every event's TriggerContract references an existing contract.
 func (b *Bundle) Validate() error {
 	var errs []string
 
@@ -125,8 +123,7 @@ func (b *Bundle) Validate() error {
 	return nil
 }
 
-// FindTriggerContract returns the Contract that emits the given event,
-// or nil if not found.
+// FindTriggerContract returns the Contract that emits the given event, or nil if not found.
 func (b *Bundle) FindTriggerContract(eventName string) *Contract {
 	var triggerName string
 	for _, evt := range b.Events {

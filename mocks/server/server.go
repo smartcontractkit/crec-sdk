@@ -13,6 +13,8 @@ import (
 	"github.com/smartcontractkit/crec-api-go/stdserver"
 )
 
+// MockServer is an in-memory HTTP server that implements the CREC API for testing.
+// It provides channels, watchers, wallets, and operations endpoints with no persistence.
 type MockServer struct {
 	TestServer *httptest.Server
 
@@ -28,6 +30,8 @@ type MockServer struct {
 
 var _ stdserver.ServerInterface = (*MockServer)(nil)
 
+// NewMockServer creates and starts a new MockServer with an in-memory store.
+// Call Close when done to shut down the HTTP server.
 func NewMockServer() *MockServer {
 	s := &MockServer{
 		wallets:    make([]stdserver.Wallet, 0),
@@ -42,12 +46,14 @@ func NewMockServer() *MockServer {
 	return s
 }
 
+// Close shuts down the mock HTTP server and releases resources.
 func (s *MockServer) Close() {
 	if s.TestServer != nil {
 		s.TestServer.Close()
 	}
 }
 
+// GetHealthCheck handles GET /health and returns a healthy status.
 func (s *MockServer) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -58,6 +64,7 @@ func (s *MockServer) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+// GetNetworks handles GET /networks and returns an empty network list.
 func (s *MockServer) GetNetworks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

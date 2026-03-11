@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	// MaxWalletNameLength is the maximum allowed length for a wallet name in characters.
 	MaxWalletNameLength = 255
 )
 

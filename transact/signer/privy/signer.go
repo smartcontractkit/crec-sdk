@@ -131,8 +131,11 @@ func NewSignerFromEnv(opts ...Option) (*Signer, error) {
 	return NewSigner(appID, appSecret, walletID, allOpts...)
 }
 
-// NewSignerWithCustomClient Deprecated: Use NewSigner with WithHTTPClient and WithBaseURL options instead
+// NewSignerWithCustomClient creates a Privy signer with a custom HTTP client.
+// Deprecated: Use NewSigner with WithHTTPClient and WithBaseURL options instead.
 
+// Sign signs the pre-hashed message using Privy's personal_sign RPC.
+// Returns the raw signature bytes.
 func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	hashHex := "0x" + hex.EncodeToString(hash)
 
@@ -182,7 +185,7 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	return sigBytes, nil
 }
 
-// GetWalletAddress retrieves the Ethereum address for this wallet from Privy
+// GetWalletAddress retrieves the Ethereum address for this wallet from Privy.
 func (s *Signer) GetWalletAddress(ctx context.Context) (string, error) {
 	url := fmt.Sprintf("%s/v1/wallets/%s", s.baseURL, s.walletID)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)

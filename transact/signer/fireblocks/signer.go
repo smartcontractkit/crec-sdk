@@ -39,7 +39,7 @@ const (
 	DefaultTimeout = 60 * time.Second
 )
 
-// OperationStatus represents the status of a Fireblocks signing operation
+// OperationStatus represents the status of a Fireblocks signing operation.
 type OperationStatus string
 
 const (
@@ -63,7 +63,7 @@ type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// Signer implements signing operations using Fireblocks' custody infrastructure
+// Signer implements the signer.Signer and signer.TypedDataSigner interfaces using Fireblocks custody.
 type Signer struct {
 	client          HTTPClient
 	apiKey          string
@@ -187,7 +187,8 @@ func NewSignerFromEnv(opts ...Option) (*Signer, error) {
 	return NewSigner(apiKey, privateKeyPEM, vaultAccountID, assetID, allOpts...)
 }
 
-// Sign implements the Signer interface for signing raw message hashes
+// Sign signs the pre-hashed message using Fireblocks custody.
+// Creates a RAW signing operation and polls until completion.
 func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	// Create a raw signing operation
 	opID, err := s.createSigningOperation(ctx, hash)
@@ -210,9 +211,8 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	return sig, nil
 }
 
-// SignTypedData implements the TypedDataSigner interface for signing EIP-712 typed data.
-// This uses Fireblocks' TYPED_MESSAGE operation, which allows Fireblocks to see
-// the full typed data structure for policy enforcement.
+// SignTypedData signs EIP-712 typed data using Fireblocks' TYPED_MESSAGE operation.
+// Fireblocks can see the full typed data for policy enforcement before signing.
 func (s *Signer) SignTypedData(ctx context.Context, typedData *signer.TypedData) ([]byte, error) {
 	if typedData == nil {
 		return nil, fmt.Errorf("typedData cannot be nil")
@@ -245,7 +245,7 @@ func (s *Signer) SignTypedData(ctx context.Context, typedData *signer.TypedData)
 	return sig, nil
 }
 
-// GetVaultAccountAddress retrieves the address for the configured vault account
+// GetVaultAccountAddress retrieves the Ethereum address for the configured vault account.
 func (s *Signer) GetVaultAccountAddress(ctx context.Context) (string, error) {
 	path := fmt.Sprintf("/v1/vault/accounts/%s/%s", s.vaultAccountID, s.assetID)
 
@@ -698,14 +698,14 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 	}
 }
 
-// OperationResponse represents a Fireblocks signing operation response
+// OperationResponse represents a Fireblocks signing operation response.
 type OperationResponse struct {
 	ID             string          `json:"id"`
 	Status         OperationStatus `json:"status"`
 	SignedMessages []SignedMessage `json:"signedMessages"`
 }
 
-// SignedMessage represents a signed message from Fireblocks
+// SignedMessage represents a signed message from a Fireblocks operation.
 type SignedMessage struct {
 	Content        string    `json:"content"`
 	Algorithm      string    `json:"algorithm"`
@@ -714,7 +714,7 @@ type SignedMessage struct {
 	PublicKey      string    `json:"publicKey"`
 }
 
-// Signature represents an ECDSA signature
+// Signature represents an ECDSA signature (r, s, v) from Fireblocks.
 type Signature struct {
 	R       string `json:"r"`
 	S       string `json:"s"`
@@ -943,7 +943,7 @@ func parsePrivateKey(pemData string) (*rsa.PrivateKey, error) {
 	return rsaKey, nil
 }
 
-// GenerateTestPrivateKey generates a test RSA private key (for testing only)
+// GenerateTestPrivateKey generates a 2048-bit RSA private key for testing.
 func GenerateTestPrivateKey() (*rsa.PrivateKey, string, error) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {

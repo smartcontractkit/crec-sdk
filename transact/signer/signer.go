@@ -32,7 +32,7 @@ type TypedDataField struct {
 	Type string `json:"type"`
 }
 
-// TypedDataDomain contains the EIP-712 domain separator parameters
+// TypedDataDomain contains the EIP-712 domain separator parameters for signing.
 type TypedDataDomain struct {
 	// Name is the user-readable name of the signing domain
 	Name string `json:"name,omitempty"`

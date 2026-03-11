@@ -13,20 +13,25 @@ import (
 )
 
 const (
-	EIP712DomainName    = `SignatureVerifyingAccount`
+	// EIP712DomainName is the EIP-712 domain name for the Signature Verifying Account contract.
+	EIP712DomainName = `SignatureVerifyingAccount`
+	// EIP712DomainVersion is the EIP-712 domain version for the Signature Verifying Account contract.
 	EIP712DomainVersion = `1`
 )
 
+// Transaction represents a single transaction within an operation for EIP-712 signing.
 type Transaction struct {
 	To    common.Address `json:"to"`
 	Value *big.Int       `json:"value,string"`
 	Data  hexutil.Bytes  `json:"data"`
 }
 
+// EIP712Type returns the EIP-712 type name for Transaction.
 func (tx *Transaction) EIP712Type() string {
 	return "Transaction"
 }
 
+// EIP712Types returns the EIP-712 type definitions for Transaction fields.
 func (tx *Transaction) EIP712Types() []apitypes.Type {
 	return []apitypes.Type{
 		{Name: "to", Type: "address"},
@@ -35,6 +40,7 @@ func (tx *Transaction) EIP712Types() []apitypes.Type {
 	}
 }
 
+// EIP712Message returns the EIP-712 message representation of the transaction.
 func (tx *Transaction) EIP712Message() apitypes.TypedDataMessage {
 	return apitypes.TypedDataMessage{
 		"to":    tx.To.String(),
@@ -43,16 +49,19 @@ func (tx *Transaction) EIP712Message() apitypes.TypedDataMessage {
 	}
 }
 
+// Operation represents a batch of transactions to be executed atomically by a smart account.
 type Operation struct {
 	ID           *big.Int       `json:"id"`
 	Account      common.Address `json:"account"`
 	Transactions []Transaction  `json:"transactions"`
 }
 
+// EIP712Type returns the EIP-712 type name for Operation.
 func (op *Operation) EIP712Type() string {
 	return "Operation"
 }
 
+// EIP712Types returns the EIP-712 type definitions for Operation fields.
 func (op *Operation) EIP712Types() []apitypes.Type {
 	return []apitypes.Type{
 		{Name: "id", Type: "uint256"},
@@ -61,6 +70,7 @@ func (op *Operation) EIP712Types() []apitypes.Type {
 	}
 }
 
+// EIP712Message returns the EIP-712 message representation of the operation.
 func (op *Operation) EIP712Message() apitypes.TypedDataMessage {
 	var txns []apitypes.TypedDataMessage
 	for _, tx := range op.Transactions {
@@ -73,16 +83,10 @@ func (op *Operation) EIP712Message() apitypes.TypedDataMessage {
 	}
 }
 
-// Creates the EIP-712 typed data for the operation to be hashed and
-// signed.
-//
-// ---------------------
-// ChainID Constraint
-// ---------------------
-//
-// ChainId is parsed as int64 because go-ethereum's apitypes.TypedDataDomain
-// uses math.HexOrDecimal256 type for ChainID, whose constructor accepts
-// only int64.
+// TypedData creates the EIP-712 typed data for the operation to be hashed and signed.
+// Returns an error if chainId is invalid or the operation has no transactions.
+// ChainId is parsed as int64 because go-ethereum's apitypes.TypedDataDomain uses
+// math.HexOrDecimal256 for ChainID, whose constructor accepts only int64.
 func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
 	chainIdInt, err := strconv.ParseInt(chainId, 10, 64)
 	if err != nil {
@@ -124,10 +128,12 @@ type EIP712Domain struct {
 	VerifyingContract common.Address `json:"verifyingContract"`
 }
 
+// Type returns the EIP-712 type name for the domain.
 func (d *EIP712Domain) Type() string {
 	return "EIP712Domain"
 }
 
+// Types returns the EIP-712 type definitions for the domain fields.
 func (d *EIP712Domain) Types() []apitypes.Type {
 	types := []apitypes.Type{
 		{Name: "name", Type: "string"},
@@ -138,6 +144,7 @@ func (d *EIP712Domain) Types() []apitypes.Type {
 	return types
 }
 
+// TypedData returns the go-ethereum TypedDataDomain representation.
 func (d *EIP712Domain) TypedData() apitypes.TypedDataDomain {
 	domain := apitypes.TypedDataDomain{
 		Name:              d.Name,
@@ -148,6 +155,7 @@ func (d *EIP712Domain) TypedData() apitypes.TypedDataDomain {
 	return domain
 }
 
+// SignatureVerifyingAccountEIP712Domain creates the EIP-712 domain for the Signature Verifying Account contract.
 func SignatureVerifyingAccountEIP712Domain(chainId int64, account common.Address) *EIP712Domain {
 	return &EIP712Domain{
 		Name:              EIP712DomainName,

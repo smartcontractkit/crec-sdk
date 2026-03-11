@@ -17,17 +17,23 @@ import (
 
 var _ signer.Signer = &Signer{}
 
-// KeyType represents the type of cryptographic key to create
+// KeyType represents the type of cryptographic key to create in Vault Transit.
 type KeyType string
 
 const (
-	KeyTypeRSA2048   KeyType = "rsa-2048"
-	KeyTypeRSA4096   KeyType = "rsa-4096"
+	// KeyTypeRSA2048 creates a 2048-bit RSA key.
+	KeyTypeRSA2048 KeyType = "rsa-2048"
+	// KeyTypeRSA4096 creates a 4096-bit RSA key.
+	KeyTypeRSA4096 KeyType = "rsa-4096"
+	// KeyTypeECDSAP256 creates an ECDSA P-256 key.
 	KeyTypeECDSAP256 KeyType = "ecdsa-p256"
+	// KeyTypeECDSAP384 creates an ECDSA P-384 key.
 	KeyTypeECDSAP384 KeyType = "ecdsa-p384"
+	// KeyTypeECDSAP521 creates an ECDSA P-521 key.
 	KeyTypeECDSAP521 KeyType = "ecdsa-p521"
 )
 
+// Signer implements the signer.Signer interface using HashiCorp Vault Transit secrets engine.
 type Signer struct {
 	client  *vault.Client
 	keyName string
@@ -44,6 +50,8 @@ func WithClient(client *vault.Client) Option {
 	}
 }
 
+// NewSigner creates a new Vault Transit signer for the given key.
+// vaultUrl, token, mountPath, and key must all be non-empty.
 func NewSigner(vaultUrl, token, mountPath, key string, opts ...Option) (*Signer, error) {
 	if vaultUrl == "" || token == "" || mountPath == "" || key == "" {
 		return nil, fmt.Errorf("vaultUrl, token, mountPath, and key must be set")
@@ -184,7 +192,7 @@ func (s *Signer) Public() (interface{}, error) {
 	}
 }
 
-// GetRSAModulus returns the hex-encoded modulus of the RSA public key
+// GetRSAModulus returns the hex-encoded modulus of the RSA public key.
 func (s *Signer) GetRSAModulus() (string, error) {
 	pubKey, err := s.Public()
 	if err != nil {
@@ -199,7 +207,7 @@ func (s *Signer) GetRSAModulus() (string, error) {
 	return hex.EncodeToString(rsaPubKey.N.Bytes()), nil
 }
 
-// KeyCreationResult contains information about a newly created key
+// KeyCreationResult contains information about a newly created key in Vault.
 type KeyCreationResult struct {
 	KeyName   string
 	KeyType   KeyType
@@ -207,7 +215,7 @@ type KeyCreationResult struct {
 	Modulus   string // For RSA keys only, hex-encoded modulus
 }
 
-// CreateKey creates a new cryptographic key in Vault Transit secrets engine
+// CreateKey creates a new cryptographic key in the Vault Transit secrets engine.
 func (s *Signer) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult, error) {
 	// Create the key in Vault
 	_, err := s.client.Logical().Write(
@@ -246,7 +254,7 @@ func (s *Signer) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult,
 	return result, nil
 }
 
-// CreateKeyInVault is a convenience function to create a key without needing an existing signer instance
+// CreateKeyInVault creates a new key in Vault Transit without needing an existing signer instance.
 func CreateKeyInVault(vaultUrl, token, mountPath, keyName string, keyType KeyType) (*KeyCreationResult, error) {
 	// Create a temporary signer for key creation
 	tempSigner, err := NewSigner(vaultUrl, token, mountPath, "dummy")

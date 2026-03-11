@@ -16,21 +16,28 @@ import (
 	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// Sentinel errors
 var (
-	// Validation errors
+	// ErrOperationRequired is returned when the operation parameter is nil.
 	ErrOperationRequired = errors.New("operation is required")
-	ErrSignerRequired    = errors.New("signer is required")
+	// ErrSignerRequired is returned when the signer parameter is nil.
+	ErrSignerRequired = errors.New("signer is required")
 
-	// Chain/Signing errors
-	ErrParseChainSelector     = errors.New("failed to parse chain selector")
-	ErrGetChainFamily         = errors.New("failed to get chain family")
+	// ErrParseChainSelector is returned when the chain selector cannot be parsed.
+	ErrParseChainSelector = errors.New("failed to parse chain selector")
+	// ErrGetChainFamily is returned when the chain family cannot be determined from the selector.
+	ErrGetChainFamily = errors.New("failed to get chain family")
+	// ErrUnsupportedChainFamily is returned when the chain family is not EVM.
 	ErrUnsupportedChainFamily = errors.New("chain family is not supported")
-	ErrGetChainID             = errors.New("failed to get chain ID from selector")
-	ErrCreateTypedData        = errors.New("failed to create typed data for operation")
-	ErrComputeOperationHash   = errors.New("failed to compute operation hash")
-	ErrHashOperation          = errors.New("failed to hash operation")
-	ErrSignOperation          = errors.New("failed to sign operation")
+	// ErrGetChainID is returned when the chain ID cannot be retrieved from the selector.
+	ErrGetChainID = errors.New("failed to get chain ID from selector")
+	// ErrCreateTypedData is returned when creating EIP-712 typed data for the operation fails.
+	ErrCreateTypedData = errors.New("failed to create typed data for operation")
+	// ErrComputeOperationHash is returned when computing the EIP-712 hash fails.
+	ErrComputeOperationHash = errors.New("failed to compute operation hash")
+	// ErrHashOperation is returned when hashing the operation fails.
+	ErrHashOperation = errors.New("failed to hash operation")
+	// ErrSignOperation is returned when signing the operation fails.
+	ErrSignOperation = errors.New("failed to sign operation")
 )
 
 // Options defines the options for creating a new EIP-712 handler.
