@@ -18,59 +18,82 @@ import (
 )
 
 const (
-	ocrReportPayloadOffset   = 109 // Offset of the report payload (event hash) in the OCR report
-	CreMainlineTenantID      = "1" // CRE mainline tenant ID used as default for workflow owner address derivation
+	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
+	// CreMainlineTenantID is the CRE mainline tenant ID used as default for workflow owner address derivation.
+	CreMainlineTenantID = "1"
 )
 
 var (
-	// Validation errors
-	ErrChannelIDRequired  = errors.New("channel_id is required")
-	ErrOptionsRequired    = errors.New("options is required")
+	// ErrChannelIDRequired is returned when the channel ID is nil or missing.
+	ErrChannelIDRequired = errors.New("channel_id is required")
+	// ErrOptionsRequired is returned when the options parameter is nil.
+	ErrOptionsRequired = errors.New("options is required")
+	// ErrCRECClientRequired is returned when the CREC client is nil in options.
 	ErrCRECClientRequired = errors.New("CRECClient is required")
 
-	// API operation errors
-	ErrChannelNotFound       = errors.New("channel not found")
-	ErrPollEvents            = errors.New("failed to poll events")
-	ErrSearchEvents          = errors.New("failed to search events")
-	ErrGetEvents             = errors.New("failed to get events")
-	ErrVerifyEvent           = errors.New("failed to verify event")
-	ErrDecodeEvent           = errors.New("failed to decode event")
+	// ErrChannelNotFound is returned when the channel does not exist (404 response).
+	ErrChannelNotFound = errors.New("channel not found")
+	// ErrPollEvents is returned when polling events fails.
+	ErrPollEvents = errors.New("failed to poll events")
+	// ErrSearchEvents is returned when searching events fails.
+	ErrSearchEvents = errors.New("failed to search events")
+	// ErrGetEvents is returned when fetching events fails.
+	ErrGetEvents = errors.New("failed to get events")
+	// ErrVerifyEvent is returned when event verification fails.
+	ErrVerifyEvent = errors.New("failed to verify event")
+	// ErrDecodeEvent is returned when decoding an event fails.
+	ErrDecodeEvent = errors.New("failed to decode event")
+	// ErrDecodeVerifiableEvent is returned when decoding the verifiable event payload fails.
 	ErrDecodeVerifiableEvent = errors.New("failed to decode verifiable event")
 
-	// Parsing errors
-	ErrParseSignature               = errors.New("failed to parse signature")
-	ErrRecoverPubKeyFromSignature   = errors.New("failed to recover public key from signature")
-	ErrParseOCRReport               = errors.New("failed to parse OCR report")
-	ErrParseOCRContext              = errors.New("failed to parse OCR context")
-	ErrParseEventPayload            = errors.New("failed to parse event payload")
-	ErrOnlyWatcherEventsSupported   = errors.New("only watcher events are supported for event verification")
+	// ErrParseSignature is returned when parsing a signature from hex fails.
+	ErrParseSignature = errors.New("failed to parse signature")
+	// ErrRecoverPubKeyFromSignature is returned when recovering the public key from a signature fails.
+	ErrRecoverPubKeyFromSignature = errors.New("failed to recover public key from signature")
+	// ErrParseOCRReport is returned when parsing the OCR report from hex fails.
+	ErrParseOCRReport = errors.New("failed to parse OCR report")
+	// ErrParseOCRContext is returned when parsing the OCR context from hex fails.
+	ErrParseOCRContext = errors.New("failed to parse OCR context")
+	// ErrParseEventPayload is returned when parsing the event payload fails.
+	ErrParseEventPayload = errors.New("failed to parse event payload")
+	// ErrOnlyWatcherEventsSupported is returned when verifying a non-watcher event type.
+	ErrOnlyWatcherEventsSupported = errors.New("only watcher events are supported for event verification")
+	// ErrOnlyOperationStatusSupported is returned when verifying a non-operation-status event type.
 	ErrOnlyOperationStatusSupported = errors.New("only operation status events are supported for operation status verification")
-	ErrMarshalEventPayload          = errors.New("failed to marshal event payload")
-	ErrMarshalEventToJSON           = errors.New("failed to marshal event to JSON")
+	// ErrMarshalEventPayload is returned when marshaling the event payload to JSON fails.
+	ErrMarshalEventPayload = errors.New("failed to marshal event payload")
+	// ErrMarshalEventToJSON is returned when marshaling the event to JSON fails.
+	ErrMarshalEventToJSON = errors.New("failed to marshal event to JSON")
 
-	// Verification errors
+	// ErrInvalidEventHash is returned when the event hash verification fails.
 	ErrInvalidEventHash = errors.New("event hash verification failed")
 
-	// OCR Proof errors
-	ErrNoOCRProofs       = errors.New("no OCR proofs found")
+	// ErrNoOCRProofs is returned when the event has no OCR proofs.
+	ErrNoOCRProofs = errors.New("no OCR proofs found")
+	// ErrMultipleOCRProofs is returned when the event has more than one OCR proof.
 	ErrMultipleOCRProofs = errors.New("multiple OCR proofs found but should be 1")
 
-	// Response errors
+	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
-	ErrNilResponseBody      = errors.New("unexpected nil response body")
-	ErrBadRequest           = errors.New("invalid request parameters")
-	ErrOCRReportTooShort    = errors.New("OCR report is too short")
+	// ErrNilResponseBody is returned when the API response body is nil.
+	ErrNilResponseBody = errors.New("unexpected nil response body")
+	// ErrBadRequest is returned when the request parameters are invalid.
+	ErrBadRequest = errors.New("invalid request parameters")
+	// ErrOCRReportTooShort is returned when the OCR report is shorter than the minimum required length.
+	ErrOCRReportTooShort = errors.New("OCR report is too short")
 
-	// Configuration errors
+	// ErrVerificationNotConfigured is returned when the client has no valid signers configured.
 	ErrVerificationNotConfigured = errors.New("event verification not configured: no valid signers")
 
-	// Derivation errors
+	// ErrDeriveWorkflowOwner is returned when deriving the workflow owner address from org ID fails.
 	ErrDeriveWorkflowOwner = errors.New("failed to derive workflow owner from org ID")
 
-	// Configuration errors for verification identity
-	ErrOrgIDRequired            = errors.New("org ID required for verification (set in client options or pass as parameter)")
-	ErrWorkflowOwnerRequired    = errors.New("workflow owner required for verification (set in client options or pass as parameter)")
-	ErrOrgIDOrWorkflowOwnerReq  = errors.New("org ID or workflow owner required for verification (set in client options or pass as parameter)")
+	// ErrOrgIDRequired is returned when org ID is required for verification but not set.
+	ErrOrgIDRequired = errors.New("org ID required for verification (set in client options or pass as parameter)")
+	// ErrWorkflowOwnerRequired is returned when workflow owner is required for verification but not set.
+	ErrWorkflowOwnerRequired = errors.New("workflow owner required for verification (set in client options or pass as parameter)")
+	// ErrOrgIDOrWorkflowOwnerReq is returned when neither org ID nor workflow owner is configured for verification.
+	ErrOrgIDOrWorkflowOwnerReq = errors.New("org ID or workflow owner required for verification (set in client options or pass as parameter)")
 )
 
 // Options holds the configuration options for the CREC events client.
@@ -520,7 +543,7 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 	return jsonBytes, nil
 }
 
-// EventHash computes the "EventHash" of an event used for verification.
+// EventHash computes the Keccak256 hash of the verifiable event string used for signature verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
 	return crypto.Keccak256Hash([]byte(event.VerifiableEvent)), nil
 }

@@ -10,9 +10,9 @@ import (
 )
 
 // ScientificNotationToBigInt converts scientific notation strings to big.Int.
-// Handles formats like "1.2e+21", "1e18", "-5e10", etc. that big.Int.SetString cannot parse directly.
-// Also handles decimal numbers like "600000000000000000000.000000".
-// Returns an error if parsing fails.
+// It handles formats like "1.2e+21", "1e18", "-5e10" that big.Int.SetString cannot parse directly,
+// and decimal numbers like "600000000000000000000.000000".
+// Returns an error if the string is empty or parsing fails.
 func ScientificNotationToBigInt(value string) (*big.Int, error) {
 	if value == "" {
 		return nil, fmt.Errorf("empty string")
@@ -126,8 +126,8 @@ func parseDecimalNumber(value string) (*big.Int, error) {
 }
 
 // ScientificNotationToUint64 converts scientific notation strings to uint64.
-// Handles formats like "1.2e+21", "1e18", etc. that strconv.ParseUint cannot parse directly.
-// Returns an error if the value cannot be parsed or is too large for uint64.
+// It handles formats like "1.2e+21", "1e18" that strconv.ParseUint cannot parse directly.
+// Returns an error if the value cannot be parsed, is negative, or exceeds uint64 range.
 func ScientificNotationToUint64(value string) (uint64, error) {
 	// Fast path: try direct parsing
 	if result, err := strconv.ParseUint(value, 10, 64); err == nil {
@@ -154,8 +154,8 @@ func ScientificNotationToUint64(value string) (uint64, error) {
 }
 
 // ScientificNotationToUint32 converts scientific notation strings to uint32.
-// Handles formats like "1e2", "2.5e+1", etc. that strconv.ParseUint cannot parse directly.
-// Returns an error if the value cannot be parsed or is out of range for uint32.
+// It handles formats like "1e2", "2.5e+1" that strconv.ParseUint cannot parse directly.
+// Returns an error if the value cannot be parsed or is outside the uint32 range (0 to 4294967295).
 func ScientificNotationToUint32(value string) (uint32, error) {
 	// Fast path: try direct parsing
 	if result, err := strconv.ParseUint(value, 10, 32); err == nil {
@@ -177,8 +177,8 @@ func ScientificNotationToUint32(value string) (uint32, error) {
 }
 
 // ScientificNotationToUint16 converts scientific notation strings to uint16.
-// Handles formats like "1e2", "2.5e+1", etc. that strconv.ParseUint cannot parse directly.
-// Returns an error if the value cannot be parsed or is out of range for uint16.
+// It handles formats like "1e2", "2.5e+1" that strconv.ParseUint cannot parse directly.
+// Returns an error if the value cannot be parsed or is outside the uint16 range (0 to 65535).
 func ScientificNotationToUint16(value string) (uint16, error) {
 	// Fast path: try direct parsing
 	if result, err := strconv.ParseUint(value, 10, 16); err == nil {
@@ -200,8 +200,8 @@ func ScientificNotationToUint16(value string) (uint16, error) {
 }
 
 // ScientificNotationToUint8 converts scientific notation strings to uint8.
-// Handles formats like "1e2", "2.5e+1", etc. that strconv.ParseUint cannot parse directly.
-// Returns an error if the value cannot be parsed or is out of range for uint8.
+// It handles formats like "1e2", "2.5e+1" that strconv.ParseUint cannot parse directly.
+// Returns an error if the value cannot be parsed or is outside the uint8 range (0 to 255).
 func ScientificNotationToUint8(value string) (uint8, error) {
 	// Fast path: try direct parsing
 	if result, err := strconv.ParseUint(value, 10, 8); err == nil {

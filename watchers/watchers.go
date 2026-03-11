@@ -20,50 +20,75 @@ import (
 var statusCodePattern = regexp.MustCompile(`status code:?\s*(\d{3})`)
 
 var (
-	// ErrWatcherNotFound is returned when a watcher is not found (404 response)
+	// ErrWatcherNotFound is returned when a watcher is not found (404 response).
 	ErrWatcherNotFound = errors.New("watcher not found")
 
-	// Validation errors
-	ErrChannelIDRequired     = errors.New("channel_id cannot be empty")
-	ErrWatcherIDRequired     = errors.New("watcher_id cannot be empty")
-	ErrNameRequired          = errors.New("name cannot be an empty string")
-	ErrServiceRequired       = errors.New("service is required")
+	// ErrChannelIDRequired is returned when the channel ID is nil or empty.
+	ErrChannelIDRequired = errors.New("channel_id cannot be empty")
+	// ErrWatcherIDRequired is returned when the watcher ID is nil or empty.
+	ErrWatcherIDRequired = errors.New("watcher_id cannot be empty")
+	// ErrNameRequired is returned when the name is required but empty.
+	ErrNameRequired = errors.New("name cannot be an empty string")
+	// ErrServiceRequired is returned when the service is required but empty.
+	ErrServiceRequired = errors.New("service is required")
+	// ErrAddressRequired is returned when the contract address is required but empty.
 	ErrAddressRequired = errors.New("address is required")
-	ErrEventsRequired        = errors.New("events list cannot be empty")
-	ErrABIRequired           = errors.New("abi cannot be empty")
-	ErrOptionsRequired       = errors.New("Options is required")
-	ErrAPIClientRequired     = errors.New("APIClient is required")
+	// ErrEventsRequired is returned when the events list is empty.
+	ErrEventsRequired = errors.New("events list cannot be empty")
+	// ErrABIRequired is returned when the ABI is required but empty.
+	ErrABIRequired = errors.New("abi cannot be empty")
+	// ErrOptionsRequired is returned when the options parameter is nil.
+	ErrOptionsRequired = errors.New("Options is required")
+	// ErrAPIClientRequired is returned when the API client is nil in options.
+	ErrAPIClientRequired = errors.New("APIClient is required")
+	// ErrChainSelectorRequired is returned when the chain selector is empty or zero.
 	ErrChainSelectorRequired = errors.New("chain_selector is required")
-	ErrInvalidABIType        = errors.New("invalid ABI type, only 'event' is currently supported")
-	ErrEventNotInABI         = errors.New("event not found in provided ABI")
+	// ErrInvalidABIType is returned when an ABI entry is not of type "event".
+	ErrInvalidABIType = errors.New("invalid ABI type, only 'event' is currently supported")
+	// ErrEventNotInABI is returned when a requested event is not in the provided ABI.
+	ErrEventNotInABI = errors.New("event not found in provided ABI")
 
-	// Timeout errors
-	ErrWaitForActiveTimeout   = errors.New("timeout waiting for watcher to become active")
+	// ErrWaitForActiveTimeout is returned when the watcher does not become active before the timeout.
+	ErrWaitForActiveTimeout = errors.New("timeout waiting for watcher to become active")
+	// ErrWaitForArchivedTimeout is returned when the watcher is not archived before the timeout.
 	ErrWaitForArchivedTimeout = errors.New("timeout waiting for watcher to be archived")
 
-	// Watcher state errors
+	// ErrWatcherDeploymentFailed is returned when the watcher deployment fails.
 	ErrWatcherDeploymentFailed = errors.New("watcher deployment failed")
-	ErrWatcherIsArchiving      = errors.New("watcher is being archived and cannot become active")
-	ErrWatcherAlreadyArchived  = errors.New("watcher has been archived and cannot become active")
-	ErrWatcherArchiveFailed    = errors.New("watcher archive failed")
+	// ErrWatcherIsArchiving is returned when the watcher is being archived and cannot become active.
+	ErrWatcherIsArchiving = errors.New("watcher is being archived and cannot become active")
+	// ErrWatcherAlreadyArchived is returned when the watcher has already been archived.
+	ErrWatcherAlreadyArchived = errors.New("watcher has been archived and cannot become active")
+	// ErrWatcherArchiveFailed is returned when the watcher archive operation fails.
+	ErrWatcherArchiveFailed = errors.New("watcher archive failed")
 
-	// API response errors
-	ErrEmptyResponse    = errors.New("unexpected empty response from API")
+	// ErrEmptyResponse is returned when the API returns an unexpected empty response.
+	ErrEmptyResponse = errors.New("unexpected empty response from API")
+	// ErrUnexpectedStatus is returned when the watcher has an unexpected status value.
 	ErrUnexpectedStatus = errors.New("unexpected watcher status")
 
-	// API operation errors (base errors for wrapping)
+	// ErrCreateWatcherRequest is returned when the create watcher request cannot be built.
 	ErrCreateWatcherRequest = errors.New("failed to create watcher request")
+	// ErrCreateWatcherService is returned when creating a watcher with service fails.
 	ErrCreateWatcherService = errors.New("failed to create watcher with service")
-	ErrCreateWatcherABI     = errors.New("failed to create watcher with ABI")
-	ErrListWatchers         = errors.New("failed to list watchers")
-	ErrGetWatcher           = errors.New("failed to get watcher")
-	ErrUpdateWatcher        = errors.New("failed to update watcher")
-	ErrArchiveWatcher       = errors.New("failed to archive watcher")
-	ErrCheckWatcherStatus   = errors.New("failed to check watcher status")
+	// ErrCreateWatcherABI is returned when creating a watcher with ABI fails.
+	ErrCreateWatcherABI = errors.New("failed to create watcher with ABI")
+	// ErrListWatchers is returned when listing watchers fails.
+	ErrListWatchers = errors.New("failed to list watchers")
+	// ErrGetWatcher is returned when fetching a watcher fails.
+	ErrGetWatcher = errors.New("failed to get watcher")
+	// ErrUpdateWatcher is returned when updating a watcher fails.
+	ErrUpdateWatcher = errors.New("failed to update watcher")
+	// ErrArchiveWatcher is returned when archiving a watcher fails.
+	ErrArchiveWatcher = errors.New("failed to archive watcher")
+	// ErrCheckWatcherStatus is returned when checking watcher status fails.
+	ErrCheckWatcherStatus = errors.New("failed to check watcher status")
+	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 )
 
 
+// EventABIInput describes a single input parameter of an event in the ABI.
 type EventABIInput struct {
 	Indexed      bool   `json:"indexed"`
 	InternalType string `json:"internalType"`
@@ -71,6 +96,7 @@ type EventABIInput struct {
 	Type         string `json:"type"`
 }
 
+// EventABI describes an event definition in Solidity ABI format.
 type EventABI struct {
 	Anonymous bool            `json:"anonymous"`
 	Inputs    []EventABIInput `json:"inputs"`
@@ -78,6 +104,7 @@ type EventABI struct {
 	Type      string          `json:"type"`
 }
 
+// CreateWithServiceInput defines the input for creating a watcher using a predefined service (e.g., dvp, dta).
 type CreateWithServiceInput struct {
 	Name          *string                `json:"name,omitempty"`
 	ChainSelector string                 `json:"chain_selector"`
@@ -87,6 +114,7 @@ type CreateWithServiceInput struct {
 	ServiceConfig map[string]interface{} `json:"service_config,omitempty"`
 }
 
+// CreateWithABIInput defines the input for creating a watcher with a custom event ABI.
 type CreateWithABIInput struct {
 	Name          string     `json:"name"`
 	ChainSelector string     `json:"chain_selector"`
@@ -95,10 +123,12 @@ type CreateWithABIInput struct {
 	ABI           []EventABI `json:"abi"`
 }
 
+// UpdateInput defines the input for updating a watcher.
 type UpdateInput struct {
 	Name string `json:"name"`
 }
 
+// ListFilters defines optional filters for listing watchers (pagination, status, chain, etc.).
 type ListFilters struct {
 	Limit         *int                       `url:"limit,omitempty"`
 	Offset        *int64                     `url:"offset,omitempty"`
@@ -170,7 +200,7 @@ func NewClient(opts *Options) (*Client, error) {
 	}, nil
 }
 
-// CreateWithService creates a new watcher with a service (dvp, dta, test_consumer)
+// CreateWithService creates a new watcher using a predefined service (e.g., dvp, dta, test_consumer).
 func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, input CreateWithServiceInput) (*apiClient.Watcher, error) {
 	c.logger.Debug("Creating watcher with service",
 		"channel_id", channelID.String(),
@@ -235,7 +265,7 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 	return resp.JSON201, nil
 }
 
-// CreateWithABI creates a new watcher with custom event ABI
+// CreateWithABI creates a new watcher with a custom event ABI.
 func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input CreateWithABIInput) (*apiClient.Watcher, error) {
 	c.logger.Debug("Creating watcher with ABI",
 		"channel_id", channelID.String(),
@@ -339,7 +369,7 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 	return resp.JSON201, nil
 }
 
-// List retrieves watchers for a specific channel with optional filters
+// List retrieves watchers for a specific channel with optional filters.
 func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilters) (*apiClient.WatcherList, error) {
 	c.logger.Debug("Listing watchers", "channel_id", channelID.String())
 
@@ -380,7 +410,7 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 	return resp.JSON200, nil
 }
 
-// Get retrieves a specific watcher by channel and watcher ID
+// Get retrieves a specific watcher by channel ID and watcher ID.
 func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) (*apiClient.Watcher, error) {
 	c.logger.Debug("Getting watcher",
 		"channel_id", channelID.String(),
@@ -418,7 +448,7 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UU
 	return resp.JSON200, nil
 }
 
-// Update updates a watcher's name
+// Update updates a watcher's name.
 func (c *Client) Update(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, input UpdateInput) (*apiClient.Watcher, error) {
 	c.logger.Debug("Updating watcher",
 		"channel_id", channelID.String(),
@@ -466,8 +496,8 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, watcherID uuid
 	return resp.JSON200, nil
 }
 
-// WaitForActive polls a watcher until it reaches active status or fails.
-// TODO: Consider extracting status check logic into a helper method for improved readability.
+// WaitForActive polls a watcher until it reaches active status, fails, or times out.
+// Returns ErrWaitForActiveTimeout if maxWaitTime is exceeded before the watcher becomes active.
 func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, maxWaitTime time.Duration) (*apiClient.Watcher, error) {
 	c.logger.Debug("Waiting for watcher to become active",
 		"channel_id", channelID.String(),
@@ -546,8 +576,8 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 }
 
 // Archive archives a watcher by transitioning it to archived status via PATCH.
-// Archiving is asynchronous: the PATCH returns 202 with the watcher in "archiving" status,
-// with a final transition to "archived" (or "archive_failed").
+// Archiving is asynchronous: the PATCH returns 202 with the watcher in "archiving" status;
+// use WaitForArchived to poll until the watcher reaches "archived" or "archive_failed".
 func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID) (*apiClient.Watcher, error) {
 	c.logger.Debug("Archiving watcher",
 		"channel_id", channelID.String(),
@@ -598,8 +628,8 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 	return resp.JSON200, nil
 }
 
-// WaitForArchived waits for a watcher to be fully archived.
-// The method polls the watcher status until it reaches "archived" state or the timeout is reached.
+// WaitForArchived polls the watcher until it reaches "archived" status or the timeout is reached.
+// Returns ErrWaitForArchivedTimeout if maxWaitTime is exceeded before the watcher is archived.
 func (c *Client) WaitForArchived(ctx context.Context, channelID uuid.UUID, watcherID uuid.UUID, maxWaitTime time.Duration) error {
 	c.logger.Debug("Waiting for watcher to be archived",
 		"channel_id", channelID.String(),

@@ -72,7 +72,8 @@ func NewSigner(ctx context.Context, keyID string, opts ...Option) (*Signer, erro
 	return s, nil
 }
 
-// NewSignerWithConfig creates a new KMS signer with custom AWS configuration
+// NewSignerWithConfig creates a new KMS signer with custom AWS configuration.
+// Use this when you need to specify a region, credentials, or other AWS config.
 func NewSignerWithConfig(cfg aws.Config, keyID string, opts ...Option) (*Signer, error) {
 	if keyID == "" {
 		return nil, fmt.Errorf("keyID cannot be empty")
@@ -90,8 +91,8 @@ func NewSignerWithConfig(cfg aws.Config, keyID string, opts ...Option) (*Signer,
 	return s, nil
 }
 
-// NewSignerWithClient creates a new KMS signer with a custom KMS client (useful for testing)
-// Deprecated: Use NewSigner with WithClient option instead
+// NewSignerWithClient creates a new KMS signer with a custom KMS client.
+// Deprecated: Use NewSigner with WithClient option instead.
 func NewSignerWithClient(client KMSClient, keyID string) (*Signer, error) {
 	if keyID == "" {
 		return nil, fmt.Errorf("keyID cannot be empty")
@@ -103,6 +104,8 @@ func NewSignerWithClient(client KMSClient, keyID string) (*Signer, error) {
 	}, nil
 }
 
+// Sign signs the pre-hashed message using AWS KMS.
+// Returns an Ethereum-compatible 65-byte signature (r, s, v).
 func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	pubkey, err := GetPubKeyCtx(ctx, s.client, s.keyID)
 	if err != nil {
@@ -220,6 +223,8 @@ func getEthereumSignature(expectedPublicKeyBytes []byte, txHash []byte, r []byte
 	return signature, nil
 }
 
+// GetPubKeyCtx retrieves the secp256k1 public key for the given KMS key ID.
+// Returns an error if the key cannot be fetched or is not a valid secp256k1 key.
 func GetPubKeyCtx(ctx context.Context, svc KMSClient, keyId string) (*ecdsa.PublicKey, error) {
 	pubKeyBytes, err := getPublicKeyDerBytesFromKMS(ctx, svc, keyId)
 	if err != nil {

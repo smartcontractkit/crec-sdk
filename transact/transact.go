@@ -17,33 +17,43 @@ import (
 	"github.com/smartcontractkit/crec-sdk/transact/types"
 )
 
-// Sentinel errors
 var (
-	// Client initialization errors
-	ErrOptionsRequired    = errors.New("options is required")
+	// ErrOptionsRequired is returned when the options parameter is nil.
+	ErrOptionsRequired = errors.New("options is required")
+	// ErrCRECClientRequired is returned when the CREC client is nil in options.
 	ErrCRECClientRequired = errors.New("CRECClient is required")
 
-	// Validation errors
-	ErrChannelIDRequired             = errors.New("channel_id is required")
-	ErrChainSelectorRequired         = errors.New("chain_selector is required")
-	ErrAddressRequired               = errors.New("address is required")
-	ErrWalletOperationIDRequired     = errors.New("wallet_operation_id is required")
+	// ErrChannelIDRequired is returned when the channel ID is nil.
+	ErrChannelIDRequired = errors.New("channel_id is required")
+	// ErrChainSelectorRequired is returned when the chain selector is empty or zero.
+	ErrChainSelectorRequired = errors.New("chain_selector is required")
+	// ErrAddressRequired is returned when the address is empty.
+	ErrAddressRequired = errors.New("address is required")
+	// ErrWalletOperationIDRequired is returned when the wallet operation ID is empty.
+	ErrWalletOperationIDRequired = errors.New("wallet_operation_id is required")
+	// ErrAtLeastOneTransactionRequired is returned when the transactions list is empty.
 	ErrAtLeastOneTransactionRequired = errors.New("at least one transaction is required")
-	ErrSignatureRequired             = errors.New("signature is required")
+	// ErrSignatureRequired is returned when the signature is empty.
+	ErrSignatureRequired = errors.New("signature is required")
 
-	// Not found errors
-	ErrChannelNotFound   = errors.New("channel not found")
+	// ErrChannelNotFound is returned when the channel does not exist (404 response).
+	ErrChannelNotFound = errors.New("channel not found")
+	// ErrOperationNotFound is returned when the operation does not exist (404 response).
 	ErrOperationNotFound = errors.New("operation not found")
 
-	// API operation errors
+	// ErrCreateOperation is returned when creating an operation fails.
 	ErrCreateOperation = errors.New("failed to create operation")
-	ErrGetOperation    = errors.New("failed to get operation")
-	ErrListOperations  = errors.New("failed to list operations")
-	ErrSendOperation   = errors.New("failed to send operation")
+	// ErrGetOperation is returned when fetching an operation fails.
+	ErrGetOperation = errors.New("failed to get operation")
+	// ErrListOperations is returned when listing operations fails.
+	ErrListOperations = errors.New("failed to list operations")
+	// ErrSendOperation is returned when sending an operation fails.
+	ErrSendOperation = errors.New("failed to send operation")
 
-	// Response errors
+	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
-	ErrNilResponseBody      = errors.New("unexpected nil response body")
+	// ErrNilResponseBody is returned when the API response body is nil.
+	ErrNilResponseBody = errors.New("unexpected nil response body")
 )
 
 // Options defines the options for creating a new CREC transact client used to send operations to the CREC system.
@@ -55,6 +65,8 @@ type Options struct {
 	CRECClient *apiClient.ClientWithResponses
 }
 
+// Client provides operations for creating, signing, and sending CREC operations.
+// It embeds an EIP712Handler for hashing and signing operations.
 type Client struct {
 	logger     *slog.Logger
 	crecClient *apiClient.ClientWithResponses
