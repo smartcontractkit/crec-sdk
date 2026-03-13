@@ -77,9 +77,10 @@ func NewHandler(opts *Options) (*Handler, error) {
 // HashOperation computes the EIP-712 digest of the given operation.
 //   - op: The operation to hash.
 //   - chainSelector: chainSelector of the blockchain network in which the operation is being executed.
+//   - domainName: Optional EIP-712 domain name override. When omitted, defaults to "SignatureVerifyingAccount".
 //
 // Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
-func (h *Handler) HashOperation(op *types.Operation, chainSelector string) (common.Hash, error) {
+func (h *Handler) HashOperation(op *types.Operation, chainSelector string, domainName ...string) (common.Hash, error) {
 	if op == nil {
 		return common.Hash{}, ErrOperationRequired
 	}
@@ -104,7 +105,7 @@ func (h *Handler) HashOperation(op *types.Operation, chainSelector string) (comm
 		return common.Hash{}, fmt.Errorf("%w: %w", ErrGetChainID, err)
 	}
 
-	typedData, err := op.TypedData(chainId)
+	typedData, err := op.TypedData(chainId, domainName...)
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("%w: %w", ErrCreateTypedData, err)
 	}
@@ -122,6 +123,7 @@ func (h *Handler) HashOperation(op *types.Operation, chainSelector string) (comm
 //   - op: The operation to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
 //   - chainSelector: chainSelector of the blockchain network in which the operation is being executed.
+//   - domainName: Optional EIP-712 domain name override. When omitted, defaults to "SignatureVerifyingAccount".
 //
 // Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
 func (h *Handler) SignOperation(
@@ -129,12 +131,13 @@ func (h *Handler) SignOperation(
 	op *types.Operation,
 	signer signer.Signer,
 	chainSelector string,
+	domainName ...string,
 ) (common.Hash, []byte, error) {
 	if signer == nil {
 		return common.Hash{}, nil, ErrSignerRequired
 	}
 
-	hash, err := h.HashOperation(op, chainSelector)
+	hash, err := h.HashOperation(op, chainSelector, domainName...)
 	if err != nil {
 		return common.Hash{}, nil, fmt.Errorf("%w: %w", ErrHashOperation, err)
 	}

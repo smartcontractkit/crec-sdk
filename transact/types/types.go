@@ -87,12 +87,20 @@ func (op *Operation) EIP712Message() apitypes.TypedDataMessage {
 // Returns an error if chainId is invalid or the operation has no transactions.
 // ChainId is parsed as int64 because go-ethereum's apitypes.TypedDataDomain uses
 // math.HexOrDecimal256 for ChainID, whose constructor accepts only int64.
-func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
+//
+// An optional domainName can be provided to override the default EIP-712 domain name
+// (EIP712DomainName). When omitted, the default "SignatureVerifyingAccount" is used.
+func (op *Operation) TypedData(chainId string, domainName ...string) (*apitypes.TypedData, error) {
 	chainIdInt, err := strconv.ParseInt(chainId, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse chain ID: %w", err)
 	}
-	domain := SignatureVerifyingAccountEIP712Domain(chainIdInt, op.Account)
+
+	name := EIP712DomainName
+	if len(domainName) > 0 && domainName[0] != "" {
+		name = domainName[0]
+	}
+	domain := NewEIP712Domain(name, chainIdInt, op.Account)
 	message := op.EIP712Message()
 
 	if len(op.Transactions) == 0 {
@@ -155,12 +163,18 @@ func (d *EIP712Domain) TypedData() apitypes.TypedDataDomain {
 	return domain
 }
 
-// SignatureVerifyingAccountEIP712Domain creates the EIP-712 domain for the Signature Verifying Account contract.
-func SignatureVerifyingAccountEIP712Domain(chainId int64, account common.Address) *EIP712Domain {
+// NewEIP712Domain creates an EIP-712 domain with the given domain name, chain ID, and verifying contract address.
+// The version is always EIP712DomainVersion ("1").
+func NewEIP712Domain(name string, chainId int64, account common.Address) *EIP712Domain {
 	return &EIP712Domain{
-		Name:              EIP712DomainName,
+		Name:              name,
 		Version:           EIP712DomainVersion,
 		ChainId:           chainId,
 		VerifyingContract: account,
 	}
+}
+
+// SignatureVerifyingAccountEIP712Domain creates the EIP-712 domain for the Signature Verifying Account contract.
+func SignatureVerifyingAccountEIP712Domain(chainId int64, account common.Address) *EIP712Domain {
+	return NewEIP712Domain(EIP712DomainName, chainId, account)
 }
