@@ -142,6 +142,55 @@ func TestSignOperationHash(t *testing.T) {
 	})
 }
 
+func TestHashOperationWithCustomDomainName(t *testing.T) {
+	handler, err := NewHandler(nil)
+	require.NoError(t, err)
+
+	chainSelector := "10344971235874465080"
+
+	operation := &types.Operation{
+		ID:      big.NewInt(12345),
+		Account: common.HexToAddress("0x1234567890123456789012345678901234567890"),
+		Transactions: []types.Transaction{
+			{
+				To:    common.HexToAddress("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"),
+				Value: big.NewInt(0),
+				Data:  []byte{0x01, 0x02, 0x03},
+			},
+		},
+	}
+
+	t.Run("default and custom domain produce different hashes", func(t *testing.T) {
+		defaultHash, err := handler.HashOperation(operation, chainSelector)
+		require.NoError(t, err)
+
+		customHash, err := handler.HashOperation(operation, chainSelector, "CustomDomain")
+		require.NoError(t, err)
+
+		assert.NotEqual(t, defaultHash, customHash)
+	})
+
+	t.Run("same custom domain produces consistent hashes", func(t *testing.T) {
+		hash1, err := handler.HashOperation(operation, chainSelector, "CustomDomain")
+		require.NoError(t, err)
+
+		hash2, err := handler.HashOperation(operation, chainSelector, "CustomDomain")
+		require.NoError(t, err)
+
+		assert.Equal(t, hash1, hash2)
+	})
+
+	t.Run("no domain name uses default", func(t *testing.T) {
+		hashNoDomain, err := handler.HashOperation(operation, chainSelector)
+		require.NoError(t, err)
+
+		hashExplicitDefault, err := handler.HashOperation(operation, chainSelector, types.EIP712DomainName)
+		require.NoError(t, err)
+
+		assert.Equal(t, hashNoDomain, hashExplicitDefault)
+	})
+}
+
 func TestGetChainIDFromSelector(t *testing.T) {
 	t.Run("successfully extracts chain ID", func(t *testing.T) {
 		// Base Sepolia chain selector

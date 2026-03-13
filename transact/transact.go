@@ -111,10 +111,11 @@ func NewClient(opts *Options) (*Client, error) {
 // This method delegates to the embedded EIP712Handler.
 //   - op: The operation to hash.
 //   - chainSelector: chainSelector of the blockchain network in which the operation is being executed.
+//   - domainName: Optional EIP-712 domain name override. When omitted, defaults to "SignatureVerifyingAccount".
 //
 // Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
-func (c *Client) HashOperation(op *types.Operation, chainSelector string) (common.Hash, error) {
-	return c.EIP712Handler.HashOperation(op, chainSelector)
+func (c *Client) HashOperation(op *types.Operation, chainSelector string, domainName ...string) (common.Hash, error) {
+	return c.EIP712Handler.HashOperation(op, chainSelector, domainName...)
 }
 
 // SignOperation signs the given operation using the provided signer, returning the operation hash and the signature
@@ -123,6 +124,7 @@ func (c *Client) HashOperation(op *types.Operation, chainSelector string) (commo
 //   - op: The operation to sign.
 //   - signer: The signer to use for signing the operation. See signer.Signer for details.
 //   - chainSelector: chainSelector of the blockchain network in which the operation is being executed.
+//   - domainName: Optional EIP-712 domain name override. When omitted, defaults to "SignatureVerifyingAccount".
 //
 // Fetches chainID corresponding to the chain selector from smartcontractkit/chain-selectors package.
 func (c *Client) SignOperation(
@@ -130,8 +132,9 @@ func (c *Client) SignOperation(
 	op *types.Operation,
 	signer signer.Signer,
 	chainSelector string,
+	domainName ...string,
 ) (common.Hash, []byte, error) {
-	return c.EIP712Handler.SignOperation(ctx, op, signer, chainSelector)
+	return c.EIP712Handler.SignOperation(ctx, op, signer, chainSelector, domainName...)
 }
 
 // SignOperationHash signs the given operation hash using the provided signer, returning the signature.
@@ -440,6 +443,7 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 //   - executorAccount: The account to use for executing the operation.
 //   - txs: The transactions to execute.
 //   - chainSelector: The chain selector of the blockchain network in which the transactions are being executed.
+//   - domainName: Optional EIP-712 domain name override. When omitted, defaults to "SignatureVerifyingAccount".
 func (c *Client) ExecuteTransactions(
 	ctx context.Context,
 	channelID uuid.UUID,
@@ -447,6 +451,7 @@ func (c *Client) ExecuteTransactions(
 	executorAccount common.Address,
 	txs []types.Transaction,
 	chainSelector string,
+	domainName ...string,
 ) (*apiClient.Operation, error) {
 	operation := &types.Operation{
 		ID:           big.NewInt(time.Now().Unix()),
@@ -454,7 +459,7 @@ func (c *Client) ExecuteTransactions(
 		Transactions: txs,
 	}
 
-	return c.ExecuteOperation(ctx, channelID, operationSigner, operation, chainSelector)
+	return c.ExecuteOperation(ctx, channelID, operationSigner, operation, chainSelector, domainName...)
 }
 
 // ExecuteOperation signs and sends an operation to the CREC system.
@@ -463,10 +468,11 @@ func (c *Client) ExecuteTransactions(
 //   - operationSigner: The signer to use for signing the operation.
 //   - operation: The operation to execute.
 //   - chainSelector: The chain selector of the blockchain network in which the operation is being executed.
+//   - domainName: Optional EIP-712 domain name override. When omitted, defaults to "SignatureVerifyingAccount".
 func (c *Client) ExecuteOperation(
-	ctx context.Context, channelID uuid.UUID, operationSigner signer.Signer, operation *types.Operation, chainSelector string,
+	ctx context.Context, channelID uuid.UUID, operationSigner signer.Signer, operation *types.Operation, chainSelector string, domainName ...string,
 ) (*apiClient.Operation, error) {
-	_, sig, err := c.SignOperation(ctx, operation, operationSigner, chainSelector)
+	_, sig, err := c.SignOperation(ctx, operation, operationSigner, chainSelector, domainName...)
 	if err != nil {
 		return nil, err
 	}
