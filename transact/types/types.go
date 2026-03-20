@@ -92,6 +92,9 @@ func (op *Operation) EIP712Message() apitypes.TypedDataMessage {
 // ChainId is parsed as int64 because go-ethereum's apitypes.TypedDataDomain uses
 // math.HexOrDecimal256 for ChainID, whose constructor accepts only int64.
 func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
+	if op.ID == nil {
+		return nil, errors.New("id is required")
+	}
 	if op.Deadline == nil {
 		return nil, errors.New("deadline is required")
 	}

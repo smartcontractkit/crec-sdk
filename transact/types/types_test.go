@@ -8,6 +8,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestTypedData_NilIDError(t *testing.T) {
+	op := &Operation{
+		Account:  common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+		Deadline: big.NewInt(0),
+		Transactions: []Transaction{
+			{
+				To:    common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"),
+				Value: big.NewInt(0),
+				Data:  []byte{},
+			},
+		},
+	}
+	td, err := op.TypedData("31337")
+	require.Error(t, err)
+	require.Nil(t, td)
+	require.Contains(t, err.Error(), "id is required")
+}
+
 func TestTypedData_NilDeadlineError(t *testing.T) {
 	op := &Operation{
 		ID:      big.NewInt(1),
