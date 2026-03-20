@@ -50,6 +50,9 @@ var (
 	// ErrSendOperation is returned when sending an operation fails.
 	ErrSendOperation = errors.New("failed to send operation")
 
+	// ErrInvalidDeadline is returned when the operation deadline is negative or overflows int64.
+	ErrInvalidDeadline = errors.New("invalid deadline: must be a non-negative value that fits in int64")
+
 	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 	// ErrNilResponseBody is returned when the API response body is nil.
@@ -152,6 +155,7 @@ func (c *Client) SignOperationHash(
 //   - ChainSelector: The chain selector to identify the chain where the operation will be executed.
 //   - Address: The account address performing the operation.
 //   - WalletOperationID: Unique identifier for the wallet operation.
+//   - Deadline: The deadline timestamp for the operation (0 means no expiration).
 //   - Transactions: List of transactions to execute (at least one required).
 //   - Signature: EIP-712 signature of the operation.
 type CreateOperationInput struct {
@@ -159,6 +163,7 @@ type CreateOperationInput struct {
 	ChainSelector     string
 	Address           string
 	WalletOperationID string
+	Deadline          int64
 	Transactions      []TransactionRequest
 	Signature         string
 }
@@ -223,6 +228,7 @@ func (c *Client) CreateOperation(ctx context.Context, input CreateOperationInput
 		ChainSelector:     input.ChainSelector,
 		Address:           input.Address,
 		WalletOperationId: input.WalletOperationID,
+		Deadline:          input.Deadline,
 		Transactions:      transactions,
 		Signature:         input.Signature,
 	}
@@ -276,6 +282,10 @@ func (c *Client) SendSignedOperation(
 		return nil, errors.New("operation is required")
 	}
 
+	if op.Deadline == nil || !op.Deadline.IsInt64() || op.Deadline.Sign() < 0 {
+		return nil, ErrInvalidDeadline
+	}
+
 	c.logger.Debug("Sending signed operation",
 		"channel_id", channelID.String(),
 		"chain_selector", chainSelector,
@@ -298,6 +308,7 @@ func (c *Client) SendSignedOperation(
 		ChainSelector:     chainSelector,
 		Address:           op.Account.String(),
 		WalletOperationID: op.ID.String(),
+		Deadline:          op.Deadline.Int64(),
 		Transactions:      transactions,
 		Signature:         "0x" + common.Bytes2Hex(signature),
 	}
@@ -439,6 +450,7 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 //   - operationSigner: The signer to use for signing the operation.
 //   - executorAccount: The account to use for executing the operation.
 //   - txs: The transactions to execute.
+//   - deadline: The deadline timestamp for the operation (0 means no expiration).
 //   - chainSelector: The chain selector of the blockchain network in which the transactions are being executed.
 func (c *Client) ExecuteTransactions(
 	ctx context.Context,
@@ -446,11 +458,17 @@ func (c *Client) ExecuteTransactions(
 	operationSigner signer.Signer,
 	executorAccount common.Address,
 	txs []types.Transaction,
+	deadline *big.Int,
 	chainSelector string,
 ) (*apiClient.Operation, error) {
+	if deadline == nil {
+		deadline = big.NewInt(0)
+	}
+
 	operation := &types.Operation{
 		ID:           big.NewInt(time.Now().Unix()),
 		Account:      executorAccount,
+		Deadline:     deadline,
 		Transactions: txs,
 	}
 

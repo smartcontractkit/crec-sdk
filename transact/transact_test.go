@@ -55,8 +55,9 @@ func TestHashOperation(t *testing.T) {
 	require.NoError(t, err)
 
 	operation := &types.Operation{
-		ID:      big.NewInt(1),
-		Account: account,
+		ID:       big.NewInt(1),
+		Account:  account,
+		Deadline: big.NewInt(0),
 		Transactions: []types.Transaction{
 			{
 				To:    to,
@@ -72,7 +73,7 @@ func TestHashOperation(t *testing.T) {
 	}
 
 	// check for pre-computed hash for the operation based on the above to/account
-	require.Equal(t, "0xcd4308149652087bf9621b30e3d7781c475abb327b12b4e257966e88fa4a1ada", hash.Hex())
+	require.Equal(t, "0x411a1f5cc217aae5e44d3145aa7967a19ac788b1decd082c6ac5ccae2d2e6d98", hash.Hex())
 }
 
 func TestSignOperation(t *testing.T) {
@@ -105,8 +106,9 @@ func TestSignOperation(t *testing.T) {
 	require.NoError(t, err)
 
 	operation := &types.Operation{
-		ID:      big.NewInt(1),
-		Account: account,
+		ID:       big.NewInt(1),
+		Account:  account,
+		Deadline: big.NewInt(0),
 		Transactions: []types.Transaction{
 			{
 				To:    to,
@@ -125,13 +127,13 @@ func TestSignOperation(t *testing.T) {
 
 	// check for pre-computed signature for the operation based on the above to/account and private key
 	require.Equal(
-		t, "0xcd4308149652087bf9621b30e3d7781c475abb327b12b4e257966e88fa4a1ada", opHash.Hex(),
+		t, "0x411a1f5cc217aae5e44d3145aa7967a19ac788b1decd082c6ac5ccae2d2e6d98", opHash.Hex(),
 	)
 
 	// check for pre-computed signature for the operation based on the above to/account and private key
 	require.Equal(
 		t,
-		"5e1d5b835e963051f75e33bb8d20dd6464afe89268d53cfc06f3223ffcc1357b30f5fe9f75ceddf99792d9e1c877a3824bef0f79d522985723df46f3185ec75f1b",
+		"0c600835117288b37f33e0f100886c1180ddb5b2d0b8e2dcb1f5ac87f2e62b53683cbc90600f4267aa0bbe695d813c531b36ecb0eff8030cb53d29df5b4cc60b1c",
 		common.Bytes2Hex(sig),
 	)
 }
@@ -152,8 +154,9 @@ func TestSendSignedOperation(t *testing.T) {
 		{
 			name: "Success",
 			operation: &types.Operation{
-				ID:      big.NewInt(1),
-				Account: account,
+				ID:       big.NewInt(1),
+				Account:  account,
+				Deadline: big.NewInt(0),
 				Transactions: []types.Transaction{
 					{To: to, Value: big.NewInt(0), Data: []byte("")},
 				},
@@ -237,8 +240,9 @@ func TestExecuteOperation(t *testing.T) {
 	localSigner := local.NewSigner(privateKey)
 
 	operation := &types.Operation{
-		ID:      big.NewInt(time.Now().Unix()),
-		Account: account,
+		ID:       big.NewInt(time.Now().Unix()),
+		Account:  account,
+		Deadline: big.NewInt(0),
 		Transactions: []types.Transaction{
 			{To: to, Value: big.NewInt(0), Data: []byte("")},
 		},
@@ -296,6 +300,7 @@ func TestExecuteTransactions(t *testing.T) {
 		localSigner,
 		account,
 		txs,
+		big.NewInt(0),
 		chainSelector,
 	)
 
@@ -380,8 +385,9 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	require.NoError(t, err)
 
 	operation := &types.Operation{
-		ID:      big.NewInt(1),
-		Account: account,
+		ID:       big.NewInt(1),
+		Account:  account,
+		Deadline: big.NewInt(0),
 		Transactions: []types.Transaction{
 			{
 				To:    to,

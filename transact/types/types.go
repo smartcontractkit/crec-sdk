@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	// EIP712DomainName is the EIP-712 domain name for the Signature Verifying Account contract.
-	EIP712DomainName = `SignatureVerifyingAccount`
-	// EIP712DomainVersion is the EIP-712 domain version for the Signature Verifying Account contract.
+	// EIP712DomainName is the EIP-712 domain name for all smart account contracts.
+	EIP712DomainName = `CLLSmartAccount`
+	// EIP712DomainVersion is the EIP-712 domain version for all smart account contracts.
 	EIP712DomainVersion = `1`
 )
 
@@ -53,6 +53,7 @@ func (tx *Transaction) EIP712Message() apitypes.TypedDataMessage {
 type Operation struct {
 	ID           *big.Int       `json:"id"`
 	Account      common.Address `json:"account"`
+	Deadline     *big.Int       `json:"deadline"`
 	Transactions []Transaction  `json:"transactions"`
 }
 
@@ -66,6 +67,7 @@ func (op *Operation) EIP712Types() []apitypes.Type {
 	return []apitypes.Type{
 		{Name: "id", Type: "uint256"},
 		{Name: "account", Type: "address"},
+		{Name: "deadline", Type: "uint256"},
 		{Name: "transactions", Type: "Transaction[]"},
 	}
 }
@@ -79,20 +81,26 @@ func (op *Operation) EIP712Message() apitypes.TypedDataMessage {
 	return apitypes.TypedDataMessage{
 		"id":           op.ID.String(),
 		"account":      op.Account.Hex(),
+		"deadline":     op.Deadline.String(),
 		"transactions": txns,
 	}
 }
 
-// TypedData creates the EIP-712 typed data for the operation to be hashed and signed.
+// TypedData creates the EIP-712 typed data for the operation to be hashed and signed
+// using the default CLLSmartAccount domain.
 // Returns an error if chainId is invalid or the operation has no transactions.
 // ChainId is parsed as int64 because go-ethereum's apitypes.TypedDataDomain uses
 // math.HexOrDecimal256 for ChainID, whose constructor accepts only int64.
 func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
+	if op.Deadline == nil {
+		return nil, errors.New("deadline is required")
+	}
+
 	chainIdInt, err := strconv.ParseInt(chainId, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse chain ID: %w", err)
 	}
-	domain := SignatureVerifyingAccountEIP712Domain(chainIdInt, op.Account)
+	domain := SmartAccountEIP712Domain(chainIdInt, op.Account)
 	message := op.EIP712Message()
 
 	if len(op.Transactions) == 0 {
@@ -111,9 +119,9 @@ func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
 	}, nil
 }
 
-// EIP712Domain represents the EIP-712 domain for the Signature Verifying Account.
-// It contains chainID and version metadata of the Signature Verifying Account
-// contract, which are used for generating the EIP-712 typed data hash and for signing.
+// EIP712Domain represents the EIP-712 domain for the smart account contract.
+// It contains chainID and version metadata of the smart account contract,
+// which are used for generating the EIP-712 typed data hash and for signing.
 //
 // ---------------------
 // ChainID Constraint
@@ -155,8 +163,8 @@ func (d *EIP712Domain) TypedData() apitypes.TypedDataDomain {
 	return domain
 }
 
-// SignatureVerifyingAccountEIP712Domain creates the EIP-712 domain for the Signature Verifying Account contract.
-func SignatureVerifyingAccountEIP712Domain(chainId int64, account common.Address) *EIP712Domain {
+// SmartAccountEIP712Domain creates the EIP-712 domain for the smart account contract.
+func SmartAccountEIP712Domain(chainId int64, account common.Address) *EIP712Domain {
 	return &EIP712Domain{
 		Name:              EIP712DomainName,
 		Version:           EIP712DomainVersion,
