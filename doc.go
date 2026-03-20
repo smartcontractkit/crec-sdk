@@ -76,6 +76,7 @@
 //	operation := &types.Operation{
 //	    ID:           big.NewInt(time.Now().Unix()),
 //	    Account:      executorAccount,
+//	    Deadline:     big.NewInt(0), // 0 means no expiration
 //	    Transactions: []types.Transaction{...},
 //	}
 //

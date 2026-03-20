@@ -8,8 +8,9 @@
 // An [Operation] represents a batch of transactions to be executed atomically:
 //
 //	operation := &types.Operation{
-//	    ID:      big.NewInt(1),
-//	    Account: common.HexToAddress("0x..."),
+//	    ID:       big.NewInt(1),
+//	    Account:  common.HexToAddress("0x..."),
+//	    Deadline: big.NewInt(0),
 //	    Transactions: []types.Transaction{
 //	        {
 //	            To:    common.HexToAddress("0x..."),
@@ -41,10 +42,10 @@
 //
 // The [EIP712Domain] provides domain separation for signatures:
 //
-//	domain := types.SignatureVerifyingAccountEIP712Domain(chainID, accountAddress)
+//	domain := types.SmartAccountEIP712Domain(chainID, accountAddress)
 //
 // Domain parameters:
-//   - Name: "SignatureVerifyingAccount"
+//   - Name: "CLLSmartAccount"
 //   - Version: "1"
 //   - ChainId: Target blockchain chain ID
 //   - VerifyingContract: The account contract address

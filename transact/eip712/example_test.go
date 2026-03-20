@@ -25,8 +25,9 @@ func Example() {
 
 	// Create a test operation
 	operation := &types.Operation{
-		ID:      big.NewInt(12345),
-		Account: common.HexToAddress("0x1234567890123456789012345678901234567890"),
+		ID:       big.NewInt(12345),
+		Account:  common.HexToAddress("0x1234567890123456789012345678901234567890"),
+		Deadline: big.NewInt(0),
 		Transactions: []types.Transaction{
 			{
 				To:    common.HexToAddress("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"),

@@ -222,6 +222,7 @@ func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *h
 		ChainSelector:     request.ChainSelector,
 		Address:           request.Address,
 		WalletOperationId: request.WalletOperationId,
+		Deadline:          request.Deadline,
 		Transactions:      request.Transactions,
 		Signature:         request.Signature,
 		CreatedAt:         now,

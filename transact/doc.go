@@ -47,8 +47,9 @@
 // An Operation bundles one or more transactions for atomic execution:
 //
 //	operation := &types.Operation{
-//	    ID:      big.NewInt(time.Now().Unix()), // Unique ID to prevent replay
-//	    Account: executorAccount,                // Smart account address
+//	    ID:       big.NewInt(time.Now().Unix()), // Unique ID to prevent replay
+//	    Account:  executorAccount,                // Smart account address
+//	    Deadline: big.NewInt(0),                  // 0 means no expiration
 //	    Transactions: []types.Transaction{
 //	        {
 //	            To:    targetContract,
