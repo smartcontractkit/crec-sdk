@@ -513,7 +513,6 @@ func TestClient_List(t *testing.T) {
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
-						WorkflowId:    "workflow-1",
 					},
 					{
 						WatcherId:     watcher2ID,
@@ -524,7 +523,6 @@ func TestClient_List(t *testing.T) {
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
-						WorkflowId:    "workflow-2",
 					},
 				},
 				HasMore: false,
@@ -578,7 +576,6 @@ func TestClient_List(t *testing.T) {
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
-						WorkflowId:    "workflow-1",
 					},
 				},
 				HasMore: false,
@@ -694,7 +691,6 @@ func TestClient_Get(t *testing.T) {
 				Status:        apiClient.WatcherStatusActive,
 				CreatedAt:     1704067200, // 2024-01-01 00:00:00 UTC
 				Events:        []string{"Transfer"},
-				WorkflowId:    "00a52f385ef2c2ae57721370dbcef8b25ab406de2be190575c88e324c002e22f",
 				DonFamily:     "zone-a",
 			}
 			json.NewEncoder(w).Encode(response)
@@ -710,7 +706,6 @@ func TestClient_Get(t *testing.T) {
 		assert.Equal(t, watcherID, watcher.WatcherId)
 		assert.Equal(t, channelID, watcher.ChannelId)
 		assert.Equal(t, "zone-a", watcher.DonFamily)
-		assert.Equal(t, "00a52f385ef2c2ae57721370dbcef8b25ab406de2be190575c88e324c002e22f", watcher.WorkflowId)
 		assert.Equal(t, []string{"Transfer"}, watcher.Events)
 	})
 
@@ -1768,7 +1763,6 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 							ChannelId:     channelID,
 							CreatedAt:     time.Now().Unix(),
 							DonFamily:     "zone-a",
-							WorkflowId:    "workflow-1",
 						},
 					},
 					HasMore: false,
@@ -2124,7 +2118,6 @@ func TestEndToEnd_Filtering(t *testing.T) {
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
-						WorkflowId:    "workflow-1",
 					},
 				},
 				HasMore: false,
@@ -2189,7 +2182,6 @@ func TestEndToEnd_Filtering(t *testing.T) {
 					ChannelId:     channelID,
 					CreatedAt:     time.Now().Unix(),
 					DonFamily:     "zone-a",
-					WorkflowId:    "workflow-" + strconv.Itoa(offset+i),
 				})
 			}
 
