@@ -450,7 +450,6 @@ func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http
 				ChannelId:     watcher.ChannelId,
 				CreatedAt:     watcher.CreatedAt,
 				DonFamily:     watcher.DonFamily,
-				WorkflowId:    watcher.WorkflowId,
 			}
 			data = append(data, summary)
 		}
