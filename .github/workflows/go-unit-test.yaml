@@ -14,7 +14,7 @@ jobs:
       actions: read
     steps:
       - name: ci-test-go
-        uses: smartcontractkit/.github/actions/ci-test-go@2b1d964024bb001ae9fba4f840019ac86ad1d824 # ci-test-go/v1
+        uses: smartcontractkit/.github/actions/ci-test-go@82f9a1703246639b70da5fd5a3e489363b04a0d6 # ci-test-go/v1
         with:
           # aws inputs
           aws-region: ${{ secrets.AWS_REGION }}
