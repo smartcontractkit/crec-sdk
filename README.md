@@ -4,7 +4,7 @@
 
 # CRE Connect SDK
 
-Build the next generation of verifiable applications with secure, blockchain-agnostic event processing and transaction execution — powered by the Chainlink Runtime Environment and Verifiable Network.
+Build the next generation of verifiable applications with secure, blockchain-agnostic event processing and transaction execution — powered by the [Chainlink Runtime Environment](https://chain.link/chainlink-runtime-environment) and Verifiable Network.
 
 ## What problem does CRE Connect SDK solve?
 
@@ -175,22 +175,20 @@ pkgsite -http :8080
 # Navigate to http://localhost:8080/github.com/smartcontractkit/crec-sdk
 ```
 
-### Complete Example
+### API Spec
 
-See the [crec-example-payment-processor](https://github.com/smartcontractkit/crec-example-payment-processor) repository for a full working application.
+See the [crec-api-go](https://github.com/smartcontractkit/crec-api-go) repository to explore our API specification.
 
 ## Extensions
 
 Protocol-specific helpers for common Chainlink systems:
 
-- [crec-sdk-ext-ccip](https://github.com/smartcontractkit/crec-sdk-ext-ccip) - Cross-Chain Interoperability Protocol
 - [crec-sdk-ext-dvp](https://github.com/smartcontractkit/crec-sdk-ext-dvp) - Delivery versus Payment
 - [crec-sdk-ext-dta](https://github.com/smartcontractkit/crec-sdk-ext-dta) - Digital Transfer Agent
 
 ## Related
 
 - [crec-workflow-utils](https://github.com/smartcontractkit/crec-workflow-utils) - Shared utilities for event-listener workflows
-- [crec-sdk-ext-template](https://github.com/smartcontractkit/crec-sdk-ext-template) - Code generator for building CREC SDK extensions
 
 ## Event Verification Keys (Mainnet)
 
@@ -256,8 +254,7 @@ client, err := crec.NewClient(
 | **Account Abstraction** | Transaction model with atomic execution, gas sponsorship, and flexible signing          |
 | **Operation**           | Bundle of transactions executed atomically by a smart account                           |
 | **EIP-712**             | Ethereum standard for typed data signing, used for operation signatures                 |
-| **CCIP**                | Cross-Chain Interoperability Protocol for cross-chain transfers                         |
 
 ## License
 
-[MIT](LICENSE.md)
+[BUSL](LICENSE)
