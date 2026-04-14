@@ -451,8 +451,8 @@ github.com/smartcontractkit/chainlink-common v0.10.0 h1:d90b9UPJecrIryzhl43F1oQw
 github.com/smartcontractkit/chainlink-common v0.10.0/go.mod h1:13YN2kb3Vqpw2S7d4IwhX/578WPGC0JHN5JrOnAEsOc=
 github.com/smartcontractkit/chainlink-protos/cre/go v0.0.0-20260210221717-2546aed27ebe h1:Vc4zoSc/j6/FdCQ7vcyHTTB7kzHI2f+lHCHqFuiCcJQ=
 github.com/smartcontractkit/chainlink-protos/cre/go v0.0.0-20260210221717-2546aed27ebe/go.mod h1:Jqt53s27Tr0jDl8mdBXg1xhu6F8Fci8JOuq43tgHOM8=
-github.com/smartcontractkit/crec-api-go v0.6.2 h1:YLGclVY5otdTPLSxVebUDslU0tGsuFxHZ4Ry9WJUDTI=
-github.com/smartcontractkit/crec-api-go v0.6.2/go.mod h1:9FT1ErJ694IlT90B1Xi1i+5y7kSM/c5/EEPDrJvfdMg=
+github.com/smartcontractkit/crec-api-go v0.6.3 h1:3Bg/Dz04U3jdYN07kJFmZT1g/WWMmCp8MSSuheTV+Ew=
+github.com/smartcontractkit/crec-api-go v0.6.3/go.mod h1:9FT1ErJ694IlT90B1Xi1i+5y7kSM/c5/EEPDrJvfdMg=
 github.com/smartcontractkit/libocr v0.0.0-20250912173940-f3ab0246e23d h1:LokA9PoCNb8mm8mDT52c3RECPMRsGz1eCQORq+J3n74=
 github.com/smartcontractkit/libocr v0.0.0-20250912173940-f3ab0246e23d/go.mod h1:Acy3BTBxou83ooMESLO90s8PKSu7RvLCzwSTbxxfOK0=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
