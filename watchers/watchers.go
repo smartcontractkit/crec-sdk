@@ -85,6 +85,8 @@ var (
 	ErrCheckWatcherStatus = errors.New("failed to check watcher status")
 	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	// ErrInvalidConfidenceLevel is returned when confidence_level is set to a value not allowed by the API.
+	ErrInvalidConfidenceLevel = errors.New("invalid confidence_level: must be finalized, latest, or safe")
 )
 
 
@@ -106,21 +108,23 @@ type EventABI struct {
 
 // CreateWithServiceInput defines the input for creating a watcher using a predefined service (e.g., dvp, dta).
 type CreateWithServiceInput struct {
-	Name          *string                `json:"name,omitempty"`
-	ChainSelector string                 `json:"chain_selector"`
-	Service       string                 `json:"service"`
-	Events        []string               `json:"events"`
-	Address       string                 `json:"address"`
-	ServiceConfig map[string]interface{} `json:"service_config,omitempty"`
+	Name            *string                `json:"name,omitempty"`
+	ChainSelector   string                 `json:"chain_selector"`
+	Service         string                 `json:"service"`
+	Events          []string               `json:"events"`
+	Address         string                 `json:"address"`
+	ServiceConfig   map[string]interface{} `json:"service_config,omitempty"`
+	ConfidenceLevel *apiClient.ConfidenceLevel `json:"confidence_level,omitempty"`
 }
 
 // CreateWithABIInput defines the input for creating a watcher with a custom event ABI.
 type CreateWithABIInput struct {
-	Name          string     `json:"name"`
-	ChainSelector string     `json:"chain_selector"`
-	Address       string     `json:"address"`
-	Events        []string   `json:"events"`
-	ABI           []EventABI `json:"abi"`
+	Name            string     `json:"name"`
+	ChainSelector   string     `json:"chain_selector"`
+	Address         string     `json:"address"`
+	Events          []string   `json:"events"`
+	ABI             []EventABI `json:"abi"`
+	ConfidenceLevel *apiClient.ConfidenceLevel `json:"confidence_level,omitempty"`
 }
 
 // UpdateInput defines the input for updating a watcher.
@@ -221,17 +225,21 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 	if len(input.Events) == 0 {
 		return nil, ErrEventsRequired
 	}
+	if err := validateOptionalConfidenceLevel(input.ConfidenceLevel); err != nil {
+		return nil, err
+	}
 
 	var name string
 	if input.Name != nil {
 		name = *input.Name
 	}
 	createWatcherWithService := apiClient.CreateWatcherWithService{
-		Name:          name,
-		ChainSelector: input.ChainSelector,
-		Address:       input.Address,
-		Service:       input.Service,
-		Events:        input.Events,
+		Name:            name,
+		ChainSelector:   input.ChainSelector,
+		Address:         input.Address,
+		Service:         input.Service,
+		Events:          input.Events,
+		ConfidenceLevel: input.ConfidenceLevel,
 	}
 	if input.ServiceConfig != nil {
 		createWatcherWithService.ServiceConfig = &input.ServiceConfig
@@ -287,6 +295,9 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 	if len(input.ABI) == 0 {
 		return nil, ErrABIRequired
 	}
+	if err := validateOptionalConfidenceLevel(input.ConfidenceLevel); err != nil {
+		return nil, err
+	}
 
 	// Validate that all ABI entries are of type "event"
 	for i, abi := range input.ABI {
@@ -334,11 +345,12 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 	}
 
 	createWatcherWithABI := apiClient.CreateWatcherWithABI{
-		Name:          input.Name,
-		ChainSelector: input.ChainSelector,
-		Address:       input.Address,
-		Events:        input.Events,
-		Abi:           abiList,
+		Name:            input.Name,
+		ChainSelector:   input.ChainSelector,
+		Address:         input.Address,
+		Events:          input.Events,
+		Abi:             abiList,
+		ConfidenceLevel: input.ConfidenceLevel,
 	}
 
 	var createWatcherReq apiClient.CreateWatcher
@@ -679,6 +691,19 @@ func (c *Client) WaitForArchived(ctx context.Context, channelID uuid.UUID, watch
 				return fmt.Errorf("%w while waiting for archive: %s", ErrUnexpectedStatus, watcher.Status)
 			}
 		}
+	}
+}
+
+// validateOptionalConfidenceLevel ensures a non-nil confidence level is one of the API enum values.
+func validateOptionalConfidenceLevel(level *apiClient.ConfidenceLevel) error {
+	if level == nil {
+		return nil
+	}
+	switch *level {
+	case apiClient.Finalized, apiClient.Latest, apiClient.Safe:
+		return nil
+	default:
+		return fmt.Errorf("%w: %q", ErrInvalidConfidenceLevel, *level)
 	}
 }
 

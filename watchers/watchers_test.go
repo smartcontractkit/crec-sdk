@@ -286,6 +286,83 @@ func TestClient_CreateWithService(t *testing.T) {
 		assert.Nil(t, watcher)
 		assert.True(t, errors.Is(err, ErrCreateWatcherService), "Expected ErrCreateWatcherService, got: %v", err)
 	})
+
+	t.Run("SuccessWithConfidenceLevel", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		watcherName := "test-watcher"
+		service := "dvp"
+		chainSelector := "1337"
+		address := "0x1234567890abcdef"
+		confidence := apiClient.Safe
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var createReq apiClient.CreateWatcher
+			err = json.Unmarshal(body, &createReq)
+			require.NoError(t, err)
+
+			serviceWatcher, err := createReq.AsCreateWatcherWithService()
+			require.NoError(t, err)
+			require.NotNil(t, serviceWatcher.ConfidenceLevel)
+			assert.Equal(t, confidence, *serviceWatcher.ConfidenceLevel)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			response := apiClient.Watcher{
+				WatcherId:       watcherID,
+				Name:            &watcherName,
+				ChainSelector:   chainSelector,
+				Address:         address,
+				Status:          apiClient.WatcherStatusPending,
+				ConfidenceLevel: confidence,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		cl := confidence
+		watcher, err := client.CreateWithService(context.Background(), channelID, CreateWithServiceInput{
+			Name:            &watcherName,
+			Service:         service,
+			ChainSelector:   chainSelector,
+			Address:         address,
+			Events:          []string{"TestEvent"},
+			ConfidenceLevel: &cl,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, confidence, watcher.ConfidenceLevel)
+	})
+
+	t.Run("InvalidConfidenceLevel", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not send request when confidence_level is invalid")
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		bad := apiClient.ConfidenceLevel("invalid")
+		name := "test-watcher"
+		watcher, err := client.CreateWithService(context.Background(), uuid.New(), CreateWithServiceInput{
+			Name:            &name,
+			Service:         "dvp",
+			ChainSelector:   "1337",
+			Address:         "0x1234",
+			Events:          []string{"TestEvent"},
+			ConfidenceLevel: &bad,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.True(t, errors.Is(err, ErrInvalidConfidenceLevel), "Expected ErrInvalidConfidenceLevel, got: %v", err)
+	})
 }
 
 func TestClient_CreateWithABI(t *testing.T) {
@@ -372,6 +449,101 @@ func TestClient_CreateWithABI(t *testing.T) {
 		assert.Equal(t, chainSelector, watcher.ChainSelector)
 		assert.Equal(t, address, watcher.Address)
 		assert.Equal(t, apiClient.WatcherStatusPending, watcher.Status)
+	})
+
+	t.Run("SuccessWithConfidenceLevel", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+		watcherName := "test-watcher-abi"
+		chainSelector := "1337"
+		address := "0x1234567890abcdef"
+		confidence := apiClient.Latest
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var createReq apiClient.CreateWatcher
+			err = json.Unmarshal(body, &createReq)
+			require.NoError(t, err)
+
+			abiWatcher, err := createReq.AsCreateWatcherWithABI()
+			require.NoError(t, err)
+			require.NotNil(t, abiWatcher.ConfidenceLevel)
+			assert.Equal(t, confidence, *abiWatcher.ConfidenceLevel)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			response := apiClient.Watcher{
+				WatcherId:       watcherID,
+				Name:            &watcherName,
+				ChainSelector:   chainSelector,
+				Address:         address,
+				Status:          apiClient.WatcherStatusPending,
+				ConfidenceLevel: confidence,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		cl := confidence
+		watcher, err := client.CreateWithABI(context.Background(), channelID, CreateWithABIInput{
+			Name:            watcherName,
+			ChainSelector:   chainSelector,
+			Address:         address,
+			Events:          []string{"Transfer"},
+			ConfidenceLevel: &cl,
+			ABI: []EventABI{
+				{
+					Name:      "Transfer",
+					Type:      "event",
+					Anonymous: false,
+					Inputs: []EventABIInput{
+						{Indexed: true, Name: "from", Type: "address"},
+						{Indexed: true, Name: "to", Type: "address"},
+						{Indexed: false, Name: "value", Type: "uint256"},
+					},
+				},
+			},
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, watcher)
+		assert.Equal(t, confidence, watcher.ConfidenceLevel)
+	})
+
+	t.Run("InvalidConfidenceLevel", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not send request when confidence_level is invalid")
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		bad := apiClient.ConfidenceLevel("nope")
+		watcher, err := client.CreateWithABI(context.Background(), uuid.New(), CreateWithABIInput{
+			Name:            "test-watcher",
+			ChainSelector:   "1337",
+			Address:         "0x1234",
+			Events:          []string{"Transfer"},
+			ConfidenceLevel: &bad,
+			ABI: []EventABI{
+				{
+					Name: "Transfer", Type: "event", Anonymous: false,
+					Inputs: []EventABIInput{
+						{Indexed: true, Name: "from", Type: "address"},
+						{Indexed: true, Name: "to", Type: "address"},
+						{Indexed: false, Name: "value", Type: "uint256"},
+					},
+				},
+			},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.True(t, errors.Is(err, ErrInvalidConfidenceLevel), "Expected ErrInvalidConfidenceLevel, got: %v", err)
 	})
 
 	t.Run("EmptyChannelID", func(t *testing.T) {
