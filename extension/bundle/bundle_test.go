@@ -283,6 +283,7 @@ func TestBundle_DefaultConfigTemplate(t *testing.T) {
 	assert.Contains(t, string(tmpl), "detectEventTriggerConfig")
 	assert.Contains(t, string(tmpl), "contractName")
 	assert.Contains(t, string(tmpl), "contractReaderConfig")
+	assert.Contains(t, string(tmpl), `confidenceLevel: "{{ $config.confidenceLevel }}"`)
 }
 
 func TestBundle_ResolveConfigTemplate(t *testing.T) {
