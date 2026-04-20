@@ -9,11 +9,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
+
+const watcherNameMinRunes = 4
 
 // statusCodePattern is a compiled regex for extracting HTTP status codes from error messages.
 // Compiled at package level to avoid recompilation on every call to isTransientError.
@@ -27,8 +30,10 @@ var (
 	ErrChannelIDRequired = errors.New("channel_id cannot be empty")
 	// ErrWatcherIDRequired is returned when the watcher ID is nil or empty.
 	ErrWatcherIDRequired = errors.New("watcher_id cannot be empty")
-	// ErrNameRequired is returned when the name is required but empty.
+	// ErrNameRequired is returned when the watcher name is empty or whitespace-only.
 	ErrNameRequired = errors.New("name cannot be an empty string")
+	// ErrWatcherNameTooShort is returned when the watcher name is shorter than the API minimum (4 characters, after trim).
+	ErrWatcherNameTooShort = errors.New("watcher name must be at least 4 characters")
 	// ErrServiceRequired is returned when the service is required but empty.
 	ErrServiceRequired = errors.New("service is required")
 	// ErrAddressRequired is returned when the contract address is required but empty.
@@ -87,7 +92,6 @@ var (
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 )
 
-
 // EventABIInput describes a single input parameter of an event in the ABI.
 type EventABIInput struct {
 	Indexed      bool   `json:"indexed"`
@@ -106,7 +110,7 @@ type EventABI struct {
 
 // CreateWithServiceInput defines the input for creating a watcher using a predefined service (e.g., dvp, dta).
 type CreateWithServiceInput struct {
-	Name          *string                `json:"name,omitempty"`
+	Name          string                 `json:"name"`
 	ChainSelector string                 `json:"chain_selector"`
 	Service       string                 `json:"service"`
 	Events        []string               `json:"events"`
@@ -222,12 +226,12 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 		return nil, ErrEventsRequired
 	}
 
-	var name string
-	if input.Name != nil {
-		name = *input.Name
+	normalizedName, err := normalizeWatcherCreateName(input.Name)
+	if err != nil {
+		return nil, err
 	}
 	createWatcherWithService := apiClient.CreateWatcherWithService{
-		Name:          name,
+		Name:          normalizedName,
 		ChainSelector: input.ChainSelector,
 		Address:       input.Address,
 		Service:       input.Service,
@@ -284,6 +288,10 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 	if len(input.Events) == 0 {
 		return nil, ErrEventsRequired
 	}
+	normalizedName, err := normalizeWatcherCreateName(input.Name)
+	if err != nil {
+		return nil, err
+	}
 	if len(input.ABI) == 0 {
 		return nil, ErrABIRequired
 	}
@@ -334,7 +342,7 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 	}
 
 	createWatcherWithABI := apiClient.CreateWatcherWithABI{
-		Name:          input.Name,
+		Name:          normalizedName,
 		ChainSelector: input.ChainSelector,
 		Address:       input.Address,
 		Events:        input.Events,
@@ -690,6 +698,17 @@ func validateChannelID(channelID uuid.UUID) error {
 	return nil
 }
 
+func normalizeWatcherCreateName(name string) (string, error) {
+	s := strings.TrimSpace(name)
+	if s == "" {
+		return "", ErrNameRequired
+	}
+	if utf8.RuneCountInString(s) < watcherNameMinRunes {
+		return "", ErrWatcherNameTooShort
+	}
+	return s, nil
+}
+
 // isTransientError determines if an error is transient and should be retried during polling.
 // It checks for known transient HTTP status codes and network errors.
 func isTransientError(err error) bool {
@@ -697,6 +716,7 @@ func isTransientError(err error) bool {
 	if errors.Is(err, ErrChannelIDRequired) ||
 		errors.Is(err, ErrWatcherIDRequired) ||
 		errors.Is(err, ErrNameRequired) ||
+		errors.Is(err, ErrWatcherNameTooShort) ||
 		errors.Is(err, ErrServiceRequired) ||
 		errors.Is(err, ErrAddressRequired) ||
 		errors.Is(err, ErrEventsRequired) ||

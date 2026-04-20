@@ -176,7 +176,7 @@ func TestClient_CreateWithService(t *testing.T) {
 		defer server.Close()
 
 		watcher, err := client.CreateWithService(context.Background(), channelID, CreateWithServiceInput{
-			Name:          &watcherName,
+			Name:          watcherName,
 			Service:       service,
 			ChainSelector: chainSelector,
 			Address:       address,
@@ -203,7 +203,7 @@ func TestClient_CreateWithService(t *testing.T) {
 
 		name := "test-watcher"
 		watcher, err := client.CreateWithService(context.Background(), uuid.Nil, CreateWithServiceInput{
-			Name:          &name,
+			Name:          name,
 			Service:       "dvp",
 			ChainSelector: "1337",
 			Address:       "0x1234",
@@ -225,7 +225,7 @@ func TestClient_CreateWithService(t *testing.T) {
 
 		name := "test-watcher"
 		watcher, err := client.CreateWithService(context.Background(), uuid.New(), CreateWithServiceInput{
-			Name:          &name,
+			Name:          name,
 			Service:       "",
 			ChainSelector: "1337",
 			Address:       "0x1234",
@@ -247,7 +247,7 @@ func TestClient_CreateWithService(t *testing.T) {
 
 		name := "test-watcher"
 		watcher, err := client.CreateWithService(context.Background(), uuid.New(), CreateWithServiceInput{
-			Name:          &name,
+			Name:          name,
 			Service:       "dvp",
 			ChainSelector: "1337",
 			Address:       "",
@@ -275,7 +275,7 @@ func TestClient_CreateWithService(t *testing.T) {
 
 		name := "test-watcher"
 		watcher, err := client.CreateWithService(context.Background(), channelID, CreateWithServiceInput{
-			Name:          &name,
+			Name:          name,
 			Service:       "dvp",
 			ChainSelector: "1337",
 			Address:       "0x1234",
@@ -286,6 +286,40 @@ func TestClient_CreateWithService(t *testing.T) {
 		assert.Nil(t, watcher)
 		assert.True(t, errors.Is(err, ErrCreateWatcherService), "Expected ErrCreateWatcherService, got: %v", err)
 	})
+}
+
+func TestClient_CreateWithService_watcherNameValidation(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("unexpected HTTP request during name validation")
+	}
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	channelID := uuid.New()
+	tests := []struct {
+		name        string
+		watcherName string
+		wantErr     error
+	}{
+		{"empty", "", ErrNameRequired},
+		{"whitespace_only", "   ", ErrNameRequired},
+		{"too_short", "abc", ErrWatcherNameTooShort},
+		{"trim_then_short", "  ab ", ErrWatcherNameTooShort},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.CreateWithService(context.Background(), channelID, CreateWithServiceInput{
+				Name:          tt.watcherName,
+				Service:       "dvp",
+				ChainSelector: "1337",
+				Address:       "0x1234",
+				Events:        []string{"TestEvent"},
+			})
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, tt.wantErr), "want %v, got %v", tt.wantErr, err)
+		})
+	}
 }
 
 func TestClient_CreateWithABI(t *testing.T) {
@@ -480,6 +514,52 @@ func TestClient_CreateWithABI(t *testing.T) {
 		assert.Contains(t, err.Error(), "MissingEvent")
 		assert.Contains(t, err.Error(), "not found in ABI definitions")
 	})
+}
+
+func TestClient_CreateWithABI_watcherNameValidation(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("unexpected HTTP request during name validation")
+	}
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	minimalABI := []EventABI{
+		{
+			Name:      "Transfer",
+			Type:      "event",
+			Anonymous: false,
+			Inputs: []EventABIInput{
+				{Name: "from", Type: "address", Indexed: true},
+				{Name: "to", Type: "address", Indexed: true},
+				{Name: "value", Type: "uint256", Indexed: false},
+			},
+		},
+	}
+
+	channelID := uuid.New()
+	tests := []struct {
+		name        string
+		watcherName string
+		wantErr     error
+	}{
+		{"empty", "", ErrNameRequired},
+		{"whitespace_only", "\t", ErrNameRequired},
+		{"too_short", "abc", ErrWatcherNameTooShort},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.CreateWithABI(context.Background(), channelID, CreateWithABIInput{
+				Name:          tt.watcherName,
+				ChainSelector: "1337",
+				Address:       "0x1234",
+				Events:        []string{"Transfer"},
+				ABI:           minimalABI,
+			})
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, tt.wantErr), "want %v, got %v", tt.wantErr, err)
+		})
+	}
 }
 
 func TestClient_List(t *testing.T) {
@@ -1679,7 +1759,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		ctx := context.Background()
 
 		createInput := CreateWithServiceInput{
-			Name:          &watcherName,
+			Name:          watcherName,
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Service:       "dvp",
@@ -1849,6 +1929,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 
 		// Try to create with invalid data
 		createInput := CreateWithServiceInput{
+			Name:          "chain-invalid-test",
 			ChainSelector: "0", // Invalid
 			Address:       "0x1234",
 			Service:       "dvp",
@@ -1898,7 +1979,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 
 		// Create watcher
 		createInput := CreateWithServiceInput{
-			Name:          &watcherName,
+			Name:          watcherName,
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Service:       "dvp",
@@ -1983,7 +2064,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		ctx := context.Background()
 
 		createInput := CreateWithServiceInput{
-			Name:          &watcherName,
+			Name:          watcherName,
 			ChainSelector: "1337",
 			Address:       "0x1234",
 			Service:       "dvp",
@@ -2346,6 +2427,7 @@ func TestIsTransientError(t *testing.T) {
 			ErrChannelIDRequired,
 			ErrWatcherIDRequired,
 			ErrNameRequired,
+			ErrWatcherNameTooShort,
 			ErrServiceRequired,
 			ErrAddressRequired,
 			ErrEventsRequired,

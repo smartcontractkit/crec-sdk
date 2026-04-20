@@ -11,6 +11,7 @@
 //	client, _ := crec.NewClient(baseURL, apiKey)
 //
 //	watcher, err := client.Watchers.CreateWithService(ctx, channelID, watchers.CreateWithServiceInput{
+//	    Name:          "DVP settlement watcher",
 //	    ChainSelector: "16015286601757825753",
 //	    Address:       "0x...",
 //	    Service:       "dvp",
@@ -28,9 +29,8 @@
 //
 // Use [Client.CreateWithService] for known contract types (dvp, dta, test_consumer):
 //
-//	name := "My DVP Watcher"
 //	watcher, err := client.Watchers.CreateWithService(ctx, channelID, CreateWithServiceInput{
-//	    Name:          &name,
+//	    Name:          "My DVP watcher",
 //	    ChainSelector: "16015286601757825753",
 //	    Address:       "0x1234...",
 //	    Service:       "dvp",
@@ -40,6 +40,7 @@
 // Use [Client.CreateWithABI] for custom contracts with your own event definitions:
 //
 //	watcher, err := client.Watchers.CreateWithABI(ctx, channelID, CreateWithABIInput{
+//	    Name:          "ERC20 transfer watcher",
 //	    ChainSelector: "16015286601757825753",
 //	    Address:       "0x1234...",
 //	    Events:        []string{"Transfer"},

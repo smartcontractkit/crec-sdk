@@ -47,6 +47,7 @@
 //
 //	// Create a watcher with a known service
 //	watcher, err := client.Watchers.CreateWithService(ctx, channelID, watchers.CreateWithServiceInput{
+//	    Name:          "DVP settlement watcher",
 //	    ChainSelector: "16015286601757825753",
 //	    Address:       "0x...",
 //	    Service:       "dvp",
