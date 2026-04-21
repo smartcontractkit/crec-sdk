@@ -139,6 +139,9 @@ func NewClient(opts *Options) (*Client, error) {
 	if opts == nil {
 		return nil, ErrOptionsRequired
 	}
+	if opts.MinRequiredSignatures <= 0 {
+		return nil, errors.New("MinRequiredSignatures must be greater than zero")
+	}
 	if opts.CRECClient == nil {
 		return nil, ErrCRECClientRequired
 	}
@@ -562,6 +565,9 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 
 // EventHash computes the Keccak256 hash of the verifiable event string used for signature verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
+	if event == nil {
+		return common.Hash{}, errors.New("event payload is nil")
+	}
 	return crypto.Keccak256Hash([]byte(event.VerifiableEvent)), nil
 }
 
@@ -569,6 +575,9 @@ func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, e
 // The hash is computed using the pattern: eventName + "." + base64VerifiableEvent
 // Note: VerifiableEvent must be present and non-empty (should be validated by caller).
 func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) (common.Hash, error) {
+	if payload == nil {
+		return common.Hash{}, errors.New("payload is nil")
+	}
 	if payload.VerifiableEvent == nil || *payload.VerifiableEvent == "" {
 		return common.Hash{}, fmt.Errorf("%w: verifiable event is required for operation status verification", ErrVerifyEvent)
 	}
