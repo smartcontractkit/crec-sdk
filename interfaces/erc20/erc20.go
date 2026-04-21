@@ -396,6 +396,14 @@ func (it *Erc20ApprovalIterator) Error() error {
 // resources.
 func (it *Erc20ApprovalIterator) Close() error {
 	it.sub.Unsubscribe()
+	var done bool
+	for !done {
+		select {
+		case <-it.logs:
+		default:
+			done = true
+		}
+	}
 	return nil
 }
 
@@ -550,6 +558,14 @@ func (it *Erc20TransferIterator) Error() error {
 // resources.
 func (it *Erc20TransferIterator) Close() error {
 	it.sub.Unsubscribe()
+	var done bool
+	for !done {
+		select {
+		case <-it.logs:
+		default:
+			done = true
+		}
+	}
 	return nil
 }
 
