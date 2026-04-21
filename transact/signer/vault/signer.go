@@ -163,9 +163,12 @@ func (s *Signer) Public() (interface{}, error) {
 	}
 
 	// Parse the PEM-encoded public key
-	block, _ := pem.Decode([]byte(publicKeyPEM))
+	block, rest := pem.Decode([]byte(publicKeyPEM))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	if len(strings.TrimSpace(string(rest))) > 0 {
+		return nil, fmt.Errorf("trailing garbage bytes after PEM block")
 	}
 
 	// Parse the public key based on the key type

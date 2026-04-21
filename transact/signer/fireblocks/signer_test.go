@@ -103,7 +103,7 @@ func TestSigner_NewSigner(t *testing.T) {
 			vaultAccountID: testVaultAccountID,
 			assetID:        testAssetID,
 			wantErr:        true,
-			errContains:    "trailing garbage bytes found after PEM decoding",
+			errContains:    "trailing garbage bytes after PEM block",
 		},
 	}
 

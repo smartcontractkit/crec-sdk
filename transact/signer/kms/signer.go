@@ -167,9 +167,12 @@ func getPublicKeyDerBytesFromKMS(ctx context.Context, svc KMSClient, keyId strin
 	}
 
 	var asn1pubk asn1EcPublicKey
-	_, err = asn1.Unmarshal(getPubKeyOutput.PublicKey, &asn1pubk)
+	rest, err := asn1.Unmarshal(getPubKeyOutput.PublicKey, &asn1pubk)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse asn1 public key for KeyId=%s: %w", keyId, err)
+	}
+	if len(rest) > 0 {
+		return nil, fmt.Errorf("trailing garbage bytes after ASN.1 public key for KeyId=%s", keyId)
 	}
 
 	return asn1pubk.PublicKey.Bytes, nil
@@ -191,9 +194,12 @@ func getSignatureFromKms(
 	}
 
 	var sigAsn1 asn1EcSig
-	_, err = asn1.Unmarshal(signOutput.Signature, &sigAsn1)
+	rest, err := asn1.Unmarshal(signOutput.Signature, &sigAsn1)
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(rest) > 0 {
+		return nil, nil, fmt.Errorf("trailing garbage bytes after ASN.1 signature")
 	}
 
 	rBigInt := new(big.Int).SetBytes(sigAsn1.R.Bytes)

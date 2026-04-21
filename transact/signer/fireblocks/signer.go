@@ -979,9 +979,12 @@ func (s *Signer) signJWT(path string, body []byte) (string, error) {
 
 // parsePrivateKey parses a PEM-encoded RSA private key
 func parsePrivateKey(pemData string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(pemData))
+	block, rest := pem.Decode([]byte(pemData))
 	if block == nil {
 		return nil, fmt.Errorf("failed to parse PEM block")
+	}
+	if len(bytes.TrimSpace(rest)) > 0 {
+		return nil, fmt.Errorf("trailing garbage bytes after PEM block")
 	}
 
 	// Try PKCS1 first
