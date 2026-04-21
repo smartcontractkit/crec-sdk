@@ -73,13 +73,13 @@ func MockPrivyServer(t *testing.T) *httptest.Server {
 			return
 		}
 
-		if rpcReq.Method != "personal_sign" {
+		if rpcReq.Method != "secp256k1_sign" {
 			http.Error(w, "Unsupported method", http.StatusBadRequest)
 			return
 		}
 
 		rpcResp := RPCResponse{
-			Method: "personal_sign",
+			Method: "secp256k1_sign",
 			Data: struct {
 				Signature string `json:"signature"`
 				Encoding  string `json:"encoding"`

@@ -134,18 +134,18 @@ func NewSignerFromEnv(opts ...Option) (*Signer, error) {
 // NewSignerWithCustomClient creates a Privy signer with a custom HTTP client.
 // Deprecated: Use NewSigner with WithHTTPClient and WithBaseURL options instead.
 
-// Sign signs the pre-hashed message using Privy's personal_sign RPC.
-// Returns the raw signature bytes.
-func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
-	hashHex := "0x" + hex.EncodeToString(hash)
-
-	rpcReq := RPCRequest{
-		Method: "personal_sign",
-		Params: map[string]interface{}{
-			"message":  hashHex,
-			"encoding": "hex",
-		},
-	}
+	// Sign signs the pre-hashed message using Privy's secp256k1_sign RPC.
+	// Returns the raw signature bytes.
+	func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
+		hashHex := "0x" + hex.EncodeToString(hash)
+	
+		rpcReq := RPCRequest{
+			Method: "secp256k1_sign",
+			Params: map[string]interface{}{
+				"message":  hashHex,
+				"encoding": "hex",
+			},
+		}
 
 	jsonData, err := json.Marshal(rpcReq)
 	if err != nil {
