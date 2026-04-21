@@ -32,3 +32,29 @@ func TestLocalSigner_Sign_EthereumVAdjusted(t *testing.T) {
 	}
 	require.Equal(t, raw, sig)
 }
+
+func TestLocalSigner_Destroy(t *testing.T) {
+	priv, err := crypto.HexToECDSA("165fdaa699776c9bfdc194817c479d0775b1ee9718bfcddb0ccca352ece86066")
+	require.NoError(t, err)
+
+	s := NewSigner(priv)
+
+	// Call Destroy to zero out memory
+	s.Destroy()
+
+	hash := crypto.Keccak256([]byte("hello world"))
+	
+	// Ensure that signing panics or fails after destruction
+	// Depending on implementation, D.Bytes might panic if D is nil or zeroized.
+	defer func() {
+		if r := recover(); r != nil {
+			// Panic caught, meaning the key was properly zeroized/nil'd.
+			t.Logf("Panic caught after Destroy: %v", r)
+		}
+	}()
+	
+	_, err = s.Sign(context.Background(), hash)
+	if err == nil {
+		t.Error("expected error or panic when signing with destroyed key")
+	}
+}
