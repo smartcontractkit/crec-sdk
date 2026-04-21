@@ -3,6 +3,7 @@ package kms
 import (
 	"crypto/ecdsa"
 	"encoding/asn1"
+	"math/big"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -344,4 +345,57 @@ func TestGetSignatureFromKms_SignError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, rBytes)
 	assert.Nil(t, sBytes)
+}
+
+func TestGetSignatureFromKms_InvalidRS(t *testing.T) {
+	mockClient := mocks.NewKMSClient(t)
+	hash := make([]byte, 32)
+
+	secp256k1N, _ := new(big.Int).SetString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16)
+
+	tests := []struct {
+		name string
+		r    *big.Int
+		s    *big.Int
+	}{
+		{"r is zero", big.NewInt(0), big.NewInt(1)},
+		{"s is zero", big.NewInt(1), big.NewInt(0)},
+		{"r is N", secp256k1N, big.NewInt(1)},
+		{"s is N", big.NewInt(1), secp256k1N},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sigAsn1, err := asn1.Marshal(struct{ R, S *big.Int }{tt.r, tt.s})
+			require.NoError(t, err)
+
+			mockSignSuccess(t, mockClient, testKeyID, hash, sigAsn1)
+
+			rBytes, sBytes, err := getSignatureFromKms(t.Context(), mockClient, testKeyID, hash)
+			assert.Error(t, err)
+			assert.Nil(t, rBytes)
+			assert.Nil(t, sBytes)
+			assert.Contains(t, err.Error(), "value out of range")
+		})
+	}
+}
+
+func TestGetSignatureFromKms_TrailingGarbage(t *testing.T) {
+	mockClient := mocks.NewKMSClient(t)
+	hash := make([]byte, 32)
+	
+	// Create a valid signature
+	sigAsn1, err := asn1.Marshal(struct{ R, S *big.Int }{big.NewInt(1), big.NewInt(1)})
+	require.NoError(t, err)
+	
+	// Append garbage bytes
+	sigAsn1 = append(sigAsn1, []byte("garbage")...)
+	
+	mockSignSuccess(t, mockClient, testKeyID, hash, sigAsn1)
+	
+	rBytes, sBytes, err := getSignatureFromKms(t.Context(), mockClient, testKeyID, hash)
+	assert.Error(t, err)
+	assert.Nil(t, rBytes)
+	assert.Nil(t, sBytes)
+	assert.Contains(t, err.Error(), "trailing garbage bytes")
 }

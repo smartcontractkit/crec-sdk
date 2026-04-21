@@ -846,6 +846,15 @@ func (s *Signer) extractSignature(op *OperationResponse, hash []byte) ([]byte, e
 		return nil, fmt.Errorf("failed to decode S: %w", err)
 	}
 
+	rBigInt := new(big.Int).SetBytes(rBytes)
+	sBigInt := new(big.Int).SetBytes(sBytes)
+	if rBigInt.Cmp(big.NewInt(0)) <= 0 || rBigInt.Cmp(secp256k1N) >= 0 {
+		return nil, fmt.Errorf("R value out of range [1, N-1]")
+	}
+	if sBigInt.Cmp(big.NewInt(0)) <= 0 || sBigInt.Cmp(secp256k1N) >= 0 {
+		return nil, fmt.Errorf("S value out of range [1, N-1]")
+	}
+
 	// Adjust S value according to Ethereum standard (EIP-2)
 	sBigInt := new(big.Int).SetBytes(sBytes)
 	if sBigInt.Cmp(secp256k1HalfN) > 0 {

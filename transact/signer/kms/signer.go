@@ -196,6 +196,15 @@ func getSignatureFromKms(
 		return nil, nil, err
 	}
 
+	rBigInt := new(big.Int).SetBytes(sigAsn1.R.Bytes)
+	sBigInt := new(big.Int).SetBytes(sigAsn1.S.Bytes)
+	if rBigInt.Cmp(big.NewInt(0)) <= 0 || rBigInt.Cmp(secp256k1N) >= 0 {
+		return nil, nil, fmt.Errorf("R value out of range [1, N-1]")
+	}
+	if sBigInt.Cmp(big.NewInt(0)) <= 0 || sBigInt.Cmp(secp256k1N) >= 0 {
+		return nil, nil, fmt.Errorf("S value out of range [1, N-1]")
+	}
+
 	return sigAsn1.R.Bytes, sigAsn1.S.Bytes, nil
 }
 
