@@ -877,6 +877,9 @@ func (s *Signer) extractSignature(op *OperationResponse, hash []byte) ([]byte, e
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress public key: %w", err)
 		}
+		if pubKey == nil || pubKey.X == nil || pubKey.Y == nil {
+			return nil, fmt.Errorf("invalid decompressed public key")
+		}
 		pubKeyBytes = secp256k1.S256().Marshal(pubKey.X, pubKey.Y)
 	}
 

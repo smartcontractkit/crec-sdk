@@ -111,6 +111,9 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if pubkey == nil || pubkey.X == nil || pubkey.Y == nil {
+		return nil, fmt.Errorf("invalid public key from KMS")
+	}
 
 	pubKeyBytes := secp256k1.S256().Marshal(pubkey.X, pubkey.Y)
 

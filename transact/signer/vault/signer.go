@@ -215,8 +215,8 @@ func (s *Signer) GetRSAModulus() (string, error) {
 	}
 
 	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
-	if !ok {
-		return "", fmt.Errorf("key is not an RSA key, got %T", pubKey)
+	if !ok || rsaPubKey == nil || rsaPubKey.N == nil {
+		return "", fmt.Errorf("key is not a valid RSA key")
 	}
 
 	return hex.EncodeToString(rsaPubKey.N.Bytes()), nil
@@ -262,7 +262,7 @@ func (s *Signer) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult,
 	}
 
 	// Extract modulus for RSA keys
-	if rsaPubKey, ok := pubKey.(*rsa.PublicKey); ok {
+	if rsaPubKey, ok := pubKey.(*rsa.PublicKey); ok && rsaPubKey != nil && rsaPubKey.N != nil {
 		result.Modulus = hex.EncodeToString(rsaPubKey.N.Bytes())
 	}
 
