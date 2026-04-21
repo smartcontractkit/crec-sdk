@@ -85,6 +85,10 @@ func (b *Bundle) Validate() error {
 
 	if len(b.WasmBinary) == 0 {
 		errs = append(errs, "WasmBinary is empty")
+	} else if len(b.WasmBinary) > 100*1024*1024 {
+		errs = append(errs, "WasmBinary is too large (max 100MB)")
+	} else if len(b.WasmBinary) < 4 || b.WasmBinary[0] != 0x00 || b.WasmBinary[1] != 0x61 || b.WasmBinary[2] != 0x73 || b.WasmBinary[3] != 0x6d {
+		errs = append(errs, "WasmBinary has invalid magic number")
 	}
 	contractNames := make(map[string]bool, len(b.Contracts))
 	for i, c := range b.Contracts {
