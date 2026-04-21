@@ -1777,6 +1777,56 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 		assert.ErrorIs(t, err, ErrVerificationNotConfigured)
 	})
 
+	t.Run("InvalidSignatureLength", func(t *testing.T) {
+		_, addresses := generateTestKeys(t, 2)
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = addresses
+		})
+
+		ocrReport := make([]byte, 141)
+		ocrReport[0] = 0x01
+		
+		valid, err := c.VerifyOCRSignatures(
+			"0x"+common.Bytes2Hex(ocrReport), 
+			"0x01", 
+			[]string{"0x1234"}, // too short
+		)
+		require.Error(t, err)
+		assert.False(t, valid)
+		assert.Contains(t, err.Error(), "signature length must be 65 bytes")
+	})
+
+	t.Run("InvalidRecoveryID", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 1)
+		
+		ocrReport := make([]byte, 141)
+		ocrReport[0] = 0x01
+		ocrContext := []byte("test-context-data")
+
+		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+		sig, err := crypto.Sign(reportHash.Bytes(), privKeys[0])
+		require.NoError(t, err)
+		
+		// Set an invalid v value (e.g. 50 instead of 0,1,27,28)
+		sig[64] = 50
+		
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 1
+			opts.ValidSigners = addresses
+		})
+
+		valid, err := c.VerifyOCRSignatures(
+			"0x"+common.Bytes2Hex(ocrReport),
+			"0x"+common.Bytes2Hex(ocrContext),
+			[]string{"0x"+common.Bytes2Hex(sig)},
+		)
+		require.Error(t, err)
+		assert.False(t, valid)
+		assert.Contains(t, err.Error(), "invalid recovery byte")
+	})
+
 	t.Run("NotEnoughValidSignatures", func(t *testing.T) {
 		privKeys, _ := generateTestKeys(t, 2)
 		_, otherAddresses := generateTestKeys(t, 2)
@@ -1841,6 +1891,13 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 
 func TestClient_Decode(t *testing.T) {
 	c := setupLocalClient(t)
+
+	t.Run("NilEvent", func(t *testing.T) {
+		var decoded map[string]interface{}
+		err := c.Decode(nil, &decoded)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "event is nil")
+	})
 
 	t.Run("Success", func(t *testing.T) {
 		privKeys, _ := generateTestKeys(t, 2)

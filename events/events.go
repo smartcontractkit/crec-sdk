@@ -525,6 +525,16 @@ func (c *Client) VerifyOCRSignatures(ocrReport, ocrContext string, signatures []
 //   - event: The event to decode.
 //   - payload: A pointer to the structure where the decoded event will be stored.
 func (c *Client) Decode(event *apiClient.Event, payload any) error {
+	if event == nil {
+		return fmt.Errorf("%w: event is nil", ErrDecodeEvent)
+	}
+	if event.Id == nil {
+		return fmt.Errorf("%w: event ID is nil", ErrDecodeEvent)
+	}
+	if event.Headers.Proofs == nil {
+		return fmt.Errorf("%w: event proofs are nil", ErrDecodeEvent)
+	}
+	
 	// Marshal the event data to JSON
 	jsonBytes, err := c.ToJSON(*event)
 	if err != nil {
@@ -536,6 +546,13 @@ func (c *Client) Decode(event *apiClient.Event, payload any) error {
 // ToJSON converts a verifiable event into its JSON representation.
 //   - event: The event to convert.
 func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
+	if event.Id == nil {
+		return nil, fmt.Errorf("%w: event ID is nil", ErrMarshalEventPayload)
+	}
+	if event.Headers.Proofs == nil {
+		return nil, fmt.Errorf("%w: event proofs are nil", ErrMarshalEventPayload)
+	}
+
 	jsonBytes, err := json.Marshal(event)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrMarshalEventPayload, err)
@@ -657,6 +674,15 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 		if err != nil {
 			return false, fmt.Errorf("%w: %w", ErrParseSignature, err)
 		}
+		if len(sigBytes) != 65 {
+			return false, fmt.Errorf("%w: signature length must be 65 bytes", ErrParseSignature)
+		}
+
+		v := sigBytes[64]
+		if v != 0 && v != 1 && v != 27 && v != 28 {
+			return false, fmt.Errorf("%w: invalid recovery byte %d", ErrParseSignature, v)
+		}
+
 		if sigBytes[64] == 27 || sigBytes[64] == 28 {
 			sigBytes[64] -= 27 // Adjust signature for Ethereum signatures
 		}
