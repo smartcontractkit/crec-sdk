@@ -151,6 +151,54 @@ func TestClient_Create(t *testing.T) {
 		assert.Equal(t, chainSelector, wallet.ChainSelector)
 	})
 
+	t.Run("DuplicateEcdsaSigners", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		ecdsaSigners := []string{
+			"0x1234567890abcdef1234567890abcdef12345678",
+			"0x1234567890abcdef1234567890abcdef12345678", // duplicate
+		}
+		statusChannelID := uuid.New()
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:                "test",
+			ChainSelector:       "ethereum-sepolia",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.Ecdsa,
+			AllowedEcdsaSigners: &ecdsaSigners,
+			StatusChannelId:     &statusChannelID,
+		})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate ecdsa signer")
+		assert.Nil(t, wallet)
+	})
+
+	t.Run("DuplicateRsaSigners", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+
+		rsaSigners := []apiClient.RSAPublicKey{
+			{E: "010001", N: "abc"},
+			{E: "010001", N: "abc"}, // duplicate
+		}
+		statusChannelID := uuid.New()
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:                "test",
+			ChainSelector:       "ethereum-sepolia",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.Rsa,
+			AllowedRsaSigners:   &rsaSigners,
+			StatusChannelId:     &statusChannelID,
+		})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate rsa signer")
+		assert.Nil(t, wallet)
+	})
+
 	t.Run("SuccessWithStatusChannelId", func(t *testing.T) {
 		walletID := uuid.New()
 		walletName := "test-wallet-with-status-channel"

@@ -153,6 +153,15 @@ func NewClient(opts *Options) (*Client, error) {
 
 	logger.Debug("Creating CREC events client")
 
+	seenSigners := make(map[string]bool)
+	for _, signer := range opts.ValidSigners {
+		addr := common.HexToAddress(signer).Hex()
+		if seenSigners[addr] {
+			return nil, fmt.Errorf("duplicate valid signer configured: %s", signer)
+		}
+		seenSigners[addr] = true
+	}
+
 	creTenantID := opts.CRETenantID
 	if creTenantID == "" {
 		creTenantID = CreMainlineTenantID

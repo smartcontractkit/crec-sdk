@@ -158,10 +158,16 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 			return nil, errors.New("allowed_ecdsa_signers is required for ecdsa wallet type")
 		}
 		// Validate ECDSA signers (can be empty array)
+		seenEcdsa := make(map[string]bool)
 		for _, signer := range *input.AllowedEcdsaSigners {
 			if !common.IsHexAddress(signer) {
 				return nil, fmt.Errorf("%w: %s", ErrInvalidEcdsaSigner, signer)
 			}
+			addr := common.HexToAddress(signer).Hex()
+			if seenEcdsa[addr] {
+				return nil, fmt.Errorf("duplicate ecdsa signer: %s", signer)
+			}
+			seenEcdsa[addr] = true
 		}
 	case apiClient.Rsa:
 		if input.AllowedEcdsaSigners != nil {
@@ -171,10 +177,16 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 			return nil, errors.New("allowed_rsa_signers is required for rsa wallet type")
 		}
 		// Validate RSA signers (can be empty array)
+		seenRsa := make(map[string]bool)
 		for _, signer := range *input.AllowedRsaSigners {
 			if signer.E == "" || signer.N == "" {
 				return nil, ErrInvalidRsaSigner
 			}
+			key := signer.N + ":" + signer.E
+			if seenRsa[key] {
+				return nil, fmt.Errorf("duplicate rsa signer")
+			}
+			seenRsa[key] = true
 		}
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedWalletType, input.WalletType)

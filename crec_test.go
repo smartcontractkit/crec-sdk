@@ -337,6 +337,12 @@ func TestNewClient_EventVerificationConfig(t *testing.T) {
 			validSigners:  []string{"0x1234", "0x5678"},
 			expectSuccess: false,
 		},
+		{
+			name:          "Invalid_DuplicateSigners",
+			minRequired:   1,
+			validSigners:  []string{"0x1234", "0x1234"},
+			expectSuccess: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -352,8 +358,13 @@ func TestNewClient_EventVerificationConfig(t *testing.T) {
 				require.NotNil(t, client)
 			} else {
 				require.Error(t, err)
-				assert.True(t, errors.Is(err, crec.ErrInvalidEventVerificationConfig))
 				assert.Nil(t, client)
+				// The error could be from the config validation or from the events subclient initialization
+				if tt.name == "Invalid_DuplicateSigners" {
+					assert.Contains(t, err.Error(), "duplicate valid signer")
+				} else {
+					assert.True(t, errors.Is(err, crec.ErrInvalidEventVerificationConfig))
+				}
 			}
 		})
 	}
