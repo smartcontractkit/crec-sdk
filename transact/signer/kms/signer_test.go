@@ -383,16 +383,16 @@ func TestGetSignatureFromKms_InvalidRS(t *testing.T) {
 func TestGetSignatureFromKms_TrailingGarbage(t *testing.T) {
 	mockClient := mocks.NewKMSClient(t)
 	hash := make([]byte, 32)
-	
+
 	// Create a valid signature
 	sigAsn1, err := asn1.Marshal(struct{ R, S *big.Int }{big.NewInt(1), big.NewInt(1)})
 	require.NoError(t, err)
-	
+
 	// Append garbage bytes
 	sigAsn1 = append(sigAsn1, []byte("garbage")...)
-	
+
 	mockSignSuccess(t, mockClient, testKeyID, hash, sigAsn1)
-	
+
 	rBytes, sBytes, err := getSignatureFromKms(t.Context(), mockClient, testKeyID, hash)
 	assert.Error(t, err)
 	assert.Nil(t, rBytes)

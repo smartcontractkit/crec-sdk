@@ -657,7 +657,7 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 		if isUint {
 			prefixLen = 4
 		}
-		
+
 		bitWidth := 256
 		if len(typeName) > prefixLen {
 			var err error
@@ -670,6 +670,8 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 		var n *big.Int
 		switch v := value.(type) {
 		case float64:
+			// float64 can only represent integers exactly up to 2^53 - 1 (9007199254740991).
+			// Values beyond this may have already lost precision during parsing/unmarshaling.
 			if v > 9007199254740991 || v < -9007199254740991 {
 				return nil, fmt.Errorf("float64 precision loss for value %v", v)
 			}

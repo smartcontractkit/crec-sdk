@@ -8,62 +8,62 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-	func TestTypedData_NegativeIDError(t *testing.T) {
-		op := &Operation{
-			ID:      big.NewInt(-1),
-			Account: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
-			Deadline: big.NewInt(0),
-			Transactions: []Transaction{
-				{
-					To:    common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"),
-					Value: big.NewInt(0),
-					Data:  []byte{},
-				},
+func TestTypedData_NegativeIDError(t *testing.T) {
+	op := &Operation{
+		ID:       big.NewInt(-1),
+		Account:  common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+		Deadline: big.NewInt(0),
+		Transactions: []Transaction{
+			{
+				To:    common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"),
+				Value: big.NewInt(0),
+				Data:  []byte{},
 			},
-		}
-		td, err := op.TypedData("31337")
-		require.Error(t, err)
-		require.Nil(t, td)
-		require.Contains(t, err.Error(), "id must be non-negative")
+		},
 	}
+	td, err := op.TypedData("31337")
+	require.Error(t, err)
+	require.Nil(t, td)
+	require.Contains(t, err.Error(), "id must be non-negative")
+}
 
-	func TestTypedData_NegativeDeadlineError(t *testing.T) {
-		op := &Operation{
-			ID:      big.NewInt(1),
-			Account: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
-			Deadline: big.NewInt(-1),
-			Transactions: []Transaction{
-				{
-					To:    common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"),
-					Value: big.NewInt(0),
-					Data:  []byte{},
-				},
+func TestTypedData_NegativeDeadlineError(t *testing.T) {
+	op := &Operation{
+		ID:       big.NewInt(1),
+		Account:  common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+		Deadline: big.NewInt(-1),
+		Transactions: []Transaction{
+			{
+				To:    common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"),
+				Value: big.NewInt(0),
+				Data:  []byte{},
 			},
-		}
-		td, err := op.TypedData("31337")
-		require.Error(t, err)
-		require.Nil(t, td)
-		require.Contains(t, err.Error(), "deadline must be non-negative")
+		},
 	}
+	td, err := op.TypedData("31337")
+	require.Error(t, err)
+	require.Nil(t, td)
+	require.Contains(t, err.Error(), "deadline must be non-negative")
+}
 
-	func TestTypedData_NegativeTransactionValueError(t *testing.T) {
-		op := &Operation{
-			ID:      big.NewInt(1),
-			Account: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
-			Deadline: big.NewInt(0),
-			Transactions: []Transaction{
-				{
-					To:    common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"),
-					Value: big.NewInt(-1),
-					Data:  []byte{},
-				},
+func TestTypedData_NegativeTransactionValueError(t *testing.T) {
+	op := &Operation{
+		ID:       big.NewInt(1),
+		Account:  common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+		Deadline: big.NewInt(0),
+		Transactions: []Transaction{
+			{
+				To:    common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"),
+				Value: big.NewInt(-1),
+				Data:  []byte{},
 			},
-		}
-		td, err := op.TypedData("31337")
-		require.Error(t, err)
-		require.Nil(t, td)
-		require.Contains(t, err.Error(), "transaction 0 value must be non-negative")
+		},
 	}
+	td, err := op.TypedData("31337")
+	require.Error(t, err)
+	require.Nil(t, td)
+	require.Contains(t, err.Error(), "transaction 0 value must be non-negative")
+}
 
 func TestTypedData_NilIDError(t *testing.T) {
 	op := &Operation{

@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -42,19 +43,12 @@ func TestLocalSigner_Destroy(t *testing.T) {
 	// Call Destroy to zero out memory
 	s.Destroy()
 
-	hash := crypto.Keccak256([]byte("hello world"))
-	
-	// Ensure that signing panics or fails after destruction
-	// Depending on implementation, D.Bytes might panic if D is nil or zeroized.
-	defer func() {
-		if r := recover(); r != nil {
-			// Panic caught, meaning the key was properly zeroized/nil'd.
-			t.Logf("Panic caught after Destroy: %v", r)
-		}
-	}()
-	
-	_, err = s.Sign(context.Background(), hash)
-	if err == nil {
-		t.Error("expected error or panic when signing with destroyed key")
+	// Ensure the private key reference in the signer is nil
+	require.Nil(t, s.privateKey, "privateKey should be nil after Destroy")
+
+	// Ensure the actual key material (D) was zeroed out
+	require.NotNil(t, priv.D, "D should still exist as an object")
+	for _, word := range priv.D.Bits() {
+		require.Equal(t, big.Word(0), word, "key material should be zeroed")
 	}
 }

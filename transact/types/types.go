@@ -89,14 +89,14 @@ func (op *Operation) EIP712Message() (apitypes.TypedDataMessage, error) {
 		}
 		txns = append(txns, txMsg)
 	}
-	
+
 	if op.ID != nil && op.ID.Sign() < 0 {
 		return nil, fmt.Errorf("id must be non-negative")
 	}
 	if op.Deadline != nil && op.Deadline.Sign() < 0 {
 		return nil, fmt.Errorf("deadline must be non-negative")
 	}
-	
+
 	idStr := "0"
 	if op.ID != nil {
 		idStr = op.ID.String()

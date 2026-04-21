@@ -226,4 +226,3 @@ func ScientificNotationToUint8(value string) (uint8, error) {
 
 	return uint8(bigIntResult.Uint64()), nil
 }
-

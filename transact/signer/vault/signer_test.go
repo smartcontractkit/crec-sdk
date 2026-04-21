@@ -7,7 +7,10 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -304,7 +307,7 @@ func TestSigner_Public(t *testing.T) {
 	rotatedEcdsaPubKey, ok := rotatedEcdsaPubKeyInterface.(*ecdsa.PublicKey)
 	require.True(t, ok, "Should return ECDSA public key")
 	require.NotNil(t, rotatedEcdsaPubKey)
-	
+
 	// Ensure the public key has changed
 	require.False(t, ecdsaPubKey.Equal(rotatedEcdsaPubKey), "Public key should change after rotation")
 
@@ -477,6 +480,7 @@ func TestSigner_GetRSAModulus(t *testing.T) {
 	require.NoError(t, err)
 	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
 	require.True(t, ok)
+	require.NotNil(t, rsaPubKey.N)
 	expectedModulus := hex.EncodeToString(rsaPubKey.N.Bytes())
 	require.Equal(t, expectedModulus, modulus)
 
@@ -497,7 +501,7 @@ func TestSigner_GetRSAModulus(t *testing.T) {
 	// Should fail to get modulus from ECDSA key
 	_, err = ecdsaSigner.GetRSAModulus()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "key is not an RSA key")
+	require.Contains(t, err.Error(), "key is not a valid RSA key")
 }
 
 func TestCreateKeyInVault(t *testing.T) {
@@ -723,4 +727,38 @@ func TestSigner_InvalidToken(t *testing.T) {
 	require.Error(t, err)
 	require.Empty(t, signature)
 	require.Contains(t, err.Error(), "vault sign failed")
+}
+
+func TestSigner_Public_TrailingGarbage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Valid PEM but with trailing garbage
+		pubKeyPEM := "-----BEGIN PUBLIC KEY-----\n" +
+			"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEP/T/B1R5A6l3rI7G9zYk3gR4k8Y4\n" +
+			"qjZJ6uQxL7b+E8M2j5X6M9k1u7Y0vR4y3M1qL6p9x4b8X2A7z3E5n4a9gA==\n" +
+			"-----END PUBLIC KEY-----\n" +
+			"trailing garbage bytes"
+
+		response := map[string]interface{}{
+			"data": map[string]interface{}{
+				"type": "ecdsa-p256",
+				"keys": map[string]interface{}{
+					"1": map[string]interface{}{
+						"public_key": pubKeyPEM,
+					},
+				},
+			},
+		}
+		
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	signer, err := NewSigner(server.URL, "dummy-token", "transit", "test-key")
+	require.NoError(t, err)
+
+	_, err = signer.Public()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "trailing garbage bytes after PEM block")
 }

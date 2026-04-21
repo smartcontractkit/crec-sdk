@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -167,7 +168,7 @@ func (s *Signer) Public() (interface{}, error) {
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block")
 	}
-	if len(strings.TrimSpace(string(rest))) > 0 {
+	if len(bytes.TrimSpace(rest)) > 0 {
 		return nil, fmt.Errorf("trailing garbage bytes after PEM block")
 	}
 

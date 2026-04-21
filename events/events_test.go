@@ -482,6 +482,23 @@ func TestClient_SearchEvents(t *testing.T) {
 func TestClient_EventHash(t *testing.T) {
 	c := setupLocalClient(t)
 
+	t.Run("NilEventPayload_ReturnsError", func(t *testing.T) {
+		hash, err := c.EventHash(nil)
+		require.Error(t, err)
+		assert.Equal(t, common.Hash{}, hash)
+		assert.Contains(t, err.Error(), "event payload is nil")
+	})
+
+	t.Run("EmptyVerifiableEvent_ReturnsError", func(t *testing.T) {
+		eventPayload := createTestEventPayload(t)
+		eventPayload.VerifiableEvent = ""
+		
+		hash, err := c.EventHash(&eventPayload)
+		require.Error(t, err)
+		assert.Equal(t, common.Hash{}, hash)
+		assert.Contains(t, err.Error(), "verifiable event is required")
+	})
+
 	t.Run("ComputesValidHash", func(t *testing.T) {
 		eventPayload := createTestEventPayload(t)
 
@@ -1786,10 +1803,10 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 
 		ocrReport := make([]byte, 141)
 		ocrReport[0] = 0x01
-		
+
 		valid, err := c.VerifyOCRSignatures(
-			"0x"+common.Bytes2Hex(ocrReport), 
-			"0x01", 
+			"0x"+common.Bytes2Hex(ocrReport),
+			"0x01",
 			[]string{"0x1234"}, // too short
 		)
 		require.Error(t, err)
@@ -1799,7 +1816,7 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 
 	t.Run("InvalidRecoveryID", func(t *testing.T) {
 		privKeys, addresses := generateTestKeys(t, 1)
-		
+
 		ocrReport := make([]byte, 141)
 		ocrReport[0] = 0x01
 		ocrContext := []byte("test-context-data")
@@ -1808,10 +1825,10 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 
 		sig, err := crypto.Sign(reportHash.Bytes(), privKeys[0])
 		require.NoError(t, err)
-		
+
 		// Set an invalid v value (e.g. 50 instead of 0,1,27,28)
 		sig[64] = 50
-		
+
 		c := setupLocalClient(t, func(opts *Options) {
 			opts.MinRequiredSignatures = 1
 			opts.ValidSigners = addresses
@@ -1820,7 +1837,7 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 		valid, err := c.VerifyOCRSignatures(
 			"0x"+common.Bytes2Hex(ocrReport),
 			"0x"+common.Bytes2Hex(ocrContext),
-			[]string{"0x"+common.Bytes2Hex(sig)},
+			[]string{"0x" + common.Bytes2Hex(sig)},
 		)
 		require.Error(t, err)
 		assert.False(t, valid)
@@ -2431,7 +2448,7 @@ func createValidEventForOwner(t *testing.T, privateKeys []*ecdsa.PrivateKey, eve
 	require.NoError(t, err)
 
 	eventId := uuid.New()
-	
+
 	return &apiClient.Event{
 		EventId: &eventId,
 		Headers: apiClient.EventHeaders{
@@ -2483,7 +2500,7 @@ func createValidOperationStatusEventForOwner(t *testing.T, privateKeys []*ecdsa.
 	require.NoError(t, err)
 
 	eventId := uuid.New()
-	
+
 	return &apiClient.Event{
 		EventId: &eventId,
 		Headers: apiClient.EventHeaders{
@@ -2494,4 +2511,3 @@ func createValidOperationStatusEventForOwner(t *testing.T, privateKeys []*ecdsa.
 		Payload: payloadUnion,
 	}
 }
-

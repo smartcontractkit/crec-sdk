@@ -120,4 +120,3 @@
 //	signer, _ := fireblocks.NewSignerFromEnv()
 //	signature, err := client.Transact.SignOperation(operation, signer)
 package fireblocks
-

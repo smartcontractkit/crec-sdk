@@ -632,4 +632,3 @@ func TestParsing_ScientificNotationToBigInt_ErrorMessages(t *testing.T) {
 		})
 	}
 }
-
