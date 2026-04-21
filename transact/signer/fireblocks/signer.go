@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -651,9 +652,27 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 		return result, nil
 
 	case strings.HasPrefix(typeName, "uint") || strings.HasPrefix(typeName, "int"):
+		isUint := strings.HasPrefix(typeName, "uint")
+		prefixLen := 3
+		if isUint {
+			prefixLen = 4
+		}
+		
+		bitWidth := 256
+		if len(typeName) > prefixLen {
+			var err error
+			bitWidth, err = strconv.Atoi(typeName[prefixLen:])
+			if err != nil || bitWidth <= 0 || bitWidth > 256 || bitWidth%8 != 0 {
+				return nil, fmt.Errorf("invalid integer type: %s", typeName)
+			}
+		}
+
 		var n *big.Int
 		switch v := value.(type) {
 		case float64:
+			if v > 9007199254740991 || v < -9007199254740991 {
+				return nil, fmt.Errorf("float64 precision loss for value %v", v)
+			}
 			n = big.NewInt(int64(v))
 		case int:
 			n = big.NewInt(int64(v))
@@ -667,10 +686,26 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 				n.SetString(v, 10)
 			}
 		case *big.Int:
-			n = v
+			n = new(big.Int).Set(v)
 		default:
 			return nil, fmt.Errorf("expected number for %s, got %T", typeName, value)
 		}
+
+		if isUint {
+			max := new(big.Int).Lsh(big.NewInt(1), uint(bitWidth))
+			max.Sub(max, big.NewInt(1))
+			if n.Cmp(max) > 0 {
+				return nil, fmt.Errorf("value exceeds bit width for type %s", typeName)
+			}
+		} else {
+			max := new(big.Int).Lsh(big.NewInt(1), uint(bitWidth-1))
+			min := new(big.Int).Neg(max)
+			max.Sub(max, big.NewInt(1))
+			if n.Cmp(max) > 0 || n.Cmp(min) < 0 {
+				return nil, fmt.Errorf("value exceeds bit width for type %s", typeName)
+			}
+		}
+
 		bytes := n.Bytes()
 		copy(result[32-len(bytes):], bytes)
 		return result, nil

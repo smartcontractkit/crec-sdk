@@ -96,6 +96,15 @@ func TestSigner_NewSigner(t *testing.T) {
 			wantErr:        true,
 			errContains:    "failed to parse private key",
 		},
+		{
+			name:           "private key PEM with trailing garbage",
+			apiKey:         testAPIKey,
+			privateKeyPEM:  pemKey + "trailing garbage data",
+			vaultAccountID: testVaultAccountID,
+			assetID:        testAssetID,
+			wantErr:        true,
+			errContains:    "trailing garbage bytes found after PEM decoding",
+		},
 	}
 
 	for _, tt := range tests {
@@ -325,15 +334,15 @@ func TestSigner_Sign(t *testing.T) {
 			errContains: "FAILED",
 		},
 		{
-			name: "create operation error",
+			name: "create operation error with huge response",
 			setupServer: func(t *testing.T) *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(`{"error": "internal error"}`))
+					w.Write([]byte(strings.Repeat("A", 5000)))
 				}))
 			},
 			wantErr:     true,
-			errContains: "500",
+			errContains: strings.Repeat("A", 4096),
 		},
 	}
 
@@ -941,4 +950,81 @@ func parseTypedMessageData(tmd map[string]any) *signer.TypedData {
 	}
 
 	return td
+}
+
+func TestHashTypedData_EncodePrimitives(t *testing.T) {
+	tests := []struct {
+		name        string
+		typedData   *signer.TypedData
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "negative value for unsigned type",
+			typedData: &signer.TypedData{
+				Types: map[string][]signer.TypedDataField{
+					"Test": {{Name: "value", Type: "uint256"}},
+				},
+				PrimaryType: "Test",
+				Domain: signer.TypedDataDomain{
+					Name:    "Test",
+					Version: "1",
+					ChainID: 1,
+				},
+				Message: map[string]any{"value": -1}, // negative for unsigned
+			},
+			wantErr:     true,
+			errContains: "negative value for unsigned type uint256",
+		},
+		{
+			name: "invalid numeric string for integer",
+			typedData: &signer.TypedData{
+				Types: map[string][]signer.TypedDataField{
+					"Test": {{Name: "value", Type: "uint256"}},
+				},
+				PrimaryType: "Test",
+				Domain: signer.TypedDataDomain{
+					Name:    "Test",
+					Version: "1",
+					ChainID: 1,
+				},
+				Message: map[string]any{"value": "not-a-number"},
+			},
+			wantErr:     true,
+			errContains: "failed to parse string as int",
+		},
+		{
+			name: "float64 precision loss",
+			typedData: &signer.TypedData{
+				Types: map[string][]signer.TypedDataField{
+					"Test": {{Name: "value", Type: "uint256"}},
+				},
+				PrimaryType: "Test",
+				Domain: signer.TypedDataDomain{
+					Name:    "Test",
+					Version: "1",
+					ChainID: 1,
+				},
+				Message: map[string]any{"value": float64(1e16)}, // exceeds precision
+			},
+			wantErr:     true,
+			errContains: "float64 precision loss",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hash, err := fireblocks.HashTypedData(tt.typedData)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Nil(t, hash)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, hash)
+			}
+		})
+	}
 }
