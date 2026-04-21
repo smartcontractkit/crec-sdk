@@ -80,7 +80,7 @@ func NewSigner(vaultUrl, token, mountPath, key string, opts ...Option) (*Signer,
 }
 
 func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
-	// base64 encore the payload to sign
+	// base64 encode the payload to sign
 	b64 := base64.StdEncoding.EncodeToString(hash)
 
 	// call vault client to sign payload
