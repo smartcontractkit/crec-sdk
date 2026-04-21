@@ -902,14 +902,14 @@ func getEthereumSignature(expectedPublicKeyBytes []byte, hash []byte, r []byte, 
 		return nil, err
 	}
 
-	if hex.EncodeToString(recoveredPublicKeyBytes) != hex.EncodeToString(expectedPublicKeyBytes) {
+	if !bytes.Equal(recoveredPublicKeyBytes, expectedPublicKeyBytes) {
 		signature = append(rsSignature, byte(1))
 		recoveredPublicKeyBytes, err = ethcrypto.Ecrecover(hash, signature)
 		if err != nil {
 			return nil, err
 		}
 
-		if hex.EncodeToString(recoveredPublicKeyBytes) != hex.EncodeToString(expectedPublicKeyBytes) {
+		if !bytes.Equal(recoveredPublicKeyBytes, expectedPublicKeyBytes) {
 			return nil, fmt.Errorf("cannot reconstruct public key from signature")
 		}
 	}
