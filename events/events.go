@@ -75,6 +75,8 @@ var (
 
 	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	// ErrNilResponse is returned when the API response is nil.
+	ErrNilResponse     = errors.New("unexpected nil response")
 	// ErrNilResponseBody is returned when the API response body is nil.
 	ErrNilResponseBody = errors.New("unexpected nil response body")
 	// ErrBadRequest is returned when the request parameters are invalid.
@@ -139,8 +141,8 @@ func NewClient(opts *Options) (*Client, error) {
 	if opts == nil {
 		return nil, ErrOptionsRequired
 	}
-	if opts.MinRequiredSignatures <= 0 {
-		return nil, errors.New("MinRequiredSignatures must be greater than zero")
+	if len(opts.ValidSigners) > 0 && opts.MinRequiredSignatures <= 0 {
+		return nil, errors.New("MinRequiredSignatures must be greater than zero when valid signers are provided")
 	}
 	if opts.CRECClient == nil {
 		return nil, ErrCRECClientRequired
@@ -211,6 +213,10 @@ func (c *Client) Poll(
 		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, err)
 	}
 
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, ErrNilResponse)
+	}
+
 	if resp.StatusCode() == 404 {
 		c.logger.Warn("Channel not found", "channel_id", channelID.String())
 		return nil, false, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
@@ -261,6 +267,10 @@ func (c *Client) SearchEvents(
 	resp, err := c.crecClient.GetChannelsChannelIdEventsSearchWithResponse(ctx, channelID, params)
 	if err != nil {
 		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, err)
+	}
+
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {
@@ -540,13 +550,13 @@ func (c *Client) Decode(event *apiClient.Event, payload any) error {
 	if event == nil {
 		return fmt.Errorf("%w: event is nil", ErrDecodeEvent)
 	}
-	if event.Id == nil {
+	if event.EventId == nil || *event.EventId == uuid.Nil {
 		return fmt.Errorf("%w: event ID is nil", ErrDecodeEvent)
 	}
 	if event.Headers.Proofs == nil {
 		return fmt.Errorf("%w: event proofs are nil", ErrDecodeEvent)
 	}
-	
+
 	// Marshal the event data to JSON
 	jsonBytes, err := c.ToJSON(*event)
 	if err != nil {
@@ -558,7 +568,7 @@ func (c *Client) Decode(event *apiClient.Event, payload any) error {
 // ToJSON converts a verifiable event into its JSON representation.
 //   - event: The event to convert.
 func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
-	if event.Id == nil {
+	if event.EventId == nil || *event.EventId == uuid.Nil {
 		return nil, fmt.Errorf("%w: event ID is nil", ErrMarshalEventPayload)
 	}
 	if event.Headers.Proofs == nil {
@@ -576,6 +586,9 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
 	if event == nil {
 		return common.Hash{}, errors.New("event payload is nil")
+	}
+	if event.VerifiableEvent == "" {
+		return common.Hash{}, errors.New("verifiable event is required")
 	}
 	return crypto.Keccak256Hash([]byte(event.VerifiableEvent)), nil
 }

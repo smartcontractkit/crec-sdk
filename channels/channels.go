@@ -37,6 +37,9 @@ var (
 
 	// Response errors
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	// ErrNilResponse is returned when the API response is nil.
+	ErrNilResponse          = errors.New("unexpected nil response")
+	// ErrNilResponseBody is returned when the API response body is nil.
 	ErrNilResponseBody      = errors.New("unexpected nil response body")
 )
 
@@ -118,6 +121,10 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Chan
 		return nil, fmt.Errorf("%w: %w", ErrCreateChannel, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateChannel, ErrNilResponse)
+	}
+
 	if resp.StatusCode() != 201 {
 		c.logger.Error("Unexpected status code when creating channel",
 			"status_code", resp.StatusCode(),
@@ -150,6 +157,10 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID) (*apiClient.Chann
 	if err != nil {
 		c.logger.Error("Failed to get channel", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetChannel, err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrGetChannel, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {
@@ -210,6 +221,10 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Channel
 		return nil, false, fmt.Errorf("%w: %w", ErrListChannels, err)
 	}
 
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrListChannels, ErrNilResponse)
+	}
+
 	if resp.StatusCode() != 200 {
 		c.logger.Error("Unexpected status code when listing channels",
 			"status_code", resp.StatusCode(),
@@ -266,6 +281,10 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateIn
 		return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, ErrNilResponse)
+	}
+
 	if resp.StatusCode() == 404 {
 		c.logger.Warn("Channel not found", "channel_id", channelID.String())
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
@@ -310,6 +329,10 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID) (*apiClient.C
 	if err != nil {
 		c.logger.Error("Failed to archive channel", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrArchiveChannel, err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrArchiveChannel, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {

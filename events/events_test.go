@@ -31,7 +31,7 @@ func TestNewClient(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		crecClient := newCRECClient(t, "http://localhost:8080")
 		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{Logger: logger, CRECClient: crecClient})
+		c, err := NewClient(&Options{Logger: logger, CRECClient: crecClient, MinRequiredSignatures: 1})
 		require.NoError(t, err)
 		assert.NotNil(t, c)
 		assert.Equal(t, crecClient, c.crecClient)
@@ -47,7 +47,7 @@ func TestNewClient(t *testing.T) {
 
 	t.Run("NilCRECClient", func(t *testing.T) {
 		logger := slog.New(slog.DiscardHandler)
-		c, err := NewClient(&Options{Logger: logger})
+		c, err := NewClient(&Options{Logger: logger, MinRequiredSignatures: 1})
 		require.Error(t, err)
 		assert.Nil(t, c)
 		assert.ErrorIs(t, err, ErrCRECClientRequired)
@@ -55,7 +55,7 @@ func TestNewClient(t *testing.T) {
 
 	t.Run("DefaultLogger", func(t *testing.T) {
 		crecClient := newCRECClient(t, "http://localhost:8080")
-		c, err := NewClient(&Options{CRECClient: crecClient})
+		c, err := NewClient(&Options{CRECClient: crecClient, MinRequiredSignatures: 1})
 		require.NoError(t, err)
 		assert.NotNil(t, c.logger)
 	})
@@ -777,7 +777,7 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 
 	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
 		c := setupLocalClient(t, func(opts *Options) {
-			opts.MinRequiredSignatures = 0
+			opts.MinRequiredSignatures = 1
 			opts.ValidSigners = nil
 		})
 
@@ -793,7 +793,7 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 
 	t.Run("ErrVerificationNotConfigured_EmptySigners", func(t *testing.T) {
 		c := setupLocalClient(t, func(opts *Options) {
-			opts.MinRequiredSignatures = 0
+			opts.MinRequiredSignatures = 1
 			opts.ValidSigners = []string{}
 		})
 
@@ -1404,7 +1404,7 @@ func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
 
 	t.Run("ErrVerificationNotConfigured", func(t *testing.T) {
 		c := setupLocalClient(t, func(opts *Options) {
-			opts.MinRequiredSignatures = 0
+			opts.MinRequiredSignatures = 1
 			opts.ValidSigners = nil
 		})
 
@@ -1420,7 +1420,7 @@ func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
 
 	t.Run("ErrVerificationNotConfigured_EmptySigners", func(t *testing.T) {
 		c := setupLocalClient(t, func(opts *Options) {
-			opts.MinRequiredSignatures = 0
+			opts.MinRequiredSignatures = 1
 			opts.ValidSigners = []string{}
 		})
 
@@ -2430,7 +2430,10 @@ func createValidEventForOwner(t *testing.T, privateKeys []*ecdsa.PrivateKey, eve
 	err = payloadUnion.FromWatcherEventPayload(*eventPayload)
 	require.NoError(t, err)
 
+	eventId := uuid.New()
+	
 	return &apiClient.Event{
+		EventId: &eventId,
 		Headers: apiClient.EventHeaders{
 			Type:   apiClient.EventTypeWatcherEvent,
 			Offset: int64(12345),
@@ -2479,7 +2482,10 @@ func createValidOperationStatusEventForOwner(t *testing.T, privateKeys []*ecdsa.
 	err = payloadUnion.FromOperationStatusPayload(*eventPayload)
 	require.NoError(t, err)
 
+	eventId := uuid.New()
+	
 	return &apiClient.Event{
+		EventId: &eventId,
 		Headers: apiClient.EventHeaders{
 			Type:   apiClient.EventTypeOperationStatus,
 			Offset: int64(12345),

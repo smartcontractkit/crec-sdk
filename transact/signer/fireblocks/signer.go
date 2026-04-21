@@ -257,7 +257,7 @@ func (s *Signer) GetVaultAccountAddress(ctx context.Context) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("get vault account failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -301,7 +301,7 @@ func (s *Signer) createSigningOperation(ctx context.Context, hash []byte) (strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("create signing operation failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -374,7 +374,7 @@ func (s *Signer) createTypedMessageOperation(ctx context.Context, typedData *sig
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("create typed message operation failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -813,7 +813,7 @@ func (s *Signer) getOperation(ctx context.Context, opID string) (*OperationRespo
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("get operation failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -856,7 +856,7 @@ func (s *Signer) extractSignature(op *OperationResponse, hash []byte) ([]byte, e
 	}
 
 	// Adjust S value according to Ethereum standard (EIP-2)
-	sBigInt := new(big.Int).SetBytes(sBytes)
+	sBigInt = new(big.Int).SetBytes(sBytes)
 	if sBigInt.Cmp(secp256k1HalfN) > 0 {
 		sBytes = new(big.Int).Sub(secp256k1N, sBigInt).Bytes()
 	}

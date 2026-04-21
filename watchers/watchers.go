@@ -23,6 +23,9 @@ const watcherNameMinRunes = 4
 var statusCodePattern = regexp.MustCompile(`status code:?\s*(\d{3})`)
 
 var (
+	// ErrNilResponse is returned when the API response is nil.
+	ErrNilResponse = errors.New("unexpected nil response")
+
 	// ErrWatcherNotFound is returned when a watcher is not found (404 response).
 	ErrWatcherNotFound = errors.New("watcher not found")
 
@@ -253,6 +256,10 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherService, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherService, ErrNilResponse)
+	}
+
 	if resp.StatusCode() != 201 {
 		c.logger.Error("Failed to create watcher with service - unexpected status code",
 			"status_code", resp.StatusCode(),
@@ -361,6 +368,10 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherABI, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherABI, ErrNilResponse)
+	}
+
 	if resp.StatusCode() != 201 {
 		c.logger.Error("Failed to create watcher with ABI - unexpected status code",
 			"status_code", resp.StatusCode(),
@@ -402,6 +413,10 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 		return nil, fmt.Errorf("%w: %w", ErrListWatchers, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrListWatchers, ErrNilResponse)
+	}
+
 	if resp.StatusCode() != 200 {
 		c.logger.Error("Failed to list watchers - unexpected status code",
 			"status_code", resp.StatusCode(),
@@ -435,6 +450,10 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UU
 	if err != nil {
 		c.logger.Error("Failed to get watcher", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetWatcher, err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrGetWatcher, ErrNilResponse)
 	}
 
 	if resp.StatusCode() != 200 {
@@ -481,6 +500,10 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, watcherID uuid
 	if err != nil {
 		c.logger.Error("Failed to update watcher", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrUpdateWatcher, err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrUpdateWatcher, ErrNilResponse)
 	}
 
 	if resp.StatusCode() != 200 {
@@ -607,6 +630,10 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 	if err != nil {
 		c.logger.Error("Failed to archive watcher", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {

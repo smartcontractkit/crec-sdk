@@ -51,6 +51,9 @@ var (
 
 	// ErrListNetworks is returned when listing networks fails.
 	ErrListNetworks = errors.New("failed to list networks")
+
+	// ErrNilResponse is returned when the API response is nil.
+	ErrNilResponse = errors.New("unexpected nil response")
 )
 
 // NewAPIClient creates an authenticated CREC API client that can be used
@@ -245,6 +248,11 @@ func (c *Client) ListNetworks(ctx context.Context) ([]apiClient.Network, bool, e
 		c.logger.Error("Failed to list networks", "error", err)
 		return nil, false, fmt.Errorf("%w: %w", ErrListNetworks, err)
 	}
+
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrListNetworks, ErrNilResponse)
+	}
+
 	if resp.StatusCode() != 200 {
 		c.logger.Error("Unexpected status code when listing networks",
 			"status_code", resp.StatusCode(),

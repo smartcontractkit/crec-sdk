@@ -55,6 +55,8 @@ var (
 
 	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	// ErrNilResponse is returned when the API response is nil.
+	ErrNilResponse     = errors.New("unexpected nil response")
 	// ErrNilResponseBody is returned when the API response body is nil.
 	ErrNilResponseBody = errors.New("unexpected nil response body")
 )
@@ -239,6 +241,10 @@ func (c *Client) CreateOperation(ctx context.Context, input CreateOperationInput
 		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, ErrNilResponse)
+	}
+
 	if resp.StatusCode() == 404 {
 		c.logger.Warn("Channel not found", "channel_id", input.ChannelID.String())
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
@@ -346,6 +352,10 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 		return nil, fmt.Errorf("%w: %w", ErrGetOperation, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrGetOperation, ErrNilResponse)
+	}
+
 	if resp.StatusCode() == 404 {
 		c.logger.Warn("Operation not found",
 			"channel_id", channelID.String(),
@@ -418,6 +428,10 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 	if err != nil {
 		c.logger.Error("Failed to list operations", "error", err)
 		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, err)
+	}
+
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {

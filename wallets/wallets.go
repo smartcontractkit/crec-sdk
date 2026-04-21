@@ -52,6 +52,7 @@ var (
 
 	// Response errors
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	ErrNilResponse          = errors.New("unexpected nil response")
 	ErrNilResponseBody      = errors.New("unexpected nil response body")
 )
 
@@ -148,6 +149,13 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, ErrWalletTypeRequired
 	}
 
+	if input.StatusChannelId == nil {
+		return nil, errors.New("status channel ID is required")
+	}
+	if *input.StatusChannelId == uuid.Nil {
+		return nil, errors.New("status channel ID cannot be the zero UUID")
+	}
+
 	// Validate that wallet type matches the provided signers
 	switch input.WalletType {
 	case apiClient.Ecdsa:
@@ -221,6 +229,10 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, fmt.Errorf("%w: %w", ErrCreateWallet, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateWallet, ErrNilResponse)
+	}
+
 	if resp.StatusCode() != 201 {
 		c.logger.Error("Unexpected status code when creating wallet",
 			"status_code", resp.StatusCode(),
@@ -259,6 +271,10 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 	if err != nil {
 		c.logger.Error("Failed to get wallet", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetWallet, err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrGetWallet, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {
@@ -352,6 +368,10 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 		return nil, false, fmt.Errorf("%w: %w", ErrListWallets, err)
 	}
 
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrListWallets, ErrNilResponse)
+	}
+
 	if resp.StatusCode() != 200 {
 		c.logger.Error("Unexpected status code when listing wallets",
 			"status_code", resp.StatusCode(),
@@ -409,6 +429,10 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 		return fmt.Errorf("%w: %w", ErrUpdateWallet, err)
 	}
 
+	if resp == nil {
+		return fmt.Errorf("%w: %w", ErrUpdateWallet, ErrNilResponse)
+	}
+
 	if resp.StatusCode() == 404 {
 		c.logger.Warn("Wallet not found", "wallet_id", walletID.String())
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
@@ -450,6 +474,10 @@ func (c *Client) Archive(ctx context.Context, walletID uuid.UUID) error {
 	if err != nil {
 		c.logger.Error("Failed to archive wallet", "error", err)
 		return fmt.Errorf("%w: %w", ErrArchiveWallet, err)
+	}
+
+	if resp == nil {
+		return fmt.Errorf("%w: %w", ErrArchiveWallet, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {
