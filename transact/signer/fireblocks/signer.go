@@ -680,15 +680,23 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 			n = big.NewInt(v)
 		case string:
 			n = new(big.Int)
+			var ok bool
 			if strings.HasPrefix(v, "0x") {
-				n.SetString(v[2:], 16)
+				_, ok = n.SetString(v[2:], 16)
 			} else {
-				n.SetString(v, 10)
+				_, ok = n.SetString(v, 10)
+			}
+			if !ok {
+				return nil, fmt.Errorf("failed to parse string as integer: %s", v)
 			}
 		case *big.Int:
 			n = new(big.Int).Set(v)
 		default:
 			return nil, fmt.Errorf("expected number for %s, got %T", typeName, value)
+		}
+
+		if isUint && n.Sign() < 0 {
+			return nil, fmt.Errorf("negative value for unsigned type %s", typeName)
 		}
 
 		if isUint {
@@ -706,7 +714,16 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 			}
 		}
 
-		bytes := n.Bytes()
+		var bytes []byte
+		if n.Sign() < 0 {
+			// Convert to two's complement for negative signed integers (EIP-712 spec)
+			mask := new(big.Int).Lsh(big.NewInt(1), 256)
+			twoComp := new(big.Int).Add(n, mask)
+			bytes = twoComp.Bytes()
+		} else {
+			bytes = n.Bytes()
+		}
+
 		copy(result[32-len(bytes):], bytes)
 		return result, nil
 
