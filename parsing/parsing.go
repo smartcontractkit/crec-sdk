@@ -49,6 +49,11 @@ func parseScientificNotation(mantissaStr, exponentStr string) (*big.Int, error) 
 		return nil, fmt.Errorf("invalid exponent %q: %w", exponentStr, err)
 	}
 
+	const maxExponent = 308 // float64 max is ~1.7e308
+	if exponent < -maxExponent || exponent > maxExponent {
+		return nil, fmt.Errorf("exponent %d out of allowed range [-%d, %d]", exponent, maxExponent, maxExponent)
+	}
+
 	// Parse mantissa, handling decimal point
 	var mantissaBig *big.Int
 	if dotIndex := strings.Index(mantissaStr, "."); dotIndex >= 0 {
