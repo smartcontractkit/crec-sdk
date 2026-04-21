@@ -99,7 +99,7 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	// pull the signature from the response
 	sig, ok := resp.Data["signature"].(string)
 	if !ok {
-		return nil, fmt.Errorf("unexpected signature format: %+v", resp.Data)
+		return nil, fmt.Errorf("unexpected signature format")
 	}
 
 	// split the response into its three parts to strip the "vault:v1:" prefix
