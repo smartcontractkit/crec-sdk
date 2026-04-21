@@ -289,6 +289,25 @@ func TestSigner_Public(t *testing.T) {
 	require.NotNil(t, ecdsaPubKey)
 	require.Equal(t, "P-256", ecdsaPubKey.Curve.Params().Name, "Should be P-256 curve")
 
+	// Test key rotation to ensure we get the latest key version
+	// Rotate the ECDSA key
+	_, err = client.Logical().Write(
+		fmt.Sprintf("transit/keys/%s/rotate", ecdsaKeyName), map[string]interface{}{},
+	)
+	require.NoError(t, err)
+
+	// Fetch the public key again. It should fetch the newly rotated key (version 2)
+	rotatedEcdsaPubKeyInterface, err := ecdsaSigner.Public()
+	require.NoError(t, err)
+	require.NotNil(t, rotatedEcdsaPubKeyInterface)
+
+	rotatedEcdsaPubKey, ok := rotatedEcdsaPubKeyInterface.(*ecdsa.PublicKey)
+	require.True(t, ok, "Should return ECDSA public key")
+	require.NotNil(t, rotatedEcdsaPubKey)
+	
+	// Ensure the public key has changed
+	require.False(t, ecdsaPubKey.Equal(rotatedEcdsaPubKey), "Public key should change after rotation")
+
 	t.Logf("RSA public key size: %d bits", rsaPubKey.Size()*8)
 	t.Logf("ECDSA curve: %s", ecdsaPubKey.Curve.Params().Name)
 }

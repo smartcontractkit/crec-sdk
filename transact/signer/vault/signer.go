@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"strconv"
 	"strings"
 
 	vault "github.com/hashicorp/vault/api"
@@ -133,15 +134,26 @@ func (s *Signer) Public() (interface{}, error) {
 		return nil, fmt.Errorf("unexpected keys format in vault response")
 	}
 
-	// Get the latest version (version "1" for new keys)
+	// Get the latest version by finding the maximum version number
+	var maxVersion int
+	var latestKeyInfo interface{}
+
+	for versionStr, keyInfo := range keys {
+		version, err := strconv.Atoi(versionStr)
+		if err != nil {
+			continue
+		}
+		if version > maxVersion {
+			maxVersion = version
+			latestKeyInfo = keyInfo
+		}
+	}
+
 	var publicKeyPEM string
-	for _, keyInfo := range keys {
-		if keyInfoMap, ok := keyInfo.(map[string]interface{}); ok {
-			if pubKey, exists := keyInfoMap["public_key"]; exists {
-				if pubKeyStr, ok := pubKey.(string); ok {
-					publicKeyPEM = pubKeyStr
-					break
-				}
+	if keyInfoMap, ok := latestKeyInfo.(map[string]interface{}); ok {
+		if pubKey, exists := keyInfoMap["public_key"]; exists {
+			if pubKeyStr, ok := pubKey.(string); ok {
+				publicKeyPEM = pubKeyStr
 			}
 		}
 	}
