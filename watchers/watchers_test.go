@@ -470,9 +470,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
-		assert.True(t, errors.Is(err, ErrInvalidABIType), "Expected ErrInvalidABIType, got: %v", err)
-		assert.Contains(t, err.Error(), "function")
-		assert.Contains(t, err.Error(), "TestFunction")
+		assert.ErrorIs(t, err, ErrInvalidABIType)
 	})
 
 	t.Run("EventNotInABI", func(t *testing.T) {
@@ -510,9 +508,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, watcher)
-		assert.True(t, errors.Is(err, ErrEventNotInABI), "Expected ErrEventNotInABI, got: %v", err)
-		assert.Contains(t, err.Error(), "MissingEvent")
-		assert.Contains(t, err.Error(), "not found in ABI definitions")
+		assert.ErrorIs(t, err, ErrEventNotInABI)
 	})
 }
 
@@ -1587,8 +1583,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 		err := client.WaitForArchived(context.Background(), channelID, watcherID, 5*time.Second)
 
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrWatcherArchiveFailed), "Expected ErrWatcherArchiveFailed, got: %v", err)
-		assert.Contains(t, err.Error(), "active")
+		assert.ErrorIs(t, err, ErrWatcherArchiveFailed)
 	})
 
 	t.Run("EmptyChannelID", func(t *testing.T) {

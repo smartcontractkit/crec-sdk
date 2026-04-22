@@ -10,6 +10,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/asn1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -22,6 +23,15 @@ import (
 )
 
 var _ signer.Signer = &Signer{}
+
+// ErrKeyIDRequired is returned when the KMS key ID is empty.
+var ErrKeyIDRequired = errors.New("keyID cannot be empty")
+
+// ErrASN1SignatureTrailingBytes is returned when the KMS signature ASN.1 blob has trailing data.
+var ErrASN1SignatureTrailingBytes = errors.New("trailing garbage bytes after ASN.1 signature")
+
+// ErrKMSSignatureRSOutOfRange is returned when R or S is not in the valid secp256k1 range (1, N-1).
+var ErrKMSSignatureRSOutOfRange = errors.New("value out of range")
 
 // KMSClient is a narrow interface for AWS KMS operations needed by the signer
 //
@@ -52,7 +62,7 @@ func WithClient(client KMSClient) Option {
 // Loads AWS configuration from the AWS CLI environment (see https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html)
 func NewSigner(ctx context.Context, keyID string, opts ...Option) (*Signer, error) {
 	if keyID == "" {
-		return nil, fmt.Errorf("keyID cannot be empty")
+		return nil, ErrKeyIDRequired
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -76,7 +86,7 @@ func NewSigner(ctx context.Context, keyID string, opts ...Option) (*Signer, erro
 // Use this when you need to specify a region, credentials, or other AWS config.
 func NewSignerWithConfig(cfg aws.Config, keyID string, opts ...Option) (*Signer, error) {
 	if keyID == "" {
-		return nil, fmt.Errorf("keyID cannot be empty")
+		return nil, ErrKeyIDRequired
 	}
 
 	s := &Signer{
@@ -95,7 +105,7 @@ func NewSignerWithConfig(cfg aws.Config, keyID string, opts ...Option) (*Signer,
 // Deprecated: Use NewSigner with WithClient option instead.
 func NewSignerWithClient(client KMSClient, keyID string) (*Signer, error) {
 	if keyID == "" {
-		return nil, fmt.Errorf("keyID cannot be empty")
+		return nil, ErrKeyIDRequired
 	}
 
 	return &Signer{
@@ -202,16 +212,16 @@ func getSignatureFromKms(
 		return nil, nil, err
 	}
 	if len(rest) > 0 {
-		return nil, nil, fmt.Errorf("trailing garbage bytes after ASN.1 signature")
+		return nil, nil, ErrASN1SignatureTrailingBytes
 	}
 
 	rBigInt := new(big.Int).SetBytes(sigAsn1.R.Bytes)
 	sBigInt := new(big.Int).SetBytes(sigAsn1.S.Bytes)
 	if rBigInt.Cmp(big.NewInt(0)) <= 0 || rBigInt.Cmp(secp256k1N) >= 0 {
-		return nil, nil, fmt.Errorf("R value out of range [1, N-1]")
+		return nil, nil, fmt.Errorf("R value out of range [1, N-1]: %w", ErrKMSSignatureRSOutOfRange)
 	}
 	if sBigInt.Cmp(big.NewInt(0)) <= 0 || sBigInt.Cmp(secp256k1N) >= 0 {
-		return nil, nil, fmt.Errorf("S value out of range [1, N-1]")
+		return nil, nil, fmt.Errorf("S value out of range [1, N-1]: %w", ErrKMSSignatureRSOutOfRange)
 	}
 
 	return sigAsn1.R.Bytes, sigAsn1.S.Bytes, nil

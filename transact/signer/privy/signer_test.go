@@ -104,7 +104,7 @@ func TestNewSigner(t *testing.T) {
 		walletID    string
 		opts        []Option
 		expectError bool
-		errContains string
+		wantErr     error
 	}{
 		{
 			name:        "valid parameters",
@@ -127,7 +127,7 @@ func TestNewSigner(t *testing.T) {
 			appSecret:   "test-app-secret",
 			walletID:    "test-wallet-id",
 			expectError: true,
-			errContains: "appID cannot be empty",
+			wantErr:     ErrAppIDRequired,
 		},
 		{
 			name:        "empty app secret",
@@ -135,7 +135,7 @@ func TestNewSigner(t *testing.T) {
 			appSecret:   "",
 			walletID:    "test-wallet-id",
 			expectError: true,
-			errContains: "appSecret cannot be empty",
+			wantErr:     ErrAppSecretRequired,
 		},
 		{
 			name:        "empty wallet ID",
@@ -143,7 +143,7 @@ func TestNewSigner(t *testing.T) {
 			appSecret:   "test-app-secret",
 			walletID:    "",
 			expectError: true,
-			errContains: "walletID cannot be empty",
+			wantErr:     ErrWalletIDRequired,
 		},
 	}
 
@@ -154,8 +154,8 @@ func TestNewSigner(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err)
 				require.Nil(t, signer)
-				if tt.errContains != "" {
-					require.Contains(t, err.Error(), tt.errContains)
+				if tt.wantErr != nil {
+					require.ErrorIs(t, err, tt.wantErr)
 				}
 			} else {
 				require.NoError(t, err)
@@ -195,7 +195,7 @@ func TestNewSignerFromEnv(t *testing.T) {
 		name        string
 		envVars     map[string]string
 		expectError bool
-		errorMsg    string
+		wantErr     error
 	}{
 		{
 			name: "valid environment variables",
@@ -223,7 +223,7 @@ func TestNewSignerFromEnv(t *testing.T) {
 				"PRIVY_WALLET_ID":  "test-wallet-id",
 			},
 			expectError: true,
-			errorMsg:    "PRIVY_APP_ID environment variable not set",
+			wantErr:     ErrEnvPrivyAppIDNotSet,
 		},
 		{
 			name: "missing app secret",
@@ -232,7 +232,7 @@ func TestNewSignerFromEnv(t *testing.T) {
 				"PRIVY_WALLET_ID": "test-wallet-id",
 			},
 			expectError: true,
-			errorMsg:    "PRIVY_APP_SECRET environment variable not set",
+			wantErr:     ErrEnvPrivyAppSecretNotSet,
 		},
 		{
 			name: "missing wallet ID",
@@ -241,7 +241,7 @@ func TestNewSignerFromEnv(t *testing.T) {
 				"PRIVY_APP_SECRET": "test-app-secret",
 			},
 			expectError: true,
-			errorMsg:    "PRIVY_WALLET_ID environment variable not set",
+			wantErr:     ErrEnvPrivyWalletIDNotSet,
 		},
 	}
 
@@ -263,8 +263,8 @@ func TestNewSignerFromEnv(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err)
 				require.Nil(t, signer)
-				if tt.errorMsg != "" {
-					require.Contains(t, err.Error(), tt.errorMsg)
+				if tt.wantErr != nil {
+					require.ErrorIs(t, err, tt.wantErr)
 				}
 			} else {
 				require.NoError(t, err)
@@ -347,11 +347,11 @@ func TestSigner_AuthenticationFailure(t *testing.T) {
 	hash := crypto.Keccak256([]byte("hello world"))
 	_, err = signer.Sign(ctx, hash)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "401")
+	require.ErrorIs(t, err, ErrPrivyUnauthorized)
 
 	_, err = signer.GetWalletAddress(ctx)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "401")
+	require.ErrorIs(t, err, ErrPrivyUnauthorized)
 }
 
 func TestSigner_ErrorHandling(t *testing.T) {
@@ -374,5 +374,5 @@ func TestSigner_ErrorHandling(t *testing.T) {
 
 	_, err = signer.Sign(ctx, hash)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "500")
+	require.ErrorIs(t, err, ErrPrivyRPCUnexpectedStatus)
 }

@@ -3,9 +3,13 @@ package bundle
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// ErrBundleInvalid is returned when [Bundle.Validate] finds one or more configuration errors.
+var ErrBundleInvalid = errors.New("bundle validation failed")
 
 //go:embed config.tmpl
 var defaultConfigTemplate []byte
@@ -120,7 +124,7 @@ func (b *Bundle) Validate() error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("bundle validation failed: %s", strings.Join(errs, "; "))
+		return fmt.Errorf("%w: %s", ErrBundleInvalid, strings.Join(errs, "; "))
 	}
 	return nil
 }

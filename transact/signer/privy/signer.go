@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,24 @@ var _ signer.Signer = &Signer{}
 const (
 	// DefaultBaseURL is the default Privy API endpoint
 	DefaultBaseURL = "https://api.privy.io"
+)
+
+// Sentinel errors for Privy signer configuration and HTTP responses.
+var (
+	ErrAppIDRequired    = errors.New("appID cannot be empty")
+	ErrAppSecretRequired = errors.New("appSecret cannot be empty")
+	ErrWalletIDRequired = errors.New("walletID cannot be empty")
+
+	ErrEnvPrivyAppIDNotSet     = errors.New("PRIVY_APP_ID environment variable not set")
+	ErrEnvPrivyAppSecretNotSet = errors.New("PRIVY_APP_SECRET environment variable not set")
+	ErrEnvPrivyWalletIDNotSet  = errors.New("PRIVY_WALLET_ID environment variable not set")
+
+	// ErrPrivyUnauthorized is returned when Privy responds with HTTP 401 Unauthorized.
+	ErrPrivyUnauthorized = errors.New("privy request unauthorized")
+	// ErrPrivyRPCUnexpectedStatus is returned when the secp256k1_sign RPC returns a non-200 status other than 401.
+	ErrPrivyRPCUnexpectedStatus = errors.New("privy RPC request failed")
+	// ErrPrivyGetWalletUnexpectedStatus is returned when the wallet GET returns a non-200 status other than 401.
+	ErrPrivyGetWalletUnexpectedStatus = errors.New("privy get wallet request failed")
 )
 
 // HTTPClient is a narrow interface for HTTP operations needed by the signer
@@ -81,13 +100,13 @@ type WalletResponse struct {
 // NewSigner creates a new Privy signer with explicit parameters
 func NewSigner(appID, appSecret, walletID string, opts ...Option) (*Signer, error) {
 	if appID == "" {
-		return nil, fmt.Errorf("appID cannot be empty")
+		return nil, ErrAppIDRequired
 	}
 	if appSecret == "" {
-		return nil, fmt.Errorf("appSecret cannot be empty")
+		return nil, ErrAppSecretRequired
 	}
 	if walletID == "" {
-		return nil, fmt.Errorf("walletID cannot be empty")
+		return nil, ErrWalletIDRequired
 	}
 
 	s := &Signer{
@@ -114,13 +133,13 @@ func NewSignerFromEnv(opts ...Option) (*Signer, error) {
 	baseURL := os.Getenv("PRIVY_BASE_URL")
 
 	if appID == "" {
-		return nil, fmt.Errorf("PRIVY_APP_ID environment variable not set")
+		return nil, ErrEnvPrivyAppIDNotSet
 	}
 	if appSecret == "" {
-		return nil, fmt.Errorf("PRIVY_APP_SECRET environment variable not set")
+		return nil, ErrEnvPrivyAppSecretNotSet
 	}
 	if walletID == "" {
-		return nil, fmt.Errorf("PRIVY_WALLET_ID environment variable not set")
+		return nil, ErrEnvPrivyWalletIDNotSet
 	}
 
 	allOpts := opts
@@ -169,7 +188,10 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("RPC request failed with status %d: %s", resp.StatusCode, string(body))
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, fmt.Errorf("%w: %s", ErrPrivyUnauthorized, string(body))
+		}
+		return nil, fmt.Errorf("%w: status %d", ErrPrivyRPCUnexpectedStatus, resp.StatusCode)
 	}
 
 	var rpcResp RPCResponse
@@ -203,7 +225,10 @@ func (s *Signer) GetWalletAddress(ctx context.Context) (string, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return "", fmt.Errorf("get wallet request failed with status %d: %s", resp.StatusCode, string(body))
+		if resp.StatusCode == http.StatusUnauthorized {
+			return "", fmt.Errorf("%w: %s", ErrPrivyUnauthorized, string(body))
+		}
+		return "", fmt.Errorf("%w: status %d", ErrPrivyGetWalletUnexpectedStatus, resp.StatusCode)
 	}
 
 	var wallet WalletResponse

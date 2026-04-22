@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -39,6 +40,35 @@ const (
 
 	// DefaultTimeout is the default timeout for waiting for an operation to complete
 	DefaultTimeout = 60 * time.Second
+)
+
+// Sentinel errors for Fireblocks signer configuration and typed-data encoding.
+var (
+	ErrAPIKeyRequired         = errors.New("apiKey cannot be empty")
+	ErrPrivateKeyPEMRequired  = errors.New("privateKeyPEM cannot be empty")
+	ErrVaultAccountIDRequired = errors.New("vaultAccountID cannot be empty")
+	ErrAssetIDRequired        = errors.New("assetID cannot be empty")
+	ErrEnvFireblocksAPIKey    = errors.New("FIREBLOCKS_API_KEY environment variable not set")
+	ErrEnvFireblocksAPISecret = errors.New("FIREBLOCKS_API_SECRET environment variable not set")
+	ErrEnvFireblocksVaultAcct = errors.New("FIREBLOCKS_VAULT_ACCOUNT_ID environment variable not set")
+	ErrEnvFireblocksAssetID   = errors.New("FIREBLOCKS_ASSET_ID environment variable not set")
+
+	ErrFailedParsePEMBlock     = errors.New("failed to parse PEM block")
+	ErrTrailingGarbageAfterPEM = errors.New("trailing garbage bytes after PEM block")
+	ErrPrivateKeyNotRSA        = errors.New("private key is not RSA")
+	ErrFailedParsePrivateKey   = errors.New("failed to parse private key")
+	ErrTypedDataNil            = errors.New("typedData cannot be nil")
+
+	ErrNegativeUnsignedTypedValue  = errors.New("negative value for unsigned type")
+	ErrFloat64PrecisionLoss        = errors.New("float64 precision loss")
+	ErrParseTypedDataIntegerString = errors.New("failed to parse string as integer")
+
+	ErrFireblocksOperationTerminal = errors.New("Fireblocks operation ended with terminal status")
+
+	ErrCreateSigningOperationFailed      = errors.New("create signing operation failed")
+	ErrCreateTypedMessageOperationFailed = errors.New("create typed message operation failed")
+
+	ErrGetVaultAccountNonOK = errors.New("get vault account request failed")
 )
 
 // OperationStatus represents the status of a Fireblocks signing operation.
@@ -111,21 +141,21 @@ func WithTimeout(d time.Duration) Option {
 // NewSigner creates a new Fireblocks signer with explicit parameters
 func NewSigner(apiKey, privateKeyPEM, vaultAccountID, assetID string, opts ...Option) (*Signer, error) {
 	if apiKey == "" {
-		return nil, fmt.Errorf("apiKey cannot be empty")
+		return nil, ErrAPIKeyRequired
 	}
 	if privateKeyPEM == "" {
-		return nil, fmt.Errorf("privateKeyPEM cannot be empty")
+		return nil, ErrPrivateKeyPEMRequired
 	}
 	if vaultAccountID == "" {
-		return nil, fmt.Errorf("vaultAccountID cannot be empty")
+		return nil, ErrVaultAccountIDRequired
 	}
 	if assetID == "" {
-		return nil, fmt.Errorf("assetID cannot be empty")
+		return nil, ErrAssetIDRequired
 	}
 
 	privateKey, err := parsePrivateKey(privateKeyPEM)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedParsePrivateKey, err)
 	}
 
 	s := &Signer{
@@ -157,16 +187,16 @@ func NewSignerFromEnv(opts ...Option) (*Signer, error) {
 	baseURL := os.Getenv("FIREBLOCKS_BASE_URL")
 
 	if apiKey == "" {
-		return nil, fmt.Errorf("FIREBLOCKS_API_KEY environment variable not set")
+		return nil, ErrEnvFireblocksAPIKey
 	}
 	if apiSecretEnv == "" {
-		return nil, fmt.Errorf("FIREBLOCKS_API_SECRET environment variable not set")
+		return nil, ErrEnvFireblocksAPISecret
 	}
 	if vaultAccountID == "" {
-		return nil, fmt.Errorf("FIREBLOCKS_VAULT_ACCOUNT_ID environment variable not set")
+		return nil, ErrEnvFireblocksVaultAcct
 	}
 	if assetID == "" {
-		return nil, fmt.Errorf("FIREBLOCKS_ASSET_ID environment variable not set")
+		return nil, ErrEnvFireblocksAssetID
 	}
 
 	var privateKeyPEM string
@@ -217,7 +247,7 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 // Fireblocks can see the full typed data for policy enforcement before signing.
 func (s *Signer) SignTypedData(ctx context.Context, typedData *signer.TypedData) ([]byte, error) {
 	if typedData == nil {
-		return nil, fmt.Errorf("typedData cannot be nil")
+		return nil, ErrTypedDataNil
 	}
 
 	// Create the typed message signing operation
@@ -259,7 +289,7 @@ func (s *Signer) GetVaultAccountAddress(ctx context.Context) (string, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return "", fmt.Errorf("get vault account failed with status %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("%w: status %d: %s", ErrGetVaultAccountNonOK, resp.StatusCode, string(body))
 	}
 
 	var result struct {
@@ -303,7 +333,7 @@ func (s *Signer) createSigningOperation(ctx context.Context, hash []byte) (strin
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return "", fmt.Errorf("create signing operation failed with status %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("%w: status %d: %s", ErrCreateSigningOperationFailed, resp.StatusCode, string(body))
 	}
 
 	var result struct {
@@ -376,7 +406,7 @@ func (s *Signer) createTypedMessageOperation(ctx context.Context, typedData *sig
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return "", fmt.Errorf("create typed message operation failed with status %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("%w: status %d: %s", ErrCreateTypedMessageOperationFailed, resp.StatusCode, string(body))
 	}
 
 	var result struct {
@@ -674,7 +704,7 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 			// float64 can only represent integers exactly up to 2^53 - 1 (9007199254740991).
 			// Values beyond this may have already lost precision during parsing/unmarshaling.
 			if v > 9007199254740991 || v < -9007199254740991 {
-				return nil, fmt.Errorf("float64 precision loss for value %v", v)
+				return nil, fmt.Errorf("%w for value %v", ErrFloat64PrecisionLoss, v)
 			}
 			if math.Trunc(v) != v {
 				return nil, fmt.Errorf("float64 value %v is not an integer", v)
@@ -693,7 +723,7 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 				_, ok = n.SetString(v, 10)
 			}
 			if !ok {
-				return nil, fmt.Errorf("failed to parse string as integer: %s", v)
+				return nil, fmt.Errorf("%w: %s", ErrParseTypedDataIntegerString, v)
 			}
 		case *big.Int:
 			n = new(big.Int).Set(v)
@@ -702,7 +732,7 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 		}
 
 		if isUint && n.Sign() < 0 {
-			return nil, fmt.Errorf("negative value for unsigned type %s", typeName)
+			return nil, fmt.Errorf("%w: %s", ErrNegativeUnsignedTypedValue, typeName)
 		}
 
 		if isUint {
@@ -802,7 +832,7 @@ func (s *Signer) waitForOperation(ctx context.Context, opID string) (*OperationR
 			case StatusCompleted:
 				return op, nil
 			case StatusCancelled, StatusRejected, StatusFailed, StatusBlocked:
-				return nil, fmt.Errorf("operation %s ended with status: %s", opID, op.Status)
+				return nil, fmt.Errorf("%w: %s", ErrFireblocksOperationTerminal, op.Status)
 			}
 		}
 	}
@@ -990,10 +1020,10 @@ func (s *Signer) signJWT(path string, body []byte) (string, error) {
 func parsePrivateKey(pemData string) (*rsa.PrivateKey, error) {
 	block, rest := pem.Decode([]byte(pemData))
 	if block == nil {
-		return nil, fmt.Errorf("failed to parse PEM block")
+		return nil, ErrFailedParsePEMBlock
 	}
 	if len(bytes.TrimSpace(rest)) > 0 {
-		return nil, fmt.Errorf("trailing garbage bytes after PEM block")
+		return nil, ErrTrailingGarbageAfterPEM
 	}
 
 	// Try PKCS1 first
@@ -1010,7 +1040,7 @@ func parsePrivateKey(pemData string) (*rsa.PrivateKey, error) {
 
 	rsaKey, ok := keyInterface.(*rsa.PrivateKey)
 	if !ok {
-		return nil, fmt.Errorf("private key is not RSA")
+		return nil, ErrPrivateKeyNotRSA
 	}
 
 	return rsaKey, nil
