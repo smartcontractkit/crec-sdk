@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"net/http"
 	"os"
@@ -674,6 +675,9 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 			// Values beyond this may have already lost precision during parsing/unmarshaling.
 			if v > 9007199254740991 || v < -9007199254740991 {
 				return nil, fmt.Errorf("float64 precision loss for value %v", v)
+			}
+			if math.Trunc(v) != v {
+				return nil, fmt.Errorf("float64 value %v is not an integer", v)
 			}
 			n = big.NewInt(int64(v))
 		case int:

@@ -157,11 +157,18 @@ func NewClient(opts *Options) (*Client, error) {
 
 	seenSigners := make(map[string]bool)
 	for _, signer := range opts.ValidSigners {
+		if !common.IsHexAddress(signer) {
+			return nil, fmt.Errorf("invalid signer address: %s", signer)
+		}
 		addr := common.HexToAddress(signer).Hex()
 		if seenSigners[addr] {
 			return nil, fmt.Errorf("duplicate valid signer configured: %s", signer)
 		}
 		seenSigners[addr] = true
+	}
+
+	if len(seenSigners) > 0 && opts.MinRequiredSignatures > len(seenSigners) {
+		return nil, fmt.Errorf("MinRequiredSignatures (%d) exceeds the number of unique valid signers (%d)", opts.MinRequiredSignatures, len(seenSigners))
 	}
 
 	creTenantID := opts.CRETenantID

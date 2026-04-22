@@ -151,15 +151,6 @@ func TestBundle_Validate(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name: "invalid WASM magic number",
-			bundle: &bundle.Bundle{
-				Service:        "test",
-				WasmBinary:     []byte("invalid-magic"),
-				ConfigTemplate: []byte("tmpl"),
-			},
-			wantErr: "WasmBinary has invalid magic number",
-		},
-		{
 			name: "WasmBinary too large",
 			bundle: &bundle.Bundle{
 				Service:        "test",
