@@ -13,7 +13,7 @@ import (
 func testBundle() *bundle.Bundle {
 	return &bundle.Bundle{
 		Service:        "dta",
-		WasmBinary:     []byte("fake-wasm"),
+		WasmBinary:     []byte{0x00, 0x61, 0x73, 0x6d},
 		ConfigTemplate: []byte("fake-config"),
 		Contracts: []bundle.Contract{
 			{Name: "DTARequestManagement", ABI: `[{"type":"event","name":"Sub"}]`},
@@ -151,6 +151,15 @@ func TestBundle_Validate(t *testing.T) {
 			wantErr: "",
 		},
 		{
+			name: "WasmBinary too large",
+			bundle: &bundle.Bundle{
+				Service:        "test",
+				WasmBinary:     append([]byte{0x00, 0x61, 0x73, 0x6d}, make([]byte, 100*1024*1024)...),
+				ConfigTemplate: []byte("tmpl"),
+			},
+			wantErr: "WasmBinary is too large (max 100MB)",
+		},
+		{
 			name: "empty WasmBinary",
 			bundle: &bundle.Bundle{
 				Service:        "test",
@@ -162,7 +171,7 @@ func TestBundle_Validate(t *testing.T) {
 			name: "nil ConfigTemplate passes validation",
 			bundle: &bundle.Bundle{
 				Service:    "test",
-				WasmBinary: []byte("wasm"),
+				WasmBinary: []byte{0x00, 0x61, 0x73, 0x6d},
 			},
 			wantErr: "",
 		},
@@ -250,7 +259,7 @@ func TestBundle_Validate(t *testing.T) {
 			name: "generic bundle with no contracts or events passes",
 			bundle: &bundle.Bundle{
 				Service:        "",
-				WasmBinary:     []byte("wasm"),
+				WasmBinary:     []byte{0x00, 0x61, 0x73, 0x6d},
 				ConfigTemplate: []byte("tmpl"),
 			},
 			wantErr: "",

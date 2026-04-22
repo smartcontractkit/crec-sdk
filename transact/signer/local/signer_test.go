@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -31,4 +32,23 @@ func TestLocalSigner_Sign_EthereumVAdjusted(t *testing.T) {
 		raw[64] += 27
 	}
 	require.Equal(t, raw, sig)
+}
+
+func TestLocalSigner_Destroy(t *testing.T) {
+	priv, err := crypto.HexToECDSA("165fdaa699776c9bfdc194817c479d0775b1ee9718bfcddb0ccca352ece86066")
+	require.NoError(t, err)
+
+	s := NewSigner(priv)
+
+	// Call Destroy to zero out memory
+	s.Destroy()
+
+	// Ensure the private key reference in the signer is nil
+	require.Nil(t, s.privateKey, "privateKey should be nil after Destroy")
+
+	// Ensure the actual key material (D) was zeroed out
+	require.NotNil(t, priv.D, "D should still exist as an object")
+	for _, word := range priv.D.Bits() {
+		require.Equal(t, big.Word(0), word, "key material should be zeroed")
+	}
 }

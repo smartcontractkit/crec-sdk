@@ -134,13 +134,13 @@ func NewSignerFromEnv(opts ...Option) (*Signer, error) {
 // NewSignerWithCustomClient creates a Privy signer with a custom HTTP client.
 // Deprecated: Use NewSigner with WithHTTPClient and WithBaseURL options instead.
 
-// Sign signs the pre-hashed message using Privy's personal_sign RPC.
+// Sign signs the pre-hashed message using Privy's secp256k1_sign RPC.
 // Returns the raw signature bytes.
 func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	hashHex := "0x" + hex.EncodeToString(hash)
 
 	rpcReq := RPCRequest{
-		Method: "personal_sign",
+		Method: "secp256k1_sign",
 		Params: map[string]interface{}{
 			"message":  hashHex,
 			"encoding": "hex",
@@ -168,7 +168,7 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("RPC request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -202,7 +202,7 @@ func (s *Signer) GetWalletAddress(ctx context.Context) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("get wallet request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 

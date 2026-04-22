@@ -75,6 +75,8 @@ var (
 
 	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	// ErrNilResponse is returned when the API response is nil.
+	ErrNilResponse     = errors.New("unexpected nil response")
 	// ErrNilResponseBody is returned when the API response body is nil.
 	ErrNilResponseBody = errors.New("unexpected nil response body")
 	// ErrBadRequest is returned when the request parameters are invalid.
@@ -139,6 +141,9 @@ func NewClient(opts *Options) (*Client, error) {
 	if opts == nil {
 		return nil, ErrOptionsRequired
 	}
+	if len(opts.ValidSigners) > 0 && opts.MinRequiredSignatures <= 0 {
+		return nil, errors.New("MinRequiredSignatures must be greater than zero when valid signers are provided")
+	}
 	if opts.CRECClient == nil {
 		return nil, ErrCRECClientRequired
 	}
@@ -149,6 +154,22 @@ func NewClient(opts *Options) (*Client, error) {
 	}
 
 	logger.Debug("Creating CREC events client")
+
+	seenSigners := make(map[string]bool)
+	for _, signer := range opts.ValidSigners {
+		if !common.IsHexAddress(signer) {
+			return nil, fmt.Errorf("invalid signer address: %s", signer)
+		}
+		addr := common.HexToAddress(signer).Hex()
+		if seenSigners[addr] {
+			return nil, fmt.Errorf("duplicate valid signer configured: %s", signer)
+		}
+		seenSigners[addr] = true
+	}
+
+	if len(seenSigners) > 0 && opts.MinRequiredSignatures > len(seenSigners) {
+		return nil, fmt.Errorf("MinRequiredSignatures (%d) exceeds the number of unique valid signers (%d)", opts.MinRequiredSignatures, len(seenSigners))
+	}
 
 	creTenantID := opts.CRETenantID
 	if creTenantID == "" {
@@ -197,6 +218,10 @@ func (c *Client) Poll(
 	resp, err := c.crecClient.GetChannelsChannelIdEventsWithResponse(ctx, channelID, params)
 	if err != nil {
 		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, err)
+	}
+
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {
@@ -249,6 +274,10 @@ func (c *Client) SearchEvents(
 	resp, err := c.crecClient.GetChannelsChannelIdEventsSearchWithResponse(ctx, channelID, params)
 	if err != nil {
 		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, err)
+	}
+
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {
@@ -525,6 +554,16 @@ func (c *Client) VerifyOCRSignatures(ocrReport, ocrContext string, signatures []
 //   - event: The event to decode.
 //   - payload: A pointer to the structure where the decoded event will be stored.
 func (c *Client) Decode(event *apiClient.Event, payload any) error {
+	if event == nil {
+		return fmt.Errorf("%w: event is nil", ErrDecodeEvent)
+	}
+	if event.EventId == nil || *event.EventId == uuid.Nil {
+		return fmt.Errorf("%w: event ID is nil", ErrDecodeEvent)
+	}
+	if event.Headers.Proofs == nil {
+		return fmt.Errorf("%w: event proofs are nil", ErrDecodeEvent)
+	}
+
 	// Marshal the event data to JSON
 	jsonBytes, err := c.ToJSON(*event)
 	if err != nil {
@@ -536,6 +575,13 @@ func (c *Client) Decode(event *apiClient.Event, payload any) error {
 // ToJSON converts a verifiable event into its JSON representation.
 //   - event: The event to convert.
 func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
+	if event.EventId == nil || *event.EventId == uuid.Nil {
+		return nil, fmt.Errorf("%w: event ID is nil", ErrMarshalEventPayload)
+	}
+	if event.Headers.Proofs == nil {
+		return nil, fmt.Errorf("%w: event proofs are nil", ErrMarshalEventPayload)
+	}
+
 	jsonBytes, err := json.Marshal(event)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrMarshalEventPayload, err)
@@ -545,6 +591,12 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 
 // EventHash computes the Keccak256 hash of the verifiable event string used for signature verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
+	if event == nil {
+		return common.Hash{}, errors.New("event payload is nil")
+	}
+	if event.VerifiableEvent == "" {
+		return common.Hash{}, errors.New("verifiable event is required")
+	}
 	return crypto.Keccak256Hash([]byte(event.VerifiableEvent)), nil
 }
 
@@ -552,6 +604,9 @@ func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, e
 // The hash is computed using the pattern: eventName + "." + base64VerifiableEvent
 // Note: VerifiableEvent must be present and non-empty (should be validated by caller).
 func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) (common.Hash, error) {
+	if payload == nil {
+		return common.Hash{}, errors.New("payload is nil")
+	}
 	if payload.VerifiableEvent == nil || *payload.VerifiableEvent == "" {
 		return common.Hash{}, fmt.Errorf("%w: verifiable event is required for operation status verification", ErrVerifyEvent)
 	}
@@ -657,6 +712,15 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 		if err != nil {
 			return false, fmt.Errorf("%w: %w", ErrParseSignature, err)
 		}
+		if len(sigBytes) != 65 {
+			return false, fmt.Errorf("%w: signature length must be 65 bytes", ErrParseSignature)
+		}
+
+		v := sigBytes[64]
+		if v != 0 && v != 1 && v != 27 && v != 28 {
+			return false, fmt.Errorf("%w: invalid recovery byte %d", ErrParseSignature, v)
+		}
+
 		if sigBytes[64] == 27 || sigBytes[64] == 28 {
 			sigBytes[64] -= 27 // Adjust signature for Ethereum signatures
 		}

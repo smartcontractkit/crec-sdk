@@ -83,7 +83,7 @@ func TestNewClient(t *testing.T) {
 			opts: []crec.Option{
 				crec.WithLogger(slog.Default()),
 				crec.WithHTTPClient(&http.Client{Timeout: 30 * time.Second}),
-				crec.WithEventVerification(2, []string{"0x1234", "0x5678"}),
+				crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 				crec.WithWatcherPolling(5*time.Second, 10*time.Second),
 			},
 			wantErr: nil,
@@ -114,7 +114,7 @@ func TestNewClient(t *testing.T) {
 			baseURL: "https://api.crec.example.com",
 			apiKey:  "test-api-key",
 			opts: []crec.Option{
-				crec.WithEventVerification(0, []string{"0x1234", "0x5678"}),
+				crec.WithEventVerification(0, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 			},
 			wantErr: crec.ErrInvalidEventVerificationConfig,
 		},
@@ -123,7 +123,7 @@ func TestNewClient(t *testing.T) {
 			baseURL: "https://api.crec.example.com",
 			apiKey:  "test-api-key",
 			opts: []crec.Option{
-				crec.WithEventVerification(-1, []string{"0x1234"}),
+				crec.WithEventVerification(-1, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559"}),
 			},
 			wantErr: crec.ErrInvalidEventVerificationConfig,
 		},
@@ -304,13 +304,13 @@ func TestNewClient_EventVerificationConfig(t *testing.T) {
 		{
 			name:          "Valid_ThreeSignersTwoRequired",
 			minRequired:   2,
-			validSigners:  []string{"0x1234", "0x5678", "0x9abc"},
+			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc", "0xc868bbb5d93e97b9d780fc93811a00ca7c016751"},
 			expectSuccess: true,
 		},
 		{
 			name:          "Valid_OneSignerOneRequired",
 			minRequired:   1,
-			validSigners:  []string{"0x1234"},
+			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559"},
 			expectSuccess: true,
 		},
 		{
@@ -328,13 +328,19 @@ func TestNewClient_EventVerificationConfig(t *testing.T) {
 		{
 			name:          "Invalid_SignersButZeroRequired",
 			minRequired:   0,
-			validSigners:  []string{"0x1234"},
+			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559"},
 			expectSuccess: false,
 		},
 		{
 			name:          "Invalid_SignersButNegativeRequired",
 			minRequired:   -5,
-			validSigners:  []string{"0x1234", "0x5678"},
+			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"},
+			expectSuccess: false,
+		},
+		{
+			name:          "Invalid_DuplicateSigners",
+			minRequired:   1,
+			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0x5db070ceabcf97e45d96b4f951a1df050ddb5559"},
 			expectSuccess: false,
 		},
 	}
@@ -352,8 +358,13 @@ func TestNewClient_EventVerificationConfig(t *testing.T) {
 				require.NotNil(t, client)
 			} else {
 				require.Error(t, err)
-				assert.True(t, errors.Is(err, crec.ErrInvalidEventVerificationConfig))
 				assert.Nil(t, client)
+				// The error could be from the config validation or from the events subclient initialization
+				if tt.name == "Invalid_DuplicateSigners" {
+					assert.Contains(t, err.Error(), "duplicate valid signer")
+				} else {
+					assert.True(t, errors.Is(err, crec.ErrInvalidEventVerificationConfig))
+				}
 			}
 		})
 	}
@@ -403,7 +414,7 @@ func TestNewClient_DefaultEventVerification(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification(2, []string{"0x1234", "0x5678"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, client)
@@ -416,7 +427,7 @@ func TestNewClient_DefaultEventVerification(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification(2, []string{"0x1234", "0x5678"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 			crec.WithoutEventVerification(),
 		)
 		require.NoError(t, err)
@@ -435,12 +446,12 @@ func TestNewClient_MultipleOptionsOrder(t *testing.T) {
 		{
 			crec.WithHTTPClient(customClient),
 			crec.WithLogger(customLogger),
-			crec.WithEventVerification(2, []string{"0x1234", "0x5678"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 			crec.WithWatcherPolling(5*time.Second, 10*time.Second),
 		},
 		{
 			crec.WithWatcherPolling(5*time.Second, 10*time.Second),
-			crec.WithEventVerification(2, []string{"0x1234", "0x5678"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 			crec.WithLogger(customLogger),
 			crec.WithHTTPClient(customClient),
 		},
@@ -448,7 +459,7 @@ func TestNewClient_MultipleOptionsOrder(t *testing.T) {
 			crec.WithLogger(customLogger),
 			crec.WithWatcherPolling(5*time.Second, 10*time.Second),
 			crec.WithHTTPClient(customClient),
-			crec.WithEventVerification(2, []string{"0x1234", "0x5678"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 		},
 	}
 

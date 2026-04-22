@@ -396,6 +396,16 @@ func (it *Erc20ApprovalIterator) Error() error {
 // resources.
 func (it *Erc20ApprovalIterator) Close() error {
 	it.sub.Unsubscribe()
+	// Drain the logs channel. This assumes that after Unsubscribe() returns,
+	// the subscription goroutine is guaranteed to have stopped writing to it.
+	var done bool
+	for !done {
+		select {
+		case <-it.logs:
+		default:
+			done = true
+		}
+	}
 	return nil
 }
 
@@ -550,6 +560,16 @@ func (it *Erc20TransferIterator) Error() error {
 // resources.
 func (it *Erc20TransferIterator) Close() error {
 	it.sub.Unsubscribe()
+	// Drain the logs channel. This assumes that after Unsubscribe() returns,
+	// the subscription goroutine is guaranteed to have stopped writing to it.
+	var done bool
+	for !done {
+		select {
+		case <-it.logs:
+		default:
+			done = true
+		}
+	}
 	return nil
 }
 

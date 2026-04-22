@@ -41,12 +41,19 @@ func (tx *Transaction) EIP712Types() []apitypes.Type {
 }
 
 // EIP712Message returns the EIP-712 message representation of the transaction.
-func (tx *Transaction) EIP712Message() apitypes.TypedDataMessage {
+func (tx *Transaction) EIP712Message() (apitypes.TypedDataMessage, error) {
+	if tx.Value != nil && tx.Value.Sign() < 0 {
+		return nil, fmt.Errorf("transaction value must be non-negative")
+	}
+	valueStr := "0"
+	if tx.Value != nil {
+		valueStr = tx.Value.String()
+	}
 	return apitypes.TypedDataMessage{
 		"to":    tx.To.String(),
-		"value": tx.Value.String(),
+		"value": valueStr,
 		"data":  tx.Data,
-	}
+	}, nil
 }
 
 // Operation represents a batch of transactions to be executed atomically by a smart account.
@@ -73,17 +80,37 @@ func (op *Operation) EIP712Types() []apitypes.Type {
 }
 
 // EIP712Message returns the EIP-712 message representation of the operation.
-func (op *Operation) EIP712Message() apitypes.TypedDataMessage {
+func (op *Operation) EIP712Message() (apitypes.TypedDataMessage, error) {
 	var txns []apitypes.TypedDataMessage
-	for _, tx := range op.Transactions {
-		txns = append(txns, tx.EIP712Message())
+	for i, tx := range op.Transactions {
+		txMsg, err := tx.EIP712Message()
+		if err != nil {
+			return nil, fmt.Errorf("transaction %d: %w", i, err)
+		}
+		txns = append(txns, txMsg)
+	}
+
+	if op.ID != nil && op.ID.Sign() < 0 {
+		return nil, fmt.Errorf("id must be non-negative")
+	}
+	if op.Deadline != nil && op.Deadline.Sign() < 0 {
+		return nil, fmt.Errorf("deadline must be non-negative")
+	}
+
+	idStr := "0"
+	if op.ID != nil {
+		idStr = op.ID.String()
+	}
+	deadlineStr := "0"
+	if op.Deadline != nil {
+		deadlineStr = op.Deadline.String()
 	}
 	return apitypes.TypedDataMessage{
-		"id":           op.ID.String(),
+		"id":           idStr,
 		"account":      op.Account.Hex(),
-		"deadline":     op.Deadline.String(),
+		"deadline":     deadlineStr,
 		"transactions": txns,
-	}
+	}, nil
 }
 
 // TypedData creates the EIP-712 typed data for the operation to be hashed and signed
@@ -95,19 +122,40 @@ func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
 	if op.ID == nil {
 		return nil, errors.New("id is required")
 	}
+	if op.ID.Sign() < 0 {
+		return nil, errors.New("id must be non-negative")
+	}
 	if op.Deadline == nil {
 		return nil, errors.New("deadline is required")
+	}
+	if op.Deadline.Sign() < 0 {
+		return nil, errors.New("deadline must be non-negative")
+	}
+	if len(op.Transactions) == 0 {
+		return nil, errors.New("no transactions")
+	}
+
+	for i, tx := range op.Transactions {
+		if tx.Value == nil {
+			return nil, fmt.Errorf("transaction %d value is required", i)
+		}
+		if tx.Value.Sign() < 0 {
+			return nil, fmt.Errorf("transaction %d value must be non-negative", i)
+		}
 	}
 
 	chainIdInt, err := strconv.ParseInt(chainId, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse chain ID: %w", err)
 	}
-	domain := SmartAccountEIP712Domain(chainIdInt, op.Account)
-	message := op.EIP712Message()
+	if chainIdInt < 0 {
+		return nil, errors.New("chain ID must be non-negative")
+	}
 
-	if len(op.Transactions) == 0 {
-		return nil, errors.New("no transactions")
+	domain := SmartAccountEIP712Domain(chainIdInt, op.Account)
+	message, err := op.EIP712Message()
+	if err != nil {
+		return nil, err
 	}
 
 	return &apitypes.TypedData{

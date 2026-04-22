@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -9,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"strconv"
 	"strings"
 
 	vault "github.com/hashicorp/vault/api"
@@ -79,7 +81,7 @@ func NewSigner(vaultUrl, token, mountPath, key string, opts ...Option) (*Signer,
 }
 
 func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
-	// base64 encore the payload to sign
+	// base64 encode the payload to sign
 	b64 := base64.StdEncoding.EncodeToString(hash)
 
 	// call vault client to sign payload
@@ -98,7 +100,7 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	// pull the signature from the response
 	sig, ok := resp.Data["signature"].(string)
 	if !ok {
-		return nil, fmt.Errorf("unexpected signature format: %+v", resp.Data)
+		return nil, fmt.Errorf("unexpected signature format")
 	}
 
 	// split the response into its three parts to strip the "vault:v1:" prefix
@@ -133,15 +135,26 @@ func (s *Signer) Public() (interface{}, error) {
 		return nil, fmt.Errorf("unexpected keys format in vault response")
 	}
 
-	// Get the latest version (version "1" for new keys)
+	// Get the latest version by finding the maximum version number
+	var maxVersion int
+	var latestKeyInfo interface{}
+
+	for versionStr, keyInfo := range keys {
+		version, err := strconv.Atoi(versionStr)
+		if err != nil {
+			continue
+		}
+		if version > maxVersion {
+			maxVersion = version
+			latestKeyInfo = keyInfo
+		}
+	}
+
 	var publicKeyPEM string
-	for _, keyInfo := range keys {
-		if keyInfoMap, ok := keyInfo.(map[string]interface{}); ok {
-			if pubKey, exists := keyInfoMap["public_key"]; exists {
-				if pubKeyStr, ok := pubKey.(string); ok {
-					publicKeyPEM = pubKeyStr
-					break
-				}
+	if keyInfoMap, ok := latestKeyInfo.(map[string]interface{}); ok {
+		if pubKey, exists := keyInfoMap["public_key"]; exists {
+			if pubKeyStr, ok := pubKey.(string); ok {
+				publicKeyPEM = pubKeyStr
 			}
 		}
 	}
@@ -151,9 +164,12 @@ func (s *Signer) Public() (interface{}, error) {
 	}
 
 	// Parse the PEM-encoded public key
-	block, _ := pem.Decode([]byte(publicKeyPEM))
+	block, rest := pem.Decode([]byte(publicKeyPEM))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	if len(bytes.TrimSpace(rest)) > 0 {
+		return nil, fmt.Errorf("trailing garbage bytes after PEM block")
 	}
 
 	// Parse the public key based on the key type
@@ -200,8 +216,8 @@ func (s *Signer) GetRSAModulus() (string, error) {
 	}
 
 	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
-	if !ok {
-		return "", fmt.Errorf("key is not an RSA key, got %T", pubKey)
+	if !ok || rsaPubKey == nil || rsaPubKey.N == nil {
+		return "", fmt.Errorf("key is not a valid RSA key")
 	}
 
 	return hex.EncodeToString(rsaPubKey.N.Bytes()), nil
@@ -247,7 +263,7 @@ func (s *Signer) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult,
 	}
 
 	// Extract modulus for RSA keys
-	if rsaPubKey, ok := pubKey.(*rsa.PublicKey); ok {
+	if rsaPubKey, ok := pubKey.(*rsa.PublicKey); ok && rsaPubKey != nil && rsaPubKey.N != nil {
 		result.Modulus = hex.EncodeToString(rsaPubKey.N.Bytes())
 	}
 

@@ -111,6 +111,9 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if pubkey == nil || pubkey.X == nil || pubkey.Y == nil {
+		return nil, fmt.Errorf("invalid public key from KMS")
+	}
 
 	pubKeyBytes := secp256k1.S256().Marshal(pubkey.X, pubkey.Y)
 
@@ -167,9 +170,12 @@ func getPublicKeyDerBytesFromKMS(ctx context.Context, svc KMSClient, keyId strin
 	}
 
 	var asn1pubk asn1EcPublicKey
-	_, err = asn1.Unmarshal(getPubKeyOutput.PublicKey, &asn1pubk)
+	rest, err := asn1.Unmarshal(getPubKeyOutput.PublicKey, &asn1pubk)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse asn1 public key for KeyId=%s: %w", keyId, err)
+	}
+	if len(rest) > 0 {
+		return nil, fmt.Errorf("trailing garbage bytes after ASN.1 public key for KeyId=%s", keyId)
 	}
 
 	return asn1pubk.PublicKey.Bytes, nil
@@ -191,9 +197,21 @@ func getSignatureFromKms(
 	}
 
 	var sigAsn1 asn1EcSig
-	_, err = asn1.Unmarshal(signOutput.Signature, &sigAsn1)
+	rest, err := asn1.Unmarshal(signOutput.Signature, &sigAsn1)
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(rest) > 0 {
+		return nil, nil, fmt.Errorf("trailing garbage bytes after ASN.1 signature")
+	}
+
+	rBigInt := new(big.Int).SetBytes(sigAsn1.R.Bytes)
+	sBigInt := new(big.Int).SetBytes(sigAsn1.S.Bytes)
+	if rBigInt.Cmp(big.NewInt(0)) <= 0 || rBigInt.Cmp(secp256k1N) >= 0 {
+		return nil, nil, fmt.Errorf("R value out of range [1, N-1]")
+	}
+	if sBigInt.Cmp(big.NewInt(0)) <= 0 || sBigInt.Cmp(secp256k1N) >= 0 {
+		return nil, nil, fmt.Errorf("S value out of range [1, N-1]")
 	}
 
 	return sigAsn1.R.Bytes, sigAsn1.S.Bytes, nil

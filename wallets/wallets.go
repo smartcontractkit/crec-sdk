@@ -52,6 +52,7 @@ var (
 
 	// Response errors
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	ErrNilResponse          = errors.New("unexpected nil response")
 	ErrNilResponseBody      = errors.New("unexpected nil response body")
 )
 
@@ -148,6 +149,13 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, ErrWalletTypeRequired
 	}
 
+	if input.StatusChannelId == nil {
+		return nil, errors.New("status channel ID is required")
+	}
+	if *input.StatusChannelId == uuid.Nil {
+		return nil, errors.New("status channel ID cannot be the zero UUID")
+	}
+
 	// Validate that wallet type matches the provided signers
 	switch input.WalletType {
 	case apiClient.Ecdsa:
@@ -158,10 +166,16 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 			return nil, errors.New("allowed_ecdsa_signers is required for ecdsa wallet type")
 		}
 		// Validate ECDSA signers (can be empty array)
+		seenEcdsa := make(map[string]bool)
 		for _, signer := range *input.AllowedEcdsaSigners {
 			if !common.IsHexAddress(signer) {
 				return nil, fmt.Errorf("%w: %s", ErrInvalidEcdsaSigner, signer)
 			}
+			addr := common.HexToAddress(signer).Hex()
+			if seenEcdsa[addr] {
+				return nil, fmt.Errorf("duplicate ecdsa signer: %s", signer)
+			}
+			seenEcdsa[addr] = true
 		}
 	case apiClient.Rsa:
 		if input.AllowedEcdsaSigners != nil {
@@ -171,10 +185,16 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 			return nil, errors.New("allowed_rsa_signers is required for rsa wallet type")
 		}
 		// Validate RSA signers (can be empty array)
+		seenRsa := make(map[string]bool)
 		for _, signer := range *input.AllowedRsaSigners {
 			if signer.E == "" || signer.N == "" {
 				return nil, ErrInvalidRsaSigner
 			}
+			key := signer.N + ":" + signer.E
+			if seenRsa[key] {
+				return nil, fmt.Errorf("duplicate rsa signer")
+			}
+			seenRsa[key] = true
 		}
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedWalletType, input.WalletType)
@@ -207,6 +227,10 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 	if err != nil {
 		c.logger.Error("Failed to create wallet", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateWallet, err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateWallet, ErrNilResponse)
 	}
 
 	if resp.StatusCode() != 201 {
@@ -247,6 +271,10 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 	if err != nil {
 		c.logger.Error("Failed to get wallet", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetWallet, err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrGetWallet, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {
@@ -340,6 +368,10 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 		return nil, false, fmt.Errorf("%w: %w", ErrListWallets, err)
 	}
 
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrListWallets, ErrNilResponse)
+	}
+
 	if resp.StatusCode() != 200 {
 		c.logger.Error("Unexpected status code when listing wallets",
 			"status_code", resp.StatusCode(),
@@ -397,6 +429,10 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 		return fmt.Errorf("%w: %w", ErrUpdateWallet, err)
 	}
 
+	if resp == nil {
+		return fmt.Errorf("%w: %w", ErrUpdateWallet, ErrNilResponse)
+	}
+
 	if resp.StatusCode() == 404 {
 		c.logger.Warn("Wallet not found", "wallet_id", walletID.String())
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
@@ -438,6 +474,10 @@ func (c *Client) Archive(ctx context.Context, walletID uuid.UUID) error {
 	if err != nil {
 		c.logger.Error("Failed to archive wallet", "error", err)
 		return fmt.Errorf("%w: %w", ErrArchiveWallet, err)
+	}
+
+	if resp == nil {
+		return fmt.Errorf("%w: %w", ErrArchiveWallet, ErrNilResponse)
 	}
 
 	if resp.StatusCode() == 404 {

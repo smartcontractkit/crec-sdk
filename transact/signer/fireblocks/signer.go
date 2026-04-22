@@ -12,9 +12,11 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -256,7 +258,7 @@ func (s *Signer) GetVaultAccountAddress(ctx context.Context) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("get vault account failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -300,7 +302,7 @@ func (s *Signer) createSigningOperation(ctx context.Context, hash []byte) (strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("create signing operation failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -373,7 +375,7 @@ func (s *Signer) createTypedMessageOperation(ctx context.Context, typedData *sig
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("create typed message operation failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -651,9 +653,32 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 		return result, nil
 
 	case strings.HasPrefix(typeName, "uint") || strings.HasPrefix(typeName, "int"):
+		isUint := strings.HasPrefix(typeName, "uint")
+		prefixLen := 3
+		if isUint {
+			prefixLen = 4
+		}
+
+		bitWidth := 256
+		if len(typeName) > prefixLen {
+			var err error
+			bitWidth, err = strconv.Atoi(typeName[prefixLen:])
+			if err != nil || bitWidth <= 0 || bitWidth > 256 || bitWidth%8 != 0 {
+				return nil, fmt.Errorf("invalid integer type: %s", typeName)
+			}
+		}
+
 		var n *big.Int
 		switch v := value.(type) {
 		case float64:
+			// float64 can only represent integers exactly up to 2^53 - 1 (9007199254740991).
+			// Values beyond this may have already lost precision during parsing/unmarshaling.
+			if v > 9007199254740991 || v < -9007199254740991 {
+				return nil, fmt.Errorf("float64 precision loss for value %v", v)
+			}
+			if math.Trunc(v) != v {
+				return nil, fmt.Errorf("float64 value %v is not an integer", v)
+			}
 			n = big.NewInt(int64(v))
 		case int:
 			n = big.NewInt(int64(v))
@@ -661,17 +686,50 @@ func encodePrimitive(typeName string, value any) ([]byte, error) {
 			n = big.NewInt(v)
 		case string:
 			n = new(big.Int)
+			var ok bool
 			if strings.HasPrefix(v, "0x") {
-				n.SetString(v[2:], 16)
+				_, ok = n.SetString(v[2:], 16)
 			} else {
-				n.SetString(v, 10)
+				_, ok = n.SetString(v, 10)
+			}
+			if !ok {
+				return nil, fmt.Errorf("failed to parse string as integer: %s", v)
 			}
 		case *big.Int:
-			n = v
+			n = new(big.Int).Set(v)
 		default:
 			return nil, fmt.Errorf("expected number for %s, got %T", typeName, value)
 		}
-		bytes := n.Bytes()
+
+		if isUint && n.Sign() < 0 {
+			return nil, fmt.Errorf("negative value for unsigned type %s", typeName)
+		}
+
+		if isUint {
+			max := new(big.Int).Lsh(big.NewInt(1), uint(bitWidth))
+			max.Sub(max, big.NewInt(1))
+			if n.Cmp(max) > 0 {
+				return nil, fmt.Errorf("value exceeds bit width for type %s", typeName)
+			}
+		} else {
+			max := new(big.Int).Lsh(big.NewInt(1), uint(bitWidth-1))
+			min := new(big.Int).Neg(max)
+			max.Sub(max, big.NewInt(1))
+			if n.Cmp(max) > 0 || n.Cmp(min) < 0 {
+				return nil, fmt.Errorf("value exceeds bit width for type %s", typeName)
+			}
+		}
+
+		var bytes []byte
+		if n.Sign() < 0 {
+			// Convert to two's complement for negative signed integers (EIP-712 spec)
+			mask := new(big.Int).Lsh(big.NewInt(1), 256)
+			twoComp := new(big.Int).Add(n, mask)
+			bytes = twoComp.Bytes()
+		} else {
+			bytes = n.Bytes()
+		}
+
 		copy(result[32-len(bytes):], bytes)
 		return result, nil
 
@@ -761,7 +819,7 @@ func (s *Signer) getOperation(ctx context.Context, opID string) (*OperationRespo
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("get operation failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -794,8 +852,17 @@ func (s *Signer) extractSignature(op *OperationResponse, hash []byte) ([]byte, e
 		return nil, fmt.Errorf("failed to decode S: %w", err)
 	}
 
-	// Adjust S value according to Ethereum standard (EIP-2)
+	rBigInt := new(big.Int).SetBytes(rBytes)
 	sBigInt := new(big.Int).SetBytes(sBytes)
+	if rBigInt.Cmp(big.NewInt(0)) <= 0 || rBigInt.Cmp(secp256k1N) >= 0 {
+		return nil, fmt.Errorf("R value out of range [1, N-1]")
+	}
+	if sBigInt.Cmp(big.NewInt(0)) <= 0 || sBigInt.Cmp(secp256k1N) >= 0 {
+		return nil, fmt.Errorf("S value out of range [1, N-1]")
+	}
+
+	// Adjust S value according to Ethereum standard (EIP-2)
+	sBigInt = new(big.Int).SetBytes(sBytes)
 	if sBigInt.Cmp(secp256k1HalfN) > 0 {
 		sBytes = new(big.Int).Sub(secp256k1N, sBigInt).Bytes()
 	}
@@ -815,6 +882,9 @@ func (s *Signer) extractSignature(op *OperationResponse, hash []byte) ([]byte, e
 		pubKey, err := ethcrypto.DecompressPubkey(pubKeyBytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress public key: %w", err)
+		}
+		if pubKey == nil || pubKey.X == nil || pubKey.Y == nil {
+			return nil, fmt.Errorf("invalid decompressed public key")
 		}
 		pubKeyBytes = secp256k1.S256().Marshal(pubKey.X, pubKey.Y)
 	}
@@ -838,14 +908,14 @@ func getEthereumSignature(expectedPublicKeyBytes []byte, hash []byte, r []byte, 
 		return nil, err
 	}
 
-	if hex.EncodeToString(recoveredPublicKeyBytes) != hex.EncodeToString(expectedPublicKeyBytes) {
+	if !bytes.Equal(recoveredPublicKeyBytes, expectedPublicKeyBytes) {
 		signature = append(rsSignature, byte(1))
 		recoveredPublicKeyBytes, err = ethcrypto.Ecrecover(hash, signature)
 		if err != nil {
 			return nil, err
 		}
 
-		if hex.EncodeToString(recoveredPublicKeyBytes) != hex.EncodeToString(expectedPublicKeyBytes) {
+		if !bytes.Equal(recoveredPublicKeyBytes, expectedPublicKeyBytes) {
 			return nil, fmt.Errorf("cannot reconstruct public key from signature")
 		}
 	}
@@ -918,9 +988,12 @@ func (s *Signer) signJWT(path string, body []byte) (string, error) {
 
 // parsePrivateKey parses a PEM-encoded RSA private key
 func parsePrivateKey(pemData string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(pemData))
+	block, rest := pem.Decode([]byte(pemData))
 	if block == nil {
 		return nil, fmt.Errorf("failed to parse PEM block")
+	}
+	if len(bytes.TrimSpace(rest)) > 0 {
+		return nil, fmt.Errorf("trailing garbage bytes after PEM block")
 	}
 
 	// Try PKCS1 first
