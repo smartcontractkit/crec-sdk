@@ -9,7 +9,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/asn1"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -236,14 +235,14 @@ func getEthereumSignature(expectedPublicKeyBytes []byte, txHash []byte, r []byte
 		return nil, err
 	}
 
-	if hex.EncodeToString(recoveredPublicKeyBytes) != hex.EncodeToString(expectedPublicKeyBytes) {
+	if !bytes.Equal(recoveredPublicKeyBytes, expectedPublicKeyBytes) {
 		signature = append(rsSignature, []byte{1}...)
 		recoveredPublicKeyBytes, err = crypto.Ecrecover(txHash, signature)
 		if err != nil {
 			return nil, err
 		}
 
-		if hex.EncodeToString(recoveredPublicKeyBytes) != hex.EncodeToString(expectedPublicKeyBytes) {
+		if !bytes.Equal(recoveredPublicKeyBytes, expectedPublicKeyBytes) {
 			return nil, fmt.Errorf("cannot reconstruct public key from signature")
 		}
 	}
