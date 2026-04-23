@@ -37,6 +37,8 @@ type Bundle struct {
 	Service string
 
 	// WasmBinary is the pre-compiled WASM binary, populated via //go:embed.
+	// Note: In practice, this byte slice contains a .wasm.br.b64 artifact,
+	// which is a WASM binary that has been Brotli compressed and Base64 encoded.
 	WasmBinary []byte
 
 	// ConfigTemplate is an optional gomplate template for generating config.yaml.
