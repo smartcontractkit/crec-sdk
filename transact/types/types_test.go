@@ -24,7 +24,7 @@ func TestTypedData_NegativeIDError(t *testing.T) {
 	td, err := op.TypedData("31337")
 	require.Error(t, err)
 	require.Nil(t, td)
-	require.Contains(t, err.Error(), "id must be non-negative")
+	require.ErrorIs(t, err, ErrOperationIDNonNegative)
 }
 
 func TestTypedData_NegativeDeadlineError(t *testing.T) {
@@ -43,7 +43,7 @@ func TestTypedData_NegativeDeadlineError(t *testing.T) {
 	td, err := op.TypedData("31337")
 	require.Error(t, err)
 	require.Nil(t, td)
-	require.Contains(t, err.Error(), "deadline must be non-negative")
+	require.ErrorIs(t, err, ErrOperationDeadlineNonNegative)
 }
 
 func TestTypedData_NegativeTransactionValueError(t *testing.T) {
@@ -62,7 +62,7 @@ func TestTypedData_NegativeTransactionValueError(t *testing.T) {
 	td, err := op.TypedData("31337")
 	require.Error(t, err)
 	require.Nil(t, td)
-	require.Contains(t, err.Error(), "transaction 0 value must be non-negative")
+	require.ErrorIs(t, err, ErrTransactionValueNonNegative)
 }
 
 func TestTypedData_NilIDError(t *testing.T) {
@@ -80,7 +80,7 @@ func TestTypedData_NilIDError(t *testing.T) {
 	td, err := op.TypedData("31337")
 	require.Error(t, err)
 	require.Nil(t, td)
-	require.Contains(t, err.Error(), "id is required")
+	require.ErrorIs(t, err, ErrOperationIDRequired)
 }
 
 func TestTypedData_NilDeadlineError(t *testing.T) {
@@ -98,7 +98,7 @@ func TestTypedData_NilDeadlineError(t *testing.T) {
 	td, err := op.TypedData("31337")
 	require.Error(t, err)
 	require.Nil(t, td)
-	require.Contains(t, err.Error(), "deadline is required")
+	require.ErrorIs(t, err, ErrOperationDeadlineRequired)
 }
 
 func TestTypedData_NoTransactionsError(t *testing.T) {
@@ -111,6 +111,7 @@ func TestTypedData_NoTransactionsError(t *testing.T) {
 	td, err := op.TypedData("31337")
 	require.Error(t, err)
 	require.Nil(t, td)
+	require.ErrorIs(t, err, ErrNoTransactions)
 }
 
 func TestTypedData_DomainAndMessage(t *testing.T) {

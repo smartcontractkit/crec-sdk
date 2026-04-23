@@ -18,6 +18,7 @@ import (
 
 	"github.com/smartcontractkit/crec-sdk"
 	"github.com/smartcontractkit/crec-sdk/channels"
+	"github.com/smartcontractkit/crec-sdk/events"
 )
 
 func TestNewClient(t *testing.T) {
@@ -361,7 +362,7 @@ func TestNewClient_EventVerificationConfig(t *testing.T) {
 				assert.Nil(t, client)
 				// The error could be from the config validation or from the events subclient initialization
 				if tt.name == "Invalid_DuplicateSigners" {
-					assert.Contains(t, err.Error(), "duplicate valid signer")
+					assert.ErrorIs(t, err, events.ErrDuplicateSigner)
 				} else {
 					assert.True(t, errors.Is(err, crec.ErrInvalidEventVerificationConfig))
 				}

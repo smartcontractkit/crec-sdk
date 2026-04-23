@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,6 +19,18 @@ import (
 )
 
 var _ signer.Signer = &Signer{}
+
+// ErrSignerConfigIncomplete is returned when a required Vault signer parameter is missing.
+var ErrSignerConfigIncomplete = errors.New("vaultUrl, token, mountPath, and key must be set")
+
+// ErrVaultSignFailed is returned when the Vault Transit sign API call fails.
+var ErrVaultSignFailed = errors.New("vault sign failed")
+
+// ErrTrailingGarbageAfterPEM is returned when PEM decoding leaves non-whitespace trailing bytes.
+var ErrTrailingGarbageAfterPEM = errors.New("trailing garbage bytes after PEM block")
+
+// ErrNotValidRSAKey is returned when the public key is not a usable RSA key for modulus export.
+var ErrNotValidRSAKey = errors.New("key is not a valid RSA key")
 
 // KeyType represents the type of cryptographic key to create in Vault Transit.
 type KeyType string
@@ -56,7 +69,7 @@ func WithClient(client *vault.Client) Option {
 // vaultUrl, token, mountPath, and key must all be non-empty.
 func NewSigner(vaultUrl, token, mountPath, key string, opts ...Option) (*Signer, error) {
 	if vaultUrl == "" || token == "" || mountPath == "" || key == "" {
-		return nil, fmt.Errorf("vaultUrl, token, mountPath, and key must be set")
+		return nil, ErrSignerConfigIncomplete
 	}
 
 	client, err := vault.NewClient(vault.DefaultConfig())
@@ -94,7 +107,7 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("vault sign failed: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrVaultSignFailed, err)
 	}
 
 	// pull the signature from the response
@@ -169,7 +182,7 @@ func (s *Signer) Public() (interface{}, error) {
 		return nil, fmt.Errorf("failed to decode PEM block")
 	}
 	if len(bytes.TrimSpace(rest)) > 0 {
-		return nil, fmt.Errorf("trailing garbage bytes after PEM block")
+		return nil, ErrTrailingGarbageAfterPEM
 	}
 
 	// Parse the public key based on the key type
@@ -217,7 +230,7 @@ func (s *Signer) GetRSAModulus() (string, error) {
 
 	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
 	if !ok || rsaPubKey == nil || rsaPubKey.N == nil {
-		return "", fmt.Errorf("key is not a valid RSA key")
+		return "", ErrNotValidRSAKey
 	}
 
 	return hex.EncodeToString(rsaPubKey.N.Bytes()), nil

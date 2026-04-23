@@ -87,6 +87,15 @@ var (
 	// ErrVerificationNotConfigured is returned when the client has no valid signers configured.
 	ErrVerificationNotConfigured = errors.New("event verification not configured: no valid signers")
 
+	// ErrInvalidMinRequiredSignatures is returned when MinRequiredSignatures <= 0 but valid signers are provided.
+	ErrInvalidMinRequiredSignatures = errors.New("MinRequiredSignatures must be greater than zero when valid signers are provided")
+	// ErrInvalidSignerAddress is returned when a configured signer address is not a valid hex string.
+	ErrInvalidSignerAddress = errors.New("invalid signer address")
+	// ErrDuplicateSigner is returned when a valid signer address is provided multiple times.
+	ErrDuplicateSigner = errors.New("duplicate valid signer configured")
+	// ErrMinSignersExceedsUnique is returned when MinRequiredSignatures is greater than the number of unique valid signers.
+	ErrMinSignersExceedsUnique = errors.New("MinRequiredSignatures exceeds the number of unique valid signers")
+
 	// ErrDeriveWorkflowOwner is returned when deriving the workflow owner address from org ID fails.
 	ErrDeriveWorkflowOwner = errors.New("failed to derive workflow owner from org ID")
 
@@ -96,6 +105,34 @@ var (
 	ErrWorkflowOwnerRequired = errors.New("workflow owner required for verification (set in client options or pass as parameter)")
 	// ErrOrgIDOrWorkflowOwnerReq is returned when neither org ID nor workflow owner is configured for verification.
 	ErrOrgIDOrWorkflowOwnerReq = errors.New("org ID or workflow owner required for verification (set in client options or pass as parameter)")
+
+	// ErrNilWatcherEventPayload is returned when computing a watcher event hash with a nil payload.
+	ErrNilWatcherEventPayload = errors.New("event payload is nil")
+	// ErrVerifiableEventRequired is returned when VerifiableEvent is empty for watcher event hash.
+	ErrVerifiableEventRequired = errors.New("verifiable event is required")
+	// ErrNilVerifiablePayload is returned when a verifiable payload pointer is nil (hash or decode).
+	ErrNilVerifiablePayload = errors.New("payload is nil")
+
+	// ErrDecodeNilEvent is returned when Decode is called with a nil event.
+	ErrDecodeNilEvent = errors.New("event is nil")
+	// ErrDecodeNilEventID is returned when an event has no event ID.
+	ErrDecodeNilEventID = errors.New("event ID is nil")
+	// ErrDecodeNilEventProofs is returned when an event has no proofs.
+	ErrDecodeNilEventProofs = errors.New("event proofs are nil")
+
+	// ErrDecodeVerifiableEmpty is returned when a watcher payload has an empty verifiable event string.
+	ErrDecodeVerifiableEmpty = errors.New("verifiable event is empty")
+	// ErrDecodeVerifiableNilOrEmpty is returned when an operation status payload has no verifiable event.
+	ErrDecodeVerifiableNilOrEmpty = errors.New("verifiable event is nil or empty")
+	// ErrDecodeVerifiableInvalidBase64 is returned when verifiable event base64 decoding fails.
+	ErrDecodeVerifiableInvalidBase64 = errors.New("invalid base64")
+	// ErrDecodeVerifiableInvalidJSON is returned when verifiable event JSON unmarshaling fails.
+	ErrDecodeVerifiableInvalidJSON = errors.New("invalid JSON")
+
+	// ErrInvalidOCRSignatureLength is returned when a signature is not 65 bytes.
+	ErrInvalidOCRSignatureLength = errors.New("signature length must be 65 bytes")
+	// ErrInvalidOCRSignatureRecovery is returned when the secp256k1 recovery byte is not in {0,1,27,28}.
+	ErrInvalidOCRSignatureRecovery = errors.New("invalid recovery byte")
 )
 
 // Options holds the configuration options for the CREC events client.
@@ -142,7 +179,7 @@ func NewClient(opts *Options) (*Client, error) {
 		return nil, ErrOptionsRequired
 	}
 	if len(opts.ValidSigners) > 0 && opts.MinRequiredSignatures <= 0 {
-		return nil, errors.New("MinRequiredSignatures must be greater than zero when valid signers are provided")
+		return nil, ErrInvalidMinRequiredSignatures
 	}
 	if opts.CRECClient == nil {
 		return nil, ErrCRECClientRequired
@@ -158,17 +195,17 @@ func NewClient(opts *Options) (*Client, error) {
 	seenSigners := make(map[string]bool)
 	for _, signer := range opts.ValidSigners {
 		if !common.IsHexAddress(signer) {
-			return nil, fmt.Errorf("invalid signer address: %s", signer)
+			return nil, fmt.Errorf("%w: %s", ErrInvalidSignerAddress, signer)
 		}
 		addr := common.HexToAddress(signer).Hex()
 		if seenSigners[addr] {
-			return nil, fmt.Errorf("duplicate valid signer configured: %s", signer)
+			return nil, fmt.Errorf("%w: %s", ErrDuplicateSigner, signer)
 		}
 		seenSigners[addr] = true
 	}
 
 	if len(seenSigners) > 0 && opts.MinRequiredSignatures > len(seenSigners) {
-		return nil, fmt.Errorf("MinRequiredSignatures (%d) exceeds the number of unique valid signers (%d)", opts.MinRequiredSignatures, len(seenSigners))
+		return nil, fmt.Errorf("%w: requested %d but only have %d", ErrMinSignersExceedsUnique, opts.MinRequiredSignatures, len(seenSigners))
 	}
 
 	creTenantID := opts.CRETenantID
@@ -485,7 +522,7 @@ func (c *Client) VerifyOperationStatusWithWorkflowOwner(event *apiClient.Event, 
 	}
 
 	if operationStatusPayload.VerifiableEvent == nil || *operationStatusPayload.VerifiableEvent == "" {
-		return false, fmt.Errorf("%w: verifiable event is required for operation status verification", ErrVerifyEvent)
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, ErrVerifiableEventRequired)
 	}
 
 	ocrReport, ocrContext, err := c.parseOCRProofData(ocrProof)
@@ -555,13 +592,13 @@ func (c *Client) VerifyOCRSignatures(ocrReport, ocrContext string, signatures []
 //   - payload: A pointer to the structure where the decoded event will be stored.
 func (c *Client) Decode(event *apiClient.Event, payload any) error {
 	if event == nil {
-		return fmt.Errorf("%w: event is nil", ErrDecodeEvent)
+		return fmt.Errorf("%w: %w", ErrDecodeEvent, ErrDecodeNilEvent)
 	}
 	if event.EventId == nil || *event.EventId == uuid.Nil {
-		return fmt.Errorf("%w: event ID is nil", ErrDecodeEvent)
+		return fmt.Errorf("%w: %w", ErrDecodeEvent, ErrDecodeNilEventID)
 	}
 	if event.Headers.Proofs == nil {
-		return fmt.Errorf("%w: event proofs are nil", ErrDecodeEvent)
+		return fmt.Errorf("%w: %w", ErrDecodeEvent, ErrDecodeNilEventProofs)
 	}
 
 	// Marshal the event data to JSON
@@ -576,10 +613,10 @@ func (c *Client) Decode(event *apiClient.Event, payload any) error {
 //   - event: The event to convert.
 func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 	if event.EventId == nil || *event.EventId == uuid.Nil {
-		return nil, fmt.Errorf("%w: event ID is nil", ErrMarshalEventPayload)
+		return nil, fmt.Errorf("%w: %w", ErrMarshalEventPayload, ErrDecodeNilEventID)
 	}
 	if event.Headers.Proofs == nil {
-		return nil, fmt.Errorf("%w: event proofs are nil", ErrMarshalEventPayload)
+		return nil, fmt.Errorf("%w: %w", ErrMarshalEventPayload, ErrDecodeNilEventProofs)
 	}
 
 	jsonBytes, err := json.Marshal(event)
@@ -592,10 +629,10 @@ func (c *Client) ToJSON(event apiClient.Event) ([]byte, error) {
 // EventHash computes the Keccak256 hash of the verifiable event string used for signature verification.
 func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, error) {
 	if event == nil {
-		return common.Hash{}, errors.New("event payload is nil")
+		return common.Hash{}, ErrNilWatcherEventPayload
 	}
 	if event.VerifiableEvent == "" {
-		return common.Hash{}, errors.New("verifiable event is required")
+		return common.Hash{}, ErrVerifiableEventRequired
 	}
 	return crypto.Keccak256Hash([]byte(event.VerifiableEvent)), nil
 }
@@ -605,10 +642,10 @@ func (c *Client) EventHash(event *apiClient.WatcherEventPayload) (common.Hash, e
 // Note: VerifiableEvent must be present and non-empty (should be validated by caller).
 func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) (common.Hash, error) {
 	if payload == nil {
-		return common.Hash{}, errors.New("payload is nil")
+		return common.Hash{}, ErrNilVerifiablePayload
 	}
 	if payload.VerifiableEvent == nil || *payload.VerifiableEvent == "" {
-		return common.Hash{}, fmt.Errorf("%w: verifiable event is required for operation status verification", ErrVerifyEvent)
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrVerifyEvent, ErrVerifiableEventRequired)
 	}
 	payloadToSign := *payload.VerifiableEvent
 	eventHash := crypto.Keccak256Hash([]byte(payloadToSign))
@@ -620,10 +657,10 @@ func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) 
 // into a models.VerifiableEvent struct containing the full event data.
 func (c *Client) DecodeVerifiableEvent(payload *apiClient.WatcherEventPayload) (*models.VerifiableEvent, error) {
 	if payload == nil {
-		return nil, fmt.Errorf("%w: payload is nil", ErrDecodeVerifiableEvent)
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, ErrNilVerifiablePayload)
 	}
 	if payload.VerifiableEvent == "" {
-		return nil, fmt.Errorf("%w: verifiable event is empty", ErrDecodeVerifiableEvent)
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, ErrDecodeVerifiableEmpty)
 	}
 
 	return c.decodeVerifiableEventString(payload.VerifiableEvent)
@@ -633,10 +670,10 @@ func (c *Client) DecodeVerifiableEvent(payload *apiClient.WatcherEventPayload) (
 // from an OperationStatusPayload into a models.VerifiableEvent struct.
 func (c *Client) DecodeOperationStatusVerifiableEvent(payload *apiClient.OperationStatusPayload) (*models.VerifiableEvent, error) {
 	if payload == nil {
-		return nil, fmt.Errorf("%w: payload is nil", ErrDecodeVerifiableEvent)
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, ErrNilVerifiablePayload)
 	}
 	if payload.VerifiableEvent == nil || *payload.VerifiableEvent == "" {
-		return nil, fmt.Errorf("%w: verifiable event is nil or empty", ErrDecodeVerifiableEvent)
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, ErrDecodeVerifiableNilOrEmpty)
 	}
 
 	return c.decodeVerifiableEventString(*payload.VerifiableEvent)
@@ -647,12 +684,12 @@ func (c *Client) DecodeOperationStatusVerifiableEvent(payload *apiClient.Operati
 func (c *Client) decodeVerifiableEventString(verifiableEventBase64 string) (*models.VerifiableEvent, error) {
 	decoded, err := base64.StdEncoding.DecodeString(verifiableEventBase64)
 	if err != nil {
-		return nil, fmt.Errorf("%w: invalid base64: %w", ErrDecodeVerifiableEvent, err)
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, fmt.Errorf("%w: %w", ErrDecodeVerifiableInvalidBase64, err))
 	}
 
 	var verifiableEvent models.VerifiableEvent
 	if err := json.Unmarshal(decoded, &verifiableEvent); err != nil {
-		return nil, fmt.Errorf("%w: invalid JSON: %w", ErrDecodeVerifiableEvent, err)
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, fmt.Errorf("%w: %w", ErrDecodeVerifiableInvalidJSON, err))
 	}
 
 	return &verifiableEvent, nil
@@ -713,12 +750,12 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 			return false, fmt.Errorf("%w: %w", ErrParseSignature, err)
 		}
 		if len(sigBytes) != 65 {
-			return false, fmt.Errorf("%w: signature length must be 65 bytes", ErrParseSignature)
+			return false, fmt.Errorf("%w: %w", ErrParseSignature, ErrInvalidOCRSignatureLength)
 		}
 
 		v := sigBytes[64]
 		if v != 0 && v != 1 && v != 27 && v != 28 {
-			return false, fmt.Errorf("%w: invalid recovery byte %d", ErrParseSignature, v)
+			return false, fmt.Errorf("%w: %w: %d", ErrParseSignature, ErrInvalidOCRSignatureRecovery, v)
 		}
 
 		if sigBytes[64] == 27 || sigBytes[64] == 28 {

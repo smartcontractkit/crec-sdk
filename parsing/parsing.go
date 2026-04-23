@@ -3,10 +3,32 @@
 package parsing
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
+)
+
+// Sentinel errors for numeric parsing.
+var (
+	ErrEmptyString                 = errors.New("empty string")
+	ErrEmptyMantissa               = errors.New("empty mantissa")
+	ErrEmptyExponent               = errors.New("empty exponent")
+	ErrInvalidExponent             = errors.New("invalid exponent")
+	ErrExponentOutOfRange          = errors.New("exponent out of allowed range")
+	ErrInvalidMantissaNoDigits     = errors.New("invalid mantissa: no digits")
+	ErrInvalidMantissa            = errors.New("invalid mantissa")
+	ErrInvalidNumberFormat         = errors.New("invalid number format")
+	ErrInvalidDecimalNoDigits      = errors.New("invalid decimal: no digits")
+	ErrNonZeroFractionalPart       = errors.New("non-zero fractional part cannot be converted to integer")
+	ErrInvalidIntegerPart          = errors.New("invalid integer part")
+	ErrUnableParse                 = errors.New("unable to parse")
+	ErrNegativeUint64              = errors.New("negative value not allowed for uint64")
+	ErrUint64TooLarge              = errors.New("value too large for uint64")
+	ErrUint32OutOfRange            = errors.New("value out of range for uint32")
+	ErrUint16OutOfRange            = errors.New("value out of range for uint16")
+	ErrUint8OutOfRange             = errors.New("value out of range for uint8")
 )
 
 // ScientificNotationToBigInt converts scientific notation strings to big.Int.
@@ -15,7 +37,7 @@ import (
 // Returns an error if the string is empty or parsing fails.
 func ScientificNotationToBigInt(value string) (*big.Int, error) {
 	if value == "" {
-		return nil, fmt.Errorf("empty string")
+		return nil, ErrEmptyString
 	}
 
 	// Fast path: try direct integer parsing
@@ -36,22 +58,22 @@ func ScientificNotationToBigInt(value string) (*big.Int, error) {
 // parseScientificNotation handles the "mantissa e exponent" format using pure big.Int arithmetic.
 func parseScientificNotation(mantissaStr, exponentStr string) (*big.Int, error) {
 	if mantissaStr == "" {
-		return nil, fmt.Errorf("empty mantissa")
+		return nil, ErrEmptyMantissa
 	}
 	if exponentStr == "" {
-		return nil, fmt.Errorf("empty exponent")
+		return nil, ErrEmptyExponent
 	}
 
 	// Parse exponent, removing optional '+' sign
 	exponentStr = strings.TrimPrefix(exponentStr, "+")
 	exponent, err := strconv.Atoi(exponentStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid exponent %q: %w", exponentStr, err)
+		return nil, fmt.Errorf("%w: parsing %q: %w", ErrInvalidExponent, exponentStr, err)
 	}
 
 	const maxExponent = 100000 // Limit to prevent DoS via massive allocation
 	if exponent < -maxExponent || exponent > maxExponent {
-		return nil, fmt.Errorf("exponent %d out of allowed range [-%d, %d]", exponent, maxExponent, maxExponent)
+		return nil, fmt.Errorf("%w: exponent %d not in [-%d, %d]", ErrExponentOutOfRange, exponent, maxExponent, maxExponent)
 	}
 
 	// Parse mantissa, handling decimal point
@@ -62,26 +84,26 @@ func parseScientificNotation(mantissaStr, exponentStr string) (*big.Int, error) 
 
 		// Validate parts
 		if len(intPart) == 0 && len(fracPart) == 0 {
-			return nil, fmt.Errorf("invalid mantissa: no digits")
+			return nil, ErrInvalidMantissaNoDigits
 		}
 
 		// Handle case where integer part is just a sign or empty
 		combinedStr := intPart + fracPart
 		if combinedStr == "" || combinedStr == "-" || combinedStr == "+" {
-			return nil, fmt.Errorf("invalid mantissa %q", mantissaStr)
+			return nil, fmt.Errorf("%w: %q", ErrInvalidMantissa, mantissaStr)
 		}
 
 		var ok bool
 		mantissaBig, ok = new(big.Int).SetString(combinedStr, 10)
 		if !ok {
-			return nil, fmt.Errorf("invalid mantissa %q", mantissaStr)
+			return nil, fmt.Errorf("%w: %q", ErrInvalidMantissa, mantissaStr)
 		}
 		exponent -= len(fracPart)
 	} else {
 		var ok bool
 		mantissaBig, ok = new(big.Int).SetString(mantissaStr, 10)
 		if !ok {
-			return nil, fmt.Errorf("invalid mantissa %q", mantissaStr)
+			return nil, fmt.Errorf("%w: %q", ErrInvalidMantissa, mantissaStr)
 		}
 	}
 
@@ -102,7 +124,7 @@ func parseScientificNotation(mantissaStr, exponentStr string) (*big.Int, error) 
 func parseDecimalNumber(value string) (*big.Int, error) {
 	dotIndex := strings.Index(value, ".")
 	if dotIndex < 0 {
-		return nil, fmt.Errorf("invalid number format: %q", value)
+		return nil, fmt.Errorf("%w: %q", ErrInvalidNumberFormat, value)
 	}
 
 	intPart := value[:dotIndex]
@@ -110,12 +132,12 @@ func parseDecimalNumber(value string) (*big.Int, error) {
 
 	// Validate we have something to parse
 	if intPart == "" && fracPart == "" {
-		return nil, fmt.Errorf("invalid decimal: no digits")
+		return nil, ErrInvalidDecimalNoDigits
 	}
 
 	// Only allow conversion if fractional part is all zeros
 	if strings.Trim(fracPart, "0") != "" {
-		return nil, fmt.Errorf("non-zero fractional part cannot be converted to integer: %q", value)
+		return nil, fmt.Errorf("%w: %q", ErrNonZeroFractionalPart, value)
 	}
 
 	// Handle empty integer part (e.g., ".000")
@@ -125,7 +147,7 @@ func parseDecimalNumber(value string) (*big.Int, error) {
 
 	result, ok := new(big.Int).SetString(intPart, 10)
 	if !ok {
-		return nil, fmt.Errorf("invalid integer part: %q", intPart)
+		return nil, fmt.Errorf("%w: %q", ErrInvalidIntegerPart, intPart)
 	}
 	return result, nil
 }
@@ -142,17 +164,17 @@ func ScientificNotationToUint64(value string) (uint64, error) {
 	// Handle scientific notation using the big.Int parser and then convert
 	bigIntResult, err := ScientificNotationToBigInt(value)
 	if err != nil {
-		return 0, fmt.Errorf("unable to parse: %w", err)
+		return 0, fmt.Errorf("%w: %w", ErrUnableParse, err)
 	}
 
 	// Check for negative values
 	if bigIntResult.Sign() < 0 {
-		return 0, fmt.Errorf("negative value not allowed for uint64: %s", value)
+		return 0, fmt.Errorf("%w: %s", ErrNegativeUint64, value)
 	}
 
 	// Check if the result fits in uint64
 	if !bigIntResult.IsUint64() {
-		return 0, fmt.Errorf("value too large for uint64: %s", value)
+		return 0, fmt.Errorf("%w: %s", ErrUint64TooLarge, value)
 	}
 
 	return bigIntResult.Uint64(), nil
@@ -170,12 +192,12 @@ func ScientificNotationToUint32(value string) (uint32, error) {
 	// Handle scientific notation using the big.Int parser and then convert
 	bigIntResult, err := ScientificNotationToBigInt(value)
 	if err != nil {
-		return 0, fmt.Errorf("unable to parse: %w", err)
+		return 0, fmt.Errorf("%w: %w", ErrUnableParse, err)
 	}
 
 	// Check if the result fits in uint32 (0 to 4294967295)
 	if bigIntResult.Sign() < 0 || bigIntResult.Cmp(big.NewInt(4294967295)) > 0 {
-		return 0, fmt.Errorf("value out of range for uint32: %s", value)
+		return 0, fmt.Errorf("%w: %s", ErrUint32OutOfRange, value)
 	}
 
 	return uint32(bigIntResult.Uint64()), nil
@@ -193,12 +215,12 @@ func ScientificNotationToUint16(value string) (uint16, error) {
 	// Handle scientific notation using the big.Int parser and then convert
 	bigIntResult, err := ScientificNotationToBigInt(value)
 	if err != nil {
-		return 0, fmt.Errorf("unable to parse: %w", err)
+		return 0, fmt.Errorf("%w: %w", ErrUnableParse, err)
 	}
 
 	// Check if the result fits in uint16 (0 to 65535)
 	if bigIntResult.Sign() < 0 || bigIntResult.Cmp(big.NewInt(65535)) > 0 {
-		return 0, fmt.Errorf("value out of range for uint16: %s", value)
+		return 0, fmt.Errorf("%w: %s", ErrUint16OutOfRange, value)
 	}
 
 	return uint16(bigIntResult.Uint64()), nil
@@ -216,12 +238,12 @@ func ScientificNotationToUint8(value string) (uint8, error) {
 	// Handle scientific notation using the big.Int parser and then convert
 	bigIntResult, err := ScientificNotationToBigInt(value)
 	if err != nil {
-		return 0, fmt.Errorf("unable to parse: %w", err)
+		return 0, fmt.Errorf("%w: %w", ErrUnableParse, err)
 	}
 
 	// Check if the result fits in uint8 (0-255)
 	if bigIntResult.Sign() < 0 || bigIntResult.Cmp(big.NewInt(255)) > 0 {
-		return 0, fmt.Errorf("value out of range for uint8: %s", value)
+		return 0, fmt.Errorf("%w: %s", ErrUint8OutOfRange, value)
 	}
 
 	return uint8(bigIntResult.Uint64()), nil

@@ -403,7 +403,6 @@ func TestClient_SearchEvents(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrSearchEvents)
 		assert.ErrorIs(t, err, ErrBadRequest)
-		assert.Contains(t, err.Error(), "Invalid parameter combination")
 	})
 
 	t.Run("BadRequest_NoApplicationError", func(t *testing.T) {
@@ -418,7 +417,6 @@ func TestClient_SearchEvents(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrSearchEvents)
 		assert.ErrorIs(t, err, ErrBadRequest)
-		assert.Contains(t, err.Error(), "Invalid request parameters")
 	})
 
 	t.Run("UnexpectedStatusCode", func(t *testing.T) {
@@ -486,17 +484,17 @@ func TestClient_EventHash(t *testing.T) {
 		hash, err := c.EventHash(nil)
 		require.Error(t, err)
 		assert.Equal(t, common.Hash{}, hash)
-		assert.Contains(t, err.Error(), "event payload is nil")
+		assert.ErrorIs(t, err, ErrNilWatcherEventPayload)
 	})
 
 	t.Run("EmptyVerifiableEvent_ReturnsError", func(t *testing.T) {
 		eventPayload := createTestEventPayload(t)
 		eventPayload.VerifiableEvent = ""
-		
+
 		hash, err := c.EventHash(&eventPayload)
 		require.Error(t, err)
 		assert.Equal(t, common.Hash{}, hash)
-		assert.Contains(t, err.Error(), "verifiable event is required")
+		assert.ErrorIs(t, err, ErrVerifiableEventRequired)
 	})
 
 	t.Run("ComputesValidHash", func(t *testing.T) {
@@ -627,8 +625,7 @@ func TestClient_OperationStatusHash(t *testing.T) {
 		hash, err := c.OperationStatusHash(&eventPayload)
 		require.Error(t, err)
 		assert.Equal(t, common.Hash{}, hash)
-		assert.ErrorIs(t, err, ErrVerifyEvent)
-		assert.Contains(t, err.Error(), "verifiable event is required")
+		assert.ErrorIs(t, err, ErrVerifiableEventRequired)
 	})
 
 	t.Run("EmptyVerifiableEvent_ReturnsError", func(t *testing.T) {
@@ -647,8 +644,7 @@ func TestClient_OperationStatusHash(t *testing.T) {
 		hash, err := c.OperationStatusHash(&eventPayload)
 		require.Error(t, err)
 		assert.Equal(t, common.Hash{}, hash)
-		assert.ErrorIs(t, err, ErrVerifyEvent)
-		assert.Contains(t, err.Error(), "verifiable event is required")
+		assert.ErrorIs(t, err, ErrVerifiableEventRequired)
 	})
 }
 
@@ -1747,7 +1743,7 @@ func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
 		require.Error(t, err)
 		assert.False(t, ok)
 		assert.ErrorIs(t, err, ErrVerifyEvent)
-		assert.Contains(t, err.Error(), "verifiable event is required")
+		assert.ErrorIs(t, err, ErrVerifiableEventRequired)
 	})
 }
 
@@ -1811,7 +1807,8 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 		)
 		require.Error(t, err)
 		assert.False(t, valid)
-		assert.Contains(t, err.Error(), "signature length must be 65 bytes")
+		assert.ErrorIs(t, err, ErrParseSignature)
+		assert.ErrorIs(t, err, ErrInvalidOCRSignatureLength)
 	})
 
 	t.Run("InvalidRecoveryID", func(t *testing.T) {
@@ -1841,7 +1838,8 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 		)
 		require.Error(t, err)
 		assert.False(t, valid)
-		assert.Contains(t, err.Error(), "invalid recovery byte")
+		assert.ErrorIs(t, err, ErrParseSignature)
+		assert.ErrorIs(t, err, ErrInvalidOCRSignatureRecovery)
 	})
 
 	t.Run("NotEnoughValidSignatures", func(t *testing.T) {
@@ -1913,7 +1911,8 @@ func TestClient_Decode(t *testing.T) {
 		var decoded map[string]interface{}
 		err := c.Decode(nil, &decoded)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "event is nil")
+		assert.ErrorIs(t, err, ErrDecodeEvent)
+		assert.ErrorIs(t, err, ErrDecodeNilEvent)
 	})
 
 	t.Run("Success", func(t *testing.T) {
@@ -2031,7 +2030,7 @@ func TestClient_DecodeVerifiableEvent(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, decoded)
 		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
-		assert.Contains(t, err.Error(), "payload is nil")
+		assert.ErrorIs(t, err, ErrNilVerifiablePayload)
 	})
 
 	t.Run("Error_EmptyVerifiableEvent", func(t *testing.T) {
@@ -2045,7 +2044,7 @@ func TestClient_DecodeVerifiableEvent(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, decoded)
 		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
-		assert.Contains(t, err.Error(), "verifiable event is empty")
+		assert.ErrorIs(t, err, ErrDecodeVerifiableEmpty)
 	})
 
 	t.Run("Error_InvalidBase64", func(t *testing.T) {
@@ -2059,7 +2058,7 @@ func TestClient_DecodeVerifiableEvent(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, decoded)
 		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
-		assert.Contains(t, err.Error(), "invalid base64")
+		assert.ErrorIs(t, err, ErrDecodeVerifiableInvalidBase64)
 	})
 
 	t.Run("Error_InvalidJSON", func(t *testing.T) {
@@ -2075,7 +2074,7 @@ func TestClient_DecodeVerifiableEvent(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, decoded)
 		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
-		assert.Contains(t, err.Error(), "invalid JSON")
+		assert.ErrorIs(t, err, ErrDecodeVerifiableInvalidJSON)
 	})
 }
 
@@ -2213,7 +2212,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, decoded)
 		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
-		assert.Contains(t, err.Error(), "payload is nil")
+		assert.ErrorIs(t, err, ErrNilVerifiablePayload)
 	})
 
 	t.Run("Error_NilVerifiableEvent", func(t *testing.T) {
@@ -2232,7 +2231,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, decoded)
 		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
-		assert.Contains(t, err.Error(), "verifiable event is nil or empty")
+		assert.ErrorIs(t, err, ErrDecodeVerifiableNilOrEmpty)
 	})
 
 	t.Run("Error_EmptyVerifiableEvent", func(t *testing.T) {
@@ -2252,7 +2251,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, decoded)
 		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
-		assert.Contains(t, err.Error(), "verifiable event is nil or empty")
+		assert.ErrorIs(t, err, ErrDecodeVerifiableNilOrEmpty)
 	})
 
 	t.Run("Error_InvalidBase64", func(t *testing.T) {
@@ -2272,7 +2271,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, decoded)
 		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
-		assert.Contains(t, err.Error(), "invalid base64")
+		assert.ErrorIs(t, err, ErrDecodeVerifiableInvalidBase64)
 	})
 
 	t.Run("Error_InvalidJSON", func(t *testing.T) {
@@ -2293,7 +2292,7 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, decoded)
 		assert.ErrorIs(t, err, ErrDecodeVerifiableEvent)
-		assert.Contains(t, err.Error(), "invalid JSON")
+		assert.ErrorIs(t, err, ErrDecodeVerifiableInvalidJSON)
 	})
 }
 

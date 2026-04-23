@@ -501,7 +501,7 @@ func TestSigner_GetRSAModulus(t *testing.T) {
 	// Should fail to get modulus from ECDSA key
 	_, err = ecdsaSigner.GetRSAModulus()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "key is not a valid RSA key")
+	require.ErrorIs(t, err, ErrNotValidRSAKey)
 }
 
 func TestCreateKeyInVault(t *testing.T) {
@@ -681,7 +681,7 @@ func TestSigner_InvalidKey(t *testing.T) {
 	signature, err := signer.Sign(context.Background(), hash[:])
 	require.Error(t, err)
 	require.Empty(t, signature)
-	require.Contains(t, err.Error(), "vault sign failed")
+	require.ErrorIs(t, err, ErrVaultSignFailed)
 }
 
 func TestSigner_InvalidToken(t *testing.T) {
@@ -726,7 +726,7 @@ func TestSigner_InvalidToken(t *testing.T) {
 	signature, err := signer.Sign(context.Background(), hash[:])
 	require.Error(t, err)
 	require.Empty(t, signature)
-	require.Contains(t, err.Error(), "vault sign failed")
+	require.ErrorIs(t, err, ErrVaultSignFailed)
 }
 
 func TestSigner_Public_TrailingGarbage(t *testing.T) {
@@ -760,5 +760,5 @@ func TestSigner_Public_TrailingGarbage(t *testing.T) {
 
 	_, err = signer.Public()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "trailing garbage bytes after PEM block")
+	require.ErrorIs(t, err, ErrTrailingGarbageAfterPEM)
 }

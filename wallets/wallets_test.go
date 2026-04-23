@@ -174,7 +174,7 @@ func TestClient_Create(t *testing.T) {
 		})
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "duplicate ecdsa signer")
+		assert.ErrorIs(t, err, ErrDuplicateEcdsaSigner)
 		assert.Nil(t, wallet)
 	})
 
@@ -198,7 +198,7 @@ func TestClient_Create(t *testing.T) {
 		})
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "duplicate rsa signer")
+		assert.ErrorIs(t, err, ErrDuplicateRsaSigner)
 		assert.Nil(t, wallet)
 	})
 

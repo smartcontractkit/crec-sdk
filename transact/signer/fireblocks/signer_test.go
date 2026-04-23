@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -41,7 +42,7 @@ func TestSigner_NewSigner(t *testing.T) {
 		vaultAccountID string
 		assetID        string
 		wantErr        bool
-		errContains    string
+		errIs          error
 	}{
 		{
 			name:           "valid parameters",
@@ -58,7 +59,7 @@ func TestSigner_NewSigner(t *testing.T) {
 			vaultAccountID: testVaultAccountID,
 			assetID:        testAssetID,
 			wantErr:        true,
-			errContains:    "apiKey cannot be empty",
+			errIs:          fireblocks.ErrAPIKeyRequired,
 		},
 		{
 			name:           "empty private key",
@@ -67,7 +68,7 @@ func TestSigner_NewSigner(t *testing.T) {
 			vaultAccountID: testVaultAccountID,
 			assetID:        testAssetID,
 			wantErr:        true,
-			errContains:    "privateKeyPEM cannot be empty",
+			errIs:          fireblocks.ErrPrivateKeyPEMRequired,
 		},
 		{
 			name:           "empty vault account ID",
@@ -76,7 +77,7 @@ func TestSigner_NewSigner(t *testing.T) {
 			vaultAccountID: "",
 			assetID:        testAssetID,
 			wantErr:        true,
-			errContains:    "vaultAccountID cannot be empty",
+			errIs:          fireblocks.ErrVaultAccountIDRequired,
 		},
 		{
 			name:           "empty asset ID",
@@ -85,7 +86,7 @@ func TestSigner_NewSigner(t *testing.T) {
 			vaultAccountID: testVaultAccountID,
 			assetID:        "",
 			wantErr:        true,
-			errContains:    "assetID cannot be empty",
+			errIs:          fireblocks.ErrAssetIDRequired,
 		},
 		{
 			name:           "invalid private key PEM",
@@ -94,7 +95,7 @@ func TestSigner_NewSigner(t *testing.T) {
 			vaultAccountID: testVaultAccountID,
 			assetID:        testAssetID,
 			wantErr:        true,
-			errContains:    "failed to parse private key",
+			errIs:          fireblocks.ErrFailedParsePrivateKey,
 		},
 		{
 			name:           "private key PEM with trailing garbage",
@@ -103,7 +104,7 @@ func TestSigner_NewSigner(t *testing.T) {
 			vaultAccountID: testVaultAccountID,
 			assetID:        testAssetID,
 			wantErr:        true,
-			errContains:    "trailing garbage bytes after PEM block",
+			errIs:          fireblocks.ErrTrailingGarbageAfterPEM,
 		},
 	}
 
@@ -114,8 +115,8 @@ func TestSigner_NewSigner(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				require.Nil(t, signer)
-				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains)
+				if tt.errIs != nil {
+					assert.ErrorIs(t, err, tt.errIs)
 				}
 			} else {
 				require.NoError(t, err)
@@ -178,10 +179,10 @@ func TestSigner_NewSignerFromEnv(t *testing.T) {
 	pemKey, _ := generateTestKey(t)
 
 	tests := []struct {
-		name        string
-		envVars     map[string]string
-		wantErr     bool
-		errContains string
+		name    string
+		envVars map[string]string
+		wantErr bool
+		errIs   error
 	}{
 		{
 			name: "valid environment variables with PEM content",
@@ -211,8 +212,8 @@ func TestSigner_NewSignerFromEnv(t *testing.T) {
 				"FIREBLOCKS_VAULT_ACCOUNT_ID": testVaultAccountID,
 				"FIREBLOCKS_ASSET_ID":         testAssetID,
 			},
-			wantErr:     true,
-			errContains: "FIREBLOCKS_API_KEY",
+			wantErr: true,
+			errIs:   fireblocks.ErrEnvFireblocksAPIKey,
 		},
 		{
 			name: "missing api secret",
@@ -221,8 +222,8 @@ func TestSigner_NewSignerFromEnv(t *testing.T) {
 				"FIREBLOCKS_VAULT_ACCOUNT_ID": testVaultAccountID,
 				"FIREBLOCKS_ASSET_ID":         testAssetID,
 			},
-			wantErr:     true,
-			errContains: "FIREBLOCKS_API_SECRET",
+			wantErr: true,
+			errIs:   fireblocks.ErrEnvFireblocksAPISecret,
 		},
 		{
 			name: "missing vault account ID",
@@ -231,8 +232,8 @@ func TestSigner_NewSignerFromEnv(t *testing.T) {
 				"FIREBLOCKS_API_SECRET": pemKey,
 				"FIREBLOCKS_ASSET_ID":   testAssetID,
 			},
-			wantErr:     true,
-			errContains: "FIREBLOCKS_VAULT_ACCOUNT_ID",
+			wantErr: true,
+			errIs:   fireblocks.ErrEnvFireblocksVaultAcct,
 		},
 		{
 			name: "missing asset ID",
@@ -241,8 +242,8 @@ func TestSigner_NewSignerFromEnv(t *testing.T) {
 				"FIREBLOCKS_API_SECRET":       pemKey,
 				"FIREBLOCKS_VAULT_ACCOUNT_ID": testVaultAccountID,
 			},
-			wantErr:     true,
-			errContains: "FIREBLOCKS_ASSET_ID",
+			wantErr: true,
+			errIs:   fireblocks.ErrEnvFireblocksAssetID,
 		},
 	}
 
@@ -260,8 +261,8 @@ func TestSigner_NewSignerFromEnv(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				require.Nil(t, signer)
-				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains)
+				if tt.errIs != nil {
+					assert.ErrorIs(t, err, tt.errIs)
 				}
 			} else {
 				require.NoError(t, err)
@@ -308,7 +309,7 @@ func TestSigner_Sign(t *testing.T) {
 		name        string
 		setupServer func(t *testing.T) *httptest.Server
 		wantErr     bool
-		errContains string
+		errIs       error
 	}{
 		{
 			name: "successful signing",
@@ -322,16 +323,16 @@ func TestSigner_Sign(t *testing.T) {
 			setupServer: func(t *testing.T) *httptest.Server {
 				return createMockFireblocksServer(t, signingKey, pubKeyBytes, fireblocks.StatusRejected)
 			},
-			wantErr:     true,
-			errContains: "REJECTED",
+			wantErr: true,
+			errIs:   fireblocks.ErrFireblocksOperationTerminal,
 		},
 		{
 			name: "operation failed",
 			setupServer: func(t *testing.T) *httptest.Server {
 				return createMockFireblocksServer(t, signingKey, pubKeyBytes, fireblocks.StatusFailed)
 			},
-			wantErr:     true,
-			errContains: "FAILED",
+			wantErr: true,
+			errIs:   fireblocks.ErrFireblocksOperationTerminal,
 		},
 		{
 			name: "create operation error with huge response",
@@ -341,8 +342,8 @@ func TestSigner_Sign(t *testing.T) {
 					w.Write([]byte(strings.Repeat("A", 5000)))
 				}))
 			},
-			wantErr:     true,
-			errContains: strings.Repeat("A", 4096),
+			wantErr: true,
+			errIs:   fireblocks.ErrCreateSigningOperationFailed,
 		},
 	}
 
@@ -367,8 +368,8 @@ func TestSigner_Sign(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				require.Nil(t, signature)
-				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains)
+				if tt.errIs != nil {
+					assert.ErrorIs(t, err, tt.errIs)
 				}
 			} else {
 				require.NoError(t, err)
@@ -421,10 +422,7 @@ func TestSigner_Sign_Timeout(t *testing.T) {
 	signature, err := signer.Sign(ctx, hash)
 	require.Error(t, err)
 	require.Nil(t, signature)
-	// Either "timeout" (from our message) or "deadline exceeded" (from cancelled HTTP request) is valid
-	errMsg := err.Error()
-	assert.True(t, strings.Contains(errMsg, "timeout") || strings.Contains(errMsg, "deadline exceeded"),
-		"expected timeout or deadline exceeded error, got: %s", errMsg)
+	assert.True(t, errors.Is(err, context.DeadlineExceeded), "expected deadline exceeded in error chain, got: %v", err)
 	assert.True(t, opCreated)
 }
 
@@ -480,7 +478,7 @@ func TestSigner_GetVaultAccountAddress(t *testing.T) {
 		serverResponse  func(w http.ResponseWriter, r *http.Request)
 		expectedAddress string
 		wantErr         bool
-		errContains     string
+		errIs           error
 	}{
 		{
 			name: "successful get address",
@@ -498,8 +496,8 @@ func TestSigner_GetVaultAccountAddress(t *testing.T) {
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(`{"error": "internal error"}`))
 			},
-			wantErr:     true,
-			errContains: "500",
+			wantErr: true,
+			errIs:   fireblocks.ErrGetVaultAccountNonOK,
 		},
 		{
 			name: "not found",
@@ -507,8 +505,8 @@ func TestSigner_GetVaultAccountAddress(t *testing.T) {
 				w.WriteHeader(http.StatusNotFound)
 				w.Write([]byte(`{"error": "vault account not found"}`))
 			},
-			wantErr:     true,
-			errContains: "404",
+			wantErr: true,
+			errIs:   fireblocks.ErrGetVaultAccountNonOK,
 		},
 	}
 
@@ -529,8 +527,8 @@ func TestSigner_GetVaultAccountAddress(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				require.Empty(t, address)
-				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains)
+				if tt.errIs != nil {
+					assert.ErrorIs(t, err, tt.errIs)
 				}
 			} else {
 				require.NoError(t, err)
@@ -558,10 +556,10 @@ func TestSigner_SignTypedData(t *testing.T) {
 	pubKeyBytes := crypto.FromECDSAPub(&signingKey.PublicKey)
 
 	tests := []struct {
-		name        string
-		typedData   *signer.TypedData
-		wantErr     bool
-		errContains string
+		name      string
+		typedData *signer.TypedData
+		wantErr   bool
+		errIs     error
 	}{
 		{
 			name: "successful EIP-712 signing",
@@ -628,10 +626,10 @@ func TestSigner_SignTypedData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:        "nil typed data",
-			typedData:   nil,
-			wantErr:     true,
-			errContains: "cannot be nil",
+			name:      "nil typed data",
+			typedData: nil,
+			wantErr:   true,
+			errIs:     fireblocks.ErrTypedDataNil,
 		},
 	}
 
@@ -654,8 +652,8 @@ func TestSigner_SignTypedData(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				require.Nil(t, signature)
-				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains)
+				if tt.errIs != nil {
+					assert.ErrorIs(t, err, tt.errIs)
 				}
 			} else {
 				require.NoError(t, err)
@@ -701,7 +699,7 @@ func TestSigner_SignTypedData_OperationRejected(t *testing.T) {
 	signature, err := s.SignTypedData(ctx, typedData)
 	require.Error(t, err)
 	require.Nil(t, signature)
-	assert.Contains(t, err.Error(), "REJECTED")
+	assert.ErrorIs(t, err, fireblocks.ErrFireblocksOperationTerminal)
 }
 
 // Helper functions
@@ -954,10 +952,10 @@ func parseTypedMessageData(tmd map[string]any) *signer.TypedData {
 
 func TestHashTypedData_EncodePrimitives(t *testing.T) {
 	tests := []struct {
-		name        string
-		typedData   *signer.TypedData
-		wantErr     bool
-		errContains string
+		name      string
+		typedData *signer.TypedData
+		wantErr   bool
+		errIs     error
 	}{
 		{
 			name: "negative value for unsigned type",
@@ -973,8 +971,8 @@ func TestHashTypedData_EncodePrimitives(t *testing.T) {
 				},
 				Message: map[string]any{"value": -1}, // negative for unsigned
 			},
-			wantErr:     true,
-			errContains: "negative value for unsigned type uint256",
+			wantErr: true,
+			errIs:   fireblocks.ErrNegativeUnsignedTypedValue,
 		},
 		{
 			name: "invalid numeric string for integer",
@@ -990,8 +988,8 @@ func TestHashTypedData_EncodePrimitives(t *testing.T) {
 				},
 				Message: map[string]any{"value": "not-a-number"},
 			},
-			wantErr:     true,
-			errContains: "failed to parse string as int",
+			wantErr: true,
+			errIs:   fireblocks.ErrParseTypedDataIntegerString,
 		},
 		{
 			name: "float64 precision loss",
@@ -1007,8 +1005,8 @@ func TestHashTypedData_EncodePrimitives(t *testing.T) {
 				},
 				Message: map[string]any{"value": float64(1e16)}, // exceeds precision
 			},
-			wantErr:     true,
-			errContains: "float64 precision loss",
+			wantErr: true,
+			errIs:   fireblocks.ErrFloat64PrecisionLoss,
 		},
 	}
 
@@ -1018,8 +1016,8 @@ func TestHashTypedData_EncodePrimitives(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				require.Nil(t, hash)
-				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains)
+				if tt.errIs != nil {
+					assert.ErrorIs(t, err, tt.errIs)
 				}
 			} else {
 				require.NoError(t, err)

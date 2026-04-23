@@ -19,6 +19,19 @@ const (
 	EIP712DomainVersion = `1`
 )
 
+// Sentinel errors for operation and transaction validation.
+var (
+	ErrTransactionValueNonNegative = errors.New("transaction value must be non-negative")
+	ErrOperationIDNonNegative      = errors.New("id must be non-negative")
+	ErrOperationDeadlineNonNegative = errors.New("deadline must be non-negative")
+	ErrOperationIDRequired         = errors.New("id is required")
+	ErrOperationDeadlineRequired   = errors.New("deadline is required")
+	ErrNoTransactions              = errors.New("no transactions")
+	ErrTransactionValueRequired    = errors.New("transaction value is required")
+	ErrChainIDNonNegative          = errors.New("chain ID must be non-negative")
+	ErrFailedParseChainID          = errors.New("failed to parse chain ID")
+)
+
 // Transaction represents a single transaction within an operation for EIP-712 signing.
 type Transaction struct {
 	To    common.Address `json:"to"`
@@ -43,7 +56,7 @@ func (tx *Transaction) EIP712Types() []apitypes.Type {
 // EIP712Message returns the EIP-712 message representation of the transaction.
 func (tx *Transaction) EIP712Message() (apitypes.TypedDataMessage, error) {
 	if tx.Value != nil && tx.Value.Sign() < 0 {
-		return nil, fmt.Errorf("transaction value must be non-negative")
+		return nil, ErrTransactionValueNonNegative
 	}
 	valueStr := "0"
 	if tx.Value != nil {
@@ -91,10 +104,10 @@ func (op *Operation) EIP712Message() (apitypes.TypedDataMessage, error) {
 	}
 
 	if op.ID != nil && op.ID.Sign() < 0 {
-		return nil, fmt.Errorf("id must be non-negative")
+		return nil, ErrOperationIDNonNegative
 	}
 	if op.Deadline != nil && op.Deadline.Sign() < 0 {
-		return nil, fmt.Errorf("deadline must be non-negative")
+		return nil, ErrOperationDeadlineNonNegative
 	}
 
 	idStr := "0"
@@ -120,36 +133,36 @@ func (op *Operation) EIP712Message() (apitypes.TypedDataMessage, error) {
 // math.HexOrDecimal256 for ChainID, whose constructor accepts only int64.
 func (op *Operation) TypedData(chainId string) (*apitypes.TypedData, error) {
 	if op.ID == nil {
-		return nil, errors.New("id is required")
+		return nil, ErrOperationIDRequired
 	}
 	if op.ID.Sign() < 0 {
-		return nil, errors.New("id must be non-negative")
+		return nil, ErrOperationIDNonNegative
 	}
 	if op.Deadline == nil {
-		return nil, errors.New("deadline is required")
+		return nil, ErrOperationDeadlineRequired
 	}
 	if op.Deadline.Sign() < 0 {
-		return nil, errors.New("deadline must be non-negative")
+		return nil, ErrOperationDeadlineNonNegative
 	}
 	if len(op.Transactions) == 0 {
-		return nil, errors.New("no transactions")
+		return nil, ErrNoTransactions
 	}
 
 	for i, tx := range op.Transactions {
 		if tx.Value == nil {
-			return nil, fmt.Errorf("transaction %d value is required", i)
+			return nil, fmt.Errorf("transaction %d value is required: %w", i, ErrTransactionValueRequired)
 		}
 		if tx.Value.Sign() < 0 {
-			return nil, fmt.Errorf("transaction %d value must be non-negative", i)
+			return nil, fmt.Errorf("transaction %d value must be non-negative: %w", i, ErrTransactionValueNonNegative)
 		}
 	}
 
 	chainIdInt, err := strconv.ParseInt(chainId, 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse chain ID: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedParseChainID, err)
 	}
 	if chainIdInt < 0 {
-		return nil, errors.New("chain ID must be non-negative")
+		return nil, ErrChainIDNonNegative
 	}
 
 	domain := SmartAccountEIP712Domain(chainIdInt, op.Account)

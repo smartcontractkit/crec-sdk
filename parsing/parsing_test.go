@@ -590,37 +590,37 @@ func TestParsing_ScientificNotationToBigInt_Precision(t *testing.T) {
 	}
 }
 
-// TestParsing_ScientificNotationToBigInt_ErrorMessages verifies error messages are informative.
+// TestParsing_ScientificNotationToBigInt_ErrorMessages verifies stable sentinel errors.
 func TestParsing_ScientificNotationToBigInt_ErrorMessages(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          string
-		errorSubstring string
+		name   string
+		input  string
+		wantIs error
 	}{
 		{
-			name:           "empty string error",
-			input:          "",
-			errorSubstring: "empty string",
+			name:   "empty string error",
+			input:  "",
+			wantIs: parsing.ErrEmptyString,
 		},
 		{
-			name:           "empty mantissa error",
-			input:          "e10",
-			errorSubstring: "empty mantissa",
+			name:   "empty mantissa error",
+			input:  "e10",
+			wantIs: parsing.ErrEmptyMantissa,
 		},
 		{
-			name:           "empty exponent error",
-			input:          "1e",
-			errorSubstring: "empty exponent",
+			name:   "empty exponent error",
+			input:  "1e",
+			wantIs: parsing.ErrEmptyExponent,
 		},
 		{
-			name:           "invalid exponent error",
-			input:          "1eabc",
-			errorSubstring: "invalid exponent",
+			name:   "invalid exponent error",
+			input:  "1eabc",
+			wantIs: parsing.ErrInvalidExponent,
 		},
 		{
-			name:           "non-zero fractional part error",
-			input:          "123.456",
-			errorSubstring: "non-zero fractional part",
+			name:   "non-zero fractional part error",
+			input:  "123.456",
+			wantIs: parsing.ErrNonZeroFractionalPart,
 		},
 	}
 
@@ -628,7 +628,7 @@ func TestParsing_ScientificNotationToBigInt_ErrorMessages(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := parsing.ScientificNotationToBigInt(tt.input)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), tt.errorSubstring, "error should mention: %s", tt.errorSubstring)
+			require.ErrorIs(t, err, tt.wantIs)
 		})
 	}
 }

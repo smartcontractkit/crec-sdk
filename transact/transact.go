@@ -59,6 +59,9 @@ var (
 	ErrNilResponse     = errors.New("unexpected nil response")
 	// ErrNilResponseBody is returned when the API response body is nil.
 	ErrNilResponseBody = errors.New("unexpected nil response body")
+
+	// ErrOperationRequired is returned when an operation pointer is required but nil.
+	ErrOperationRequired = eip712.ErrOperationRequired
 )
 
 // Options defines the options for creating a new CREC transact client used to send operations to the CREC system.
@@ -285,7 +288,7 @@ func (c *Client) SendSignedOperation(
 	chainSelector string,
 ) (*apiClient.Operation, error) {
 	if op == nil {
-		return nil, errors.New("operation is required")
+		return nil, ErrOperationRequired
 	}
 
 	if op.Deadline == nil || !op.Deadline.IsInt64() || op.Deadline.Sign() < 0 {

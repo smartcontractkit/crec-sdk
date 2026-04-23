@@ -143,7 +143,7 @@ func TestNewSignerWithConfig_EmptyKeyID(t *testing.T) {
 	signer, err := NewSignerWithConfig(cfg, "")
 	assert.Error(t, err)
 	assert.Nil(t, signer)
-	assert.Contains(t, err.Error(), "keyID cannot be empty")
+	assert.ErrorIs(t, err, ErrKeyIDRequired)
 }
 
 func TestAdjustSignatureLength(t *testing.T) {
@@ -195,7 +195,7 @@ func TestNewSignerWithClient_EmptyKeyID(t *testing.T) {
 	signer, err := NewSignerWithClient(mockClient, "")
 	assert.Error(t, err)
 	assert.Nil(t, signer)
-	assert.Contains(t, err.Error(), "keyID cannot be empty")
+	assert.ErrorIs(t, err, ErrKeyIDRequired)
 }
 
 func TestNewSignerWithConfig_WithClientOption(t *testing.T) {
@@ -375,7 +375,7 @@ func TestGetSignatureFromKms_InvalidRS(t *testing.T) {
 			assert.Error(t, err)
 			assert.Nil(t, rBytes)
 			assert.Nil(t, sBytes)
-			assert.Contains(t, err.Error(), "value out of range")
+			assert.ErrorIs(t, err, ErrKMSSignatureRSOutOfRange)
 		})
 	}
 }
@@ -397,5 +397,5 @@ func TestGetSignatureFromKms_TrailingGarbage(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, rBytes)
 	assert.Nil(t, sBytes)
-	assert.Contains(t, err.Error(), "trailing garbage bytes")
+	assert.ErrorIs(t, err, ErrASN1SignatureTrailingBytes)
 }

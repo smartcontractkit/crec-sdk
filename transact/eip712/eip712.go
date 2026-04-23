@@ -30,6 +30,8 @@ var (
 	ErrUnsupportedChainFamily = errors.New("chain family is not supported")
 	// ErrGetChainID is returned when the chain ID cannot be retrieved from the selector.
 	ErrGetChainID = errors.New("failed to get chain ID from selector")
+	// ErrInvalidChainIDString is returned when the chain ID string from selectors cannot be parsed as base-10.
+	ErrInvalidChainIDString = errors.New("failed to parse chain ID")
 	// ErrCreateTypedData is returned when creating EIP-712 typed data for the operation fails.
 	ErrCreateTypedData = errors.New("failed to create typed data for operation")
 	// ErrComputeOperationHash is returned when computing the EIP-712 hash fails.
@@ -201,7 +203,7 @@ func GetChainIDFromSelector(chainSelector string) (*big.Int, error) {
 	chainId := new(big.Int)
 	chainId, ok := chainId.SetString(chainIdStr, 10)
 	if !ok {
-		return nil, fmt.Errorf("failed to parse chain ID: %s", chainIdStr)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidChainIDString, chainIdStr)
 	}
 	return chainId, nil
 }

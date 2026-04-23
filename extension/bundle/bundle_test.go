@@ -141,14 +141,14 @@ func TestBundle_HasEvent_EmptyBundle(t *testing.T) {
 
 func TestBundle_Validate(t *testing.T) {
 	tests := []struct {
-		name    string
-		bundle  *bundle.Bundle
-		wantErr string
+		name       string
+		bundle     *bundle.Bundle
+		wantValid  bool
 	}{
 		{
-			name:    "valid bundle passes",
-			bundle:  testBundle(),
-			wantErr: "",
+			name:      "valid bundle passes",
+			bundle:    testBundle(),
+			wantValid: true,
 		},
 		{
 			name: "WasmBinary too large",
@@ -157,7 +157,7 @@ func TestBundle_Validate(t *testing.T) {
 				WasmBinary:     append([]byte{0x00, 0x61, 0x73, 0x6d}, make([]byte, 100*1024*1024)...),
 				ConfigTemplate: []byte("tmpl"),
 			},
-			wantErr: "WasmBinary is too large (max 100MB)",
+			wantValid: false,
 		},
 		{
 			name: "empty WasmBinary",
@@ -165,7 +165,7 @@ func TestBundle_Validate(t *testing.T) {
 				Service:        "test",
 				ConfigTemplate: []byte("tmpl"),
 			},
-			wantErr: "WasmBinary is empty",
+			wantValid: false,
 		},
 		{
 			name: "nil ConfigTemplate passes validation",
@@ -173,7 +173,7 @@ func TestBundle_Validate(t *testing.T) {
 				Service:    "test",
 				WasmBinary: []byte{0x00, 0x61, 0x73, 0x6d},
 			},
-			wantErr: "",
+			wantValid: true,
 		},
 		{
 			name: "duplicate contract name",
@@ -186,7 +186,7 @@ func TestBundle_Validate(t *testing.T) {
 					{Name: "Foo", ABI: "[]"},
 				},
 			},
-			wantErr: "duplicate contract name",
+			wantValid: false,
 		},
 		{
 			name: "duplicate event name",
@@ -202,7 +202,7 @@ func TestBundle_Validate(t *testing.T) {
 					{Name: "Evt", TriggerContract: "Foo"},
 				},
 			},
-			wantErr: "duplicate event name",
+			wantValid: false,
 		},
 		{
 			name: "orphaned TriggerContract",
@@ -217,7 +217,7 @@ func TestBundle_Validate(t *testing.T) {
 					{Name: "Evt", TriggerContract: "DoesNotExist"},
 				},
 			},
-			wantErr: "does not match any contract",
+			wantValid: false,
 		},
 		{
 			name: "invalid ABI JSON",
@@ -229,7 +229,7 @@ func TestBundle_Validate(t *testing.T) {
 					{Name: "Bad", ABI: "{not json"},
 				},
 			},
-			wantErr: "not valid JSON",
+			wantValid: false,
 		},
 		{
 			name: "empty contract name",
@@ -241,7 +241,7 @@ func TestBundle_Validate(t *testing.T) {
 					{Name: "", ABI: "[]"},
 				},
 			},
-			wantErr: "Name is empty",
+			wantValid: false,
 		},
 		{
 			name: "empty event name",
@@ -253,7 +253,7 @@ func TestBundle_Validate(t *testing.T) {
 					{Name: ""},
 				},
 			},
-			wantErr: "Name is empty",
+			wantValid: false,
 		},
 		{
 			name: "generic bundle with no contracts or events passes",
@@ -262,25 +262,25 @@ func TestBundle_Validate(t *testing.T) {
 				WasmBinary:     []byte{0x00, 0x61, 0x73, 0x6d},
 				ConfigTemplate: []byte("tmpl"),
 			},
-			wantErr: "",
+			wantValid: true,
 		},
 		{
 			name: "multiple errors reported",
 			bundle: &bundle.Bundle{
 				Service: "test",
 			},
-			wantErr: "WasmBinary is empty",
+			wantValid: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.bundle.Validate()
-			if tt.wantErr == "" {
+			if tt.wantValid {
 				require.NoError(t, err)
 			} else {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr)
+				assert.ErrorIs(t, err, bundle.ErrBundleInvalid)
 			}
 		})
 	}

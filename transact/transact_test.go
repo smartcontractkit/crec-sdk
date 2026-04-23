@@ -169,6 +169,7 @@ func TestSendSignedOperation(t *testing.T) {
 			operation:   nil,
 			signature:   []byte("test-signature"),
 			expectError: true,
+			errorIs:     ErrOperationRequired,
 		},
 	}
 
