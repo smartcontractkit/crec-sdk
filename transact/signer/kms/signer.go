@@ -9,7 +9,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/asn1"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
