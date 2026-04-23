@@ -645,7 +645,7 @@ func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) 
 		return common.Hash{}, ErrNilVerifiablePayload
 	}
 	if payload.VerifiableEvent == nil || *payload.VerifiableEvent == "" {
-		return common.Hash{}, ErrVerifiableEventRequired
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrVerifyEvent, ErrVerifiableEventRequired)
 	}
 	payloadToSign := *payload.VerifiableEvent
 	eventHash := crypto.Keccak256Hash([]byte(payloadToSign))

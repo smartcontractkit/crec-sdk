@@ -832,7 +832,7 @@ func (s *Signer) waitForOperation(ctx context.Context, opID string) (*OperationR
 			case StatusCompleted:
 				return op, nil
 			case StatusCancelled, StatusRejected, StatusFailed, StatusBlocked:
-				return nil, fmt.Errorf("%w: %s", ErrFireblocksOperationTerminal, op.Status)
+				return nil, fmt.Errorf("%w: operation %s ended with status %s", ErrFireblocksOperationTerminal, opID, op.Status)
 			}
 		}
 	}

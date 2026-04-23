@@ -191,7 +191,7 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return nil, fmt.Errorf("%w: %s", ErrPrivyUnauthorized, string(body))
 		}
-		return nil, fmt.Errorf("%w: status %d", ErrPrivyRPCUnexpectedStatus, resp.StatusCode)
+		return nil, fmt.Errorf("%w: status %d: %s", ErrPrivyRPCUnexpectedStatus, resp.StatusCode, string(body))
 	}
 
 	var rpcResp RPCResponse
@@ -228,7 +228,7 @@ func (s *Signer) GetWalletAddress(ctx context.Context) (string, error) {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return "", fmt.Errorf("%w: %s", ErrPrivyUnauthorized, string(body))
 		}
-		return "", fmt.Errorf("%w: status %d", ErrPrivyGetWalletUnexpectedStatus, resp.StatusCode)
+		return "", fmt.Errorf("%w: status %d: %s", ErrPrivyGetWalletUnexpectedStatus, resp.StatusCode, string(body))
 	}
 
 	var wallet WalletResponse
