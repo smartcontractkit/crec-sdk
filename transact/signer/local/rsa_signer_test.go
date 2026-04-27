@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"crypto"
+	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
 	"math/big"
@@ -16,6 +17,42 @@ func TestNewRSASigner_NilKey(t *testing.T) {
 	_, err := NewRSASigner(nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "privateKey must not be nil")
+}
+
+func TestNewRSASigner_NilN(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+	key.PublicKey.N = nil
+	_, err = NewRSASigner(key)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "nil modulus")
+}
+
+func TestNewRSASigner_NilD(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+	key.D = nil
+	_, err = NewRSASigner(key)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "nil private exponent")
+}
+
+func TestNewRSASigner_InvalidE(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+	key.PublicKey.E = 0
+	_, err = NewRSASigner(key)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid public exponent")
+}
+
+func TestNewRSASigner_KeyTooSmall(t *testing.T) {
+	// Bypass GenerateRSAKey's guard by using stdlib directly.
+	key, err := rsa.GenerateKey(rand.Reader, 1024)
+	require.NoError(t, err)
+	_, err = NewRSASigner(key)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "at least 2048 bits")
 }
 
 func TestRSASigner_Sign_Basic(t *testing.T) {
@@ -117,9 +154,10 @@ func TestGenerateRSAKey_ValidBits(t *testing.T) {
 }
 
 func TestGenerateRSAKey_InvalidBits(t *testing.T) {
-	// Go 1.26+ rejects keys < 1024 bits
-	_, err := GenerateRSAKey(512)
+	// SDK enforces a minimum of 2048 bits regardless of runtime behaviour.
+	_, err := GenerateRSAKey(1024)
 	require.Error(t, err)
+	require.Contains(t, err.Error(), "at least 2048 bits")
 }
 
 func TestRSASigner_PublicKey(t *testing.T) {
@@ -130,5 +168,57 @@ func TestRSASigner_PublicKey(t *testing.T) {
 	require.NoError(t, err)
 
 	pub := signer.PublicKey()
-	require.Equal(t, &key.PublicKey, pub)
+
+	// Value equality: N and E must match the original key.
+	require.Equal(t, key.PublicKey.N, pub.N)
+	require.Equal(t, key.PublicKey.E, pub.E)
+
+	// Defensive copy: mutating the returned key must not affect the signer.
+	pub.N.SetInt64(0)
+	require.NotEqual(t, int64(0), signer.PublicKey().N.Int64(), "signer internal key was mutated through returned PublicKey")
+}
+
+func TestRSASigner_Destroy(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+
+	signer.Destroy()
+
+	// Sign must fail after Destroy.
+	hash := make([]byte, 32)
+	_, err = signer.Sign(context.Background(), hash)
+	require.Error(t, err)
+}
+
+func TestRSASigner_Destroy_ClearsKeyMaterial(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+
+	// Hold references to the big.Int fields before handing the key to the signer
+	// so we can observe that they were zeroed.
+	d := key.D
+	p0 := key.Primes[0]
+
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+
+	signer.Destroy()
+
+	require.Equal(t, int64(0), d.Int64(), "private exponent D was not zeroed")
+	require.Equal(t, int64(0), p0.Int64(), "prime P was not zeroed")
+}
+
+func TestRSASigner_Destroy_Idempotent(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+
+	// Calling Destroy twice must not panic.
+	signer.Destroy()
+	signer.Destroy()
 }
