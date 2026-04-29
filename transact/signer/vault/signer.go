@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -19,6 +20,7 @@ import (
 )
 
 var _ signer.Signer = &Signer{}
+var _ signer.RSAPublicKeyExporter = &Signer{}
 
 // ErrSignerConfigIncomplete is returned when a required Vault signer parameter is missing.
 var ErrSignerConfigIncomplete = errors.New("vaultUrl, token, mountPath, and key must be set")
@@ -234,6 +236,37 @@ func (s *Signer) GetRSAModulus() (string, error) {
 	}
 
 	return hex.EncodeToString(rsaPubKey.N.Bytes()), nil
+}
+
+// GetRSAPublicExponent returns the hex-encoded public exponent E of the RSA public key.
+// For the standard exponent 65537, returns "010001".
+func (s *Signer) GetRSAPublicExponent() (string, error) {
+	pubKey, err := s.Public()
+	if err != nil {
+		return "", fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
+	if !ok || rsaPubKey == nil || rsaPubKey.N == nil {
+		return "", ErrNotValidRSAKey
+	}
+
+	return hex.EncodeToString(big.NewInt(int64(rsaPubKey.E)).Bytes()), nil
+}
+
+// RSAPublicKey returns the public components of this signer's RSA key in the
+// hex-encoded string format used by the CREC platform.
+// Implements signer.RSAPublicKeyExporter.
+func (s *Signer) RSAPublicKey() (signer.RSAPublicKeyInfo, error) {
+	n, err := s.GetRSAModulus()
+	if err != nil {
+		return signer.RSAPublicKeyInfo{}, err
+	}
+	e, err := s.GetRSAPublicExponent()
+	if err != nil {
+		return signer.RSAPublicKeyInfo{}, err
+	}
+	return signer.RSAPublicKeyInfo{E: e, N: n}, nil
 }
 
 // KeyCreationResult contains information about a newly created key in Vault.

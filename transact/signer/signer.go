@@ -7,6 +7,34 @@ type Signer interface {
 	Sign(ctx context.Context, hash []byte) ([]byte, error)
 }
 
+// RSAPublicKeyInfo contains the public components of an RSA key in the
+// string encoding used by the CREC platform: hex-encoded exponent and modulus.
+// These fields are used wherever the platform needs to identify or register an
+// RSA public key — for example, when configuring allowed signers on a Smart
+// Wallet, or when verifying key ownership out-of-band.
+//   - E is the hex-encoded public exponent (e.g. "010001" for 65537).
+//   - N is the hex-encoded modulus.
+type RSAPublicKeyInfo struct {
+	E string
+	N string
+}
+
+// RSAPublicKeyExporter is an optional interface implemented by RSA-capable
+// signers. It provides a signer-implementation-agnostic way to obtain the
+// public components of an RSA key in the string encoding expected by the CREC
+// platform, regardless of whether the key lives in memory, Vault, or another
+// backend.
+//
+// Not all signers implement this interface; callers should type-assert before use:
+//
+//	if exporter, ok := s.(signer.RSAPublicKeyExporter); ok {
+//	    info, err := exporter.RSAPublicKey()
+//	    // use info.E and info.N
+//	}
+type RSAPublicKeyExporter interface {
+	RSAPublicKey() (RSAPublicKeyInfo, error)
+}
+
 // TypedDataSigner signs EIP-712 typed structured data.
 // This interface allows custody providers to see the full typed data
 // for policy enforcement before signing.
