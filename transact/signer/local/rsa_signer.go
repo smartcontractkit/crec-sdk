@@ -17,8 +17,16 @@ import (
 const minRSAKeyBits = 2048
 
 var _ signerPkg.Signer = &RSASigner{}
+var _ signerPkg.RSAPublicKeyExporter = &RSASigner{}
 
-// RSASigner is an in-memory RSA PKCS#1 v1.5 signer for development and testing.
+// RSASigner is an in-memory RSA signer for development and testing.
+// It produces PKCS#1 v1.5 signatures — deterministic and compatible with
+// the CREC certification test infrastructure.
+//
+// Note: the Vault RSA signer uses RSA-PSS, which is a different padding scheme.
+// Signatures from RSASigner and the Vault signer are NOT interchangeable.
+// Use RSASigner when your verifier expects PKCS#1 v1.5; use the Vault signer
+// when your verifier expects PSS.
 type RSASigner struct {
 	privateKey *rsa.PrivateKey
 }
@@ -66,8 +74,10 @@ func validateRSAKey(key *rsa.PrivateKey) error {
 	return nil
 }
 
-// Sign signs a pre-hashed 32-byte message using PKCS#1 v1.5 with SHA-256.
-// Signatures are deterministic.
+// Sign signs a pre-hashed 32-byte message using PKCS#1 v1.5 with SHA-256 as
+// the hash identifier. Signatures are deterministic (no randomness in PKCS#1 v1.5).
+// The input hash is treated as opaque pre-hashed bytes; keccak256 digests from
+// EIP-712 operations are the typical input.
 func (s *RSASigner) Sign(_ context.Context, hash []byte) ([]byte, error) {
 	if s.privateKey == nil {
 		return nil, fmt.Errorf("signer has been destroyed")
@@ -78,25 +88,51 @@ func (s *RSASigner) Sign(_ context.Context, hash []byte) ([]byte, error) {
 	return rsa.SignPKCS1v15(rand.Reader, s.privateKey, crypto.SHA256, hash)
 }
 
-// PublicKey returns a copy of the RSA public key.
-// A defensive copy is returned so that callers cannot mutate the signer's
-// internal key state (e.g. by modifying the N big.Int in place).
-func (s *RSASigner) PublicKey() *rsa.PublicKey {
+// PublicKey returns a defensive copy of the RSA public key so that callers
+// cannot mutate the signer's internal key state.
+// Returns an error if the signer has been destroyed.
+func (s *RSASigner) PublicKey() (*rsa.PublicKey, error) {
+	if s.privateKey == nil {
+		return nil, fmt.Errorf("signer has been destroyed")
+	}
 	return &rsa.PublicKey{
 		N: new(big.Int).Set(s.privateKey.PublicKey.N),
 		E: s.privateKey.PublicKey.E,
-	}
+	}, nil
 }
 
 // GetRSAModulus returns the hex-encoded modulus N of the public key.
-func (s *RSASigner) GetRSAModulus() string {
-	return hex.EncodeToString(s.privateKey.PublicKey.N.Bytes())
+// Returns an error if the signer has been destroyed.
+func (s *RSASigner) GetRSAModulus() (string, error) {
+	if s.privateKey == nil {
+		return "", fmt.Errorf("signer has been destroyed")
+	}
+	return hex.EncodeToString(s.privateKey.PublicKey.N.Bytes()), nil
 }
 
 // GetRSAPublicExponent returns the hex-encoded public exponent E.
 // For the standard exponent 65537, returns "010001".
-func (s *RSASigner) GetRSAPublicExponent() string {
-	return hex.EncodeToString(big.NewInt(int64(s.privateKey.PublicKey.E)).Bytes())
+// Returns an error if the signer has been destroyed.
+func (s *RSASigner) GetRSAPublicExponent() (string, error) {
+	if s.privateKey == nil {
+		return "", fmt.Errorf("signer has been destroyed")
+	}
+	return hex.EncodeToString(big.NewInt(int64(s.privateKey.PublicKey.E)).Bytes()), nil
+}
+
+// RSAPublicKey returns the public components of this signer's RSA key in the
+// hex-encoded string format used by the CREC platform.
+// Implements signer.RSAPublicKeyExporter.
+func (s *RSASigner) RSAPublicKey() (signerPkg.RSAPublicKeyInfo, error) {
+	n, err := s.GetRSAModulus()
+	if err != nil {
+		return signerPkg.RSAPublicKeyInfo{}, err
+	}
+	e, err := s.GetRSAPublicExponent()
+	if err != nil {
+		return signerPkg.RSAPublicKeyInfo{}, err
+	}
+	return signerPkg.RSAPublicKeyInfo{E: e, N: n}, nil
 }
 
 // Destroy performs a best-effort in-memory wipe of the private key material:
@@ -112,23 +148,48 @@ func (s *RSASigner) Destroy() {
 		return
 	}
 
-	if s.privateKey.D != nil {
-		s.privateKey.D.SetInt64(0)
-	}
-	for _, p := range s.privateKey.Primes {
-		if p != nil {
-			p.SetInt64(0)
-		}
-	}
-	if s.privateKey.Precomputed.Dp != nil {
-		s.privateKey.Precomputed.Dp.SetInt64(0)
-	}
-	if s.privateKey.Precomputed.Dq != nil {
-		s.privateKey.Precomputed.Dq.SetInt64(0)
-	}
-	if s.privateKey.Precomputed.Qinv != nil {
-		s.privateKey.Precomputed.Qinv.SetInt64(0)
+	zeroBigInt(s.privateKey.D)
+	s.privateKey.D = nil
+
+	for i, p := range s.privateKey.Primes {
+		zeroBigInt(p)
+		s.privateKey.Primes[i] = nil
 	}
 
+	// CRTValues is deprecated by crypto/rsa for optimization use, but it may
+	// still be populated for backward compatibility; wipe it if present.
+	for i := range s.privateKey.Precomputed.CRTValues {
+		zeroBigInt(s.privateKey.Precomputed.CRTValues[i].Coeff)
+		zeroBigInt(s.privateKey.Precomputed.CRTValues[i].Exp)
+		zeroBigInt(s.privateKey.Precomputed.CRTValues[i].R)
+		s.privateKey.Precomputed.CRTValues[i].Coeff = nil
+		s.privateKey.Precomputed.CRTValues[i].Exp = nil
+		s.privateKey.Precomputed.CRTValues[i].R = nil
+	}
+	s.privateKey.Precomputed.CRTValues = nil
+
+	zeroBigInt(s.privateKey.Precomputed.Dp)
+	s.privateKey.Precomputed.Dp = nil
+	zeroBigInt(s.privateKey.Precomputed.Dq)
+	s.privateKey.Precomputed.Dq = nil
+	zeroBigInt(s.privateKey.Precomputed.Qinv)
+	s.privateKey.Precomputed.Qinv = nil
+
+	zeroBigInt(s.privateKey.PublicKey.N)
+	s.privateKey.PublicKey.N = nil
+
 	s.privateKey = nil
+}
+
+// zeroBigInt overwrites the backing words of x before resetting it.
+// This is best-effort: Go's GC and escape analysis may leave copies elsewhere.
+func zeroBigInt(x *big.Int) {
+	if x == nil {
+		return
+	}
+	words := x.Bits()
+	for i := range words {
+		words[i] = 0
+	}
+	x.SetInt64(0)
 }

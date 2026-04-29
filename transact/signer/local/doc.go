@@ -37,10 +37,18 @@
 //
 // Register the public key with a CREC Smart Wallet:
 //
+//	e, err := signer.GetRSAPublicExponent()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	n, err := signer.GetRSAModulus()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 //	wallet, err := client.Wallets.Create(ctx, wallets.CreateInput{
 //	    WalletType: "rsa",
 //	    AllowedRsaSigners: &apiClient.RSASignersList{
-//	        {E: signer.GetRSAPublicExponent(), N: signer.GetRSAModulus()},
+//	        {E: e, N: n},
 //	    },
 //	    ...
 //	})

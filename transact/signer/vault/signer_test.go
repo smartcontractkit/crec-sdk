@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -504,6 +505,110 @@ func TestSigner_GetRSAModulus(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotValidRSAKey)
 }
 
+func TestSigner_GetRSAPublicExponent(t *testing.T) {
+	ctx := context.Background()
+
+	vaultContainer, err := vault.Run(ctx, "hashicorp/vault:1.13.3", vault.WithToken("myroot"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	})
+
+	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
+	client, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err)
+	client.SetAddress(vaultURL)
+	client.SetToken("myroot")
+
+	err = client.Sys().Mount("transit", &api.MountInput{Type: "transit"})
+	require.NoError(t, err)
+
+	rsaKeyName := "test-exponent-rsa-key"
+	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", rsaKeyName), map[string]interface{}{"type": "rsa-2048"})
+	require.NoError(t, err)
+
+	rsaSigner, err := NewSigner(vaultURL, "myroot", "transit", rsaKeyName)
+	require.NoError(t, err)
+
+	exponent, err := rsaSigner.GetRSAPublicExponent()
+	require.NoError(t, err)
+	require.NotEmpty(t, exponent)
+
+	// Verify it decodes as valid hex and matches what Public() gives us.
+	_, err = hex.DecodeString(exponent)
+	require.NoError(t, err, "exponent should be valid hex")
+
+	pubKey, err := rsaSigner.Public()
+	require.NoError(t, err)
+	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
+	require.True(t, ok)
+	expectedExp := hex.EncodeToString(big.NewInt(int64(rsaPubKey.E)).Bytes())
+	require.Equal(t, expectedExp, exponent)
+	t.Logf("RSA public exponent: %s", exponent)
+
+	// Should fail for an ECDSA key.
+	ecdsaKeyName := "test-exponent-ecdsa-key"
+	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", ecdsaKeyName), map[string]interface{}{"type": "ecdsa-p256"})
+	require.NoError(t, err)
+
+	ecdsaSigner, err := NewSigner(vaultURL, "myroot", "transit", ecdsaKeyName)
+	require.NoError(t, err)
+
+	_, err = ecdsaSigner.GetRSAPublicExponent()
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrNotValidRSAKey)
+}
+
+func TestSigner_RSAPublicKey(t *testing.T) {
+	ctx := context.Background()
+
+	vaultContainer, err := vault.Run(ctx, "hashicorp/vault:1.13.3", vault.WithToken("myroot"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	})
+
+	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
+	client, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err)
+	client.SetAddress(vaultURL)
+	client.SetToken("myroot")
+
+	err = client.Sys().Mount("transit", &api.MountInput{Type: "transit"})
+	require.NoError(t, err)
+
+	rsaKeyName := "test-rsapublickey-rsa-key"
+	_, err = client.Logical().Write(fmt.Sprintf("transit/keys/%s", rsaKeyName), map[string]interface{}{"type": "rsa-2048"})
+	require.NoError(t, err)
+
+	rsaSigner, err := NewSigner(vaultURL, "myroot", "transit", rsaKeyName)
+	require.NoError(t, err)
+
+	info, err := rsaSigner.RSAPublicKey()
+	require.NoError(t, err)
+	require.NotEmpty(t, info.E)
+	require.NotEmpty(t, info.N)
+
+	// Values must match the individual helpers.
+	expectedN, err := rsaSigner.GetRSAModulus()
+	require.NoError(t, err)
+	expectedE, err := rsaSigner.GetRSAPublicExponent()
+	require.NoError(t, err)
+	require.Equal(t, expectedN, info.N)
+	require.Equal(t, expectedE, info.E)
+	t.Logf("RSAPublicKey info: E=%s N=%s...", info.E, info.N[:16])
+}
+
 func TestCreateKeyInVault(t *testing.T) {
 	ctx := context.Background()
 
@@ -750,7 +855,7 @@ func TestSigner_Public_TrailingGarbage(t *testing.T) {
 				},
 			},
 		}
-		
+
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()

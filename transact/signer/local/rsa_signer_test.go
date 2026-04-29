@@ -114,13 +114,24 @@ func TestRSASigner_GetRSAModulus(t *testing.T) {
 	signer, err := NewRSASigner(key)
 	require.NoError(t, err)
 
-	modulus := signer.GetRSAModulus()
+	modulus, err := signer.GetRSAModulus()
+	require.NoError(t, err)
 	expected := hex.EncodeToString(key.PublicKey.N.Bytes())
 	require.Equal(t, expected, modulus)
 
 	// Verify it's valid hex
 	_, err = hex.DecodeString(modulus)
 	require.NoError(t, err)
+}
+
+func TestRSASigner_GetRSAModulus_AfterDestroy(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+	signer.Destroy()
+	_, err = signer.GetRSAModulus()
+	require.ErrorContains(t, err, "destroyed")
 }
 
 func TestRSASigner_GetRSAPublicExponent(t *testing.T) {
@@ -130,12 +141,23 @@ func TestRSASigner_GetRSAPublicExponent(t *testing.T) {
 	signer, err := NewRSASigner(key)
 	require.NoError(t, err)
 
-	exponent := signer.GetRSAPublicExponent()
+	exponent, err := signer.GetRSAPublicExponent()
+	require.NoError(t, err)
 
 	// Standard RSA exponent 65537 = 0x010001
 	expected := hex.EncodeToString(big.NewInt(int64(key.PublicKey.E)).Bytes())
 	require.Equal(t, expected, exponent)
 	require.Equal(t, "010001", exponent)
+}
+
+func TestRSASigner_GetRSAPublicExponent_AfterDestroy(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+	signer.Destroy()
+	_, err = signer.GetRSAPublicExponent()
+	require.ErrorContains(t, err, "destroyed")
 }
 
 func TestRSASigner_ImplementsSigner(t *testing.T) {
@@ -167,7 +189,8 @@ func TestRSASigner_PublicKey(t *testing.T) {
 	signer, err := NewRSASigner(key)
 	require.NoError(t, err)
 
-	pub := signer.PublicKey()
+	pub, err := signer.PublicKey()
+	require.NoError(t, err)
 
 	// Value equality: N and E must match the original key.
 	require.Equal(t, key.PublicKey.N, pub.N)
@@ -175,7 +198,61 @@ func TestRSASigner_PublicKey(t *testing.T) {
 
 	// Defensive copy: mutating the returned key must not affect the signer.
 	pub.N.SetInt64(0)
-	require.NotEqual(t, int64(0), signer.PublicKey().N.Int64(), "signer internal key was mutated through returned PublicKey")
+	pub2, err := signer.PublicKey()
+	require.NoError(t, err)
+	require.NotEqual(t, int64(0), pub2.N.Int64(), "signer internal key was mutated through returned PublicKey")
+}
+
+func TestRSASigner_PublicKey_AfterDestroy(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+	signer.Destroy()
+	_, err = signer.PublicKey()
+	require.ErrorContains(t, err, "destroyed")
+}
+
+func TestRSASigner_RSAPublicKey(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+
+	info, err := signer.RSAPublicKey()
+	require.NoError(t, err)
+
+	// E and N must be non-empty and match the individual helpers.
+	expectedN, err := signer.GetRSAModulus()
+	require.NoError(t, err)
+	expectedE, err := signer.GetRSAPublicExponent()
+	require.NoError(t, err)
+
+	require.Equal(t, expectedN, info.N)
+	require.Equal(t, expectedE, info.E)
+	require.Equal(t, "010001", info.E) // standard exponent 65537
+}
+
+func TestRSASigner_RSAPublicKey_AfterDestroy(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+	signer.Destroy()
+	_, err = signer.RSAPublicKey()
+	require.ErrorContains(t, err, "destroyed")
+}
+
+func TestRSASigner_ImplementsRSAPublicKeyExporter(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+	s, err := NewRSASigner(key)
+	require.NoError(t, err)
+	// The compile-time var _ signerPkg.RSAPublicKeyExporter = &RSASigner{} in
+	// rsa_signer.go already enforces this; confirm the method is callable here.
+	_, err = s.RSAPublicKey()
+	require.NoError(t, err)
 }
 
 func TestRSASigner_Destroy(t *testing.T) {
@@ -209,6 +286,57 @@ func TestRSASigner_Destroy_ClearsKeyMaterial(t *testing.T) {
 
 	require.Equal(t, int64(0), d.Int64(), "private exponent D was not zeroed")
 	require.Equal(t, int64(0), p0.Int64(), "prime P was not zeroed")
+}
+
+func TestRSASigner_Destroy_OverwritesBackingWords(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
+	require.NoError(t, err)
+
+	dWords := key.D.Bits()
+	pWords := key.Primes[0].Bits()
+	require.NotEmpty(t, dWords)
+	require.NotEmpty(t, pWords)
+
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+
+	signer.Destroy()
+
+	for _, w := range dWords {
+		require.Equal(t, big.Word(0), w, "D backing words were not overwritten")
+	}
+	for _, w := range pWords {
+		require.Equal(t, big.Word(0), w, "prime backing words were not overwritten")
+	}
+}
+
+func TestRSASigner_Destroy_ClearsMultiPrimeCRTValues(t *testing.T) {
+	key, err := rsa.GenerateMultiPrimeKey(rand.Reader, 3, 2048)
+	require.NoError(t, err)
+	key.Precompute()
+	require.NotEmpty(t, key.Precomputed.CRTValues)
+
+	coeffWords := key.Precomputed.CRTValues[0].Coeff.Bits()
+	expWords := key.Precomputed.CRTValues[0].Exp.Bits()
+	rWords := key.Precomputed.CRTValues[0].R.Bits()
+	require.NotEmpty(t, coeffWords)
+	require.NotEmpty(t, expWords)
+	require.NotEmpty(t, rWords)
+
+	signer, err := NewRSASigner(key)
+	require.NoError(t, err)
+
+	signer.Destroy()
+
+	for _, w := range coeffWords {
+		require.Equal(t, big.Word(0), w, "CRT coeff backing words were not overwritten")
+	}
+	for _, w := range expWords {
+		require.Equal(t, big.Word(0), w, "CRT exp backing words were not overwritten")
+	}
+	for _, w := range rWords {
+		require.Equal(t, big.Word(0), w, "CRT R backing words were not overwritten")
+	}
 }
 
 func TestRSASigner_Destroy_Idempotent(t *testing.T) {
