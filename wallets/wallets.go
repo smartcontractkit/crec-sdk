@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
+	openapitypes "github.com/oapi-codegen/runtime/types"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
@@ -35,20 +36,19 @@ var (
 	ErrWalletTypeRequired         = errors.New("wallet type is required")
 	ErrUnsupportedWalletType      = errors.New("unsupported wallet type")
 	ErrWalletIDRequired           = errors.New("wallet ID is required")
-	ErrStatusChannelIDRequired    = errors.New("status channel ID is required")
 	ErrStatusChannelIDZero        = errors.New("status channel ID cannot be the zero UUID")
 	ErrEcdsaSignersRequired       = errors.New("allowed_ecdsa_signers is required for ecdsa wallet type")
 	ErrRsaSignersRequired         = errors.New("allowed_rsa_signers is required for rsa wallet type")
 	ErrDuplicateEcdsaSigner       = errors.New("duplicate ecdsa signer")
 	ErrDuplicateRsaSigner         = errors.New("duplicate rsa signer")
 
-	ErrInvalidSignersForEcdsa     = errors.New("only allowed_ecdsa_signers can be provided for ecdsa wallet type")
-	ErrInvalidSignersForRsa       = errors.New("only allowed_rsa_signers can be provided for rsa wallet type")
-	ErrInvalidEcdsaSigner         = errors.New("all allowed_ecdsa_signers must be valid hex addresses")
-	ErrInvalidRsaSigner           = errors.New("all allowed_rsa_signers must have non-empty E and N fields")
-	ErrInvalidLimit               = errors.New("limit must be positive")
-	ErrInvalidOffset              = errors.New("offset cannot be negative")
-	ErrInvalidOwnerAddress        = errors.New("owner address must be a valid hex address")
+	ErrInvalidSignersForEcdsa = errors.New("only allowed_ecdsa_signers can be provided for ecdsa wallet type")
+	ErrInvalidSignersForRsa   = errors.New("only allowed_rsa_signers can be provided for rsa wallet type")
+	ErrInvalidEcdsaSigner     = errors.New("all allowed_ecdsa_signers must be valid hex addresses")
+	ErrInvalidRsaSigner       = errors.New("all allowed_rsa_signers must have non-empty E and N fields")
+	ErrInvalidLimit           = errors.New("limit must be positive")
+	ErrInvalidOffset          = errors.New("offset cannot be negative")
+	ErrInvalidOwnerAddress    = errors.New("owner address must be a valid hex address")
 
 	// API operation errors
 	ErrCreateWallet  = errors.New("failed to create wallet")
@@ -156,10 +156,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, ErrWalletTypeRequired
 	}
 
-	if input.StatusChannelId == nil {
-		return nil, ErrStatusChannelIDRequired
-	}
-	if *input.StatusChannelId == uuid.Nil {
+	if input.StatusChannelId != nil && *input.StatusChannelId == uuid.Nil {
 		return nil, ErrStatusChannelIDZero
 	}
 
@@ -220,6 +217,12 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		allowedRsaSigners = &rs
 	}
 
+	var apiStatusChannelID *openapitypes.UUID
+	if input.StatusChannelId != nil {
+		v := openapitypes.UUID(*input.StatusChannelId)
+		apiStatusChannelID = &v
+	}
+
 	createWalletReq := apiClient.CreateWallet{
 		Name:                input.Name,
 		ChainSelector:       input.ChainSelector,
@@ -227,7 +230,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		WalletType:          input.WalletType,
 		AllowedEcdsaSigners: input.AllowedEcdsaSigners,
 		AllowedRsaSigners:   allowedRsaSigners,
-		StatusChannelId:     input.StatusChannelId,
+		StatusChannelId:     apiStatusChannelID,
 	}
 
 	resp, err := c.apiClient.PostWalletsWithResponse(ctx, createWalletReq)
