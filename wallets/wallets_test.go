@@ -154,6 +154,64 @@ func TestClient_Create(t *testing.T) {
 		assert.Equal(t, chainSelector, wallet.ChainSelector)
 	})
 
+	t.Run("SuccessWithoutStatusChannelId", func(t *testing.T) {
+		walletID := uuid.New()
+		walletName := "test-wallet-no-status-ch"
+		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
+		chainSelector := "ethereum-sepolia"
+		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var createReq apiClient.CreateWallet
+			require.NoError(t, json.Unmarshal(body, &createReq))
+			assert.Nil(t, createReq.StatusChannelId)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(apiClient.Wallet{
+				WalletId:      walletID,
+				Name:          walletName,
+				Address:       walletAddress,
+				ChainSelector: chainSelector,
+			})
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		ecdsaSigners := []string{}
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:                walletName,
+			ChainSelector:       chainSelector,
+			WalletOwnerAddress:  ownerAddress,
+			WalletType:          apiClient.Ecdsa,
+			AllowedEcdsaSigners: &ecdsaSigners,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, wallet)
+		assert.Equal(t, walletID, wallet.WalletId)
+	})
+
+	t.Run("StatusChannelIdZeroUUID", func(t *testing.T) {
+		client, server := setupTestClient(t, nil)
+		defer server.Close()
+		z := uuid.Nil
+		ecdsaSigners := []string{}
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:                "test",
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.Ecdsa,
+			AllowedEcdsaSigners: &ecdsaSigners,
+			StatusChannelId:     &z,
+		})
+		require.Error(t, err)
+		assert.Nil(t, wallet)
+		assert.ErrorIs(t, err, ErrStatusChannelIDZero)
+	})
+
 	t.Run("DuplicateEcdsaSigners", func(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
