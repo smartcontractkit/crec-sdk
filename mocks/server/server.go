@@ -492,8 +492,6 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 		watcher.Events = svcReq.Events
 		if svcReq.ConfidenceLevel != nil {
 			watcher.ConfidenceLevel = *svcReq.ConfidenceLevel
-		} else {
-			watcher.ConfidenceLevel = stdserver.Latest
 		}
 	} else if abiReq, err := request.AsCreateWatcherWithABI(); err == nil {
 		watcher.Name = &abiReq.Name
@@ -503,8 +501,6 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 		watcher.Abi = &abiReq.Abi
 		if abiReq.ConfidenceLevel != nil {
 			watcher.ConfidenceLevel = *abiReq.ConfidenceLevel
-		} else {
-			watcher.ConfidenceLevel = stdserver.Latest
 		}
 	} else {
 		http.Error(w, "invalid watcher request", http.StatusBadRequest)
