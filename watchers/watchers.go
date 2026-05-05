@@ -113,21 +113,23 @@ type EventABI struct {
 
 // CreateWithServiceInput defines the input for creating a watcher using a predefined service (e.g., dvp, dta).
 type CreateWithServiceInput struct {
-	Name          string                 `json:"name"`
-	ChainSelector string                 `json:"chain_selector"`
-	Service       string                 `json:"service"`
-	Events        []string               `json:"events"`
-	Address       string                 `json:"address"`
-	ServiceConfig map[string]interface{} `json:"service_config,omitempty"`
+	Name            string                     `json:"name"`
+	ChainSelector   string                     `json:"chain_selector"`
+	Service         string                     `json:"service"`
+	Events          []string                   `json:"events"`
+	Address         string                     `json:"address"`
+	ServiceConfig   map[string]interface{}     `json:"service_config,omitempty"`
+	ConfidenceLevel *apiClient.ConfidenceLevel `json:"confidence_level,omitempty"`
 }
 
 // CreateWithABIInput defines the input for creating a watcher with a custom event ABI.
 type CreateWithABIInput struct {
-	Name          string     `json:"name"`
-	ChainSelector string     `json:"chain_selector"`
-	Address       string     `json:"address"`
-	Events        []string   `json:"events"`
-	ABI           []EventABI `json:"abi"`
+	Name            string                     `json:"name"`
+	ChainSelector   string                     `json:"chain_selector"`
+	Address         string                     `json:"address"`
+	Events          []string                   `json:"events"`
+	ABI             []EventABI                 `json:"abi"`
+	ConfidenceLevel *apiClient.ConfidenceLevel `json:"confidence_level,omitempty"`
 }
 
 // UpdateInput defines the input for updating a watcher.
@@ -234,11 +236,12 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 		return nil, err
 	}
 	createWatcherWithService := apiClient.CreateWatcherWithService{
-		Name:          normalizedName,
-		ChainSelector: input.ChainSelector,
-		Address:       input.Address,
-		Service:       input.Service,
-		Events:        input.Events,
+		Name:            normalizedName,
+		ChainSelector:   input.ChainSelector,
+		Address:         input.Address,
+		Service:         input.Service,
+		Events:          input.Events,
+		ConfidenceLevel: input.ConfidenceLevel,
 	}
 	if input.ServiceConfig != nil {
 		createWatcherWithService.ServiceConfig = &input.ServiceConfig
@@ -349,11 +352,12 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 	}
 
 	createWatcherWithABI := apiClient.CreateWatcherWithABI{
-		Name:          normalizedName,
-		ChainSelector: input.ChainSelector,
-		Address:       input.Address,
-		Events:        input.Events,
-		Abi:           abiList,
+		Name:            normalizedName,
+		ChainSelector:   input.ChainSelector,
+		Address:         input.Address,
+		Events:          input.Events,
+		Abi:             abiList,
+		ConfidenceLevel: input.ConfidenceLevel,
 	}
 
 	var createWatcherReq apiClient.CreateWatcher
