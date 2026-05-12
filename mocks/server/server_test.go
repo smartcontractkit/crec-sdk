@@ -39,7 +39,7 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 
 	// Wallets: create, list, get by id
 	testWalletName := "Test Wallet"
-	wallet, err := c.PostWalletsWithResponse(
+	wallet, err := c.CreateWalletWithResponse(
 		context.Background(), apiClient.CreateWallet{
 			WalletOwnerAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 			ChainSelector:      "1337",
@@ -52,14 +52,14 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 	if wallet.StatusCode() != http.StatusCreated || wallet.JSON201 == nil {
 		t.Fatalf("unexpected wallet creation response")
 	}
-	list, err := c.GetWalletsWithResponse(context.Background(), nil)
+	list, err := c.ListWalletsWithResponse(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("GetWallets: %v", err)
 	}
 	if list.StatusCode() != http.StatusOK || list.JSON200 == nil {
 		t.Fatalf("unexpected wallets list response")
 	}
-	one, err := c.GetWalletsWalletIdWithResponse(context.Background(), wallet.JSON201.WalletId)
+	one, err := c.GetWalletWithResponse(context.Background(), wallet.JSON201.WalletId)
 	if err != nil {
 		t.Fatalf("GetWalletsWalletId: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 	updateRequest := apiClient.UpdateWallet{
 		Name: &updatedName,
 	}
-	updateResp, err := c.PatchWalletsWalletIdWithResponse(context.Background(), wallet.JSON201.WalletId, updateRequest)
+	updateResp, err := c.UpdateWalletWithResponse(context.Background(), wallet.JSON201.WalletId, updateRequest)
 	if err != nil {
 		t.Fatalf("PatchWalletsWalletId: %v", err)
 	}

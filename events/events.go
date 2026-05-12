@@ -76,7 +76,7 @@ var (
 	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 	// ErrNilResponse is returned when the API response is nil.
-	ErrNilResponse     = errors.New("unexpected nil response")
+	ErrNilResponse = errors.New("unexpected nil response")
 	// ErrNilResponseBody is returned when the API response body is nil.
 	ErrNilResponseBody = errors.New("unexpected nil response body")
 	// ErrBadRequest is returned when the request parameters are invalid.
@@ -238,9 +238,9 @@ func (c *Client) WorkflowOwnerFromOrgID(orgID string) (string, error) {
 // Poll retrieves events from the CREC service for a specific channel.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - channelID: The UUID of the channel to retrieve events from.
-//   - params: parameters for filtering events, see apiClient.GetChannelsChannelIdEventsParams for details.
+//   - params: parameters for filtering events, see apiClient.ListChannelEventsParams for details.
 func (c *Client) Poll(
-	ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsParams,
+	ctx context.Context, channelID uuid.UUID, params *apiClient.ListChannelEventsParams,
 ) ([]apiClient.Event, bool, error) {
 	c.logger.Debug(
 		"Polling events by channel",
@@ -252,7 +252,7 @@ func (c *Client) Poll(
 		return nil, false, ErrChannelIDRequired
 	}
 
-	resp, err := c.crecClient.GetChannelsChannelIdEventsWithResponse(ctx, channelID, params)
+	resp, err := c.crecClient.ListChannelEventsWithResponse(ctx, channelID, params)
 	if err != nil {
 		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, err)
 	}
@@ -291,12 +291,12 @@ func (c *Client) Poll(
 }
 
 // SearchEvents queries and searches historical events from a channel with filtering capabilities.
-// Use this method for historical queries and searches. For real-time polling, use PollEvents.
+// Use this method for historical queries and searches. For real-time polling, use Poll.
 //   - ctx: Context for the request, used for cancellation and timeouts.
 //   - channelID: The UUID of the channel to search events from.
-//   - params: Parameters for filtering events, see client.GetChannelsChannelIdEventsSearchParams for details.
+//   - params: Parameters for filtering events, see client.SearchChannelEventsParams for details.
 func (c *Client) SearchEvents(
-	ctx context.Context, channelID uuid.UUID, params *apiClient.GetChannelsChannelIdEventsSearchParams,
+	ctx context.Context, channelID uuid.UUID, params *apiClient.SearchChannelEventsParams,
 ) ([]apiClient.Event, bool, error) {
 	c.logger.Debug(
 		"Searching historical events by channel",
@@ -308,7 +308,7 @@ func (c *Client) SearchEvents(
 		return nil, false, ErrChannelIDRequired
 	}
 
-	resp, err := c.crecClient.GetChannelsChannelIdEventsSearchWithResponse(ctx, channelID, params)
+	resp, err := c.crecClient.SearchChannelEventsWithResponse(ctx, channelID, params)
 	if err != nil {
 		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, err)
 	}

@@ -253,7 +253,7 @@ func (c *Client) CreateWithService(ctx context.Context, channelID uuid.UUID, inp
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherRequest, err)
 	}
 
-	resp, err := c.apiClient.PostChannelsChannelIdWatchersWithResponse(ctx, channelID, createWatcherReq)
+	resp, err := c.apiClient.CreateWatcherWithResponse(ctx, channelID, createWatcherReq)
 	if err != nil {
 		c.logger.Error("Failed to create watcher with service", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherService, err)
@@ -366,7 +366,7 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherRequest, err)
 	}
 
-	resp, err := c.apiClient.PostChannelsChannelIdWatchersWithResponse(ctx, channelID, createWatcherReq)
+	resp, err := c.apiClient.CreateWatcherWithResponse(ctx, channelID, createWatcherReq)
 	if err != nil {
 		c.logger.Error("Failed to create watcher with ABI", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherABI, err)
@@ -400,7 +400,7 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 		return nil, err
 	}
 
-	params := &apiClient.GetChannelsChannelIdWatchersParams{
+	params := &apiClient.ListWatchersParams{
 		Limit:         filters.Limit,
 		Offset:        filters.Offset,
 		Name:          filters.Name,
@@ -411,7 +411,7 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 		Status:        filters.Status,
 	}
 
-	resp, err := c.apiClient.GetChannelsChannelIdWatchersWithResponse(ctx, channelID, params)
+	resp, err := c.apiClient.ListWatchersWithResponse(ctx, channelID, params)
 	if err != nil {
 		c.logger.Error("Failed to list watchers", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrListWatchers, err)
@@ -450,7 +450,7 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UU
 		return nil, ErrWatcherIDRequired
 	}
 
-	resp, err := c.apiClient.GetChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID)
+	resp, err := c.apiClient.GetWatcherWithResponse(ctx, channelID, watcherID)
 	if err != nil {
 		c.logger.Error("Failed to get watcher", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetWatcher, err)
@@ -500,7 +500,7 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, watcherID uuid
 		Name: &input.Name,
 	}
 
-	resp, err := c.apiClient.PatchChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID, updateReq)
+	resp, err := c.apiClient.UpdateWatcherWithResponse(ctx, channelID, watcherID, updateReq)
 	if err != nil {
 		c.logger.Error("Failed to update watcher", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrUpdateWatcher, err)
@@ -630,7 +630,7 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 		Status: &archiveStatus,
 	}
 
-	resp, err := c.apiClient.PatchChannelsChannelIdWatchersWatcherIdWithResponse(ctx, channelID, watcherID, updateReq)
+	resp, err := c.apiClient.UpdateWatcherWithResponse(ctx, channelID, watcherID, updateReq)
 	if err != nil {
 		c.logger.Error("Failed to archive watcher", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, err)

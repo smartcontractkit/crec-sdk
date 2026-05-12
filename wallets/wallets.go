@@ -233,7 +233,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		StatusChannelId:     apiStatusChannelID,
 	}
 
-	resp, err := c.apiClient.PostWalletsWithResponse(ctx, createWalletReq)
+	resp, err := c.apiClient.CreateWalletWithResponse(ctx, createWalletReq)
 	if err != nil {
 		c.logger.Error("Failed to create wallet", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateWallet, err)
@@ -277,7 +277,7 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 		return nil, ErrWalletIDRequired
 	}
 
-	resp, err := c.apiClient.GetWalletsWalletIdWithResponse(ctx, walletID)
+	resp, err := c.apiClient.GetWalletWithResponse(ctx, walletID)
 	if err != nil {
 		c.logger.Error("Failed to get wallet", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetWallet, err)
@@ -361,7 +361,7 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 		return nil, false, fmt.Errorf("%w: %s", ErrInvalidOwnerAddress, *input.Address)
 	}
 
-	params := apiClient.GetWalletsParams{
+	params := apiClient.ListWalletsParams{
 		Name:          input.Name,
 		ChainSelector: input.ChainSelector,
 		Owner:         input.Owner,
@@ -372,7 +372,7 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 		Offset:        input.Offset,
 	}
 
-	resp, err := c.apiClient.GetWalletsWithResponse(ctx, &params)
+	resp, err := c.apiClient.ListWalletsWithResponse(ctx, &params)
 	if err != nil {
 		c.logger.Error("Failed to list wallets", "error", err)
 		return nil, false, fmt.Errorf("%w: %w", ErrListWallets, err)
@@ -433,7 +433,7 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 		Name: &input.Name,
 	}
 
-	resp, err := c.apiClient.PatchWalletsWalletIdWithResponse(ctx, walletID, updateWalletReq)
+	resp, err := c.apiClient.UpdateWalletWithResponse(ctx, walletID, updateWalletReq)
 	if err != nil {
 		c.logger.Error("Failed to update wallet", "error", err)
 		return fmt.Errorf("%w: %w", ErrUpdateWallet, err)
@@ -480,7 +480,7 @@ func (c *Client) Archive(ctx context.Context, walletID uuid.UUID) error {
 		Status: &archiveStatus,
 	}
 
-	resp, err := c.apiClient.PatchWalletsWalletIdWithResponse(ctx, walletID, archiveReq)
+	resp, err := c.apiClient.UpdateWalletWithResponse(ctx, walletID, archiveReq)
 	if err != nil {
 		c.logger.Error("Failed to archive wallet", "error", err)
 		return fmt.Errorf("%w: %w", ErrArchiveWallet, err)

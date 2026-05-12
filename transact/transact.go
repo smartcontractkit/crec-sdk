@@ -56,7 +56,7 @@ var (
 	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 	// ErrNilResponse is returned when the API response is nil.
-	ErrNilResponse     = errors.New("unexpected nil response")
+	ErrNilResponse = errors.New("unexpected nil response")
 	// ErrNilResponseBody is returned when the API response body is nil.
 	ErrNilResponseBody = errors.New("unexpected nil response body")
 
@@ -238,7 +238,7 @@ func (c *Client) CreateOperation(ctx context.Context, input CreateOperationInput
 		Signature:         input.Signature,
 	}
 
-	resp, err := c.crecClient.PostChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, createOperationReq)
+	resp, err := c.crecClient.CreateOperationWithResponse(ctx, input.ChannelID, createOperationReq)
 	if err != nil {
 		c.logger.Error("Failed to create operation", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, err)
@@ -349,7 +349,7 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 		"channel_id", channelID.String(),
 		"operation_id", operationID.String())
 
-	resp, err := c.crecClient.GetChannelsChannelIdOperationsOperationIdWithResponse(ctx, channelID, operationID)
+	resp, err := c.crecClient.GetOperationWithResponse(ctx, channelID, operationID)
 	if err != nil {
 		c.logger.Error("Failed to get operation", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetOperation, err)
@@ -418,7 +418,7 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 		return nil, false, ErrChannelIDRequired
 	}
 
-	params := apiClient.GetChannelsChannelIdOperationsParams{
+	params := apiClient.ListOperationsParams{
 		ChainSelector: input.ChainSelector,
 		Address:       input.Address,
 		WalletId:      input.WalletID,
@@ -427,7 +427,7 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 		Status:        input.Status,
 	}
 
-	resp, err := c.crecClient.GetChannelsChannelIdOperationsWithResponse(ctx, input.ChannelID, &params)
+	resp, err := c.crecClient.ListOperationsWithResponse(ctx, input.ChannelID, &params)
 	if err != nil {
 		c.logger.Error("Failed to list operations", "error", err)
 		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, err)
