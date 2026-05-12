@@ -117,7 +117,7 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		params := &apiClient.GetChannelsChannelIdEventsParams{
+		params := &apiClient.ListChannelEventsParams{
 			Limit:  &limit,
 			Offset: &offset,
 		}
@@ -197,7 +197,7 @@ func TestClient_ListEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		params := &apiClient.GetChannelsChannelIdEventsParams{
+		params := &apiClient.ListChannelEventsParams{
 			Limit:  &limit,
 			Offset: &offset,
 		}
@@ -287,7 +287,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		params := &apiClient.GetChannelsChannelIdEventsSearchParams{
+		params := &apiClient.SearchChannelEventsParams{
 			Limit:             &limit,
 			Offset:            &offset,
 			Type:              &typeVal,
@@ -330,7 +330,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		params := &apiClient.GetChannelsChannelIdEventsSearchParams{
+		params := &apiClient.SearchChannelEventsParams{
 			CreatedGte: &createdGte,
 			CreatedLte: &createdLte,
 		}
@@ -358,7 +358,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		params := &apiClient.GetChannelsChannelIdEventsSearchParams{
+		params := &apiClient.SearchChannelEventsParams{
 			Type: &typeVal,
 		}
 		eventsList, hasMore, err := c.SearchEvents(context.Background(), channelID, params)
@@ -466,7 +466,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		params := &apiClient.GetChannelsChannelIdEventsSearchParams{
+		params := &apiClient.SearchChannelEventsParams{
 			Limit:  &limit,
 			Offset: &offset,
 		}

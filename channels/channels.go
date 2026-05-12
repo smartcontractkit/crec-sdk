@@ -38,9 +38,9 @@ var (
 	// Response errors
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 	// ErrNilResponse is returned when the API response is nil.
-	ErrNilResponse          = errors.New("unexpected nil response")
+	ErrNilResponse = errors.New("unexpected nil response")
 	// ErrNilResponseBody is returned when the API response body is nil.
-	ErrNilResponseBody      = errors.New("unexpected nil response body")
+	ErrNilResponseBody = errors.New("unexpected nil response body")
 )
 
 // Options defines the options for creating a new CREC Channels client.
@@ -115,7 +115,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Chan
 		Description: input.Description,
 	}
 
-	resp, err := c.apiClient.PostChannelsWithResponse(ctx, createChannelReq)
+	resp, err := c.apiClient.CreateChannelWithResponse(ctx, createChannelReq)
 	if err != nil {
 		c.logger.Error("Failed to create channel", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateChannel, err)
@@ -153,7 +153,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Chan
 func (c *Client) Get(ctx context.Context, channelID uuid.UUID) (*apiClient.Channel, error) {
 	c.logger.Debug("Getting channel", "channel_id", channelID.String())
 
-	resp, err := c.apiClient.GetChannelsChannelIdWithResponse(ctx, channelID)
+	resp, err := c.apiClient.GetChannelWithResponse(ctx, channelID)
 	if err != nil {
 		c.logger.Error("Failed to get channel", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetChannel, err)
@@ -208,14 +208,14 @@ type ListInput struct {
 func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Channel, bool, error) {
 	c.logger.Debug("Listing channels", "filters", input)
 
-	params := apiClient.GetChannelsParams{
+	params := apiClient.ListChannelsParams{
 		Name:   input.Name,
 		Status: input.Status,
 		Limit:  input.Limit,
 		Offset: input.Offset,
 	}
 
-	resp, err := c.apiClient.GetChannelsWithResponse(ctx, &params)
+	resp, err := c.apiClient.ListChannelsWithResponse(ctx, &params)
 	if err != nil {
 		c.logger.Error("Failed to list channels", "error", err)
 		return nil, false, fmt.Errorf("%w: %w", ErrListChannels, err)
@@ -275,7 +275,7 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateIn
 		Description: input.Description,
 	}
 
-	resp, err := c.apiClient.PatchChannelsChannelIdWithResponse(ctx, channelID, patchChannelReq)
+	resp, err := c.apiClient.UpdateChannelWithResponse(ctx, channelID, patchChannelReq)
 	if err != nil {
 		c.logger.Error("Failed to update channel", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, err)
@@ -325,7 +325,7 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID) (*apiClient.C
 		Status: &archiveStatus,
 	}
 
-	resp, err := c.apiClient.PatchChannelsChannelIdWithResponse(ctx, channelID, patchReq)
+	resp, err := c.apiClient.UpdateChannelWithResponse(ctx, channelID, patchReq)
 	if err != nil {
 		c.logger.Error("Failed to archive channel", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrArchiveChannel, err)

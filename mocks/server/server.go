@@ -64,8 +64,8 @@ func (s *MockServer) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-// GetNetworks handles GET /networks and returns an empty network list.
-func (s *MockServer) GetNetworks(w http.ResponseWriter, r *http.Request) {
+// ListNetworks handles GET /networks and returns an empty network list.
+func (s *MockServer) ListNetworks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(stdserver.NetworkList{
@@ -78,7 +78,7 @@ func (s *MockServer) GetNetworks(w http.ResponseWriter, r *http.Request) {
 // CHANNELS ENDPOINTS
 // ============================================================================
 
-func (s *MockServer) PostChannels(w http.ResponseWriter, r *http.Request) {
+func (s *MockServer) CreateChannel(w http.ResponseWriter, r *http.Request) {
 	var request stdserver.CreateChannel
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -103,7 +103,7 @@ func (s *MockServer) PostChannels(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(channel)
 }
 
-func (s *MockServer) GetChannels(w http.ResponseWriter, r *http.Request, params stdserver.GetChannelsParams) {
+func (s *MockServer) ListChannels(w http.ResponseWriter, r *http.Request, params stdserver.ListChannelsParams) {
 	limit := 20
 	offset := 0
 	if params.Limit != nil && *params.Limit > 0 {
@@ -156,7 +156,7 @@ func (s *MockServer) GetChannels(w http.ResponseWriter, r *http.Request, params 
 	_ = json.NewEncoder(w).Encode(stdserver.ChannelList{Data: data, HasMore: hasMore})
 }
 
-func (s *MockServer) GetChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+func (s *MockServer) GetChannel(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -171,7 +171,7 @@ func (s *MockServer) GetChannelsChannelId(w http.ResponseWriter, r *http.Request
 	http.Error(w, "channel not found", http.StatusNotFound)
 }
 
-func (s *MockServer) PatchChannelsChannelId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+func (s *MockServer) UpdateChannel(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
 	var request stdserver.PatchChannel
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -206,7 +206,7 @@ func (s *MockServer) PatchChannelsChannelId(w http.ResponseWriter, r *http.Reque
 // OPERATIONS ENDPOINTS (under channels)
 // ============================================================================
 
-func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+func (s *MockServer) CreateOperation(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
 	var request stdserver.CreateOperation
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -240,7 +240,7 @@ func (s *MockServer) PostChannelsChannelIdOperations(w http.ResponseWriter, r *h
 	})
 }
 
-func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdOperationsParams) {
+func (s *MockServer) ListOperations(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.ListOperationsParams) {
 	limit := 20
 	offset := 0
 	if params.Limit != nil && *params.Limit > 0 {
@@ -303,7 +303,7 @@ func (s *MockServer) GetChannelsChannelIdOperations(w http.ResponseWriter, r *ht
 	_ = json.NewEncoder(w).Encode(stdserver.OperationList{Data: data, HasMore: hasMore})
 }
 
-func (s *MockServer) GetChannelsChannelIdOperationsOperationId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
+func (s *MockServer) GetOperation(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -320,30 +320,21 @@ func (s *MockServer) GetChannelsChannelIdOperationsOperationId(w http.ResponseWr
 	http.Error(w, "operation not found", http.StatusNotFound)
 }
 
-func (s *MockServer) PostOperationStatus(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusAccepted)
-}
-
 // ============================================================================
 // EVENTS ENDPOINTS
 // ============================================================================
 
-func (s *MockServer) PostEvents(w http.ResponseWriter, r *http.Request) {
-	// Not implemented - events are typically created via watchers
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *MockServer) GetChannelsChannelIdEvents(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdEventsParams) {
+func (s *MockServer) ListChannelEvents(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.ListChannelEventsParams) {
 	// Not implemented - events service
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-func (s *MockServer) GetChannelsChannelIdEventsSearch(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdEventsSearchParams) {
+func (s *MockServer) SearchChannelEvents(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.SearchChannelEventsParams) {
 	// Not implemented - events service
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-func (s *MockServer) GetChannelsChannelIdEventsSearchEventId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, eventId openapiTypes.UUID) {
+func (s *MockServer) GetChannelEvent(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, eventId openapiTypes.UUID) {
 	// Not implemented - events service
 	w.WriteHeader(http.StatusNotImplemented)
 }
@@ -352,7 +343,7 @@ func (s *MockServer) GetChannelsChannelIdEventsSearchEventId(w http.ResponseWrit
 // WATCHERS ENDPOINTS (under channels)
 // ============================================================================
 
-func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.GetChannelsChannelIdWatchersParams) {
+func (s *MockServer) ListWatchers(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.ListWatchersParams) {
 	limit := 20
 	offset := 0
 	if params.Limit != nil && *params.Limit > 0 {
@@ -462,7 +453,7 @@ func (s *MockServer) GetChannelsChannelIdWatchers(w http.ResponseWriter, r *http
 	_ = json.NewEncoder(w).Encode(stdserver.WatcherList{Data: data, HasMore: hasMore})
 }
 
-func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+func (s *MockServer) CreateWatcher(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
 	var request stdserver.CreateWatcher
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -516,7 +507,7 @@ func (s *MockServer) PostChannelsChannelIdWatchers(w http.ResponseWriter, r *htt
 	_ = json.NewEncoder(w).Encode(watcher)
 }
 
-func (s *MockServer) GetChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
+func (s *MockServer) GetWatcher(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -536,7 +527,7 @@ func (s *MockServer) GetChannelsChannelIdWatchersWatcherId(w http.ResponseWriter
 	http.Error(w, "watcher not found", http.StatusNotFound)
 }
 
-func (s *MockServer) PatchChannelsChannelIdWatchersWatcherId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
+func (s *MockServer) UpdateWatcher(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, watcherId openapiTypes.UUID) {
 	var request stdserver.UpdateWatcher
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -582,7 +573,7 @@ func (s *MockServer) PatchChannelsChannelIdWatchersWatcherId(w http.ResponseWrit
 	http.Error(w, "watcher not found", http.StatusNotFound)
 }
 
-func (s *MockServer) PostWallets(w http.ResponseWriter, r *http.Request) {
+func (s *MockServer) CreateWallet(w http.ResponseWriter, r *http.Request) {
 	var in stdserver.CreateWallet
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -608,7 +599,7 @@ func (s *MockServer) PostWallets(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(wallet)
 }
 
-func (s *MockServer) GetWallets(w http.ResponseWriter, r *http.Request, params stdserver.GetWalletsParams) {
+func (s *MockServer) ListWallets(w http.ResponseWriter, r *http.Request, params stdserver.ListWalletsParams) {
 	// simple pagination on our in-memory slice
 	limit := 50
 	offset := 0
@@ -639,7 +630,7 @@ func (s *MockServer) GetWallets(w http.ResponseWriter, r *http.Request, params s
 	_ = json.NewEncoder(w).Encode(stdserver.WalletList{Data: data, HasMore: hasMore})
 }
 
-func (s *MockServer) GetWalletsWalletId(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
+func (s *MockServer) GetWallet(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -654,7 +645,7 @@ func (s *MockServer) GetWalletsWalletId(w http.ResponseWriter, r *http.Request, 
 	http.Error(w, "wallet not found", http.StatusNotFound)
 }
 
-func (s *MockServer) PatchWalletsWalletId(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
+func (s *MockServer) UpdateWallet(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
 	var request stdserver.UpdateWallet
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

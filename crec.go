@@ -243,7 +243,7 @@ func (c *Client) initSubClients(cfg *clientConfig) error {
 // Returns the list of networks, a boolean indicating if there are more results (HasMore),
 // and an error if the request fails.
 func (c *Client) ListNetworks(ctx context.Context) ([]apiClient.Network, bool, error) {
-	resp, err := c.apiClient.GetNetworksWithResponse(ctx)
+	resp, err := c.apiClient.ListNetworksWithResponse(ctx)
 	if err != nil {
 		c.logger.Error("Failed to list networks", "error", err)
 		return nil, false, fmt.Errorf("%w: %w", ErrListNetworks, err)
