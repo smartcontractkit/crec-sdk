@@ -276,6 +276,87 @@ func TestClient_CallContract(t *testing.T) {
 	assert.Nil(t, result.Error)
 }
 
+func TestClient_CreateEVMCall_Wait_ResultFromQuery(t *testing.T) {
+	channelID := uuid.New()
+	queryID := uuid.New()
+	rawReturnData := "0x" + fmt.Sprintf("%064x", big.NewInt(1000))
+	postSeen := false
+	getCount := 0
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			assert.Equal(t, "/channels/"+channelID.String()+"/queries", r.URL.Path)
+
+			var req apiClient.CreateQuery
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.Equal(t, "async-read-1", req.IdempotencyKey)
+			assert.Equal(t, apiClient.QueryKindEVMCall, req.QueryKind)
+			assert.Equal(t, testChainSelector, string(req.ChainSelector))
+			assert.Equal(t, testContractAddress, string(req.Params.ContractAddress))
+			assert.Equal(t, "0x18160ddd", req.Params.CallData)
+
+			discriminator, err := req.Params.BlockSelection.Discriminator()
+			require.NoError(t, err)
+			assert.Equal(t, "finalized", discriminator)
+
+			postSeen = true
+			writeJSON(t, w, http.StatusAccepted, apiClient.QueryAcceptedResponse{
+				QueryId: queryID,
+				Status:  apiClient.QueryStatusAccepted,
+			})
+		case http.MethodGet:
+			assert.True(t, postSeen, "query must be created before waiting for it")
+			assert.Equal(t, "/channels/"+channelID.String()+"/queries/"+queryID.String(), r.URL.Path)
+
+			getCount++
+			if getCount == 1 {
+				writeJSON(t, w, http.StatusOK, makeAcceptedQuery(channelID, queryID, apiClient.QueryStatusSent))
+				return
+			}
+			writeJSON(t, w, http.StatusOK, makeCompletedQuery(t, channelID, queryID, rawReturnData))
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}
+
+	client, server := setupQueriesTestClient(t, handler)
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	accepted, err := client.CreateEVMCall(
+		ctx,
+		CallContractInput{
+			ChannelID:       channelID,
+			ChainSelector:   testChainSelector,
+			ContractAddress: testContractAddress,
+			CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
+			BlockSelection:  Finalized(),
+			IdempotencyKey:  "async-read-1",
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, accepted)
+	assert.Equal(t, queryID, accepted.QueryId)
+
+	query, err := client.Wait(ctx, channelID, accepted.QueryId)
+	require.NoError(t, err)
+	require.NotNil(t, query)
+	assert.Equal(t, apiClient.QueryStatusCompleted, query.Status)
+
+	result, err := client.ResultFromQuery(query)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, queryID.String(), result.QueryID)
+	assert.Equal(t, string(apiClient.QueryStatusCompleted), result.Status)
+	assert.Equal(t, testChainSelector, result.ChainSelector)
+	assert.Equal(t, big.NewInt(1000), new(big.Int).SetBytes(result.RawReturnData))
+	assert.GreaterOrEqual(t, getCount, 2)
+	assert.Nil(t, result.Error)
+}
+
 func TestClient_CallContractWithABI(t *testing.T) {
 	channelID := uuid.New()
 	queryID := uuid.New()
