@@ -216,6 +216,15 @@ func (s *MockServer) CreateOperation(w http.ResponseWriter, r *http.Request, cha
 	operationId := uuid.New()
 	now := time.Now().Unix()
 
+	txs := make([]stdserver.Transaction, 0, len(request.Transactions))
+	for _, tx := range request.Transactions {
+		txs = append(txs, stdserver.Transaction{
+			To:    tx.To,
+			Value: tx.Value,
+			Data:  tx.Data,
+		})
+	}
+
 	operation := stdserver.Operation{
 		OperationId:       operationId,
 		Status:            stdserver.OperationStatusAccepted,
@@ -223,7 +232,7 @@ func (s *MockServer) CreateOperation(w http.ResponseWriter, r *http.Request, cha
 		Address:           request.Address,
 		WalletOperationId: request.WalletOperationId,
 		Deadline:          request.Deadline,
-		Transactions:      request.Transactions,
+		Transactions:      txs,
 		Signature:         request.Signature,
 		CreatedAt:         now,
 	}
@@ -318,6 +327,11 @@ func (s *MockServer) GetOperation(w http.ResponseWriter, r *http.Request, channe
 		}
 	}
 	http.Error(w, "operation not found", http.StatusNotFound)
+}
+
+func (s *MockServer) FinalizeOrCancelOperation(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
+	// Not implemented in mock — stub to satisfy ServerInterface.
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ============================================================================

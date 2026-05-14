@@ -235,7 +235,7 @@ func (c *Client) CreateOperation(ctx context.Context, input CreateOperationInput
 		WalletOperationId: input.WalletOperationID,
 		Deadline:          input.Deadline,
 		Transactions:      transactions,
-		Signature:         input.Signature,
+		Signature:         &input.Signature,
 	}
 
 	resp, err := c.crecClient.CreateOperationWithResponse(ctx, input.ChannelID, createOperationReq)
