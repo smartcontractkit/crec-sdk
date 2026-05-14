@@ -71,7 +71,9 @@
 //
 // # Signing and Sending Operations
 //
-// The Transact client provides full operation lifecycle management:
+// The Transact client supports two ways to create operations:
+// 1) Signed create — sign locally and send the signed operation in a single POST.
+// 2) Draft + finalize — create an unsigned draft first, then sign and finalize it with a PATCH.
 //
 //	// Create an operation from transactions
 //	operation := &types.Operation{
@@ -87,6 +89,10 @@
 //	// Or manually: sign, then send
 //	hash, signature, err := client.Transact.SignOperation(ctx, operation, signer, chainSelector)
 //	result, err := client.Transact.SendSignedOperation(ctx, channelID, operation, signature, chainSelector)
+//
+//	// Draft lifecycle: create unsigned and finalize with digest + signer
+//	draftID, err := client.Transact.CreateUnsignedDraftOperation(ctx, channelID, transact.CreateDraftOperationInput{...})
+//	op, err := client.Transact.ExecuteDraftOperation(ctx, channelID, *draftID, digest, signer)
 //
 // # Configuration Options
 //

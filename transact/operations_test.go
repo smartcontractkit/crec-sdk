@@ -331,10 +331,10 @@ func TestClient_GetOperation(t *testing.T) {
 				ChainSelector:     "1337",
 				Address:           "0x1234",
 				WalletOperationId: "op-123",
-				Transactions: []apiClient.TransactionRequest{
+				Transactions: []apiClient.Transaction{
 					{To: "0x5678", Value: "0", Data: "0xabcd"},
 				},
-				Signature: "0xsig",
+				Signature: stringPtr("0xsig"),
 				CreatedAt: createdAt,
 			}
 			json.NewEncoder(w).Encode(response)
@@ -427,8 +427,8 @@ func TestClient_ListOperations(t *testing.T) {
 						ChainSelector:     "1337",
 						Address:           "0x1234",
 						WalletOperationId: "op-1",
-						Transactions:      []apiClient.TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
-						Signature:         "0xsig1",
+						Transactions:      []apiClient.Transaction{{To: "0x5678", Value: "0", Data: "0xabcd"}},
+						Signature:         stringPtr("0xsig1"),
 						CreatedAt:         createdAt,
 					},
 					{
@@ -437,8 +437,8 @@ func TestClient_ListOperations(t *testing.T) {
 						ChainSelector:     "1337",
 						Address:           "0x1234",
 						WalletOperationId: "op-2",
-						Transactions:      []apiClient.TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
-						Signature:         "0xsig2",
+						Transactions:      []apiClient.Transaction{{To: "0x5678", Value: "0", Data: "0xabcd"}},
+						Signature:         stringPtr("0xsig2"),
 						CreatedAt:         createdAt,
 					},
 				},
@@ -494,8 +494,8 @@ func TestClient_ListOperations(t *testing.T) {
 						ChainSelector:     "1337",
 						Address:           address,
 						WalletOperationId: "op-1",
-						Transactions:      []apiClient.TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
-						Signature:         "0xsig",
+						Transactions:      []apiClient.Transaction{{To: "0x5678", Value: "0", Data: "0xabcd"}},
+						Signature:         stringPtr("0xsig"),
 						CreatedAt:         createdAt,
 					},
 				},
@@ -549,8 +549,8 @@ func TestClient_ListOperations(t *testing.T) {
 						ChainSelector:     "1337",
 						Address:           address,
 						WalletOperationId: "op-1",
-						Transactions:      []apiClient.TransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
-						Signature:         "0xsig",
+						Transactions:      []apiClient.Transaction{{To: "0x5678", Value: "0", Data: "0xabcd"}},
+						Signature:         stringPtr("0xsig"),
 						CreatedAt:         createdAt,
 					},
 				},
@@ -672,4 +672,8 @@ func TestClient_ListOperations(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrListOperations), "Expected ErrListOperations, got: %v", err)
 		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
+}
+
+func stringPtr(value string) *string {
+	return &value
 }

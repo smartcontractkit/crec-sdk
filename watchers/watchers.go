@@ -587,19 +587,19 @@ func (c *Client) WaitForActive(ctx context.Context, channelID uuid.UUID, watcher
 			}
 
 			switch watcher.Status {
-			case apiClient.WatcherStatusActive:
+			case apiClient.Active:
 				c.logger.Info("Watcher is now active")
 				return watcher, nil
-			case apiClient.WatcherStatusFailed:
+			case apiClient.Failed:
 				c.logger.Error("Watcher deployment failed")
 				return nil, ErrWatcherDeploymentFailed
-			case apiClient.WatcherStatusPending:
+			case apiClient.Pending:
 				c.logger.Debug("Watcher still pending, continuing to wait")
 				continue
-			case apiClient.WatcherStatusArchiving:
+			case apiClient.Archiving:
 				c.logger.Error("Watcher is being archived")
 				return nil, ErrWatcherIsArchiving
-			case apiClient.WatcherStatusArchived:
+			case apiClient.Archived:
 				c.logger.Error("Watcher has been archived")
 				return nil, ErrWatcherAlreadyArchived
 			default:
@@ -625,7 +625,7 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 		return nil, ErrWatcherIDRequired
 	}
 
-	archiveStatus := apiClient.WatcherStatusArchived
+	archiveStatus := apiClient.Archived
 	updateReq := apiClient.UpdateWatcher{
 		Status: &archiveStatus,
 	}
@@ -704,13 +704,13 @@ func (c *Client) WaitForArchived(ctx context.Context, channelID uuid.UUID, watch
 			}
 
 			switch watcher.Status {
-			case apiClient.WatcherStatusArchived:
+			case apiClient.Archived:
 				c.logger.Debug("Watcher is now archived")
 				return nil
-			case apiClient.WatcherStatusArchiving:
+			case apiClient.Archiving:
 				c.logger.Debug("Watcher is being archived, continuing to wait")
 				continue
-			case apiClient.WatcherStatusActive, apiClient.WatcherStatusPending, apiClient.WatcherStatusFailed:
+			case apiClient.Active, apiClient.Pending, apiClient.Failed:
 				c.logger.Error("Watcher archive appears to have failed", "status", watcher.Status)
 				return fmt.Errorf("%w, watcher is in %s state", ErrWatcherArchiveFailed, watcher.Status)
 			default:

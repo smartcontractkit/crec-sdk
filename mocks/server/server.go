@@ -223,7 +223,7 @@ func (s *MockServer) CreateOperation(w http.ResponseWriter, r *http.Request, cha
 		Address:           request.Address,
 		WalletOperationId: request.WalletOperationId,
 		Deadline:          request.Deadline,
-		Transactions:      request.Transactions,
+		Transactions:      mapTransactionRequests(request.Transactions),
 		Signature:         request.Signature,
 		CreatedAt:         now,
 	}
@@ -317,6 +317,51 @@ func (s *MockServer) GetOperation(w http.ResponseWriter, r *http.Request, channe
 			return
 		}
 	}
+	http.Error(w, "operation not found", http.StatusNotFound)
+}
+
+func (s *MockServer) PatchChannelsChannelIdOperationsOperationId(
+	w http.ResponseWriter,
+	r *http.Request,
+	channelId openapiTypes.UUID,
+	operationId openapiTypes.UUID,
+) {
+	var request stdserver.PatchOperation
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, op := range s.operations {
+		if op.OperationId != operationId {
+			continue
+		}
+
+		now := time.Now().Unix()
+
+		if finalize, err := request.AsFinalizeOperation(); err == nil {
+			s.operations[i].Status = stdserver.OperationStatusAccepted
+			s.operations[i].Signature = &finalize.Signature
+			s.operations[i].Digest = &finalize.Digest
+			s.operations[i].SignedAt = &now
+		} else if cancel, err := request.AsCancelOperation(); err == nil {
+			_ = cancel
+			s.operations[i].Status = stdserver.OperationStatusCancelled
+			s.operations[i].CancelledAt = &now
+		} else {
+			http.Error(w, "invalid patch operation", http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(s.operations[i])
+		return
+	}
+
 	http.Error(w, "operation not found", http.StatusNotFound)
 }
 
@@ -468,7 +513,7 @@ func (s *MockServer) CreateWatcher(w http.ResponseWriter, r *http.Request, chann
 		WatcherId: watcherId,
 		ChannelId: channelId,
 		Address:   "",
-		Status:    stdserver.WatcherStatusPending, // Start as pending
+		Status:    stdserver.Pending, // Start as pending
 		CreatedAt: now,
 		Events:    []string{},
 	}
@@ -548,8 +593,8 @@ func (s *MockServer) UpdateWatcher(w http.ResponseWriter, r *http.Request, chann
 				s.watchers[i].Name = request.Name
 			}
 
-			if request.Status != nil && *request.Status == stdserver.WatcherStatusArchived {
-				s.watchers[i].Status = stdserver.WatcherStatusArchiving
+			if request.Status != nil && *request.Status == stdserver.Archived {
+				s.watchers[i].Status = stdserver.Archiving
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusAccepted)
 				_ = json.NewEncoder(w).Encode(s.watchers[i])
@@ -684,14 +729,29 @@ func scheduleWatcherArchive(id uuid.UUID, delay time.Duration, archiveFn func(uu
 	}()
 }
 
+func mapTransactionRequests(requests []stdserver.TransactionRequest) []stdserver.Transaction {
+	if len(requests) == 0 {
+		return nil
+	}
+	transactions := make([]stdserver.Transaction, 0, len(requests))
+	for _, request := range requests {
+		transactions = append(transactions, stdserver.Transaction{
+			To:    request.To,
+			Value: request.Value,
+			Data:  request.Data,
+		})
+	}
+	return transactions
+}
+
 // archiveWatcher transitions a watcher from "archiving" to "archived" status.
 func (s *MockServer) archiveWatcher(watcherID uuid.UUID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for i, w := range s.watchers {
-		if w.WatcherId == watcherID && w.Status == stdserver.WatcherStatusArchiving {
-			s.watchers[i].Status = stdserver.WatcherStatusArchived
+		if w.WatcherId == watcherID && w.Status == stdserver.Archiving {
+			s.watchers[i].Status = stdserver.Archived
 			return true
 		}
 	}

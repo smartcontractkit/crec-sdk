@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto"
 	"crypto/rsa"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"testing"
@@ -163,6 +165,20 @@ func TestSendSignedOperation(t *testing.T) {
 			},
 			signature:   []byte("test-signature"),
 			expectError: false,
+		},
+		{
+			name: "NilOperationID",
+			operation: &types.Operation{
+				ID:       nil,
+				Account:  account,
+				Deadline: big.NewInt(0),
+				Transactions: []types.Transaction{
+					{To: to, Value: big.NewInt(0), Data: []byte("")},
+				},
+			},
+			signature:   []byte("test-signature"),
+			expectError: true,
+			errorIs:     ErrWalletOperationIDRequired,
 		},
 		{
 			name:        "NilOperation",
@@ -447,4 +463,278 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 
 	// Signatures might be different due to RSA-PSS randomness
 	t.Logf("Second Vault Transit signature: %s", common.Bytes2Hex(sig2))
+}
+
+func TestClient_CreateUnsignedDraftOperation_Success(t *testing.T) {
+	channelID := uuid.New()
+	operationID := uuid.New()
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		expectedPath := "/channels/" + channelID.String() + "/operations"
+		require.Equal(t, expectedPath, r.URL.Path)
+		require.Equal(t, http.MethodPost, r.Method)
+
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+
+		var createReq apiClient.CreateOperation
+		err = json.Unmarshal(body, &createReq)
+		require.NoError(t, err)
+
+		require.Equal(t, "1337", createReq.ChainSelector)
+		require.Equal(t, "0x1234", createReq.Address)
+		require.Equal(t, "op-123", createReq.WalletOperationId)
+		require.Len(t, createReq.Transactions, 1)
+		require.Nil(t, createReq.Transactions[0].Preview)
+		require.Nil(t, createReq.Signature)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID})
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	opID, err := client.CreateUnsignedDraftOperation(context.Background(), channelID, CreateDraftOperationInput{
+		ChainSelector:     "1337",
+		Address:           "0x1234",
+		WalletOperationID: "op-123",
+		Deadline:          0,
+		Transactions: []DraftTransactionRequest{
+			{To: "0x5678", Value: "0", Data: "0xabcd"},
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, opID)
+	require.Equal(t, operationID, *opID)
+}
+
+func TestClient_CreateUnsignedDraftOperation_ValidationErrors(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("request should not be called for invalid input")
+	}
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	testCases := []struct {
+		name          string
+		input         CreateDraftOperationInput
+		expectedError error
+	}{
+		{
+			name: "EmptyChainSelector",
+			input: CreateDraftOperationInput{
+				ChainSelector:     "",
+				Address:           "0x1234",
+				WalletOperationID: "op-123",
+				Transactions:      []DraftTransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
+			},
+			expectedError: ErrChainSelectorRequired,
+		},
+		{
+			name: "EmptyWalletOperationID",
+			input: CreateDraftOperationInput{
+				ChainSelector:     "1337",
+				Address:           "0x1234",
+				WalletOperationID: "",
+				Transactions:      []DraftTransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
+			},
+			expectedError: ErrWalletOperationIDRequired,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.CreateUnsignedDraftOperation(context.Background(), uuid.New(), tc.input)
+			require.Error(t, err)
+			require.ErrorIs(t, err, tc.expectedError)
+		})
+	}
+}
+
+func TestClient_SendDraftOperation_SuccessWithPreview(t *testing.T) {
+	channelID := uuid.New()
+	operationID := uuid.New()
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+
+		var createReq apiClient.CreateOperation
+		err = json.Unmarshal(body, &createReq)
+		require.NoError(t, err)
+
+		require.Len(t, createReq.Transactions, 1)
+		require.NotNil(t, createReq.Transactions[0].Preview)
+		require.Equal(t, "transfer(address,uint256)", createReq.Transactions[0].Preview.FunctionSignature)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID})
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	op := &types.Operation{
+		ID:       big.NewInt(42),
+		Account:  common.HexToAddress("0x1234"),
+		Deadline: big.NewInt(0),
+		Transactions: []types.Transaction{
+			{To: common.HexToAddress("0x5678"), Value: big.NewInt(0), Data: []byte{0xab, 0xcd}},
+		},
+	}
+
+	preview := &DraftTransactionPreview{FunctionSignature: "transfer(address,uint256)"}
+
+	opID, err := client.SendDraftOperation(context.Background(), channelID, op, "1337", []*DraftTransactionPreview{preview})
+	require.NoError(t, err)
+	require.NotNil(t, opID)
+	require.Equal(t, operationID, *opID)
+}
+
+func TestClient_SendDraftOperation_PreviewCountMismatch(t *testing.T) {
+	client, server := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("request should not be called")
+	})
+	defer server.Close()
+
+	op := &types.Operation{
+		ID:       big.NewInt(1),
+		Account:  common.HexToAddress("0x1234"),
+		Deadline: big.NewInt(0),
+		Transactions: []types.Transaction{
+			{To: common.HexToAddress("0x5678"), Value: big.NewInt(0), Data: []byte{0xab}},
+			{To: common.HexToAddress("0x9999"), Value: big.NewInt(0), Data: []byte{0xcd}},
+		},
+	}
+
+	_, err := client.SendDraftOperation(context.Background(), uuid.New(), op, "1337", []*DraftTransactionPreview{{FunctionSignature: "f()"}})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrTransactionPreviewCountMismatch)
+}
+
+func TestClient_SendDraftOperation_NilOperationID(t *testing.T) {
+	client, server := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("request should not be called")
+	})
+	defer server.Close()
+
+	op := &types.Operation{
+		ID:       nil,
+		Account:  common.HexToAddress("0x1234"),
+		Deadline: big.NewInt(0),
+		Transactions: []types.Transaction{
+			{To: common.HexToAddress("0x5678"), Value: big.NewInt(0), Data: []byte{0xab}},
+		},
+	}
+
+	_, err := client.SendDraftOperation(context.Background(), uuid.New(), op, "1337", nil)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrWalletOperationIDRequired)
+}
+
+type stubSigner struct {
+	lastDigest []byte
+}
+
+func (s *stubSigner) Sign(_ context.Context, digest []byte) ([]byte, error) {
+	s.lastDigest = append([]byte{}, digest...)
+	return []byte{0xaa, 0xbb}, nil
+}
+
+func TestClient_SendSignedDraftOperation_Success(t *testing.T) {
+	channelID := uuid.New()
+	operationID := uuid.New()
+	digest := []byte{0x11, 0x22}
+	signature := []byte{0x33, 0x44}
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+
+		var patchReq apiClient.PatchOperation
+		err = json.Unmarshal(body, &patchReq)
+		require.NoError(t, err)
+
+		finalize, err := patchReq.AsFinalizeOperation()
+		require.NoError(t, err)
+		require.Equal(t, apiClient.Accepted, finalize.Status)
+		require.Equal(t, "0x"+common.Bytes2Hex(signature), finalize.Signature)
+		require.Equal(t, "0x"+common.Bytes2Hex(digest), finalize.Digest)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(apiClient.Operation{})
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	_, err := client.SendSignedDraftOperation(context.Background(), channelID, operationID, digest, signature)
+	require.NoError(t, err)
+}
+
+func TestClient_ExecuteDraftOperation_SignsProvidedDigest(t *testing.T) {
+	channelID := uuid.New()
+	operationID := uuid.New()
+	digest := []byte{0xde, 0xad}
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(apiClient.Operation{})
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	signer := &stubSigner{}
+	_, err := client.ExecuteDraftOperation(context.Background(), channelID, operationID, digest, signer)
+	require.NoError(t, err)
+	require.Equal(t, digest, signer.lastDigest)
+}
+
+func TestClient_CancelDraftOperation_Conflict(t *testing.T) {
+	channelID := uuid.New()
+	operationID := uuid.New()
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	err := client.CancelDraftOperation(context.Background(), channelID, operationID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrDraftNotCancellable)
+}
+
+func TestClient_CancelDraftOperation_Success(t *testing.T) {
+	channelID := uuid.New()
+	operationID := uuid.New()
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+
+		var patchReq apiClient.PatchOperation
+		err = json.Unmarshal(body, &patchReq)
+		require.NoError(t, err)
+
+		cancel, err := patchReq.AsCancelOperation()
+		require.NoError(t, err)
+		require.Equal(t, apiClient.CancelOperationStatusCancelled, cancel.Status)
+
+		w.WriteHeader(http.StatusNoContent)
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	err := client.CancelDraftOperation(context.Background(), channelID, operationID)
+	require.NoError(t, err)
 }
