@@ -25,6 +25,7 @@ type MockServer struct {
 	wallets    []stdserver.Wallet
 	channels   []stdserver.Channel
 	operations []stdserver.Operation
+	queries    []stdserver.Query
 	watchers   []stdserver.Watcher
 }
 
@@ -37,6 +38,7 @@ func NewMockServer() *MockServer {
 		wallets:    make([]stdserver.Wallet, 0),
 		channels:   make([]stdserver.Channel, 0),
 		operations: make([]stdserver.Operation, 0),
+		queries:    make([]stdserver.Query, 0),
 		watchers:   make([]stdserver.Watcher, 0),
 	}
 	r := http.NewServeMux()
@@ -223,7 +225,7 @@ func (s *MockServer) CreateOperation(w http.ResponseWriter, r *http.Request, cha
 		Address:           request.Address,
 		WalletOperationId: request.WalletOperationId,
 		Deadline:          request.Deadline,
-		Transactions:      request.Transactions,
+		Transactions:      transactionRequestsToTransactions(request.Transactions),
 		Signature:         request.Signature,
 		CreatedAt:         now,
 	}
@@ -318,6 +320,148 @@ func (s *MockServer) GetOperation(w http.ResponseWriter, r *http.Request, channe
 		}
 	}
 	http.Error(w, "operation not found", http.StatusNotFound)
+}
+
+func (s *MockServer) PatchChannelsChannelIdOperationsOperationId(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
+	var body struct {
+		Status string `json:"status"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, op := range s.operations {
+		if op.OperationId == operationId {
+			if body.Status != "" {
+				s.operations[i].Status = stdserver.OperationStatus(body.Status)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(s.operations[i])
+			return
+		}
+	}
+	http.Error(w, "operation not found", http.StatusNotFound)
+}
+
+// ============================================================================
+// QUERIES ENDPOINTS (under channels)
+// ============================================================================
+
+func (s *MockServer) CreateQuery(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	var request stdserver.CreateQuery
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	queryID := uuid.New()
+	now := time.Now().Unix()
+	query := stdserver.Query{
+		QueryId:       queryID,
+		ChannelId:     channelId,
+		Status:        stdserver.QueryStatusAccepted,
+		QueryKind:     request.QueryKind,
+		ChainSelector: request.ChainSelector,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	s.mu.Lock()
+	s.queries = append(s.queries, query)
+	s.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(stdserver.QueryAcceptedResponse{
+		QueryId: queryID,
+		Status:  stdserver.QueryStatusAccepted,
+	})
+}
+
+func (s *MockServer) ListQueries(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.ListQueriesParams) {
+	limit := 20
+	offset := 0
+	if params.Limit != nil && *params.Limit > 0 {
+		limit = *params.Limit
+	}
+	if params.Offset != nil && *params.Offset >= 0 {
+		offset = int(*params.Offset)
+	}
+
+	s.mu.RLock()
+	queries := make([]stdserver.Query, len(s.queries))
+	copy(queries, s.queries)
+	s.mu.RUnlock()
+
+	filtered := []stdserver.Query{}
+	for _, query := range queries {
+		if query.ChannelId != channelId {
+			continue
+		}
+		if params.Status != nil {
+			matched := false
+			for _, status := range *params.Status {
+				if query.Status == status {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+		filtered = append(filtered, query)
+	}
+
+	end := offset + limit
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+
+	data := []stdserver.QuerySummary{}
+	if offset < len(filtered) {
+		for _, query := range filtered[offset:end] {
+			data = append(data, stdserver.QuerySummary{
+				QueryId:       query.QueryId,
+				ChannelId:     query.ChannelId,
+				Status:        query.Status,
+				QueryKind:     query.QueryKind,
+				ChainSelector: query.ChainSelector,
+				ErrorCode:     query.ErrorCode,
+				ErrorMessage:  query.ErrorMessage,
+				CreatedAt:     query.CreatedAt,
+				UpdatedAt:     query.UpdatedAt,
+				ExpiresAt:     query.ExpiresAt,
+				CompletedAt:   query.CompletedAt,
+				FailedAt:      query.FailedAt,
+				ExpiredAt:     query.ExpiredAt,
+			})
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stdserver.QueryList{
+		Data:    data,
+		HasMore: end < len(filtered),
+	})
+}
+
+func (s *MockServer) GetQuery(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, queryId openapiTypes.UUID) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, query := range s.queries {
+		if query.ChannelId == channelId && query.QueryId == queryId {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(query)
+			return
+		}
+	}
+	http.Error(w, "query not found", http.StatusNotFound)
 }
 
 // ============================================================================
@@ -468,7 +612,7 @@ func (s *MockServer) CreateWatcher(w http.ResponseWriter, r *http.Request, chann
 		WatcherId: watcherId,
 		ChannelId: channelId,
 		Address:   "",
-		Status:    stdserver.WatcherStatusPending, // Start as pending
+		Status:    stdserver.Pending, // Start as pending
 		CreatedAt: now,
 		Events:    []string{},
 	}
@@ -548,8 +692,8 @@ func (s *MockServer) UpdateWatcher(w http.ResponseWriter, r *http.Request, chann
 				s.watchers[i].Name = request.Name
 			}
 
-			if request.Status != nil && *request.Status == stdserver.WatcherStatusArchived {
-				s.watchers[i].Status = stdserver.WatcherStatusArchiving
+			if request.Status != nil && *request.Status == stdserver.Archived {
+				s.watchers[i].Status = stdserver.Archiving
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusAccepted)
 				_ = json.NewEncoder(w).Encode(s.watchers[i])
@@ -676,6 +820,19 @@ func (s *MockServer) UpdateWallet(w http.ResponseWriter, r *http.Request, wallet
 // HELPER METHODS (INTERNAL)
 // ============================================================================
 
+func transactionRequestsToTransactions(requests []stdserver.TransactionRequest) []stdserver.Transaction {
+	transactions := make([]stdserver.Transaction, len(requests))
+	for i, request := range requests {
+		transactions[i] = stdserver.Transaction{
+			To:    request.To,
+			Value: request.Value,
+			Data:  request.Data,
+		}
+	}
+
+	return transactions
+}
+
 // scheduleWatcherArchive schedules the transition of a watcher from "archiving" to "archived" after a delay.
 func scheduleWatcherArchive(id uuid.UUID, delay time.Duration, archiveFn func(uuid.UUID) bool) {
 	go func() {
@@ -690,8 +847,8 @@ func (s *MockServer) archiveWatcher(watcherID uuid.UUID) bool {
 	defer s.mu.Unlock()
 
 	for i, w := range s.watchers {
-		if w.WatcherId == watcherID && w.Status == stdserver.WatcherStatusArchiving {
-			s.watchers[i].Status = stdserver.WatcherStatusArchived
+		if w.WatcherId == watcherID && w.Status == stdserver.Archiving {
+			s.watchers[i].Status = stdserver.Archived
 			return true
 		}
 	}

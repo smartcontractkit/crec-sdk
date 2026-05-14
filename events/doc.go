@@ -94,6 +94,14 @@
 //	// or
 //	verified, err := client.Events.VerifyOperationStatusWithWorkflowOwner(&event, workflowOwnerAddress)
 //
+// ## Verifying Query Status Events
+//
+// Terminal query.status events carry OCR proof material in event headers and
+// a base64-encoded verifiable_result in the payload:
+//
+//	verified, err := client.Events.VerifyQueryStatus(&event)
+//	queryEvent, err := client.Events.DecodeQueryStatusVerifiableEvent(&payload)
+//
 // ## Deriving Workflow Owner from Org ID
 //
 // Use [Client.WorkflowOwnerFromOrgID] to derive the workflow owner Ethereum address

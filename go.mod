@@ -12,7 +12,7 @@ require (
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/smartcontractkit/chain-selectors v1.0.89
 	github.com/smartcontractkit/chainlink-common v0.10.0
-	github.com/smartcontractkit/crec-api-go v0.7.0-rc2
+	github.com/smartcontractkit/crec-api-go v0.7.0-rc3
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/vault v0.38.0
@@ -212,5 +212,7 @@ require (
 )
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+
+replace github.com/smartcontractkit/crec-api-go v0.7.0-rc3 => ../crec-api-go
 
 tool github.com/vektra/mockery/v2

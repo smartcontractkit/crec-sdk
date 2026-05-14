@@ -60,6 +60,8 @@ var (
 	ErrOnlyWatcherEventsSupported = errors.New("only watcher events are supported for event verification")
 	// ErrOnlyOperationStatusSupported is returned when verifying a non-operation-status event type.
 	ErrOnlyOperationStatusSupported = errors.New("only operation status events are supported for operation status verification")
+	// ErrOnlyQueryStatusSupported is returned when verifying a non-query-status event type.
+	ErrOnlyQueryStatusSupported = errors.New("only query status events are supported for query status verification")
 	// ErrMarshalEventPayload is returned when marshaling the event payload to JSON fails.
 	ErrMarshalEventPayload = errors.New("failed to marshal event payload")
 	// ErrMarshalEventToJSON is returned when marshaling the event to JSON fails.
@@ -563,6 +565,86 @@ func (c *Client) VerifyOperationStatusWithWorkflowOwner(event *apiClient.Event, 
 	return verified, nil
 }
 
+// VerifyQueryStatus verifies a query.status event using the default org ID or
+// workflow owner configured on the client. Prefers OrgID when set; otherwise uses
+// WorkflowOwner. Returns [ErrOrgIDOrWorkflowOwnerReq] if neither is configured.
+func (c *Client) VerifyQueryStatus(event *apiClient.Event) (bool, error) {
+	if c.orgID != "" {
+		return c.VerifyQueryStatusWithOrgID(event, c.orgID)
+	}
+	if c.workflowOwner != "" {
+		return c.VerifyQueryStatusWithWorkflowOwner(event, c.workflowOwner)
+	}
+	return false, ErrOrgIDOrWorkflowOwnerReq
+}
+
+// VerifyQueryStatusWithOrgID verifies a query.status event using an explicit org ID.
+func (c *Client) VerifyQueryStatusWithOrgID(event *apiClient.Event, orgID string) (bool, error) {
+	workflowOwner, err := c.WorkflowOwnerFromOrgID(orgID)
+	if err != nil {
+		return false, err
+	}
+	return c.VerifyQueryStatusWithWorkflowOwner(event, workflowOwner)
+}
+
+// VerifyQueryStatusWithWorkflowOwner verifies a query.status event using an
+// explicit workflow owner address.
+func (c *Client) VerifyQueryStatusWithWorkflowOwner(event *apiClient.Event, workflowOwner string) (bool, error) {
+	if workflowOwner == "" {
+		return false, ErrWorkflowOwnerRequired
+	}
+	ocrProof, payload, err := c.prepareVerification(event)
+	if err != nil {
+		return false, err
+	}
+
+	if event.Headers.Type != apiClient.EventTypeQueryStatus {
+		return false, ErrOnlyQueryStatusSupported
+	}
+
+	queryStatusPayload, err := payload.AsQueryStatusPayload()
+	if err != nil {
+		return false, ErrOnlyQueryStatusSupported
+	}
+
+	if queryStatusPayload.VerifiableResult == nil || *queryStatusPayload.VerifiableResult == "" {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, ErrVerifiableEventRequired)
+	}
+
+	ocrReport, ocrContext, err := c.parseOCRProofData(ocrProof)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
+	}
+
+	c.logger.Debug(
+		"Verifying query status event",
+		"query_id", queryStatusPayload.QueryId.String(),
+		"status", queryStatusPayload.Status,
+		"ocr_report", ocrProof.OcrReport,
+		"ocr_context", ocrProof.OcrContext,
+	)
+
+	eventHash, err := c.QueryStatusHash(&queryStatusPayload)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
+	}
+
+	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowOwner)
+	if !eventHashValid {
+		return false, ErrInvalidEventHash
+	}
+
+	verified, err := c.verifySignatures(ocrProof, ocrReport, ocrContext)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
+	}
+
+	if verified {
+		c.logger.Debug("Query status event verified successfully")
+	}
+	return verified, nil
+}
+
 // VerifyOCRSignatures verifies that the OCR proof contains valid DON signatures.
 // This is a lower-level verification that checks only signatures, without
 // requiring a full Event structure or validating event hash/workflow owner.
@@ -653,6 +735,21 @@ func (c *Client) OperationStatusHash(payload *apiClient.OperationStatusPayload) 
 	return eventHash, nil
 }
 
+// QueryStatusHash computes the hash used for query.status OCR proof verification.
+// The hash is Keccak256(verifiable_result), matching the terminal query event
+// convention where query-specific details are carried by the opaque result.
+func (c *Client) QueryStatusHash(payload *apiClient.QueryStatusPayload) (common.Hash, error) {
+	if payload == nil {
+		return common.Hash{}, ErrNilVerifiablePayload
+	}
+	if payload.VerifiableResult == nil || *payload.VerifiableResult == "" {
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrVerifyEvent, ErrVerifiableEventRequired)
+	}
+	eventHash := crypto.Keccak256Hash([]byte(*payload.VerifiableResult))
+
+	return eventHash, nil
+}
+
 // DecodeVerifiableEvent decodes the base64-encoded VerifiableEvent from a WatcherEventPayload
 // into a models.VerifiableEvent struct containing the full event data.
 func (c *Client) DecodeVerifiableEvent(payload *apiClient.WatcherEventPayload) (*models.VerifiableEvent, error) {
@@ -679,6 +776,39 @@ func (c *Client) DecodeOperationStatusVerifiableEvent(payload *apiClient.Operati
 	return c.decodeVerifiableEventString(*payload.VerifiableEvent)
 }
 
+// DecodeQueryStatusVerifiableEvent decodes the base64-encoded verifiable_result
+// from a QueryStatusPayload into a typed ChainQueryVerifiableEvent.
+func (c *Client) DecodeQueryStatusVerifiableEvent(payload *apiClient.QueryStatusPayload) (*models.ChainQueryVerifiableEvent, error) {
+	if payload == nil {
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, ErrNilVerifiablePayload)
+	}
+	if payload.VerifiableResult == nil || *payload.VerifiableResult == "" {
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, ErrDecodeVerifiableNilOrEmpty)
+	}
+
+	return c.DecodeChainQueryVerifiableResult(*payload.VerifiableResult)
+}
+
+// DecodeChainQueryVerifiableResult decodes a base64-encoded chain query
+// verifiable_result into a typed ChainQueryVerifiableEvent.
+func (c *Client) DecodeChainQueryVerifiableResult(verifiableResultBase64 string) (*models.ChainQueryVerifiableEvent, error) {
+	if verifiableResultBase64 == "" {
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, ErrDecodeVerifiableEmpty)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(verifiableResultBase64)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, fmt.Errorf("%w: %w", ErrDecodeVerifiableInvalidBase64, err))
+	}
+
+	var verifiableEvent models.ChainQueryVerifiableEvent
+	if err := json.Unmarshal(decoded, &verifiableEvent); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableEvent, fmt.Errorf("%w: %w", ErrDecodeVerifiableInvalidJSON, err))
+	}
+
+	return &verifiableEvent, nil
+}
+
 // decodeVerifiableEventString decodes a base64-encoded verifiable event string
 // into a models.VerifiableEvent struct.
 func (c *Client) decodeVerifiableEventString(verifiableEventBase64 string) (*models.VerifiableEvent, error) {
@@ -703,6 +833,9 @@ func (c *Client) decodeVerifiableEventString(verifiableEventBase64 string) (*mod
 func (c *Client) prepareVerification(event *apiClient.Event) (apiClient.OCRProof, *apiClient.Event_Payload, error) {
 	if len(c.validSigners) == 0 {
 		return apiClient.OCRProof{}, nil, ErrVerificationNotConfigured
+	}
+	if event == nil {
+		return apiClient.OCRProof{}, nil, fmt.Errorf("%w: %w", ErrVerifyEvent, ErrDecodeNilEvent)
 	}
 
 	ocrProof, err := getOCRProof(event)

@@ -175,7 +175,9 @@ func TestNewClient(t *testing.T) {
 			assert.NotNil(t, client.Channels, "Channels sub-client should be initialized")
 			assert.NotNil(t, client.Events, "Events sub-client should be initialized")
 			assert.NotNil(t, client.Transact, "Transact sub-client should be initialized")
+			assert.NotNil(t, client.Queries, "Queries sub-client should be initialized")
 			assert.NotNil(t, client.Watchers, "Watchers sub-client should be initialized")
+			assert.NotNil(t, client.Wallets, "Wallets sub-client should be initialized")
 		})
 	}
 }
@@ -197,7 +199,9 @@ func TestNewClient_WithMockServer(t *testing.T) {
 	assert.NotNil(t, client.Channels)
 	assert.NotNil(t, client.Events)
 	assert.NotNil(t, client.Transact)
+	assert.NotNil(t, client.Queries)
 	assert.NotNil(t, client.Watchers)
+	assert.NotNil(t, client.Wallets)
 }
 
 func TestNewClient_CustomHTTPClient(t *testing.T) {
@@ -476,7 +480,9 @@ func TestNewClient_MultipleOptionsOrder(t *testing.T) {
 			assert.NotNil(t, client.Channels)
 			assert.NotNil(t, client.Events)
 			assert.NotNil(t, client.Transact)
+			assert.NotNil(t, client.Queries)
 			assert.NotNil(t, client.Watchers)
+			assert.NotNil(t, client.Wallets)
 		})
 	}
 }
@@ -514,8 +520,16 @@ func TestClient_SubClientsIntegration(t *testing.T) {
 		require.NotNil(t, client.Transact)
 	})
 
+	t.Run("QueriesClientAccessible", func(t *testing.T) {
+		require.NotNil(t, client.Queries)
+	})
+
 	t.Run("WatchersClientAccessible", func(t *testing.T) {
 		require.NotNil(t, client.Watchers)
+	})
+
+	t.Run("WalletsClientAccessible", func(t *testing.T) {
+		require.NotNil(t, client.Wallets)
 	})
 }
 
