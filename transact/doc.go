@@ -80,6 +80,19 @@
 //
 //	result, err := client.Transact.SendSignedOperation(ctx, channelID, operation, signature, chainSelector)
 //
+// # Draft Operations
+//
+// Draft operations are created without a signature, then finalized with a digest
+// and signature via PATCH. The SDK does not recompute or compare digests during
+// finalize. If you want to verify the digest yourself, compute it locally with
+// [Client.HashOperation] and compare it to the digest returned by the API.
+//
+//	// Create a draft
+//	draftID, err := client.Transact.CreateUnsignedDraftOperation(ctx, channelID, transact.CreateDraftOperationInput{...})
+//
+//	// Finalize with a digest and signer
+//	op, err := client.Transact.ExecuteDraftOperation(ctx, channelID, *draftID, digest, signer)
+//
 // # Signers
 //
 // The package supports multiple signer implementations:

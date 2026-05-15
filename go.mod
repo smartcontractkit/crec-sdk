@@ -1,6 +1,6 @@
 module github.com/smartcontractkit/crec-sdk
 
-go 1.25.3
+go 1.25.9
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.38.0

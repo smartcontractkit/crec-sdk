@@ -330,8 +330,43 @@ func (s *MockServer) GetOperation(w http.ResponseWriter, r *http.Request, channe
 }
 
 func (s *MockServer) FinalizeOrCancelOperation(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
-	// Not implemented in mock — stub to satisfy ServerInterface.
-	w.WriteHeader(http.StatusNotImplemented)
+	var request stdserver.PatchOperation
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, op := range s.operations {
+		if op.OperationId != operationId {
+			continue
+		}
+
+		now := time.Now().Unix()
+
+		if finalize, err := request.AsFinalizeOperation(); err == nil {
+			s.operations[i].Status = stdserver.OperationStatusAccepted
+			s.operations[i].Signature = &finalize.Signature
+			s.operations[i].Digest = &finalize.Digest
+			s.operations[i].SignedAt = &now
+		} else if cancel, err := request.AsCancelOperation(); err == nil {
+			_ = cancel
+			s.operations[i].Status = stdserver.OperationStatusCancelled
+			s.operations[i].CancelledAt = &now
+		} else {
+			http.Error(w, "invalid patch operation", http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(s.operations[i])
+		return
+	}
+
+	http.Error(w, "operation not found", http.StatusNotFound)
 }
 
 // ============================================================================
