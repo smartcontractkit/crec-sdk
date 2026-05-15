@@ -520,11 +520,24 @@ func TestClient_CreateUnsignedDraftOperation_ValidationErrors(t *testing.T) {
 
 	testCases := []struct {
 		name          string
+		channelID     uuid.UUID
 		input         CreateDraftOperationInput
 		expectedError error
 	}{
 		{
-			name: "EmptyChainSelector",
+			name:      "NilChannelID",
+			channelID: uuid.Nil,
+			input: CreateDraftOperationInput{
+				ChainSelector:     "1337",
+				Address:           "0x1234",
+				WalletOperationID: "op-123",
+				Transactions:      []DraftTransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
+			},
+			expectedError: ErrChannelIDRequired,
+		},
+		{
+			name:      "EmptyChainSelector",
+			channelID: uuid.New(),
 			input: CreateDraftOperationInput{
 				ChainSelector:     "",
 				Address:           "0x1234",
@@ -534,7 +547,19 @@ func TestClient_CreateUnsignedDraftOperation_ValidationErrors(t *testing.T) {
 			expectedError: ErrChainSelectorRequired,
 		},
 		{
-			name: "EmptyWalletOperationID",
+			name:      "EmptyAddress",
+			channelID: uuid.New(),
+			input: CreateDraftOperationInput{
+				ChainSelector:     "1337",
+				Address:           "",
+				WalletOperationID: "op-123",
+				Transactions:      []DraftTransactionRequest{{To: "0x5678", Value: "0", Data: "0xabcd"}},
+			},
+			expectedError: ErrAddressRequired,
+		},
+		{
+			name:      "EmptyWalletOperationID",
+			channelID: uuid.New(),
 			input: CreateDraftOperationInput{
 				ChainSelector:     "1337",
 				Address:           "0x1234",
@@ -543,11 +568,22 @@ func TestClient_CreateUnsignedDraftOperation_ValidationErrors(t *testing.T) {
 			},
 			expectedError: ErrWalletOperationIDRequired,
 		},
+		{
+			name:      "EmptyTransactions",
+			channelID: uuid.New(),
+			input: CreateDraftOperationInput{
+				ChainSelector:     "1337",
+				Address:           "0x1234",
+				WalletOperationID: "op-123",
+				Transactions:      []DraftTransactionRequest{},
+			},
+			expectedError: ErrAtLeastOneTransactionRequired,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := client.CreateUnsignedDraftOperation(context.Background(), uuid.New(), tc.input)
+			_, err := client.CreateUnsignedDraftOperation(context.Background(), tc.channelID, tc.input)
 			require.Error(t, err)
 			require.ErrorIs(t, err, tc.expectedError)
 		})
@@ -595,45 +631,54 @@ func TestClient_SendDraftOperation_SuccessWithPreview(t *testing.T) {
 	require.Equal(t, operationID, *opID)
 }
 
-func TestClient_SendDraftOperation_PreviewCountMismatch(t *testing.T) {
+func TestClient_SendDraftOperation_ValidationErrors(t *testing.T) {
 	client, server := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("request should not be called")
+		t.Fatal("request should not be called for validation errors")
 	})
 	defer server.Close()
 
-	op := &types.Operation{
-		ID:       big.NewInt(1),
-		Account:  common.HexToAddress("0x1234"),
-		Deadline: big.NewInt(0),
-		Transactions: []types.Transaction{
-			{To: common.HexToAddress("0x5678"), Value: big.NewInt(0), Data: []byte{0xab}},
-			{To: common.HexToAddress("0x9999"), Value: big.NewInt(0), Data: []byte{0xcd}},
+	testCases := []struct {
+		name          string
+		op            *types.Operation
+		previews      []*DraftTransactionPreview
+		expectedError error
+	}{
+		{
+			name: "PreviewCountMismatch",
+			op: &types.Operation{
+				ID:       big.NewInt(1),
+				Account:  common.HexToAddress("0x1234"),
+				Deadline: big.NewInt(0),
+				Transactions: []types.Transaction{
+					{To: common.HexToAddress("0x5678"), Value: big.NewInt(0), Data: []byte{0xab}},
+					{To: common.HexToAddress("0x9999"), Value: big.NewInt(0), Data: []byte{0xcd}},
+				},
+			},
+			previews:      []*DraftTransactionPreview{{FunctionSignature: "f()"}},
+			expectedError: ErrTransactionPreviewCountMismatch,
+		},
+		{
+			name: "NilOperationID",
+			op: &types.Operation{
+				ID:       nil,
+				Account:  common.HexToAddress("0x1234"),
+				Deadline: big.NewInt(0),
+				Transactions: []types.Transaction{
+					{To: common.HexToAddress("0x5678"), Value: big.NewInt(0), Data: []byte{0xab}},
+				},
+			},
+			previews:      nil,
+			expectedError: ErrWalletOperationIDRequired,
 		},
 	}
 
-	_, err := client.SendDraftOperation(context.Background(), uuid.New(), op, "1337", []*DraftTransactionPreview{{FunctionSignature: "f()"}})
-	require.Error(t, err)
-	require.ErrorIs(t, err, ErrTransactionPreviewCountMismatch)
-}
-
-func TestClient_SendDraftOperation_NilOperationID(t *testing.T) {
-	client, server := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("request should not be called")
-	})
-	defer server.Close()
-
-	op := &types.Operation{
-		ID:       nil,
-		Account:  common.HexToAddress("0x1234"),
-		Deadline: big.NewInt(0),
-		Transactions: []types.Transaction{
-			{To: common.HexToAddress("0x5678"), Value: big.NewInt(0), Data: []byte{0xab}},
-		},
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.SendDraftOperation(context.Background(), uuid.New(), tc.op, "1337", tc.previews)
+			require.Error(t, err)
+			require.ErrorIs(t, err, tc.expectedError)
+		})
 	}
-
-	_, err := client.SendDraftOperation(context.Background(), uuid.New(), op, "1337", nil)
-	require.Error(t, err)
-	require.ErrorIs(t, err, ErrWalletOperationIDRequired)
 }
 
 type stubSigner struct {
@@ -697,44 +742,61 @@ func TestClient_ExecuteDraftOperation_SignsProvidedDigest(t *testing.T) {
 	require.Equal(t, digest, signer.lastDigest)
 }
 
-func TestClient_CancelDraftOperation_Conflict(t *testing.T) {
-	channelID := uuid.New()
-	operationID := uuid.New()
+func TestClient_CancelDraftOperation(t *testing.T) {
+	testCases := []struct {
+		name          string
+		handler       func(t *testing.T, w http.ResponseWriter, r *http.Request)
+		expectedError error
+	}{
+		{
+			name: "Success",
+			handler: func(t *testing.T, w http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
 
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusConflict)
+				var patchReq apiClient.PatchOperation
+				require.NoError(t, json.Unmarshal(body, &patchReq))
+
+				cancel, err := patchReq.AsCancelOperation()
+				require.NoError(t, err)
+				require.Equal(t, apiClient.CancelOperationStatusCancelled, cancel.Status)
+
+				w.WriteHeader(http.StatusNoContent)
+			},
+			expectedError: nil,
+		},
+		{
+			name: "Conflict",
+			handler: func(t *testing.T, w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusConflict)
+			},
+			expectedError: ErrDraftNotCancellable,
+		},
+		{
+			name: "NotFound",
+			handler: func(t *testing.T, w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+			},
+			expectedError: ErrDraftNotFound,
+		},
 	}
 
-	client, server := setupTestClient(t, handler)
-	defer server.Close()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			channelID := uuid.New()
+			operationID := uuid.New()
 
-	err := client.CancelDraftOperation(context.Background(), channelID, operationID)
-	require.Error(t, err)
-	require.ErrorIs(t, err, ErrDraftNotCancellable)
-}
+			client, server := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				tc.handler(t, w, r)
+			})
+			defer server.Close()
 
-func TestClient_CancelDraftOperation_Success(t *testing.T) {
-	channelID := uuid.New()
-	operationID := uuid.New()
-
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-
-		var patchReq apiClient.PatchOperation
-		err = json.Unmarshal(body, &patchReq)
-		require.NoError(t, err)
-
-		cancel, err := patchReq.AsCancelOperation()
-		require.NoError(t, err)
-		require.Equal(t, apiClient.CancelOperationStatusCancelled, cancel.Status)
-
-		w.WriteHeader(http.StatusNoContent)
+			err := client.CancelDraftOperation(context.Background(), channelID, operationID)
+			if tc.expectedError == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, tc.expectedError)
+			}
+		})
 	}
-
-	client, server := setupTestClient(t, handler)
-	defer server.Close()
-
-	err := client.CancelDraftOperation(context.Background(), channelID, operationID)
-	require.NoError(t, err)
 }

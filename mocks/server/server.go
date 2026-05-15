@@ -597,8 +597,8 @@ func (s *MockServer) UpdateWatcher(w http.ResponseWriter, r *http.Request, chann
 				s.watchers[i].Name = request.Name
 			}
 
-		if request.Status != nil && *request.Status == stdserver.WatcherStatusArchived {
-			s.watchers[i].Status = stdserver.WatcherStatusArchiving
+			if request.Status != nil && *request.Status == stdserver.WatcherStatusArchived {
+				s.watchers[i].Status = stdserver.WatcherStatusArchiving
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusAccepted)
 				_ = json.NewEncoder(w).Encode(s.watchers[i])

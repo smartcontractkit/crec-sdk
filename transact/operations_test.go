@@ -676,7 +676,3 @@ func TestClient_ListOperations(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
-
-func stringPtr(value string) *string {
-	return &value
-}
