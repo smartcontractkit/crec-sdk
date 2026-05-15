@@ -216,6 +216,15 @@ func (s *MockServer) CreateOperation(w http.ResponseWriter, r *http.Request, cha
 	operationId := uuid.New()
 	now := time.Now().Unix()
 
+	txs := make([]stdserver.Transaction, 0, len(request.Transactions))
+	for _, tx := range request.Transactions {
+		txs = append(txs, stdserver.Transaction{
+			To:    tx.To,
+			Value: tx.Value,
+			Data:  tx.Data,
+		})
+	}
+
 	operation := stdserver.Operation{
 		OperationId:       operationId,
 		Status:            stdserver.OperationStatusAccepted,
@@ -223,7 +232,7 @@ func (s *MockServer) CreateOperation(w http.ResponseWriter, r *http.Request, cha
 		Address:           request.Address,
 		WalletOperationId: request.WalletOperationId,
 		Deadline:          request.Deadline,
-		Transactions:      mapTransactionRequests(request.Transactions),
+		Transactions:      txs,
 		Signature:         request.Signature,
 		CreatedAt:         now,
 	}
@@ -320,12 +329,7 @@ func (s *MockServer) GetOperation(w http.ResponseWriter, r *http.Request, channe
 	http.Error(w, "operation not found", http.StatusNotFound)
 }
 
-func (s *MockServer) PatchChannelsChannelIdOperationsOperationId(
-	w http.ResponseWriter,
-	r *http.Request,
-	channelId openapiTypes.UUID,
-	operationId openapiTypes.UUID,
-) {
+func (s *MockServer) FinalizeOrCancelOperation(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
 	var request stdserver.PatchOperation
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -727,21 +731,6 @@ func scheduleWatcherArchive(id uuid.UUID, delay time.Duration, archiveFn func(uu
 		time.Sleep(delay)
 		archiveFn(id)
 	}()
-}
-
-func mapTransactionRequests(requests []stdserver.TransactionRequest) []stdserver.Transaction {
-	if len(requests) == 0 {
-		return nil
-	}
-	transactions := make([]stdserver.Transaction, 0, len(requests))
-	for _, request := range requests {
-		transactions = append(transactions, stdserver.Transaction{
-			To:    request.To,
-			Value: request.Value,
-			Data:  request.Data,
-		})
-	}
-	return transactions
 }
 
 // archiveWatcher transitions a watcher from "archiving" to "archived" status.

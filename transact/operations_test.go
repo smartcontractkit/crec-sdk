@@ -316,6 +316,7 @@ func TestClient_GetOperation(t *testing.T) {
 		channelID := uuid.New()
 		operationID := uuid.New()
 		createdAt := time.Now().Unix()
+		signature := "0xsig"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			expectedPath := "/channels/" + channelID.String() + "/operations/" + operationID.String()
@@ -334,7 +335,7 @@ func TestClient_GetOperation(t *testing.T) {
 				Transactions: []apiClient.Transaction{
 					{To: "0x5678", Value: "0", Data: "0xabcd"},
 				},
-				Signature: stringPtr("0xsig"),
+				Signature: &signature,
 				CreatedAt: createdAt,
 			}
 			json.NewEncoder(w).Encode(response)
@@ -405,6 +406,8 @@ func TestClient_ListOperations(t *testing.T) {
 		operation1ID := uuid.New()
 		operation2ID := uuid.New()
 		createdAt := time.Now().Unix()
+		signature := "0xsig"
+		signature2 := "0xsig2"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			expectedPath := "/channels/" + channelID.String() + "/operations"
@@ -428,7 +431,7 @@ func TestClient_ListOperations(t *testing.T) {
 						Address:           "0x1234",
 						WalletOperationId: "op-1",
 						Transactions:      []apiClient.Transaction{{To: "0x5678", Value: "0", Data: "0xabcd"}},
-						Signature:         stringPtr("0xsig1"),
+						Signature:         &signature,
 						CreatedAt:         createdAt,
 					},
 					{
@@ -438,7 +441,7 @@ func TestClient_ListOperations(t *testing.T) {
 						Address:           "0x1234",
 						WalletOperationId: "op-2",
 						Transactions:      []apiClient.Transaction{{To: "0x5678", Value: "0", Data: "0xabcd"}},
-						Signature:         stringPtr("0xsig2"),
+						Signature:         &signature2,
 						CreatedAt:         createdAt,
 					},
 				},
@@ -474,7 +477,7 @@ func TestClient_ListOperations(t *testing.T) {
 		status := apiClient.OperationStatusAccepted
 		chainSelector := "1337"
 		address := "0x1234"
-
+		signature := "0xsig"
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "GET", r.Method)
 
@@ -495,7 +498,7 @@ func TestClient_ListOperations(t *testing.T) {
 						Address:           address,
 						WalletOperationId: "op-1",
 						Transactions:      []apiClient.Transaction{{To: "0x5678", Value: "0", Data: "0xabcd"}},
-						Signature:         stringPtr("0xsig"),
+						Signature:         &signature,
 						CreatedAt:         createdAt,
 					},
 				},
@@ -531,7 +534,7 @@ func TestClient_ListOperations(t *testing.T) {
 		createdAt := time.Now().Unix()
 		status := apiClient.OperationStatusAccepted
 		address := "0x1234"
-
+		signature := "0xsig"
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "GET", r.Method)
 
@@ -550,7 +553,7 @@ func TestClient_ListOperations(t *testing.T) {
 						Address:           address,
 						WalletOperationId: "op-1",
 						Transactions:      []apiClient.Transaction{{To: "0x5678", Value: "0", Data: "0xabcd"}},
-						Signature:         stringPtr("0xsig"),
+						Signature:         &signature,
 						CreatedAt:         createdAt,
 					},
 				},
