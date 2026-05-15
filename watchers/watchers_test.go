@@ -167,7 +167,7 @@ func TestClient_CreateWithService(t *testing.T) {
 				Name:          &watcherName,
 				ChainSelector: chainSelector,
 				Address:       address,
-				Status:        apiClient.Pending,
+				Status:        apiClient.WatcherStatusPending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -190,7 +190,7 @@ func TestClient_CreateWithService(t *testing.T) {
 		assert.Equal(t, watcherName, *watcher.Name)
 		assert.Equal(t, chainSelector, watcher.ChainSelector)
 		assert.Equal(t, address, watcher.Address)
-		assert.Equal(t, apiClient.Pending, watcher.Status)
+		assert.Equal(t, apiClient.WatcherStatusPending, watcher.Status)
 	})
 
 	t.Run("Success_with_confidence_level", func(t *testing.T) {
@@ -221,7 +221,7 @@ func TestClient_CreateWithService(t *testing.T) {
 				Name:            &watcherName,
 				ChainSelector:   chainSelector,
 				Address:         address,
-				Status:          apiClient.Pending,
+				Status:          apiClient.WatcherStatusPending,
 				ConfidenceLevel: conf,
 			}
 			_ = json.NewEncoder(w).Encode(response)
@@ -410,7 +410,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 				Name:          &watcherName,
 				ChainSelector: chainSelector,
 				Address:       address,
-				Status:        apiClient.Pending,
+				Status:        apiClient.WatcherStatusPending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -456,7 +456,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 		assert.Equal(t, watcherName, *watcher.Name)
 		assert.Equal(t, chainSelector, watcher.ChainSelector)
 		assert.Equal(t, address, watcher.Address)
-		assert.Equal(t, apiClient.Pending, watcher.Status)
+		assert.Equal(t, apiClient.WatcherStatusPending, watcher.Status)
 	})
 
 	t.Run("Success_with_confidence_level", func(t *testing.T) {
@@ -497,7 +497,7 @@ func TestClient_CreateWithABI(t *testing.T) {
 				Name:            &watcherName,
 				ChainSelector:   chainSelector,
 				Address:         address,
-				Status:          apiClient.Pending,
+				Status:          apiClient.WatcherStatusPending,
 				ConfidenceLevel: conf,
 			}
 			_ = json.NewEncoder(w).Encode(response)
@@ -697,7 +697,7 @@ func TestClient_List(t *testing.T) {
 						Name:          &name1,
 						ChainSelector: "1337",
 						Address:       "0x1111",
-						Status:        apiClient.Active,
+						Status:        apiClient.WatcherStatusActive,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -707,7 +707,7 @@ func TestClient_List(t *testing.T) {
 						Name:          &name2,
 						ChainSelector: "1337",
 						Address:       "0x2222",
-						Status:        apiClient.Active,
+						Status:        apiClient.WatcherStatusActive,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -744,7 +744,7 @@ func TestClient_List(t *testing.T) {
 		channelID := uuid.New()
 		watcherID := uuid.New()
 		name := "test-watcher"
-		status := apiClient.Active
+		status := apiClient.WatcherStatusActive
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			query := r.URL.Query()
@@ -760,7 +760,7 @@ func TestClient_List(t *testing.T) {
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1111",
-						Status:        apiClient.Active,
+						Status:        apiClient.WatcherStatusActive,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -785,7 +785,7 @@ func TestClient_List(t *testing.T) {
 		assert.Len(t, result.Data, 1)
 		require.NotNil(t, result.Data[0].Name)
 		assert.Equal(t, name, *result.Data[0].Name)
-		assert.Equal(t, apiClient.Active, result.Data[0].Status)
+		assert.Equal(t, apiClient.WatcherStatusActive, result.Data[0].Status)
 	})
 
 	t.Run("EmptyChannelID", func(t *testing.T) {
@@ -844,7 +844,7 @@ func TestClient_Get(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Active,
+				Status:        apiClient.WatcherStatusActive,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -859,7 +859,7 @@ func TestClient_Get(t *testing.T) {
 		assert.Equal(t, watcherID, watcher.WatcherId)
 		require.NotNil(t, watcher.Name)
 		assert.Equal(t, "test-watcher", *watcher.Name)
-		assert.Equal(t, apiClient.Active, watcher.Status)
+		assert.Equal(t, apiClient.WatcherStatusActive, watcher.Status)
 	})
 
 	t.Run("SuccessWithDONInfo", func(t *testing.T) {
@@ -876,7 +876,7 @@ func TestClient_Get(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "16015286601757825753",
 				Address:       "0x1234567890123456789012345678901234567890",
-				Status:        apiClient.Active,
+				Status:        apiClient.WatcherStatusActive,
 				CreatedAt:     1704067200, // 2024-01-01 00:00:00 UTC
 				Events:        []string{"Transfer"},
 				DonFamily:     "zone-a",
@@ -978,7 +978,7 @@ func TestClient_Update(t *testing.T) {
 				Name:          &newName,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Active,
+				Status:        apiClient.WatcherStatusActive,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1090,7 +1090,7 @@ func TestClient_Archive(t *testing.T) {
 			err = json.Unmarshal(body, &updateReq)
 			require.NoError(t, err)
 			require.NotNil(t, updateReq.Status)
-			assert.Equal(t, apiClient.Archived, *updateReq.Status)
+			assert.Equal(t, apiClient.WatcherStatusArchived, *updateReq.Status)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusAccepted)
@@ -1100,7 +1100,7 @@ func TestClient_Archive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Archiving,
+				Status:        apiClient.WatcherStatusArchiving,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1112,7 +1112,7 @@ func TestClient_Archive(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
-		assert.Equal(t, apiClient.Archiving, watcher.Status)
+		assert.Equal(t, apiClient.WatcherStatusArchiving, watcher.Status)
 	})
 
 	t.Run("EmptyChannelID", func(t *testing.T) {
@@ -1204,7 +1204,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Active,
+				Status:        apiClient.WatcherStatusActive,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1216,7 +1216,7 @@ func TestClient_WaitForActive(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
-		assert.Equal(t, apiClient.Active, watcher.Status)
+		assert.Equal(t, apiClient.WatcherStatusActive, watcher.Status)
 	})
 
 	t.Run("SuccessAfterPolling", func(t *testing.T) {
@@ -1231,9 +1231,9 @@ func TestClient_WaitForActive(t *testing.T) {
 
 			var status apiClient.WatcherStatus
 			if callCount < 3 {
-				status = apiClient.Pending
+				status = apiClient.WatcherStatusPending
 			} else {
-				status = apiClient.Active
+				status = apiClient.WatcherStatusActive
 			}
 
 			name := "test-watcher"
@@ -1254,7 +1254,7 @@ func TestClient_WaitForActive(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
-		assert.Equal(t, apiClient.Active, watcher.Status)
+		assert.Equal(t, apiClient.WatcherStatusActive, watcher.Status)
 		assert.GreaterOrEqual(t, callCount, 3)
 	})
 
@@ -1271,7 +1271,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Failed,
+				Status:        apiClient.WatcherStatusFailed,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1299,7 +1299,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Pending,
+				Status:        apiClient.WatcherStatusPending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1357,7 +1357,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Archiving,
+				Status:        apiClient.WatcherStatusArchiving,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1386,7 +1386,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Pending,
+				Status:        apiClient.WatcherStatusPending,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1435,7 +1435,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Active,
+				Status:        apiClient.WatcherStatusActive,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1447,7 +1447,7 @@ func TestClient_WaitForActive(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
-		assert.Equal(t, apiClient.Active, watcher.Status)
+		assert.Equal(t, apiClient.WatcherStatusActive, watcher.Status)
 		assert.GreaterOrEqual(t, attemptCount, 3, "Should have retried after transient errors")
 	})
 
@@ -1523,7 +1523,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Active,
+				Status:        apiClient.WatcherStatusActive,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1535,7 +1535,7 @@ func TestClient_WaitForActive(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, watcher)
-		assert.Equal(t, apiClient.Active, watcher.Status)
+		assert.Equal(t, apiClient.WatcherStatusActive, watcher.Status)
 		assert.GreaterOrEqual(t, attemptCount, 3, "Should have retried after 500 errors")
 	})
 }
@@ -1558,7 +1558,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 					Name:          &name,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.Archiving,
+					Status:        apiClient.WatcherStatusArchiving,
 				}
 				json.NewEncoder(w).Encode(response)
 			} else {
@@ -1568,7 +1568,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 					Name:          &name,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.Archived,
+					Status:        apiClient.WatcherStatusArchived,
 				}
 				json.NewEncoder(w).Encode(response)
 			}
@@ -1596,7 +1596,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Archived,
+				Status:        apiClient.WatcherStatusArchived,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1622,7 +1622,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Archiving,
+				Status:        apiClient.WatcherStatusArchiving,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1649,7 +1649,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Archiving,
+				Status:        apiClient.WatcherStatusArchiving,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1684,7 +1684,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Active,
+				Status:        apiClient.WatcherStatusActive,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1748,7 +1748,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Name:          &name,
 				ChainSelector: "1337",
 				Address:       "0x1234",
-				Status:        apiClient.Archived,
+				Status:        apiClient.WatcherStatusArchived,
 			}
 			json.NewEncoder(w).Encode(response)
 		}
@@ -1805,16 +1805,16 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.Pending,
+					Status:        apiClient.WatcherStatusPending,
 				}
 				json.NewEncoder(w).Encode(response)
 
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
-				status := apiClient.Pending
+				status := apiClient.WatcherStatusPending
 				name := watcherName
 				if callCount > 2 {
-					status = apiClient.Active
+					status = apiClient.WatcherStatusActive
 				}
 				if callCount > 4 {
 					name = updatedName
@@ -1833,14 +1833,14 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 				var updateReq apiClient.UpdateWatcher
 				json.Unmarshal(body, &updateReq)
 
-				if updateReq.Status != nil && *updateReq.Status == apiClient.Archived {
+				if updateReq.Status != nil && *updateReq.Status == apiClient.WatcherStatusArchived {
 					w.WriteHeader(http.StatusOK)
 					response := apiClient.Watcher{
 						WatcherId:     watcherID,
 						Name:          &updatedName,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        apiClient.Archived,
+						Status:        apiClient.WatcherStatusArchived,
 					}
 					json.NewEncoder(w).Encode(response)
 				} else {
@@ -1850,7 +1850,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 						Name:          &updatedName,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        apiClient.Active,
+						Status:        apiClient.WatcherStatusActive,
 					}
 					json.NewEncoder(w).Encode(response)
 				}
@@ -1875,11 +1875,11 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 		created, err := client.CreateWithService(ctx, channelID, createInput)
 		require.NoError(t, err)
 		assert.Equal(t, watcherID, created.WatcherId)
-		assert.Equal(t, apiClient.Pending, created.Status)
+		assert.Equal(t, apiClient.WatcherStatusPending, created.Status)
 
 		active, err := client.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
-		assert.Equal(t, apiClient.Active, active.Status)
+		assert.Equal(t, apiClient.WatcherStatusActive, active.Status)
 
 		found, err := client.Get(ctx, channelID, watcherID)
 		require.NoError(t, err)
@@ -1899,7 +1899,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 
 		archived, err := client.Archive(ctx, channelID, watcherID)
 		require.NoError(t, err)
-		assert.Equal(t, apiClient.Archived, archived.Status)
+		assert.Equal(t, apiClient.WatcherStatusArchived, archived.Status)
 
 		assert.GreaterOrEqual(t, callCount, 6, "Should have made at least 6 API calls")
 	})
@@ -1922,7 +1922,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x5678",
-					Status:        apiClient.Pending,
+					Status:        apiClient.WatcherStatusPending,
 				}
 				json.NewEncoder(w).Encode(response)
 
@@ -1933,7 +1933,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x5678",
-					Status:        apiClient.Active,
+					Status:        apiClient.WatcherStatusActive,
 				}
 				json.NewEncoder(w).Encode(response)
 
@@ -1946,7 +1946,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 							Name:          &watcherName,
 							ChainSelector: "1337",
 							Address:       "0x5678",
-							Status:        apiClient.Active,
+							Status:        apiClient.WatcherStatusActive,
 							ChannelId:     channelID,
 							CreatedAt:     time.Now().Unix(),
 							DonFamily:     "zone-a",
@@ -1963,7 +1963,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x5678",
-					Status:        apiClient.Archiving,
+					Status:        apiClient.WatcherStatusArchiving,
 				}
 				json.NewEncoder(w).Encode(response)
 
@@ -2001,7 +2001,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 
 		active, err := client.WaitForActive(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
-		assert.Equal(t, apiClient.Active, active.Status)
+		assert.Equal(t, apiClient.WatcherStatusActive, active.Status)
 
 		filters := ListFilters{}
 		list, err := client.List(ctx, channelID, filters)
@@ -2011,7 +2011,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 
 		archived, err := client.Archive(ctx, channelID, watcherID)
 		require.NoError(t, err)
-		assert.Equal(t, apiClient.Archiving, archived.Status)
+		assert.Equal(t, apiClient.WatcherStatusArchiving, archived.Status)
 
 		assert.Equal(t, 4, callCount, "Should have made 4 API calls")
 	})
@@ -2062,7 +2062,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.Pending,
+					Status:        apiClient.WatcherStatusPending,
 				}
 				json.NewEncoder(w).Encode(response)
 			} else if r.Method == "GET" {
@@ -2073,7 +2073,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.Failed,
+					Status:        apiClient.WatcherStatusFailed,
 				}
 				json.NewEncoder(w).Encode(response)
 			}
@@ -2117,7 +2117,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Name:          &watcherName,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.Pending,
+					Status:        apiClient.WatcherStatusPending,
 				}
 				json.NewEncoder(w).Encode(response)
 			} else if r.Method == "GET" {
@@ -2129,7 +2129,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Name:          &watcherName,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        apiClient.Pending,
+						Status:        apiClient.WatcherStatusPending,
 					}
 					json.NewEncoder(w).Encode(response)
 				} else {
@@ -2139,7 +2139,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Name:          &watcherName,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        apiClient.Archived,
+						Status:        apiClient.WatcherStatusArchived,
 					}
 					json.NewEncoder(w).Encode(response)
 				}
@@ -2228,7 +2228,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Name:          &name,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.Archiving,
+					Status:        apiClient.WatcherStatusArchiving,
 				}
 				json.NewEncoder(w).Encode(response)
 			} else if r.Method == "GET" {
@@ -2241,7 +2241,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        apiClient.Archiving,
+						Status:        apiClient.WatcherStatusArchiving,
 					}
 					json.NewEncoder(w).Encode(response)
 				} else {
@@ -2251,7 +2251,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        apiClient.Archived,
+						Status:        apiClient.WatcherStatusArchived,
 					}
 					json.NewEncoder(w).Encode(response)
 				}
@@ -2265,7 +2265,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 
 		archived, err := client.Archive(ctx, channelID, watcherID)
 		require.NoError(t, err)
-		assert.Equal(t, apiClient.Archiving, archived.Status)
+		assert.Equal(t, apiClient.WatcherStatusArchiving, archived.Status)
 
 		err = client.WaitForArchived(ctx, channelID, watcherID, 5*time.Second)
 		require.NoError(t, err)
@@ -2288,7 +2288,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 			assert.Equal(t, "1337", query.Get("chain_selector"))
 			assert.Equal(t, "0x1234", query.Get("address"))
 			assert.Equal(t, "dvp", query.Get("service"))
-			assert.Equal(t, string(apiClient.Active), query.Get("status"))
+			assert.Equal(t, string(apiClient.WatcherStatusActive), query.Get("status"))
 			assert.Equal(t, "10", query.Get("limit"))
 			assert.Equal(t, "5", query.Get("offset"))
 
@@ -2302,7 +2302,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 						Name:          &name,
 						ChainSelector: "1337",
 						Address:       "0x1234",
-						Status:        apiClient.Active,
+						Status:        apiClient.WatcherStatusActive,
 						ChannelId:     channelID,
 						CreatedAt:     time.Now().Unix(),
 						DonFamily:     "zone-a",
@@ -2323,7 +2323,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 		name := "my-watcher"
 		address := "0x1234"
 		service := "dvp"
-		status := apiClient.Active
+		status := apiClient.WatcherStatusActive
 		limit := 10
 		offset := int64(5)
 
@@ -2366,7 +2366,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 					Name:          &name,
 					ChainSelector: "1337",
 					Address:       "0x1234",
-					Status:        apiClient.Active,
+					Status:        apiClient.WatcherStatusActive,
 					ChannelId:     channelID,
 					CreatedAt:     time.Now().Unix(),
 					DonFamily:     "zone-a",

@@ -704,7 +704,7 @@ func (c *Client) SendSignedDraftOperation(
 		return nil, fmt.Errorf("%w: %w", ErrSendOperation, err)
 	}
 
-	resp, err := c.crecClient.PatchChannelsChannelIdOperationsOperationIdWithResponse(ctx, channelID, operationID, patch)
+	resp, err := c.crecClient.FinalizeOrCancelOperationWithResponse(ctx, channelID, operationID, patch)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSendOperation, err)
 	}
@@ -765,7 +765,7 @@ func (c *Client) CancelDraftOperation(ctx context.Context, channelID uuid.UUID, 
 		return fmt.Errorf("%w: %w", ErrSendOperation, err)
 	}
 
-	resp, err := c.crecClient.PatchChannelsChannelIdOperationsOperationIdWithResponse(ctx, channelID, operationID, patch)
+	resp, err := c.crecClient.FinalizeOrCancelOperationWithResponse(ctx, channelID, operationID, patch)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrSendOperation, err)
 	}

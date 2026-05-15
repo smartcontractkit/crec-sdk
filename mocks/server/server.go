@@ -517,7 +517,7 @@ func (s *MockServer) CreateWatcher(w http.ResponseWriter, r *http.Request, chann
 		WatcherId: watcherId,
 		ChannelId: channelId,
 		Address:   "",
-		Status:    stdserver.Pending, // Start as pending
+		Status:    stdserver.WatcherStatusPending, // Start as pending
 		CreatedAt: now,
 		Events:    []string{},
 	}
@@ -597,8 +597,8 @@ func (s *MockServer) UpdateWatcher(w http.ResponseWriter, r *http.Request, chann
 				s.watchers[i].Name = request.Name
 			}
 
-			if request.Status != nil && *request.Status == stdserver.Archived {
-				s.watchers[i].Status = stdserver.Archiving
+		if request.Status != nil && *request.Status == stdserver.WatcherStatusArchived {
+			s.watchers[i].Status = stdserver.WatcherStatusArchiving
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusAccepted)
 				_ = json.NewEncoder(w).Encode(s.watchers[i])
@@ -739,8 +739,8 @@ func (s *MockServer) archiveWatcher(watcherID uuid.UUID) bool {
 	defer s.mu.Unlock()
 
 	for i, w := range s.watchers {
-		if w.WatcherId == watcherID && w.Status == stdserver.Archiving {
-			s.watchers[i].Status = stdserver.Archived
+		if w.WatcherId == watcherID && w.Status == stdserver.WatcherStatusArchiving {
+			s.watchers[i].Status = stdserver.WatcherStatusArchived
 			return true
 		}
 	}
