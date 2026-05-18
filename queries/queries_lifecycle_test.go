@@ -518,23 +518,18 @@ func TestResultFromQuery(t *testing.T) {
 		assert.Equal(t, []byte{0x08, 0xc3, 0x79, 0xa0}, result.Error.RawRevertData)
 	})
 
-	t.Run("FailedWithoutVerifiableResultUsesRowError", func(t *testing.T) {
+	t.Run("FailedWithoutVerifiableResultUsesDefaultError", func(t *testing.T) {
 		channelID := uuid.New()
 		queryID := uuid.New()
-		code := "CRE_GATEWAY_REJECTED"
-		message := "gateway rejected workflow"
 
 		query := makeAcceptedQuery(channelID, queryID, apiClient.QueryStatusFailed)
-		query.ErrorCode = &code
-		query.ErrorMessage = &message
 
 		result, err := ResultFromQuery(&query)
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Error)
-		assert.Equal(t, code, result.Error.Code)
-		assert.Equal(t, message, result.Error.Message)
+		assert.Equal(t, "CRE_WORKFLOW_FAILED", result.Error.Code)
 	})
 
 	t.Run("ExpiredUsesDefaultError", func(t *testing.T) {

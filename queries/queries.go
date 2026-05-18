@@ -524,15 +524,6 @@ func ResultFromQuery(query *apiClient.Query) (*CallContractResult, error) {
 	if query.Proof != nil {
 		result.Proof = *query.Proof
 	}
-	if query.ErrorCode != nil || query.ErrorMessage != nil {
-		result.Error = &QueryError{}
-		if query.ErrorCode != nil {
-			result.Error.Code = *query.ErrorCode
-		}
-		if query.ErrorMessage != nil {
-			result.Error.Message = *query.ErrorMessage
-		}
-	}
 
 	if query.Status == apiClient.QueryStatusCompleted && (query.VerifiableResult == nil || *query.VerifiableResult == "") {
 		return nil, fmt.Errorf("%w: %w", ErrDecodeVerifiableResult, ErrVerifiableResultRequired)

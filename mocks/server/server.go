@@ -455,8 +455,6 @@ func (s *MockServer) ListQueries(w http.ResponseWriter, r *http.Request, channel
 				Status:        query.Status,
 				QueryKind:     query.QueryKind,
 				ChainSelector: query.ChainSelector,
-				ErrorCode:     query.ErrorCode,
-				ErrorMessage:  query.ErrorMessage,
 				CreatedAt:     query.CreatedAt,
 				UpdatedAt:     query.UpdatedAt,
 				ExpiresAt:     query.ExpiresAt,
