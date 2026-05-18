@@ -14,7 +14,7 @@ import (
 )
 
 // MockServer is an in-memory HTTP server that implements the CREC API for testing.
-// It provides channels, watchers, wallets, and operations endpoints with no persistence.
+// It provides channels, queries, watchers, wallets, and operations endpoints with no persistence.
 type MockServer struct {
 	TestServer *httptest.Server
 
@@ -218,6 +218,15 @@ func (s *MockServer) CreateOperation(w http.ResponseWriter, r *http.Request, cha
 	operationId := uuid.New()
 	now := time.Now().Unix()
 
+	txs := make([]stdserver.Transaction, 0, len(request.Transactions))
+	for _, tx := range request.Transactions {
+		txs = append(txs, stdserver.Transaction{
+			To:    tx.To,
+			Value: tx.Value,
+			Data:  tx.Data,
+		})
+	}
+
 	operation := stdserver.Operation{
 		OperationId:       operationId,
 		Status:            stdserver.OperationStatusAccepted,
@@ -225,7 +234,7 @@ func (s *MockServer) CreateOperation(w http.ResponseWriter, r *http.Request, cha
 		Address:           request.Address,
 		WalletOperationId: request.WalletOperationId,
 		Deadline:          request.Deadline,
-		Transactions:      request.Transactions,
+		Transactions:      txs,
 		Signature:         request.Signature,
 		CreatedAt:         now,
 	}
@@ -323,25 +332,42 @@ func (s *MockServer) GetOperation(w http.ResponseWriter, r *http.Request, channe
 }
 
 func (s *MockServer) FinalizeOrCancelOperation(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, operationId openapiTypes.UUID) {
-	var body struct {
-		Status string `json:"status"`
+	var request stdserver.PatchOperation
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-	_ = json.NewDecoder(r.Body).Decode(&body)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for i, op := range s.operations {
-		if op.OperationId == operationId {
-			if body.Status != "" {
-				s.operations[i].Status = stdserver.OperationStatus(body.Status)
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(s.operations[i])
+		if op.OperationId != operationId {
+			continue
+		}
+
+		now := time.Now().Unix()
+
+		if finalize, err := request.AsFinalizeOperation(); err == nil {
+			s.operations[i].Status = stdserver.OperationStatusAccepted
+			s.operations[i].Signature = &finalize.Signature
+			s.operations[i].Digest = &finalize.Digest
+			s.operations[i].SignedAt = &now
+		} else if cancel, err := request.AsCancelOperation(); err == nil {
+			_ = cancel
+			s.operations[i].Status = stdserver.OperationStatusCancelled
+			s.operations[i].CancelledAt = &now
+		} else {
+			http.Error(w, "invalid patch operation", http.StatusBadRequest)
 			return
 		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(s.operations[i])
+		return
 	}
+
 	http.Error(w, "operation not found", http.StatusNotFound)
 }
 

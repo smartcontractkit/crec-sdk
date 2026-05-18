@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -35,6 +36,19 @@ var (
 	ErrAtLeastOneTransactionRequired = errors.New("at least one transaction is required")
 	// ErrSignatureRequired is returned when the signature is empty.
 	ErrSignatureRequired = errors.New("signature is required")
+	// ErrOperationIDRequired is returned when the operation ID is empty.
+	ErrOperationIDRequired = errors.New("operation_id is required")
+	// ErrDigestRequired is returned when the digest is empty.
+	ErrDigestRequired = errors.New("digest is required")
+	// ErrTransactionPreviewCountMismatch is returned when previews length doesn't match transactions.
+	ErrTransactionPreviewCountMismatch = errors.New("transaction previews length must match transactions")
+
+	// ErrDraftNotFound is returned when a draft operation does not exist (404 response).
+	ErrDraftNotFound = errors.New("draft operation not found")
+	// ErrDraftNotFinalizable is returned when a draft operation cannot be finalized (409 response).
+	ErrDraftNotFinalizable = errors.New("draft operation not finalizable")
+	// ErrDraftNotCancellable is returned when a draft operation cannot be cancelled (409 response).
+	ErrDraftNotCancellable = errors.New("draft operation not cancellable")
 
 	// ErrChannelNotFound is returned when the channel does not exist (404 response).
 	ErrChannelNotFound = errors.New("channel not found")
@@ -62,6 +76,8 @@ var (
 
 	// ErrOperationRequired is returned when an operation pointer is required but nil.
 	ErrOperationRequired = eip712.ErrOperationRequired
+	// ErrSignerRequired is returned when the signer parameter is nil.
+	ErrSignerRequired = eip712.ErrSignerRequired
 )
 
 // Options defines the options for creating a new CREC transact client used to send operations to the CREC system.
@@ -183,6 +199,71 @@ type TransactionRequest struct {
 	Data  string
 }
 
+// DraftTransactionPreview represents optional metadata for draft transaction previews.
+type DraftTransactionPreview struct {
+	FunctionSignature string
+	Metadata          *map[string]interface{}
+}
+
+// DraftTransactionRequest represents a single transaction in a draft operation.
+type DraftTransactionRequest struct {
+	To      string
+	Value   string
+	Data    string
+	Preview *DraftTransactionPreview
+}
+
+// CreateDraftOperationInput defines the input parameters for creating a new draft operation.
+type CreateDraftOperationInput struct {
+	ChainSelector     string
+	Address           string
+	WalletOperationID string
+	Deadline          int64
+	Transactions      []DraftTransactionRequest
+}
+
+func (c *Client) postCreateOperation(
+	ctx context.Context,
+	channelID uuid.UUID,
+	createReq apiClient.CreateOperation,
+	walletOperationID string,
+) (*uuid.UUID, error) {
+	resp, err := c.crecClient.CreateOperationWithResponse(ctx, channelID, createReq)
+	if err != nil {
+		c.logger.Error("Failed to create operation", "error", err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, err)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, ErrNilResponse)
+	}
+
+	if resp.StatusCode() == 404 {
+		c.logger.Warn("Channel not found", "channel_id", channelID.String())
+		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+	}
+
+	if resp.StatusCode() != 201 {
+		c.logger.Error("Unexpected status code when creating operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateOperation, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+
+	if resp.JSON201 == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, ErrNilResponseBody)
+	}
+
+	operationID := resp.JSON201.OperationId
+
+	c.logger.Info("Operation created successfully",
+		"operation_id", operationID.String(),
+		"channel_id", channelID.String(),
+		"wallet_operation_id", walletOperationID)
+
+	return &operationID, nil
+}
+
 // CreateOperation creates a new operation in the specified channel.
 // The operation will contain one or more transactions to be executed atomically.
 //
@@ -235,43 +316,64 @@ func (c *Client) CreateOperation(ctx context.Context, input CreateOperationInput
 		WalletOperationId: input.WalletOperationID,
 		Deadline:          input.Deadline,
 		Transactions:      transactions,
-		Signature:         input.Signature,
+		Signature:         &input.Signature,
 	}
 
-	resp, err := c.crecClient.CreateOperationWithResponse(ctx, input.ChannelID, createOperationReq)
-	if err != nil {
-		c.logger.Error("Failed to create operation", "error", err)
-		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, err)
+	return c.postCreateOperation(ctx, input.ChannelID, createOperationReq, input.WalletOperationID)
+}
+
+// CreateUnsignedDraftOperation creates a new unsigned draft operation in the specified channel.
+func (c *Client) CreateUnsignedDraftOperation(ctx context.Context, channelID uuid.UUID, input CreateDraftOperationInput) (*uuid.UUID, error) {
+	c.logger.Debug("Creating unsigned draft operation",
+		"channel_id", channelID.String(),
+		"wallet_operation_id", input.WalletOperationID,
+		"chain_selector", input.ChainSelector,
+		"address", input.Address,
+		"num_transactions", len(input.Transactions))
+
+	if channelID == uuid.Nil {
+		return nil, ErrChannelIDRequired
+	}
+	if input.ChainSelector == "" || input.ChainSelector == "0" {
+		return nil, ErrChainSelectorRequired
+	}
+	if input.Address == "" {
+		return nil, ErrAddressRequired
+	}
+	if input.WalletOperationID == "" {
+		return nil, ErrWalletOperationIDRequired
+	}
+	if len(input.Transactions) == 0 {
+		return nil, ErrAtLeastOneTransactionRequired
 	}
 
-	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, ErrNilResponse)
+	transactions := make([]apiClient.TransactionRequest, 0, len(input.Transactions))
+	for _, tx := range input.Transactions {
+		var preview *apiClient.TransactionPreview
+		if tx.Preview != nil {
+			preview = &apiClient.TransactionPreview{
+				FunctionSignature: tx.Preview.FunctionSignature,
+				Metadata:          tx.Preview.Metadata,
+			}
+		}
+		transactions = append(transactions, apiClient.TransactionRequest{
+			To:      tx.To,
+			Value:   tx.Value,
+			Data:    tx.Data,
+			Preview: preview,
+		})
 	}
 
-	if resp.StatusCode() == 404 {
-		c.logger.Warn("Channel not found", "channel_id", input.ChannelID.String())
-		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+	createReq := apiClient.CreateOperation{
+		ChainSelector:     input.ChainSelector,
+		Address:           input.Address,
+		WalletOperationId: input.WalletOperationID,
+		Deadline:          input.Deadline,
+		Transactions:      transactions,
+		Signature:         nil,
 	}
 
-	if resp.StatusCode() != 201 {
-		c.logger.Error("Unexpected status code when creating operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateOperation, ErrUnexpectedStatusCode, resp.StatusCode())
-	}
-
-	if resp.JSON201 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, ErrNilResponseBody)
-	}
-
-	operationID := resp.JSON201.OperationId
-
-	c.logger.Info("Operation created successfully",
-		"operation_id", operationID.String(),
-		"channel_id", input.ChannelID.String(),
-		"wallet_operation_id", input.WalletOperationID)
-
-	return &operationID, nil
+	return c.postCreateOperation(ctx, channelID, createReq, input.WalletOperationID)
 }
 
 // SendSignedOperation sends a signed operation to the CREC system via the specified channel.
@@ -293,6 +395,9 @@ func (c *Client) SendSignedOperation(
 
 	if op.Deadline == nil || !op.Deadline.IsInt64() || op.Deadline.Sign() < 0 {
 		return nil, ErrInvalidDeadline
+	}
+	if op.ID == nil {
+		return nil, ErrWalletOperationIDRequired
 	}
 
 	c.logger.Debug("Sending signed operation",
@@ -334,6 +439,54 @@ func (c *Client) SendSignedOperation(
 	}
 
 	return operation, nil
+}
+
+// SendDraftOperation sends an unsigned draft operation to the CREC system via the specified channel.
+func (c *Client) SendDraftOperation(
+	ctx context.Context,
+	channelID uuid.UUID,
+	op *types.Operation,
+	chainSelector string,
+	txPreviews []*DraftTransactionPreview,
+) (*uuid.UUID, error) {
+	if op == nil {
+		return nil, ErrOperationRequired
+	}
+
+	if op.Deadline == nil || !op.Deadline.IsInt64() || op.Deadline.Sign() < 0 {
+		return nil, ErrInvalidDeadline
+	}
+	if op.ID == nil {
+		return nil, ErrWalletOperationIDRequired
+	}
+
+	if txPreviews != nil && len(txPreviews) != len(op.Transactions) {
+		return nil, ErrTransactionPreviewCountMismatch
+	}
+
+	draftTxs := make([]DraftTransactionRequest, 0, len(op.Transactions))
+	for i, tx := range op.Transactions {
+		var preview *DraftTransactionPreview
+		if txPreviews != nil {
+			preview = txPreviews[i]
+		}
+		draftTxs = append(draftTxs, DraftTransactionRequest{
+			To:      tx.To.String(),
+			Value:   tx.Value.String(),
+			Data:    "0x" + common.Bytes2Hex(tx.Data),
+			Preview: preview,
+		})
+	}
+
+	input := CreateDraftOperationInput{
+		ChainSelector:     chainSelector,
+		Address:           op.Account.String(),
+		WalletOperationID: op.ID.String(),
+		Deadline:          op.Deadline.Int64(),
+		Transactions:      draftTxs,
+	}
+
+	return c.CreateUnsignedDraftOperation(ctx, channelID, input)
 }
 
 // GetOperation retrieves a specific operation by its ID within a channel.
@@ -517,4 +670,117 @@ func (c *Client) ExecuteOperation(
 		"operation_id", operation.ID.String(),
 		"account", operation.Account.Hex())
 	return opr, nil
+}
+
+// SendSignedDraftOperation finalizes a draft operation with a digest and signature.
+func (c *Client) SendSignedDraftOperation(
+	ctx context.Context,
+	channelID uuid.UUID,
+	operationID uuid.UUID,
+	digest []byte,
+	signature []byte,
+) (*apiClient.Operation, error) {
+	if channelID == uuid.Nil {
+		return nil, ErrChannelIDRequired
+	}
+	if operationID == uuid.Nil {
+		return nil, ErrOperationIDRequired
+	}
+	if len(digest) == 0 {
+		return nil, ErrDigestRequired
+	}
+	if len(signature) == 0 {
+		return nil, ErrSignatureRequired
+	}
+
+	finalize := apiClient.FinalizeOperation{
+		Status:    apiClient.Accepted,
+		Signature: "0x" + common.Bytes2Hex(signature),
+		Digest:    "0x" + common.Bytes2Hex(digest),
+	}
+
+	patch := apiClient.PatchOperation{}
+	if err := patch.FromFinalizeOperation(finalize); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrSendOperation, err)
+	}
+
+	resp, err := c.crecClient.FinalizeOrCancelOperationWithResponse(ctx, channelID, operationID, patch)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrSendOperation, err)
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrSendOperation, ErrNilResponse)
+	}
+
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrSendOperation, ErrNilResponseBody)
+		}
+		return resp.JSON200, nil
+	case http.StatusNotFound:
+		return nil, ErrDraftNotFound
+	case http.StatusConflict:
+		return nil, ErrDraftNotFinalizable
+	default:
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
+}
+
+// ExecuteDraftOperation signs the provided digest and finalizes the draft operation.
+func (c *Client) ExecuteDraftOperation(
+	ctx context.Context,
+	channelID uuid.UUID,
+	operationID uuid.UUID,
+	digest []byte,
+	operationSigner signer.Signer,
+) (*apiClient.Operation, error) {
+	if operationSigner == nil {
+		return nil, ErrSignerRequired
+	}
+	if len(digest) == 0 {
+		return nil, ErrDigestRequired
+	}
+
+	signature, err := operationSigner.Sign(ctx, digest)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.SendSignedDraftOperation(ctx, channelID, operationID, digest, signature)
+}
+
+// CancelDraftOperation cancels a draft operation.
+func (c *Client) CancelDraftOperation(ctx context.Context, channelID uuid.UUID, operationID uuid.UUID) error {
+	if channelID == uuid.Nil {
+		return ErrChannelIDRequired
+	}
+	if operationID == uuid.Nil {
+		return ErrOperationIDRequired
+	}
+
+	cancel := apiClient.CancelOperation{Status: apiClient.CancelOperationStatusCancelled}
+	patch := apiClient.PatchOperation{}
+	if err := patch.FromCancelOperation(cancel); err != nil {
+		return fmt.Errorf("%w: %w", ErrSendOperation, err)
+	}
+
+	resp, err := c.crecClient.FinalizeOrCancelOperationWithResponse(ctx, channelID, operationID, patch)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrSendOperation, err)
+	}
+	if resp == nil {
+		return fmt.Errorf("%w: %w", ErrSendOperation, ErrNilResponse)
+	}
+
+	switch resp.StatusCode() {
+	case http.StatusOK, http.StatusNoContent:
+		return nil
+	case http.StatusNotFound:
+		return ErrDraftNotFound
+	case http.StatusConflict:
+		return ErrDraftNotCancellable
+	default:
+		return fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, ErrUnexpectedStatusCode, resp.StatusCode())
+	}
 }
