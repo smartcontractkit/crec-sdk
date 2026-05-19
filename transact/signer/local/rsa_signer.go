@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"reflect"
 
 	signerPkg "github.com/smartcontractkit/crec-sdk/transact/signer"
 )
@@ -156,17 +157,10 @@ func (s *RSASigner) Destroy() {
 		s.privateKey.Primes[i] = nil
 	}
 
-	// CRTValues is deprecated by crypto/rsa for optimization use, but it may
-	// still be populated for backward compatibility; wipe it if present.
-	for i := range s.privateKey.Precomputed.CRTValues {
-		zeroBigInt(s.privateKey.Precomputed.CRTValues[i].Coeff)
-		zeroBigInt(s.privateKey.Precomputed.CRTValues[i].Exp)
-		zeroBigInt(s.privateKey.Precomputed.CRTValues[i].R)
-		s.privateKey.Precomputed.CRTValues[i].Coeff = nil
-		s.privateKey.Precomputed.CRTValues[i].Exp = nil
-		s.privateKey.Precomputed.CRTValues[i].R = nil
-	}
-	s.privateKey.Precomputed.CRTValues = nil
+	// Precomputed.CRTValues is deprecated by crypto/rsa and should not be
+	// referenced directly. Wipe it via reflection for legacy/multi-prime keys
+	// that may still carry those values.
+	zeroDeprecatedRSACRTValues(&s.privateKey.Precomputed)
 
 	zeroBigInt(s.privateKey.Precomputed.Dp)
 	s.privateKey.Precomputed.Dp = nil
@@ -192,4 +186,61 @@ func zeroBigInt(x *big.Int) {
 		words[i] = 0
 	}
 	x.SetInt64(0)
+}
+
+// zeroDeprecatedRSACRTValues wipes rsa.PrecomputedValues.CRTValues without a
+// compile-time reference to the deprecated field.
+//
+// The field was deprecated in Go 1.21, but may still be populated for backward
+// compatibility by older or multi-prime RSA keys.
+func zeroDeprecatedRSACRTValues(precomputed *rsa.PrecomputedValues) {
+	if precomputed == nil {
+		return
+	}
+
+	values := reflect.ValueOf(precomputed).Elem().FieldByName("CRTValues")
+	if !values.IsValid() || values.Kind() != reflect.Slice {
+		return
+	}
+
+	for i := 0; i < values.Len(); i++ {
+		crtValue := values.Index(i)
+		zeroBigIntReflectField(crtValue, "Coeff")
+		zeroBigIntReflectField(crtValue, "Exp")
+		zeroBigIntReflectField(crtValue, "R")
+	}
+
+	if values.CanSet() {
+		values.Set(reflect.Zero(values.Type()))
+	}
+}
+
+func zeroBigIntReflectField(parent reflect.Value, fieldName string) {
+	if !parent.IsValid() {
+		return
+	}
+	if parent.Kind() == reflect.Pointer {
+		if parent.IsNil() {
+			return
+		}
+		parent = parent.Elem()
+	}
+	if parent.Kind() != reflect.Struct {
+		return
+	}
+
+	field := parent.FieldByName(fieldName)
+	if !field.IsValid() || field.Kind() != reflect.Pointer || field.IsNil() || !field.CanInterface() {
+		return
+	}
+
+	x, ok := field.Interface().(*big.Int)
+	if !ok {
+		return
+	}
+
+	zeroBigInt(x)
+	if field.CanSet() {
+		field.Set(reflect.Zero(field.Type()))
+	}
 }

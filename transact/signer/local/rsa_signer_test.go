@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"math/big"
+	"reflect"
 	"testing"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -310,23 +311,28 @@ func TestRSASigner_Destroy_OverwritesBackingWords(t *testing.T) {
 	}
 }
 
-func TestRSASigner_Destroy_ClearsMultiPrimeCRTValues(t *testing.T) {
-	key, err := rsa.GenerateMultiPrimeKey(rand.Reader, 3, 2048)
+func TestRSASigner_Destroy_ClearsDeprecatedCRTValues(t *testing.T) {
+	key, err := GenerateRSAKey(2048)
 	require.NoError(t, err)
-	key.Precompute()
-	require.NotEmpty(t, key.Precomputed.CRTValues)
-
-	coeffWords := key.Precomputed.CRTValues[0].Coeff.Bits()
-	expWords := key.Precomputed.CRTValues[0].Exp.Bits()
-	rWords := key.Precomputed.CRTValues[0].R.Bits()
-	require.NotEmpty(t, coeffWords)
-	require.NotEmpty(t, expWords)
-	require.NotEmpty(t, rWords)
 
 	signer, err := NewRSASigner(key)
 	require.NoError(t, err)
 
+	coeff := big.NewInt(0x123456)
+	exp := big.NewInt(0xabcdef)
+	r := big.NewInt(0x654321)
+	setDeprecatedCRTValuesForTest(t, &key.Precomputed, coeff, exp, r)
+
+	coeffWords := coeff.Bits()
+	expWords := exp.Bits()
+	rWords := r.Bits()
+	require.NotEmpty(t, coeffWords)
+	require.NotEmpty(t, expWords)
+	require.NotEmpty(t, rWords)
+
 	signer.Destroy()
+
+	requireDeprecatedCRTValuesClearedForTest(t, &key.Precomputed)
 
 	for _, w := range coeffWords {
 		require.Equal(t, big.Word(0), w, "CRT coeff backing words were not overwritten")
@@ -337,6 +343,44 @@ func TestRSASigner_Destroy_ClearsMultiPrimeCRTValues(t *testing.T) {
 	for _, w := range rWords {
 		require.Equal(t, big.Word(0), w, "CRT R backing words were not overwritten")
 	}
+}
+
+func setDeprecatedCRTValuesForTest(t *testing.T, precomputed *rsa.PrecomputedValues, coeff, exp, r *big.Int) {
+	t.Helper()
+
+	field := reflect.ValueOf(precomputed).Elem().FieldByName("CRTValues")
+	if !field.IsValid() {
+		t.Skip("crypto/rsa PrecomputedValues no longer has CRTValues field")
+	}
+	require.Equal(t, reflect.Slice, field.Kind())
+	require.True(t, field.CanSet())
+
+	values := reflect.MakeSlice(field.Type(), 1, 1)
+	crtValue := values.Index(0)
+	setDeprecatedCRTValueBigIntFieldForTest(t, crtValue, "Coeff", coeff)
+	setDeprecatedCRTValueBigIntFieldForTest(t, crtValue, "Exp", exp)
+	setDeprecatedCRTValueBigIntFieldForTest(t, crtValue, "R", r)
+	field.Set(values)
+}
+
+func setDeprecatedCRTValueBigIntFieldForTest(t *testing.T, crtValue reflect.Value, fieldName string, value *big.Int) {
+	t.Helper()
+
+	field := crtValue.FieldByName(fieldName)
+	require.True(t, field.IsValid())
+	require.True(t, field.CanSet())
+	field.Set(reflect.ValueOf(value))
+}
+
+func requireDeprecatedCRTValuesClearedForTest(t *testing.T, precomputed *rsa.PrecomputedValues) {
+	t.Helper()
+
+	field := reflect.ValueOf(precomputed).Elem().FieldByName("CRTValues")
+	if !field.IsValid() {
+		return
+	}
+	require.Equal(t, reflect.Slice, field.Kind())
+	require.Zero(t, field.Len())
 }
 
 func TestRSASigner_Destroy_Idempotent(t *testing.T) {
