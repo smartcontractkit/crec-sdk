@@ -14,7 +14,7 @@ import (
 )
 
 // MockServer is an in-memory HTTP server that implements the CREC API for testing.
-// It provides channels, watchers, wallets, and operations endpoints with no persistence.
+// It provides channels, queries, watchers, wallets, and operations endpoints with no persistence.
 type MockServer struct {
 	TestServer *httptest.Server
 
@@ -25,6 +25,7 @@ type MockServer struct {
 	wallets    []stdserver.Wallet
 	channels   []stdserver.Channel
 	operations []stdserver.Operation
+	queries    []stdserver.Query
 	watchers   []stdserver.Watcher
 }
 
@@ -37,6 +38,7 @@ func NewMockServer() *MockServer {
 		wallets:    make([]stdserver.Wallet, 0),
 		channels:   make([]stdserver.Channel, 0),
 		operations: make([]stdserver.Operation, 0),
+		queries:    make([]stdserver.Query, 0),
 		watchers:   make([]stdserver.Watcher, 0),
 	}
 	r := http.NewServeMux()
@@ -367,6 +369,109 @@ func (s *MockServer) FinalizeOrCancelOperation(w http.ResponseWriter, r *http.Re
 	}
 
 	http.Error(w, "operation not found", http.StatusNotFound)
+}
+
+// ============================================================================
+// QUERIES ENDPOINTS (under channels)
+// ============================================================================
+
+func (s *MockServer) CreateQuery(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID) {
+	var request stdserver.CreateQuery
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	queryID := uuid.New()
+	now := time.Now().Unix()
+	query := stdserver.Query{
+		QueryId:       queryID,
+		ChannelId:     channelId,
+		Status:        stdserver.QueryStatusAccepted,
+		QueryKind:     request.QueryKind,
+		ChainSelector: request.ChainSelector,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	s.mu.Lock()
+	s.queries = append(s.queries, query)
+	s.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(stdserver.QueryAcceptedResponse{
+		QueryId: queryID,
+		Status:  stdserver.QueryStatusAccepted,
+	})
+}
+
+func (s *MockServer) ListQueries(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, params stdserver.ListQueriesParams) {
+	limit := 20
+	offset := 0
+	if params.Limit != nil && *params.Limit > 0 {
+		limit = *params.Limit
+	}
+	if params.Offset != nil && *params.Offset >= 0 {
+		offset = int(*params.Offset)
+	}
+
+	s.mu.RLock()
+	queries := make([]stdserver.Query, len(s.queries))
+	copy(queries, s.queries)
+	s.mu.RUnlock()
+
+	filtered := []stdserver.Query{}
+	for _, query := range queries {
+		if query.ChannelId != channelId {
+			continue
+		}
+		if params.Status != nil {
+			matched := false
+			for _, status := range *params.Status {
+				if query.Status == status {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+		filtered = append(filtered, query)
+	}
+
+	end := offset + limit
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+
+	data := []stdserver.Query{}
+	if offset < len(filtered) {
+		data = append(data, filtered[offset:end]...)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stdserver.QueryList{
+		Data:    data,
+		HasMore: end < len(filtered),
+	})
+}
+
+func (s *MockServer) GetQuery(w http.ResponseWriter, r *http.Request, channelId openapiTypes.UUID, queryId openapiTypes.UUID) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, query := range s.queries {
+		if query.ChannelId == channelId && query.QueryId == queryId {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(query)
+			return
+		}
+	}
+	http.Error(w, "query not found", http.StatusNotFound)
 }
 
 // ============================================================================

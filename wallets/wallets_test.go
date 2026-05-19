@@ -127,7 +127,7 @@ func TestClient_Create(t *testing.T) {
 				Address:       walletAddress,
 				ChainSelector: chainSelector,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -296,7 +296,7 @@ func TestClient_Create(t *testing.T) {
 				ChainSelector:   chainSelector,
 				StatusChannelId: &statusChannelID,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -596,7 +596,7 @@ func TestClient_Create(t *testing.T) {
 				Address:       walletAddress,
 				ChainSelector: chainSelector,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -635,7 +635,10 @@ func TestClient_Create(t *testing.T) {
 				Address:       walletAddress,
 				ChainSelector: chainSelector,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -734,7 +737,10 @@ func TestClient_Get(t *testing.T) {
 				Address:       walletAddress,
 				ChainSelector: chainSelector,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -815,7 +821,10 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -856,7 +865,10 @@ func TestClient_List(t *testing.T) {
 				Data:    []apiClient.Wallet{},
 				HasMore: true,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1094,7 +1106,10 @@ func TestClient_Archive(t *testing.T) {
 				Name:     "test-wallet",
 				Status:   apiClient.WalletStatusArchived,
 			}
-			json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1121,10 +1136,13 @@ func TestClient_Archive(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"message": "Wallet not found",
 				"type":    "Not found",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)

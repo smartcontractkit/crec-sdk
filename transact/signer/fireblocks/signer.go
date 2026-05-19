@@ -63,7 +63,7 @@ var (
 	ErrFloat64PrecisionLoss        = errors.New("float64 precision loss")
 	ErrParseTypedDataIntegerString = errors.New("failed to parse string as integer")
 
-	ErrFireblocksOperationTerminal = errors.New("Fireblocks operation ended with terminal status")
+	ErrFireblocksOperationTerminal = errors.New("fireblocks operation ended with terminal status")
 
 	ErrCreateSigningOperationFailed      = errors.New("create signing operation failed")
 	ErrCreateTypedMessageOperationFailed = errors.New("create typed message operation failed")
@@ -285,7 +285,7 @@ func (s *Signer) GetVaultAccountAddress(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get vault account: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
@@ -329,7 +329,7 @@ func (s *Signer) createSigningOperation(ctx context.Context, hash []byte) (strin
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
@@ -402,7 +402,7 @@ func (s *Signer) createTypedMessageOperation(ctx context.Context, typedData *sig
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
@@ -846,7 +846,7 @@ func (s *Signer) getOperation(ctx context.Context, opID string) (*OperationRespo
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
@@ -885,10 +885,10 @@ func (s *Signer) extractSignature(op *OperationResponse, hash []byte) ([]byte, e
 	rBigInt := new(big.Int).SetBytes(rBytes)
 	sBigInt := new(big.Int).SetBytes(sBytes)
 	if rBigInt.Cmp(big.NewInt(0)) <= 0 || rBigInt.Cmp(secp256k1N) >= 0 {
-		return nil, fmt.Errorf("R value out of range [1, N-1]")
+		return nil, fmt.Errorf("r value out of range [1, N-1]")
 	}
 	if sBigInt.Cmp(big.NewInt(0)) <= 0 || sBigInt.Cmp(secp256k1N) >= 0 {
-		return nil, fmt.Errorf("S value out of range [1, N-1]")
+		return nil, fmt.Errorf("s value out of range [1, N-1]")
 	}
 
 	// Adjust S value according to Ethereum standard (EIP-2)

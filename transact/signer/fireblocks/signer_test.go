@@ -249,11 +249,11 @@ func TestSigner_NewSignerFromEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			clearFireblocksEnvVars()
-			defer clearFireblocksEnvVars()
+			clearFireblocksEnvVars(t)
+			defer clearFireblocksEnvVars(t)
 
 			for k, v := range tt.envVars {
-				os.Setenv(k, v)
+				require.NoError(t, os.Setenv(k, v))
 			}
 
 			signer, err := fireblocks.NewSignerFromEnv()
@@ -278,19 +278,19 @@ func TestSigner_NewSignerFromEnv_FileRead(t *testing.T) {
 	// Create a temporary file with the PEM key
 	tmpFile, err := os.CreateTemp("", "fireblocks-test-key-*.pem")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
+	defer func() { require.NoError(t, os.Remove(tmpFile.Name())) }()
 
 	_, err = tmpFile.WriteString(pemKey)
 	require.NoError(t, err)
-	tmpFile.Close()
+	require.NoError(t, tmpFile.Close())
 
-	clearFireblocksEnvVars()
-	defer clearFireblocksEnvVars()
+	clearFireblocksEnvVars(t)
+	defer clearFireblocksEnvVars(t)
 
-	os.Setenv("FIREBLOCKS_API_KEY", testAPIKey)
-	os.Setenv("FIREBLOCKS_API_SECRET", tmpFile.Name())
-	os.Setenv("FIREBLOCKS_VAULT_ACCOUNT_ID", testVaultAccountID)
-	os.Setenv("FIREBLOCKS_ASSET_ID", testAssetID)
+	require.NoError(t, os.Setenv("FIREBLOCKS_API_KEY", testAPIKey))
+	require.NoError(t, os.Setenv("FIREBLOCKS_API_SECRET", tmpFile.Name()))
+	require.NoError(t, os.Setenv("FIREBLOCKS_VAULT_ACCOUNT_ID", testVaultAccountID))
+	require.NoError(t, os.Setenv("FIREBLOCKS_ASSET_ID", testAssetID))
 
 	signer, err := fireblocks.NewSignerFromEnv()
 	require.NoError(t, err)
@@ -339,7 +339,8 @@ func TestSigner_Sign(t *testing.T) {
 			setupServer: func(t *testing.T) *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(strings.Repeat("A", 5000)))
+					_, err := w.Write([]byte(strings.Repeat("A", 5000)))
+					require.NoError(t, err)
 				}))
 			},
 			wantErr: true,
@@ -388,19 +389,19 @@ func TestSigner_Sign_Timeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" && r.URL.Path == "/v1/transactions" {
 			opCreated = true
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"id":     "op-123",
 				"status": "SUBMITTED",
-			})
+			}))
 			return
 		}
 
 		if r.Method == "GET" && r.URL.Path == "/v1/transactions/op-123" {
 			// Always return pending status
-			json.NewEncoder(w).Encode(map[string]any{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
 				"id":     "op-123",
 				"status": "PENDING_SIGNATURE",
-			})
+			}))
 			return
 		}
 
@@ -431,20 +432,23 @@ func TestSigner_Sign_ContextCancellation(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" && r.URL.Path == "/v1/transactions" {
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"id":     "op-123",
 				"status": "SUBMITTED",
-			})
+			}))
 			return
 		}
 
 		if r.Method == "GET" && r.URL.Path == "/v1/transactions/op-123" {
 			// Simulate slow response
 			time.Sleep(500 * time.Millisecond)
-			json.NewEncoder(w).Encode(map[string]any{
+			err := json.NewEncoder(w).Encode(map[string]any{
 				"id":     "op-123",
 				"status": "PENDING_SIGNATURE",
 			})
+			if err != nil {
+				return
+			}
 			return
 		}
 
@@ -483,9 +487,12 @@ func TestSigner_GetVaultAccountAddress(t *testing.T) {
 		{
 			name: "successful get address",
 			serverResponse: func(w http.ResponseWriter, r *http.Request) {
-				json.NewEncoder(w).Encode(map[string]string{
+				err := json.NewEncoder(w).Encode(map[string]string{
 					"address": "0x742d35Cc6634C0532925a3b8D100d3F01F14bFE4",
 				})
+				if err != nil {
+					return
+				}
 			},
 			expectedAddress: "0x742d35Cc6634C0532925a3b8D100d3F01F14bFE4",
 			wantErr:         false,
@@ -494,7 +501,8 @@ func TestSigner_GetVaultAccountAddress(t *testing.T) {
 			name: "server error",
 			serverResponse: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(`{"error": "internal error"}`))
+				_, err := w.Write([]byte(`{"error": "internal error"}`))
+				require.NoError(t, err)
 			},
 			wantErr: true,
 			errIs:   fireblocks.ErrGetVaultAccountNonOK,
@@ -503,7 +511,8 @@ func TestSigner_GetVaultAccountAddress(t *testing.T) {
 			name: "not found",
 			serverResponse: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
-				w.Write([]byte(`{"error": "vault account not found"}`))
+				_, err := w.Write([]byte(`{"error": "vault account not found"}`))
+				require.NoError(t, err)
 			},
 			wantErr: true,
 			errIs:   fireblocks.ErrGetVaultAccountNonOK,
@@ -704,12 +713,14 @@ func TestSigner_SignTypedData_OperationRejected(t *testing.T) {
 
 // Helper functions
 
-func clearFireblocksEnvVars() {
-	os.Unsetenv("FIREBLOCKS_API_KEY")
-	os.Unsetenv("FIREBLOCKS_API_SECRET")
-	os.Unsetenv("FIREBLOCKS_VAULT_ACCOUNT_ID")
-	os.Unsetenv("FIREBLOCKS_ASSET_ID")
-	os.Unsetenv("FIREBLOCKS_BASE_URL")
+func clearFireblocksEnvVars(t *testing.T) {
+	t.Helper()
+
+	require.NoError(t, os.Unsetenv("FIREBLOCKS_API_KEY"))
+	require.NoError(t, os.Unsetenv("FIREBLOCKS_API_SECRET"))
+	require.NoError(t, os.Unsetenv("FIREBLOCKS_VAULT_ACCOUNT_ID"))
+	require.NoError(t, os.Unsetenv("FIREBLOCKS_ASSET_ID"))
+	require.NoError(t, os.Unsetenv("FIREBLOCKS_BASE_URL"))
 }
 
 func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubKeyBytes []byte, finalStatus fireblocks.OperationStatus) *httptest.Server {
@@ -721,7 +732,7 @@ func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubK
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" && r.URL.Path == "/v1/transactions" {
 			var payload map[string]any
-			json.NewDecoder(r.Body).Decode(&payload)
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 
 			// Extract the hash from the request
 			if extra, ok := payload["extraParameters"].(map[string]any); ok {
@@ -737,10 +748,13 @@ func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubK
 			}
 
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"id":     "op-mock-123",
 				"status": "SUBMITTED",
 			})
+			if err != nil {
+				return
+			}
 			return
 		}
 
@@ -748,18 +762,24 @@ func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubK
 			operationPolls++
 
 			if operationPolls < 2 {
-				json.NewEncoder(w).Encode(map[string]any{
+				err := json.NewEncoder(w).Encode(map[string]any{
 					"id":     "op-mock-123",
 					"status": "PENDING_SIGNATURE",
 				})
+				if err != nil {
+					return
+				}
 				return
 			}
 
 			if finalStatus != fireblocks.StatusCompleted {
-				json.NewEncoder(w).Encode(map[string]any{
+				err := json.NewEncoder(w).Encode(map[string]any{
 					"id":     "op-mock-123",
 					"status": string(finalStatus),
 				})
+				if err != nil {
+					return
+				}
 				return
 			}
 
@@ -775,7 +795,7 @@ func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubK
 			rVal := hex.EncodeToString(sigBytes[:32])
 			sVal := hex.EncodeToString(sigBytes[32:64])
 
-			json.NewEncoder(w).Encode(map[string]any{
+			err := json.NewEncoder(w).Encode(map[string]any{
 				"id":     "op-mock-123",
 				"status": "COMPLETED",
 				"signedMessages": []map[string]any{
@@ -792,6 +812,9 @@ func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubK
 					},
 				},
 			})
+			if err != nil {
+				return
+			}
 			return
 		}
 
@@ -808,13 +831,16 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" && r.URL.Path == "/v1/transactions" {
 			var payload map[string]any
-			json.NewDecoder(r.Body).Decode(&payload)
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 
 			// Verify this is a TYPED_MESSAGE operation
 			operation, _ := payload["operation"].(string)
 			if operation != "TYPED_MESSAGE" {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]string{"error": "expected TYPED_MESSAGE operation"})
+				err := json.NewEncoder(w).Encode(map[string]string{"error": "expected TYPED_MESSAGE operation"})
+				if err != nil {
+					return
+				}
 				return
 			}
 
@@ -826,10 +852,13 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 			}
 
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"id":     "op-typed-123",
 				"status": "SUBMITTED",
 			})
+			if err != nil {
+				return
+			}
 			return
 		}
 
@@ -837,18 +866,24 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 			operationPolls++
 
 			if operationPolls < 2 {
-				json.NewEncoder(w).Encode(map[string]any{
+				err := json.NewEncoder(w).Encode(map[string]any{
 					"id":     "op-typed-123",
 					"status": "PENDING_SIGNATURE",
 				})
+				if err != nil {
+					return
+				}
 				return
 			}
 
 			if finalStatus != fireblocks.StatusCompleted {
-				json.NewEncoder(w).Encode(map[string]any{
+				err := json.NewEncoder(w).Encode(map[string]any{
 					"id":     "op-typed-123",
 					"status": string(finalStatus),
 				})
+				if err != nil {
+					return
+				}
 				return
 			}
 
@@ -870,7 +905,7 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 			rVal := hex.EncodeToString(sigBytes[:32])
 			sVal := hex.EncodeToString(sigBytes[32:64])
 
-			json.NewEncoder(w).Encode(map[string]any{
+			err := json.NewEncoder(w).Encode(map[string]any{
 				"id":     "op-typed-123",
 				"status": "COMPLETED",
 				"signedMessages": []map[string]any{
@@ -887,6 +922,9 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 					},
 				},
 			})
+			if err != nil {
+				return
+			}
 			return
 		}
 
