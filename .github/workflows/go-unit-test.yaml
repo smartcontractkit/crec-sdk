@@ -1,14 +1,28 @@
-name: Go CI
+name: Go Unit Test
 
 on:
   push:
     branches: [main]
   pull_request:
 
-permissions:
-  contents: read
-
 jobs:
+  ci-lint-go:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - name: ci-lint-go
+        uses: smartcontractkit/.github/actions/ci-lint-go@5ef875a78da521085ad768ecf2ed5e25009496f7 # ci-lint-go@2.0.0
+        with:
+          go-version-file: go.mod
+          golangci-lint-version: v2.4.0 # Supports Go 1.25+
+          use-go-cache: true
+          only-new-issues: false
+          use-gati: false
+          golangci-lint-args: --timeout=5m
+
   ci-test-go:
     runs-on: ubuntu-latest
     permissions:
@@ -22,23 +36,3 @@ jobs:
           use-gati: false
           go-test-cmd: go test ./...
           use-go-cache: true
-
-  lint-go:
-    name: Go Lint
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: stable
-          cache: true
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.12
