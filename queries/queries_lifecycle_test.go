@@ -90,16 +90,8 @@ func TestClient_List(t *testing.T) {
 		assert.Equal(t, "5", q.Get("offset"))
 
 		writeJSON(t, w, http.StatusOK, apiClient.QueryList{
-			Data: []apiClient.QuerySummary{
-				{
-					QueryId:       queryID,
-					ChannelId:     channelID,
-					Status:        apiClient.QueryStatusCompleted,
-					QueryKind:     apiClient.QueryKindEVMCall,
-					ChainSelector: apiClient.ChainSelector(testChainSelector),
-					CreatedAt:     1700000000,
-					UpdatedAt:     1700000001,
-				},
+			Data: []apiClient.Query{
+				makeAcceptedQuery(channelID, queryID, apiClient.QueryStatusCompleted),
 			},
 			HasMore: true,
 		})

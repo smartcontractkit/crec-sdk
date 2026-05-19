@@ -367,8 +367,8 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID
 	}
 }
 
-// List retrieves query summaries for a channel.
-func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.QuerySummary, bool, error) {
+// List retrieves query records for a channel.
+func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, bool, error) {
 	if input.ChannelID == uuid.Nil {
 		return nil, false, ErrChannelIDRequired
 	}
@@ -831,7 +831,7 @@ func readRawResponseBody(resp *http.Response, wrapErr error) ([]byte, error) {
 	if resp.Body == nil {
 		return nil, fmt.Errorf("%w: %w", wrapErr, ErrNilResponseBody)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

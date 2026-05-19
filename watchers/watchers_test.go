@@ -169,7 +169,10 @@ func TestClient_CreateWithService(t *testing.T) {
 				Address:       address,
 				Status:        apiClient.WatcherStatusPending,
 			}
-			json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -316,9 +319,12 @@ func TestClient_CreateWithService(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Invalid watcher configuration",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -412,7 +418,10 @@ func TestClient_CreateWithABI(t *testing.T) {
 				Address:       address,
 				Status:        apiClient.WatcherStatusPending,
 			}
-			json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -715,7 +724,10 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -768,7 +780,10 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -809,9 +824,12 @@ func TestClient_List(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -846,7 +864,10 @@ func TestClient_Get(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -881,7 +902,10 @@ func TestClient_Get(t *testing.T) {
 				Events:        []string{"Transfer"},
 				DonFamily:     "zone-a",
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -934,9 +958,12 @@ func TestClient_Get(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Watcher not found",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -980,7 +1007,10 @@ func TestClient_Update(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1055,9 +1085,12 @@ func TestClient_Update(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Watcher not found",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1102,7 +1135,10 @@ func TestClient_Archive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchiving,
 			}
-			json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1152,9 +1188,12 @@ func TestClient_Archive(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Watcher not found",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1174,9 +1213,12 @@ func TestClient_Archive(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1206,7 +1248,10 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1244,7 +1289,10 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        status,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1273,7 +1321,10 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusFailed,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1301,7 +1352,10 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusPending,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1359,7 +1413,10 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchiving,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1388,7 +1445,10 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusPending,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1423,7 +1483,8 @@ func TestClient_WaitForActive(t *testing.T) {
 			// First 2 attempts return 503 (transient error)
 			if attemptCount <= 2 {
 				w.WriteHeader(http.StatusServiceUnavailable)
-				w.Write([]byte(`{"error": "service temporarily unavailable"}`))
+				_, writeErr := w.Write([]byte(`{"error": "service temporarily unavailable"}`))
+				require.NoError(t, writeErr)
 				return
 			}
 
@@ -1437,7 +1498,10 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1461,7 +1525,8 @@ func TestClient_WaitForActive(t *testing.T) {
 			// Always return 503 (transient error)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(`{"error": "service temporarily unavailable"}`))
+			_, writeErr := w.Write([]byte(`{"error": "service temporarily unavailable"}`))
+			require.NoError(t, writeErr)
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1485,7 +1550,8 @@ func TestClient_WaitForActive(t *testing.T) {
 			// Return 400 (permanent error - bad request)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(`{"error": "bad request"}`))
+			_, writeErr := w.Write([]byte(`{"error": "bad request"}`))
+			require.NoError(t, writeErr)
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1511,7 +1577,8 @@ func TestClient_WaitForActive(t *testing.T) {
 			// First 2 attempts return 500 (internal server error - transient)
 			if attemptCount <= 2 {
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(`{"error": "internal server error"}`))
+				_, writeErr := w.Write([]byte(`{"error": "internal server error"}`))
+				require.NoError(t, writeErr)
 				return
 			}
 
@@ -1525,7 +1592,10 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1560,7 +1630,10 @@ func TestClient_WaitForArchived(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusArchiving,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 			} else {
 				w.WriteHeader(http.StatusOK)
 				response := apiClient.Watcher{
@@ -1570,7 +1643,10 @@ func TestClient_WaitForArchived(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusArchived,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 			}
 		}
 
@@ -1598,7 +1674,10 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchived,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1624,7 +1703,10 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchiving,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1651,7 +1733,10 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchiving,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1686,7 +1771,10 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1737,7 +1825,8 @@ func TestClient_WaitForArchived(t *testing.T) {
 
 			if attemptCount <= 2 {
 				w.WriteHeader(http.StatusBadGateway)
-				w.Write([]byte(`{"error": "bad gateway"}`))
+				_, writeErr := w.Write([]byte(`{"error": "bad gateway"}`))
+				require.NoError(t, writeErr)
 				return
 			}
 
@@ -1750,7 +1839,10 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchived,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1771,7 +1863,8 @@ func TestClient_WaitForArchived(t *testing.T) {
 			attemptCount++
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "internal server error"}`))
+			_, writeErr := w.Write([]byte(`{"error": "internal server error"}`))
+			require.NoError(t, writeErr)
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -1807,7 +1900,10 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusPending,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
@@ -1826,12 +1922,15 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x1234",
 					Status:        status,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 
 			case r.Method == "PATCH" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				body, _ := io.ReadAll(r.Body)
 				var updateReq apiClient.UpdateWatcher
-				json.Unmarshal(body, &updateReq)
+				require.NoError(t, json.Unmarshal(body, &updateReq))
 
 				if updateReq.Status != nil && *updateReq.Status == apiClient.WatcherStatusArchived {
 					w.WriteHeader(http.StatusOK)
@@ -1842,7 +1941,10 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusArchived,
 					}
-					json.NewEncoder(w).Encode(response)
+					err := json.NewEncoder(w).Encode(response)
+					if err != nil {
+						return
+					}
 				} else {
 					w.WriteHeader(http.StatusOK)
 					response := apiClient.Watcher{
@@ -1852,7 +1954,10 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusActive,
 					}
-					json.NewEncoder(w).Encode(response)
+					err := json.NewEncoder(w).Encode(response)
+					if err != nil {
+						return
+					}
 				}
 
 			default:
@@ -1924,7 +2029,10 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x5678",
 					Status:        apiClient.WatcherStatusPending,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
@@ -1935,7 +2043,10 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x5678",
 					Status:        apiClient.WatcherStatusActive,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/channels/"+channelID.String()+"/watchers") && !strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
@@ -1954,7 +2065,10 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					},
 					HasMore: false,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 
 			case r.Method == "PATCH" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusAccepted)
@@ -1965,7 +2079,10 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x5678",
 					Status:        apiClient.WatcherStatusArchiving,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 
 			default:
 				t.Fatalf("Unexpected request: %s %s", r.Method, r.URL.Path)
@@ -2025,7 +2142,8 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "POST" {
 				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(`{"error": "invalid chain selector"}`))
+				_, writeErr := w.Write([]byte(`{"error": "invalid chain selector"}`))
+				require.NoError(t, writeErr)
 			}
 		}
 
@@ -2055,7 +2173,8 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 
-			if r.Method == "POST" {
+			switch r.Method {
+			case "POST":
 				w.WriteHeader(http.StatusCreated)
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
@@ -2064,8 +2183,11 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusPending,
 				}
-				json.NewEncoder(w).Encode(response)
-			} else if r.Method == "GET" {
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
+			case "GET":
 				// Watcher failed to deploy
 				w.WriteHeader(http.StatusOK)
 				response := apiClient.Watcher{
@@ -2075,7 +2197,10 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusFailed,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 			}
 		}
 
@@ -2110,7 +2235,8 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 
-			if r.Method == "POST" {
+			switch r.Method {
+			case "POST":
 				w.WriteHeader(http.StatusCreated)
 				response := apiClient.Watcher{
 					WatcherId:     watcherID,
@@ -2119,8 +2245,11 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusPending,
 				}
-				json.NewEncoder(w).Encode(response)
-			} else if r.Method == "GET" {
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
+			case "GET":
 				getCallCount++
 				if getCallCount == 1 {
 					w.WriteHeader(http.StatusOK)
@@ -2131,7 +2260,10 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusPending,
 					}
-					json.NewEncoder(w).Encode(response)
+					err := json.NewEncoder(w).Encode(response)
+					if err != nil {
+						return
+					}
 				} else {
 					w.WriteHeader(http.StatusOK)
 					response := apiClient.Watcher{
@@ -2141,7 +2273,10 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusArchived,
 					}
-					json.NewEncoder(w).Encode(response)
+					err := json.NewEncoder(w).Encode(response)
+					if err != nil {
+						return
+					}
 				}
 			}
 		}
@@ -2192,7 +2327,8 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "PATCH" {
 				w.WriteHeader(http.StatusNotFound)
-				w.Write([]byte(`{"error": "watcher not found"}`))
+				_, writeErr := w.Write([]byte(`{"error": "watcher not found"}`))
+				require.NoError(t, writeErr)
 			}
 		}
 
@@ -2230,7 +2366,10 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusArchiving,
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				if err != nil {
+					return
+				}
 			} else if r.Method == "GET" {
 				getCallCount++
 				name := "test-watcher"
@@ -2243,7 +2382,10 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusArchiving,
 					}
-					json.NewEncoder(w).Encode(response)
+					err := json.NewEncoder(w).Encode(response)
+					if err != nil {
+						return
+					}
 				} else {
 					w.WriteHeader(http.StatusOK)
 					response := apiClient.Watcher{
@@ -2253,7 +2395,10 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusArchived,
 					}
-					json.NewEncoder(w).Encode(response)
+					err := json.NewEncoder(w).Encode(response)
+					if err != nil {
+						return
+					}
 				}
 			}
 		}
@@ -2310,7 +2455,10 @@ func TestEndToEnd_Filtering(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -2378,7 +2526,10 @@ func TestEndToEnd_Filtering(t *testing.T) {
 				Data:    watchers,
 				HasMore: hasMore,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)

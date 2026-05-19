@@ -22,7 +22,7 @@ func TestNewRSASigner_NilKey(t *testing.T) {
 func TestNewRSASigner_NilN(t *testing.T) {
 	key, err := GenerateRSAKey(2048)
 	require.NoError(t, err)
-	key.PublicKey.N = nil
+	key.N = nil
 	_, err = NewRSASigner(key)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "nil modulus")
@@ -40,7 +40,7 @@ func TestNewRSASigner_NilD(t *testing.T) {
 func TestNewRSASigner_InvalidE(t *testing.T) {
 	key, err := GenerateRSAKey(2048)
 	require.NoError(t, err)
-	key.PublicKey.E = 0
+	key.E = 0
 	_, err = NewRSASigner(key)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid public exponent")
@@ -116,7 +116,7 @@ func TestRSASigner_GetRSAModulus(t *testing.T) {
 
 	modulus, err := signer.GetRSAModulus()
 	require.NoError(t, err)
-	expected := hex.EncodeToString(key.PublicKey.N.Bytes())
+	expected := hex.EncodeToString(key.N.Bytes())
 	require.Equal(t, expected, modulus)
 
 	// Verify it's valid hex
@@ -193,8 +193,8 @@ func TestRSASigner_PublicKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Value equality: N and E must match the original key.
-	require.Equal(t, key.PublicKey.N, pub.N)
-	require.Equal(t, key.PublicKey.E, pub.E)
+	require.Equal(t, key.N, pub.N)
+	require.Equal(t, key.E, pub.E)
 
 	// Defensive copy: mutating the returned key must not affect the signer.
 	pub.N.SetInt64(0)

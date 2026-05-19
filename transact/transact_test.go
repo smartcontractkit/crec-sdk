@@ -353,7 +353,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	// Create Vault client for setup
 	vaultClient, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	vaultClient.SetAddress(vaultURL)
+	require.NoError(t, vaultClient.SetAddress(vaultURL))
 	vaultClient.SetToken("myroot")
 
 	// Enable transit secrets engine
@@ -490,7 +490,10 @@ func TestClient_CreateUnsignedDraftOperation_Success(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID})
+		err = json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID})
+		if err != nil {
+			return
+		}
 	}
 
 	client, server := setupTestClient(t, handler)
@@ -608,7 +611,10 @@ func TestClient_SendDraftOperation_SuccessWithPreview(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID})
+		err = json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID})
+		if err != nil {
+			return
+		}
 	}
 
 	client, server := setupTestClient(t, handler)
@@ -712,7 +718,10 @@ func TestClient_SendSignedDraftOperation_Success(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(apiClient.Operation{})
+		err = json.NewEncoder(w).Encode(apiClient.Operation{})
+		if err != nil {
+			return
+		}
 	}
 
 	client, server := setupTestClient(t, handler)
@@ -730,7 +739,10 @@ func TestClient_ExecuteDraftOperation_SignsProvidedDigest(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(apiClient.Operation{})
+		err := json.NewEncoder(w).Encode(apiClient.Operation{})
+		if err != nil {
+			return
+		}
 	}
 
 	client, server := setupTestClient(t, handler)

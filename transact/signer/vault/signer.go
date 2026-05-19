@@ -79,7 +79,9 @@ func NewSigner(vaultUrl, token, mountPath, key string, opts ...Option) (*Signer,
 		return nil, err
 	}
 
-	client.SetAddress(vaultUrl)
+	if err := client.SetAddress(vaultUrl); err != nil {
+		return nil, fmt.Errorf("failed to set vault address: %w", err)
+	}
 	client.SetToken(token)
 
 	s := &Signer{

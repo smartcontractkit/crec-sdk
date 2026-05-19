@@ -446,23 +446,9 @@ func (s *MockServer) ListQueries(w http.ResponseWriter, r *http.Request, channel
 		end = len(filtered)
 	}
 
-	data := []stdserver.QuerySummary{}
+	data := []stdserver.Query{}
 	if offset < len(filtered) {
-		for _, query := range filtered[offset:end] {
-			data = append(data, stdserver.QuerySummary{
-				QueryId:       query.QueryId,
-				ChannelId:     query.ChannelId,
-				Status:        query.Status,
-				QueryKind:     query.QueryKind,
-				ChainSelector: query.ChainSelector,
-				CreatedAt:     query.CreatedAt,
-				UpdatedAt:     query.UpdatedAt,
-				ExpiresAt:     query.ExpiresAt,
-				CompletedAt:   query.CompletedAt,
-				FailedAt:      query.FailedAt,
-				ExpiredAt:     query.ExpiredAt,
-			})
-		}
+		data = append(data, filtered[offset:end]...)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

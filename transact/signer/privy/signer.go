@@ -184,7 +184,7 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute RPC request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
@@ -221,7 +221,7 @@ func (s *Signer) GetWalletAddress(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to execute get wallet request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))

@@ -8,7 +8,6 @@ import (
 	"math"
 	"math/big"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -382,9 +381,4 @@ func bytesFromABIValue(value any) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("expected bytes, got %T", value)
 	}
-}
-
-func _ensureUint64Decimal(value string) error {
-	_, err := strconv.ParseUint(value, 10, 64)
-	return err
 }

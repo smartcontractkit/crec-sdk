@@ -35,7 +35,7 @@ var (
 // Transaction represents a single transaction within an operation for EIP-712 signing.
 type Transaction struct {
 	To    common.Address `json:"to"`
-	Value *big.Int       `json:"value,string"`
+	Value *big.Int       `json:"value"`
 	Data  hexutil.Bytes  `json:"data"`
 }
 

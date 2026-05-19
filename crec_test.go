@@ -492,7 +492,8 @@ func TestClient_SubClientsIntegration(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "ok"}`))
+		_, err := w.Write([]byte(`{"status": "ok"}`))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -549,7 +550,8 @@ func TestNewClient_APIKeyHeader(t *testing.T) {
 		apiKeyReceived = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": [], "hasMore": false}`))
+		_, err := w.Write([]byte(`{"data": [], "hasMore": false}`))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -635,7 +637,8 @@ func TestNewAPIClient_APIKeyHeader(t *testing.T) {
 		apiKeyReceived = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": [], "hasMore": false}`))
+		_, err := w.Write([]byte(`{"data": [], "hasMore": false}`))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -656,7 +659,8 @@ func TestNewAPIClient_UseWithSubClient(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": [], "hasMore": false}`))
+		_, err := w.Write([]byte(`{"data": [], "hasMore": false}`))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 

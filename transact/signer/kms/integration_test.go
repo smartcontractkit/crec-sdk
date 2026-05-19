@@ -40,7 +40,7 @@ func TestKMSSignerIntegration(t *testing.T) {
 	alloc[kmsAddress] = types.Account{Balance: big.NewInt(1000000000000000000)} // 1 ETH
 
 	sim := simulated.NewBackend(alloc, simulated.WithBlockGasLimit(10e6))
-	defer sim.Close()
+	defer func() { require.NoError(t, sim.Close()) }()
 
 	targetAddress := common.HexToAddress("0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f")
 

@@ -46,7 +46,7 @@ func MockPrivyServer(t *testing.T) *httptest.Server {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(wallet)
+		require.NoError(t, json.NewEncoder(w).Encode(wallet))
 	})
 
 	mux.HandleFunc("/v1/wallets/mock-wallet-id-123/rpc", func(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +90,7 @@ func MockPrivyServer(t *testing.T) *httptest.Server {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(rpcResp)
+		require.NoError(t, json.NewEncoder(w).Encode(rpcResp))
 	})
 
 	return httptest.NewServer(mux)
@@ -248,14 +248,14 @@ func TestNewSignerFromEnv(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear existing environment variables
-			os.Unsetenv("PRIVY_APP_ID")
-			os.Unsetenv("PRIVY_APP_SECRET")
-			os.Unsetenv("PRIVY_WALLET_ID")
-			os.Unsetenv("PRIVY_BASE_URL")
+			require.NoError(t, os.Unsetenv("PRIVY_APP_ID"))
+			require.NoError(t, os.Unsetenv("PRIVY_APP_SECRET"))
+			require.NoError(t, os.Unsetenv("PRIVY_WALLET_ID"))
+			require.NoError(t, os.Unsetenv("PRIVY_BASE_URL"))
 
 			// Set test environment variables
 			for k, v := range tt.envVars {
-				os.Setenv(k, v)
+				require.NoError(t, os.Setenv(k, v))
 			}
 
 			signer, err := NewSignerFromEnv()
@@ -282,7 +282,7 @@ func TestNewSignerFromEnv(t *testing.T) {
 
 			// Clean up environment variables
 			for k := range tt.envVars {
-				os.Unsetenv(k)
+				require.NoError(t, os.Unsetenv(k))
 			}
 		})
 	}
@@ -357,7 +357,8 @@ func TestSigner_AuthenticationFailure(t *testing.T) {
 func TestSigner_ErrorHandling(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error": "internal server error"}`))
+		_, err := w.Write([]byte(`{"error": "internal server error"}`))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 

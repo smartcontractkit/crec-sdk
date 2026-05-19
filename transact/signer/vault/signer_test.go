@@ -50,7 +50,7 @@ func TestSigner_Sign_Integration(t *testing.T) {
 	// Create Vault client for setup
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
@@ -147,7 +147,7 @@ func TestSigner_Sign_WithECDSA(t *testing.T) {
 	// Create Vault client for setup
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
@@ -234,7 +234,7 @@ func TestSigner_Public(t *testing.T) {
 	// Create Vault client for setup
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
@@ -344,7 +344,7 @@ func TestSigner_CreateKey(t *testing.T) {
 	// Create Vault client for setup
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
@@ -443,7 +443,7 @@ func TestSigner_GetRSAModulus(t *testing.T) {
 	// Create Vault client for setup
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
@@ -522,7 +522,7 @@ func TestSigner_GetRSAPublicExponent(t *testing.T) {
 
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	err = client.Sys().Mount("transit", &api.MountInput{Type: "transit"})
@@ -581,7 +581,7 @@ func TestSigner_RSAPublicKey(t *testing.T) {
 
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	err = client.Sys().Mount("transit", &api.MountInput{Type: "transit"})
@@ -637,7 +637,7 @@ func TestCreateKeyInVault(t *testing.T) {
 	// Create Vault client for setup
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
@@ -694,7 +694,7 @@ func TestSigner_CreateKey_ErrorCases(t *testing.T) {
 	// Create Vault client for setup
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
@@ -758,7 +758,7 @@ func TestSigner_InvalidKey(t *testing.T) {
 	// Create Vault client for setup
 	client, err := api.NewClient(api.DefaultConfig())
 	require.NoError(t, err)
-	client.SetAddress(vaultURL)
+	require.NoError(t, client.SetAddress(vaultURL))
 	client.SetToken("myroot")
 
 	// Enable transit secrets engine
@@ -856,7 +856,10 @@ func TestSigner_Public_TrailingGarbage(t *testing.T) {
 			},
 		}
 
-		json.NewEncoder(w).Encode(response)
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			return
+		}
 	}))
 	defer server.Close()
 
