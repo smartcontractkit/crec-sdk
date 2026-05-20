@@ -6,6 +6,7 @@
 //   - typed block-selection helpers,
 //   - raw EVM call creation and polling,
 //   - decoding of terminal verifiable_result payloads,
+//   - exposing the API-provided/fallback display target for terminal results,
 //   - ABI calldata encoding / return-data decoding convenience helpers.
 //
 // Typical usage through the root SDK client:

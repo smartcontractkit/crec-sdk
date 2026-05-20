@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"sync"
 	"time"
 
@@ -385,6 +386,7 @@ func (s *MockServer) CreateQuery(w http.ResponseWriter, r *http.Request, channel
 	queryID := uuid.New()
 	now := time.Now().Unix()
 	query := stdserver.Query{
+		// Target is set below via reflection to keep the mock compatible with older generated clients.
 		QueryId:       queryID,
 		ChannelId:     channelId,
 		Status:        stdserver.QueryStatusAccepted,
@@ -393,6 +395,7 @@ func (s *MockServer) CreateQuery(w http.ResponseWriter, r *http.Request, channel
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
+	setStringFieldIfPresent(&query, "Target", queryDisplayTargetFromValue(request.Params))
 
 	s.mu.Lock()
 	s.queries = append(s.queries, query)
@@ -829,6 +832,72 @@ func (s *MockServer) UpdateWallet(w http.ResponseWriter, r *http.Request, wallet
 // ============================================================================
 // HELPER METHODS (INTERNAL)
 // ============================================================================
+
+var mockQueryTargetFieldPriority = []string{
+	"TargetTxHash",
+	"TargetBlockNumber",
+	"TargetLogFilter",
+	"TargetFilterName",
+	"TargetContract",
+	"TargetAccount",
+	"TargetEmitterContract",
+	"ContractAddress",
+	"TxHash",
+	"BlockNumber",
+	"LogFilter",
+	"FilterName",
+	"Account",
+	"EmitterContract",
+	"Address",
+}
+
+func setStringFieldIfPresent(target any, fieldName string, value string) {
+	if value == "" {
+		return
+	}
+
+	targetValue := reflect.ValueOf(target)
+	if targetValue.Kind() != reflect.Pointer || targetValue.IsNil() {
+		return
+	}
+
+	targetValue = targetValue.Elem()
+	if targetValue.Kind() != reflect.Struct {
+		return
+	}
+
+	field := targetValue.FieldByName(fieldName)
+	if field.IsValid() && field.CanSet() && field.Kind() == reflect.String {
+		field.SetString(value)
+	}
+}
+
+func queryDisplayTargetFromValue(value any) string {
+	targetValue := reflect.ValueOf(value)
+	for targetValue.IsValid() && (targetValue.Kind() == reflect.Pointer || targetValue.Kind() == reflect.Interface) {
+		if targetValue.IsNil() {
+			return ""
+		}
+		targetValue = targetValue.Elem()
+	}
+	if !targetValue.IsValid() || targetValue.Kind() != reflect.Struct {
+		return ""
+	}
+	for _, fieldName := range mockQueryTargetFieldPriority {
+		field := targetValue.FieldByName(fieldName)
+		for field.IsValid() && (field.Kind() == reflect.Pointer || field.Kind() == reflect.Interface) {
+			if field.IsNil() {
+				field = reflect.Value{}
+				break
+			}
+			field = field.Elem()
+		}
+		if field.IsValid() && field.Kind() == reflect.String && field.String() != "" {
+			return field.String()
+		}
+	}
+	return ""
+}
 
 // scheduleWatcherArchive schedules the transition of a watcher from "archiving" to "archived" after a delay.
 func scheduleWatcherArchive(id uuid.UUID, delay time.Duration, archiveFn func(uuid.UUID) bool) {

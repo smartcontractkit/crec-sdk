@@ -141,6 +141,7 @@ func TestClient_QueriesCompletePipelineWithVerifiedStatusEvent(t *testing.T) {
 	require.Nil(t, result.Error)
 	assert.Equal(t, verifiableResult, result.VerifiableResult)
 	assert.Equal(t, eventHash, result.EventHash)
+	assert.Equal(t, strings.ToLower(token), result.Target)
 
 	queryStatusEventFromAPI, err := findQueryStatusEventForPipelineTest(ctx, client, channelID, accepted.QueryId)
 	require.NoError(t, err)

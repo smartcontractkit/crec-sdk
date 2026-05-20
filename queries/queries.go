@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -249,6 +250,7 @@ type CallContractResult struct {
 	QueryID          string
 	Status           string
 	ChainSelector    string
+	Target           string
 	RawReturnData    []byte
 	VerifiableQuery  []byte
 	VerifiableResult string
@@ -515,6 +517,7 @@ func ResultFromQuery(query *apiClient.Query) (*CallContractResult, error) {
 		QueryID:       query.QueryId.String(),
 		Status:        string(query.Status),
 		ChainSelector: string(query.ChainSelector),
+		Target:        queryTarget(query),
 		Query:         query,
 	}
 
@@ -538,6 +541,9 @@ func ResultFromQuery(query *apiClient.Query) (*CallContractResult, error) {
 		result.VerifiableResult = *query.VerifiableResult
 		result.VerifiableQuery = decodedBytes
 		result.ChainSelector = verifiableEvent.ChainSelector
+		if result.Target == "" {
+			result.Target = displayTargetFromVerifiableEvent(verifiableEvent)
+		}
 
 		if verifiableEvent.Data.Result != nil {
 			rawReturnData, err := hexToBytesStrict(verifiableEvent.Data.Result.RawReturnData)
@@ -617,6 +623,155 @@ func DecodeVerifiableResultBytes(verifiableResult string) ([]byte, *models.Chain
 	}
 
 	return decoded, &event, nil
+}
+
+var chainQueryTargetFieldPriority = []string{
+	"TargetTxHash",
+	"TargetBlockNumber",
+	"TargetLogFilter",
+	"TargetFilterName",
+	"TargetContract",
+	"TargetAccount",
+	"TargetEmitterContract",
+	"ContractAddress",
+	"TxHash",
+	"BlockNumber",
+	"LogFilter",
+	"FilterName",
+	"Account",
+	"EmitterContract",
+	"Address",
+}
+
+var chainQueryTargetMapKeyPriority = []string{
+	"targetTxHash",
+	"targetBlockNumber",
+	"targetLogFilter",
+	"targetFilterName",
+	"targetContract",
+	"targetAccount",
+	"targetEmitterContract",
+	"contractAddress",
+	"txHash",
+	"blockNumber",
+	"logFilter",
+	"filterName",
+	"account",
+	"emitterContract",
+	"address",
+}
+
+func queryTarget(query *apiClient.Query) string {
+	if query == nil {
+		return ""
+	}
+	return targetStringFromNamedField(reflect.ValueOf(query), "Target")
+}
+
+func displayTargetFromVerifiableEvent(event *models.ChainQueryVerifiableEvent) string {
+	if event == nil {
+		return ""
+	}
+	return targetStringFromTargetValue(reflect.ValueOf(event.Data.Target))
+}
+
+func targetStringFromNamedField(value reflect.Value, fieldName string) string {
+	value = unwrapTargetValue(value)
+	if !value.IsValid() || value.Kind() != reflect.Struct {
+		return ""
+	}
+	return targetStringFromValue(value.FieldByName(fieldName))
+}
+
+func targetStringFromTargetValue(value reflect.Value) string {
+	value = unwrapTargetValue(value)
+	if !value.IsValid() {
+		return ""
+	}
+
+	switch value.Kind() {
+	case reflect.Struct:
+		for _, fieldName := range chainQueryTargetFieldPriority {
+			if target := targetStringFromValue(value.FieldByName(fieldName)); target != "" {
+				return target
+			}
+		}
+	case reflect.Map:
+		if value.Type().Key().Kind() != reflect.String {
+			return ""
+		}
+		for _, keyName := range chainQueryTargetMapKeyPriority {
+			key := reflect.ValueOf(keyName)
+			if key.Type().ConvertibleTo(value.Type().Key()) {
+				key = key.Convert(value.Type().Key())
+			} else {
+				continue
+			}
+			if target := targetStringFromValue(value.MapIndex(key)); target != "" {
+				return target
+			}
+		}
+	}
+
+	return ""
+}
+
+func unwrapTargetValue(value reflect.Value) reflect.Value {
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
+		if value.IsNil() {
+			return reflect.Value{}
+		}
+		value = value.Elem()
+	}
+	return value
+}
+
+func targetStringFromValue(value reflect.Value) string {
+	value = unwrapTargetValue(value)
+	if !value.IsValid() {
+		return ""
+	}
+
+	switch value.Kind() {
+	case reflect.String:
+		return strings.TrimSpace(value.String())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(value.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return strconv.FormatUint(value.Uint(), 10)
+	}
+
+	if value.CanInterface() {
+		if stringer, ok := value.Interface().(fmt.Stringer); ok {
+			return strings.TrimSpace(stringer.String())
+		}
+	}
+
+	switch value.Kind() {
+	case reflect.Slice, reflect.Array:
+		if value.Type().Elem().Kind() == reflect.Uint8 {
+			bytes := make([]byte, value.Len())
+			for i := range bytes {
+				bytes[i] = byte(value.Index(i).Uint())
+			}
+			if len(bytes) == 0 {
+				return ""
+			}
+			return "0x" + hex.EncodeToString(bytes)
+		}
+	}
+
+	if value.CanInterface() {
+		encoded, err := json.Marshal(value.Interface())
+		if err == nil {
+			target := strings.TrimSpace(string(encoded))
+			if target != "" && target != "null" && target != "{}" && target != "[]" {
+				return target
+			}
+		}
+	}
+
+	return ""
 }
 
 // IsTerminalStatus reports whether a query status is terminal.
