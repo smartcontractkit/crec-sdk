@@ -189,7 +189,7 @@ func TestClient_Wait(t *testing.T) {
 
 func TestClient_Wait_ContextDeadline(t *testing.T) {
 	client, server := setupQueriesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(t, w, http.StatusOK, makeAcceptedQuery(uuid.MustParse(r.PathValue("channel_id")), uuid.MustParse(r.PathValue("query_id")), apiClient.QueryStatusSent))
+		writeJSON(t, w, http.StatusOK, makeAcceptedQuery(uuid.New(), uuid.New(), apiClient.QueryStatusSent))
 	})
 	defer server.Close()
 

@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +27,8 @@ const (
 	defaultPollInterval = 2 * time.Second
 	zeroAddress        = "0x0000000000000000000000000000000000000000"
 )
+
+var statusCodePattern = regexp.MustCompile(`status code:?\s*(\d{3})`)
 
 var (
 	// Client initialization errors.
@@ -1020,13 +1023,11 @@ func isTransientQueryError(err error) bool {
 	}
 
 	errMsg := strings.ToLower(err.Error())
-	if strings.Contains(errMsg, "status code 429") || strings.Contains(errMsg, "status code: 429") {
-		return true
-	}
-	for statusCode := 500; statusCode < 600; statusCode++ {
-		if strings.Contains(errMsg, fmt.Sprintf("status code %d", statusCode)) ||
-			strings.Contains(errMsg, fmt.Sprintf("status code: %d", statusCode)) {
-			return true
+	if matches := statusCodePattern.FindStringSubmatch(errMsg); len(matches) > 1 {
+		if statusCode, err := strconv.Atoi(matches[1]); err == nil {
+			if statusCode == http.StatusTooManyRequests || (statusCode >= http.StatusInternalServerError && statusCode < 600) {
+				return true
+			}
 		}
 	}
 
