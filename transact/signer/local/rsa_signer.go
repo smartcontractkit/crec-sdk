@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"reflect"
 
 	signerPkg "github.com/smartcontractkit/crec-sdk/transact/signer"
 )
@@ -56,17 +57,17 @@ func validateRSAKey(key *rsa.PrivateKey) error {
 	if key == nil {
 		return fmt.Errorf("privateKey must not be nil")
 	}
-	if key.PublicKey.N == nil {
+	if key.N == nil {
 		return fmt.Errorf("privateKey has nil modulus (N)")
 	}
 	if key.D == nil {
 		return fmt.Errorf("privateKey has nil private exponent (D)")
 	}
-	if key.PublicKey.E <= 0 {
-		return fmt.Errorf("privateKey has invalid public exponent (E=%d)", key.PublicKey.E)
+	if key.E <= 0 {
+		return fmt.Errorf("privateKey has invalid public exponent (E=%d)", key.E)
 	}
-	if key.PublicKey.N.BitLen() < minRSAKeyBits {
-		return fmt.Errorf("RSA key size must be at least %d bits, got %d", minRSAKeyBits, key.PublicKey.N.BitLen())
+	if key.N.BitLen() < minRSAKeyBits {
+		return fmt.Errorf("RSA key size must be at least %d bits, got %d", minRSAKeyBits, key.N.BitLen())
 	}
 	if err := key.Validate(); err != nil {
 		return fmt.Errorf("privateKey failed consistency check: %w", err)
@@ -96,8 +97,8 @@ func (s *RSASigner) PublicKey() (*rsa.PublicKey, error) {
 		return nil, fmt.Errorf("signer has been destroyed")
 	}
 	return &rsa.PublicKey{
-		N: new(big.Int).Set(s.privateKey.PublicKey.N),
-		E: s.privateKey.PublicKey.E,
+		N: new(big.Int).Set(s.privateKey.N),
+		E: s.privateKey.E,
 	}, nil
 }
 
@@ -107,7 +108,7 @@ func (s *RSASigner) GetRSAModulus() (string, error) {
 	if s.privateKey == nil {
 		return "", fmt.Errorf("signer has been destroyed")
 	}
-	return hex.EncodeToString(s.privateKey.PublicKey.N.Bytes()), nil
+	return hex.EncodeToString(s.privateKey.N.Bytes()), nil
 }
 
 // GetRSAPublicExponent returns the hex-encoded public exponent E.
@@ -156,17 +157,10 @@ func (s *RSASigner) Destroy() {
 		s.privateKey.Primes[i] = nil
 	}
 
-	// CRTValues is deprecated by crypto/rsa for optimization use, but it may
-	// still be populated for backward compatibility; wipe it if present.
-	for i := range s.privateKey.Precomputed.CRTValues {
-		zeroBigInt(s.privateKey.Precomputed.CRTValues[i].Coeff)
-		zeroBigInt(s.privateKey.Precomputed.CRTValues[i].Exp)
-		zeroBigInt(s.privateKey.Precomputed.CRTValues[i].R)
-		s.privateKey.Precomputed.CRTValues[i].Coeff = nil
-		s.privateKey.Precomputed.CRTValues[i].Exp = nil
-		s.privateKey.Precomputed.CRTValues[i].R = nil
-	}
-	s.privateKey.Precomputed.CRTValues = nil
+	// Precomputed.CRTValues is deprecated by crypto/rsa and should not be
+	// referenced directly. Wipe it via reflection for legacy/multi-prime keys
+	// that may still carry those values.
+	zeroDeprecatedRSACRTValues(&s.privateKey.Precomputed)
 
 	zeroBigInt(s.privateKey.Precomputed.Dp)
 	s.privateKey.Precomputed.Dp = nil
@@ -175,8 +169,8 @@ func (s *RSASigner) Destroy() {
 	zeroBigInt(s.privateKey.Precomputed.Qinv)
 	s.privateKey.Precomputed.Qinv = nil
 
-	zeroBigInt(s.privateKey.PublicKey.N)
-	s.privateKey.PublicKey.N = nil
+	zeroBigInt(s.privateKey.N)
+	s.privateKey.N = nil
 
 	s.privateKey = nil
 }
@@ -192,4 +186,61 @@ func zeroBigInt(x *big.Int) {
 		words[i] = 0
 	}
 	x.SetInt64(0)
+}
+
+// zeroDeprecatedRSACRTValues wipes rsa.PrecomputedValues.CRTValues without a
+// compile-time reference to the deprecated field.
+//
+// The field was deprecated in Go 1.21, but may still be populated for backward
+// compatibility by older or multi-prime RSA keys.
+func zeroDeprecatedRSACRTValues(precomputed *rsa.PrecomputedValues) {
+	if precomputed == nil {
+		return
+	}
+
+	values := reflect.ValueOf(precomputed).Elem().FieldByName("CRTValues")
+	if !values.IsValid() || values.Kind() != reflect.Slice {
+		return
+	}
+
+	for i := 0; i < values.Len(); i++ {
+		crtValue := values.Index(i)
+		zeroBigIntReflectField(crtValue, "Coeff")
+		zeroBigIntReflectField(crtValue, "Exp")
+		zeroBigIntReflectField(crtValue, "R")
+	}
+
+	if values.CanSet() {
+		values.Set(reflect.Zero(values.Type()))
+	}
+}
+
+func zeroBigIntReflectField(parent reflect.Value, fieldName string) {
+	if !parent.IsValid() {
+		return
+	}
+	if parent.Kind() == reflect.Pointer {
+		if parent.IsNil() {
+			return
+		}
+		parent = parent.Elem()
+	}
+	if parent.Kind() != reflect.Struct {
+		return
+	}
+
+	field := parent.FieldByName(fieldName)
+	if !field.IsValid() || field.Kind() != reflect.Pointer || field.IsNil() || !field.CanInterface() {
+		return
+	}
+
+	x, ok := field.Interface().(*big.Int)
+	if !ok {
+		return
+	}
+
+	zeroBigInt(x)
+	if field.CanSet() {
+		field.Set(reflect.Zero(field.Type()))
+	}
 }

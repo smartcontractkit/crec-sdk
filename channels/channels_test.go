@@ -126,7 +126,7 @@ func TestClient_Create(t *testing.T) {
 				CreatedAt: createdAt,
 				Status:    channelStatus,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -176,7 +176,7 @@ func TestClient_Create(t *testing.T) {
 				CreatedAt:   createdAt,
 				Status:      channelStatus,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -239,9 +239,9 @@ func TestClient_Create(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Invalid channel name",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -261,9 +261,9 @@ func TestClient_Create(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Channel already exists",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -300,7 +300,7 @@ func TestClient_Get(t *testing.T) {
 				CreatedAt: createdAt,
 				Status:    channelStatus,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -321,9 +321,9 @@ func TestClient_Get(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Channel not found",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -342,9 +342,9 @@ func TestClient_Get(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -395,7 +395,10 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -444,7 +447,10 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -485,7 +491,10 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -514,7 +523,10 @@ func TestClient_List(t *testing.T) {
 				Data:    []apiClient.Channel{},
 				HasMore: true,
 			}
-			json.NewEncoder(w).Encode(response)
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -536,9 +548,12 @@ func TestClient_List(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -587,7 +602,10 @@ func TestClient_Update(t *testing.T) {
 				CreatedAt:   createdAt,
 				Status:      channelStatus,
 			}
-			json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -656,10 +674,13 @@ func TestClient_Update(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"message": "Channel not found",
 				"type":    "Not found",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -726,7 +747,10 @@ func TestClient_Archive(t *testing.T) {
 				CreatedAt: createdAt,
 				Status:    apiClient.ChannelStatusArchived,
 			}
-			json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -746,9 +770,12 @@ func TestClient_Archive(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Channel not found",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -767,9 +794,12 @@ func TestClient_Archive(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
 			})
+			if err != nil {
+				return
+			}
 		}
 
 		client, server := setupTestClient(t, handler)

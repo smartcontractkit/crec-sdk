@@ -8,6 +8,7 @@
 //   - [github.com/smartcontractkit/crec-sdk/channels] - Channel CRUD operations
 //   - [github.com/smartcontractkit/crec-sdk/events] - Event polling and verification
 //   - [github.com/smartcontractkit/crec-sdk/transact] - Operation signing and sending
+//   - [github.com/smartcontractkit/crec-sdk/queries] - Asynchronous chain queries
 //   - [github.com/smartcontractkit/crec-sdk/watchers] - Watcher CRUD operations
 //
 // Use [Client.ListNetworks] to list available networks (GET /networks); no separate sub-client.
@@ -146,4 +147,20 @@
 //	if errors.Is(err, transact.ErrOperationNotFound) {
 //	    // Handle operation not found
 //	}
+//
+// # Chain Queries
+//
+// The Queries client provides asynchronous EVM contract state reads:
+//
+//	result, err := client.Queries.CallContract(
+//	    ctx,
+//	    channelID,
+//	    "16015286601757825753",
+//	    "0x1234567890123456789012345678901234567890",
+//	    []byte{0x18, 0x16, 0x0d, 0xdd},
+//	    queries.LatestBlockSelection(),
+//	    "query-idempotency-key",
+//	)
+//	_ = result
+//	_ = err
 package crec

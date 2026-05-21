@@ -125,7 +125,7 @@ func TestClient_CreateOperation(t *testing.T) {
 			response := apiClient.OperationResponse{
 				OperationId: operationID,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -255,9 +255,9 @@ func TestClient_CreateOperation(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Channel not found",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -285,9 +285,9 @@ func TestClient_CreateOperation(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Invalid operation data",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -338,7 +338,7 @@ func TestClient_GetOperation(t *testing.T) {
 				Signature: &signature,
 				CreatedAt: createdAt,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -361,9 +361,9 @@ func TestClient_GetOperation(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Operation not found",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -383,9 +383,9 @@ func TestClient_GetOperation(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -447,7 +447,7 @@ func TestClient_ListOperations(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -504,7 +504,7 @@ func TestClient_ListOperations(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -559,7 +559,7 @@ func TestClient_ListOperations(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -590,7 +590,7 @@ func TestClient_ListOperations(t *testing.T) {
 				Data:    []apiClient.Operation{},
 				HasMore: true,
 			}
-			json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -633,9 +633,9 @@ func TestClient_ListOperations(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Channel not found",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -657,9 +657,9 @@ func TestClient_ListOperations(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
-			})
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
