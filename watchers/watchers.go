@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -14,13 +12,11 @@ import (
 	"github.com/google/uuid"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+
+	"github.com/smartcontractkit/crec-sdk/internal/retry"
 )
 
 const watcherNameMinRunes = 4
-
-// statusCodePattern is a compiled regex for extracting HTTP status codes from error messages.
-// Compiled at package level to avoid recompilation on every call to isTransientError.
-var statusCodePattern = regexp.MustCompile(`status code:?\s*(\d{3})`)
 
 var (
 	// ErrNilResponse is returned when the API response is nil.
@@ -741,9 +737,9 @@ func normalizeWatcherCreateName(name string) (string, error) {
 }
 
 // isTransientError determines if an error is transient and should be retried during polling.
-// It checks for known transient HTTP status codes and network errors.
+// Validation errors are package-specific and treated as permanent here; everything else
+// delegates to the shared retry classifier.
 func isTransientError(err error) bool {
-	// Validation errors are permanent
 	if errors.Is(err, ErrChannelIDRequired) ||
 		errors.Is(err, ErrWatcherIDRequired) ||
 		errors.Is(err, ErrNameRequired) ||
@@ -754,60 +750,5 @@ func isTransientError(err error) bool {
 		errors.Is(err, ErrABIRequired) {
 		return false
 	}
-
-	// Context cancellation errors are permanent
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return false
-	}
-
-	errMsg := err.Error()
-
-	// First, try to extract HTTP status code from error message
-	if matches := statusCodePattern.FindStringSubmatch(errMsg); len(matches) > 1 {
-		if statusCode, err := strconv.Atoi(matches[1]); err == nil {
-			// Check if status code indicates a transient error
-			if isTransientStatusCode(statusCode) {
-				return true
-			}
-			// 4xx errors (except 429) are typically permanent
-			if statusCode >= 400 && statusCode < 500 {
-				return false
-			}
-		}
-	}
-
-	// Fallback: Check for network error indicators in the message
-	// These typically don't have HTTP status codes
-	transientIndicators := []string{
-		"connection refused",
-		"connection reset",
-		"timeout",
-		"temporary failure",
-		"EOF",
-		"broken pipe",
-		"no such host",
-		"network is unreachable",
-	}
-
-	for _, indicator := range transientIndicators {
-		if strings.Contains(errMsg, indicator) {
-			return true
-		}
-	}
-
-	// By default, treat unknown errors as permanent to fail fast
-	return false
-}
-
-// isTransientStatusCode determines if an HTTP status code represents a transient error
-// that should be retried.
-func isTransientStatusCode(statusCode int) bool {
-	switch {
-	case statusCode == 429: // Too Many Requests (rate limiting)
-		return true
-	case statusCode >= 500 && statusCode < 600: // 5xx Server Errors
-		return true
-	default:
-		return false
-	}
+	return retry.IsTransient(err)
 }

@@ -62,16 +62,17 @@ func writeJSON(t *testing.T, w http.ResponseWriter, statusCode int, body any) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	if body != nil {
-		require.NoError(t, json.NewEncoder(w).Encode(body))
-	}
+	// Always emit a JSON body (null when no body is provided) so the generated
+	// client's typed Parse*Response helpers can decode the response without
+	// failing on an empty body for error status codes.
+	require.NoError(t, json.NewEncoder(w).Encode(body))
 }
 
 func validEVMParams() apiClient.EVMCallQueryParams {
 	return apiClient.EVMCallQueryParams{
 		ContractAddress: apiClient.EthereumAddress(testContractAddress),
 		CallData:        testCallData,
-		BlockSelection:  LatestBlockSelection(),
+		BlockSelection:  Latest(),
 	}
 }
 
@@ -209,7 +210,7 @@ func TestNewClient(t *testing.T) {
 
 func TestBlockSelectionHelpers(t *testing.T) {
 	t.Run("Latest", func(t *testing.T) {
-		selection := LatestBlockSelection()
+		selection := Latest()
 
 		discriminator, err := selection.Discriminator()
 		require.NoError(t, err)
@@ -222,7 +223,7 @@ func TestBlockSelectionHelpers(t *testing.T) {
 	})
 
 	t.Run("Finalized", func(t *testing.T) {
-		selection := FinalizedBlockSelection()
+		selection := Finalized()
 
 		discriminator, err := selection.Discriminator()
 		require.NoError(t, err)
@@ -244,7 +245,7 @@ func TestBlockSelectionHelpers(t *testing.T) {
 	})
 
 	t.Run("InvalidBlockNumberString", func(t *testing.T) {
-		_, err := BlockNumberBlockSelectionString("not-a-number")
+		_, err := BlockNumberFromString("not-a-number")
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidBlockSelection)
@@ -314,7 +315,7 @@ func TestClient_Create(t *testing.T) {
 			Params: apiClient.EVMCallQueryParams{
 				ContractAddress: contractAddress,
 				CallData:        "0xABCD",
-				BlockSelection:  LatestBlockSelection(),
+				BlockSelection:  Latest(),
 				FromAddress:     &fromAddress,
 			},
 		})
@@ -445,7 +446,7 @@ func TestClient_CreateEVMCall(t *testing.T) {
 			ChainSelector:   testChainSelector,
 			ContractAddress: testContractAddress,
 			CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-			BlockSelection:  LatestBlockSelection(),
+			BlockSelection:  Latest(),
 			IdempotencyKey:  "raw-call-1",
 		},
 		WithFromAddress(testFromAddress),

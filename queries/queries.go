@@ -7,11 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
-	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -21,14 +18,14 @@ import (
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/models"
+
+	"github.com/smartcontractkit/crec-sdk/internal/retry"
 )
 
 const (
 	defaultPollInterval = 2 * time.Second
-	zeroAddress        = "0x0000000000000000000000000000000000000000"
+	zeroAddress         = "0x0000000000000000000000000000000000000000"
 )
-
-var statusCodePattern = regexp.MustCompile(`status code:?\s*(\d{3})`)
 
 var (
 	// Client initialization errors.
@@ -49,7 +46,6 @@ var (
 	ErrInvalidCallData          = errors.New("call_data must be 0x-prefixed even-length hex bytes")
 	ErrBlockSelectionRequired   = errors.New("block_selection is required")
 	ErrInvalidBlockSelection    = errors.New("invalid block_selection")
-	ErrInvalidCallOption        = errors.New("invalid call option")
 	ErrInvalidLimit             = errors.New("limit must be between 1 and 100")
 	ErrInvalidOffset            = errors.New("offset cannot be negative")
 	ErrQueryRequired            = errors.New("query is required")
@@ -66,11 +62,9 @@ var (
 	ErrListQueries          = errors.New("failed to list queries")
 	ErrWaitQuery            = errors.New("failed waiting for query")
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
-	ErrNilResponse          = errors.New("unexpected nil response")
-	ErrNilResponseBody      = errors.New("unexpected nil response body")
 
 	// Decoding/result errors.
-	ErrDecodeVerifiableResult       = errors.New("failed to decode verifiable_result")
+	ErrDecodeVerifiableResult        = errors.New("failed to decode verifiable_result")
 	ErrInvalidVerifiableResultBase64 = errors.New("invalid verifiable_result base64")
 	ErrInvalidVerifiableResultJSON   = errors.New("invalid verifiable_result JSON")
 	ErrBuildCallContractResult       = errors.New("failed to build call contract result")
@@ -133,43 +127,39 @@ func NewClient(opts *Options) (*Client, error) {
 	}, nil
 }
 
-// LatestBlockSelection returns an explicit latest block selector.
-func LatestBlockSelection() BlockSelection {
-	var selection BlockSelection
-	_ = selection.FromLatestBlockSelection(apiClient.LatestBlockSelection{})
-	return selection
-}
-
-// Latest is a short alias for LatestBlockSelection.
+// Latest returns an explicit "latest" block selector.
 func Latest() BlockSelection {
-	return LatestBlockSelection()
-}
-
-// FinalizedBlockSelection returns an explicit finalized block selector.
-func FinalizedBlockSelection() BlockSelection {
 	var selection BlockSelection
-	_ = selection.FromFinalizedBlockSelection(apiClient.FinalizedBlockSelection{})
+	if err := selection.FromLatestBlockSelection(apiClient.LatestBlockSelection{}); err != nil {
+		// FromLatestBlockSelection serializes a struct literal into a discriminated
+		// union; it cannot fail in practice. A non-nil error means the generated
+		// client's union shape changed and the SDK needs to be updated.
+		panic(fmt.Sprintf("queries: FromLatestBlockSelection unexpectedly failed: %v", err))
+	}
 	return selection
 }
 
-// Finalized is a short alias for FinalizedBlockSelection.
+// Finalized returns an explicit "finalized" block selector.
 func Finalized() BlockSelection {
-	return FinalizedBlockSelection()
-}
-
-// BlockNumberBlockSelection returns an explicit block_number selector.
-func BlockNumberBlockSelection(blockNumber uint64) BlockSelection {
-	selection, _ := BlockNumberBlockSelectionString(strconv.FormatUint(blockNumber, 10))
+	var selection BlockSelection
+	if err := selection.FromFinalizedBlockSelection(apiClient.FinalizedBlockSelection{}); err != nil {
+		panic(fmt.Sprintf("queries: FromFinalizedBlockSelection unexpectedly failed: %v", err))
+	}
 	return selection
 }
 
-// BlockNumber is a short alias for BlockNumberBlockSelection.
+// BlockNumber returns an explicit block_number selector.
 func BlockNumber(blockNumber uint64) BlockSelection {
-	return BlockNumberBlockSelection(blockNumber)
+	selection, err := BlockNumberFromString(strconv.FormatUint(blockNumber, 10))
+	if err != nil {
+		panic(fmt.Sprintf("queries: BlockNumber unexpectedly failed: %v", err))
+	}
+	return selection
 }
 
-// BlockNumberBlockSelectionString returns an explicit block_number selector from a decimal uint64 string.
-func BlockNumberBlockSelectionString(blockNumber string) (BlockSelection, error) {
+// BlockNumberFromString returns an explicit block_number selector from a
+// decimal uint64 string.
+func BlockNumberFromString(blockNumber string) (BlockSelection, error) {
 	if blockNumber == "" {
 		return BlockSelection{}, ErrInvalidBlockSelection
 	}
@@ -289,25 +279,22 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 		c.logger.Error("Failed to create query", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, err)
 	}
-	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrNilResponse)
-	}
 
 	switch resp.StatusCode() {
-	case 202:
+	case http.StatusAccepted:
 		if resp.JSON202 == nil {
-			return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrNilResponseBody)
+			return nil, fmt.Errorf("%w: empty response body", ErrCreateQuery)
 		}
 		c.logger.Info("Query accepted",
 			"query_id", resp.JSON202.QueryId.String(),
 			"channel_id", input.ChannelID.String(),
 			"status", resp.JSON202.Status)
 		return resp.JSON202, nil
-	case 404:
+	case http.StatusNotFound:
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
-	case 409:
+	case http.StatusConflict:
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict)
-	case 429:
+	case http.StatusTooManyRequests:
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrRateLimitExceeded)
 	default:
 		c.logger.Error("Unexpected status code when creating query",
@@ -318,10 +305,8 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 }
 
 // CreateEVMCall creates an evm_call query without waiting for terminal status.
-func (c *Client) CreateEVMCall(ctx context.Context, input CallContractInput, options ...any) (*apiClient.QueryAcceptedResponse, error) {
-	if err := applyCallOptions(&input, options...); err != nil {
-		return nil, err
-	}
+func (c *Client) CreateEVMCall(ctx context.Context, input CallContractInput, options ...CallOption) (*apiClient.QueryAcceptedResponse, error) {
+	applyCallOptions(&input, options...)
 	params, err := buildEVMCallQueryParams(input)
 	if err != nil {
 		return nil, err
@@ -345,30 +330,25 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID
 		return nil, ErrQueryIDRequired
 	}
 
-	resp, err := c.apiClient.GetQuery(ctx, channelID, queryID)
+	resp, err := c.apiClient.GetQueryWithResponse(ctx, channelID, queryID)
 	if err != nil {
 		c.logger.Error("Failed to get query", "error", err)
 		return nil, fmt.Errorf("%w: %w", ErrGetQuery, err)
 	}
-	body, err := readRawResponseBody(resp, ErrGetQuery)
-	if err != nil {
-		return nil, err
-	}
 
-	switch resp.StatusCode {
+	switch resp.StatusCode() {
 	case http.StatusOK:
-		var query apiClient.Query
-		if err := unmarshalJSONBody(body, &query, ErrGetQuery); err != nil {
-			return nil, err
+		if resp.JSON200 == nil {
+			return nil, fmt.Errorf("%w: empty response body", ErrGetQuery)
 		}
-		return &query, nil
+		return resp.JSON200, nil
 	case http.StatusNotFound:
 		return nil, fmt.Errorf("%w: query ID %s in channel %s", ErrQueryNotFound, queryID.String(), channelID.String())
 	default:
 		c.logger.Error("Unexpected status code when getting query",
-			"status_code", resp.StatusCode,
-			"body", string(body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetQuery, ErrUnexpectedStatusCode, resp.StatusCode)
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetQuery, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 }
 
@@ -390,30 +370,25 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 		Offset: input.Offset,
 	}
 
-	resp, err := c.apiClient.ListQueries(ctx, input.ChannelID, &params)
+	resp, err := c.apiClient.ListQueriesWithResponse(ctx, input.ChannelID, &params)
 	if err != nil {
 		c.logger.Error("Failed to list queries", "error", err)
 		return nil, false, fmt.Errorf("%w: %w", ErrListQueries, err)
 	}
-	body, err := readRawResponseBody(resp, ErrListQueries)
-	if err != nil {
-		return nil, false, err
-	}
 
-	switch resp.StatusCode {
+	switch resp.StatusCode() {
 	case http.StatusOK:
-		var queryList apiClient.QueryList
-		if err := unmarshalJSONBody(body, &queryList, ErrListQueries); err != nil {
-			return nil, false, err
+		if resp.JSON200 == nil {
+			return nil, false, fmt.Errorf("%w: empty response body", ErrListQueries)
 		}
-		return queryList.Data, queryList.HasMore, nil
+		return resp.JSON200.Data, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
 		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
 	default:
 		c.logger.Error("Unexpected status code when listing queries",
-			"status_code", resp.StatusCode,
-			"body", string(body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListQueries, ErrUnexpectedStatusCode, resp.StatusCode)
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListQueries, ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 }
 
@@ -438,33 +413,20 @@ func (c *Client) Wait(ctx context.Context, channelID uuid.UUID, queryID uuid.UUI
 	defer ticker.Stop()
 
 	for {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-
 		query, err := c.Get(ctx, channelID, queryID)
-		if err != nil {
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return nil, ctxErr
+		switch {
+		case err == nil:
+			if IsTerminalStatus(query.Status) {
+				return query, nil
 			}
-			if isTransientQueryError(err) {
-				c.logger.Warn("Transient error while waiting for query, will retry", "error", err)
-				goto waitForNextPoll
-			}
+		case ctx.Err() != nil:
+			return nil, ctx.Err()
+		case isTransientGetError(err):
+			c.logger.Warn("Transient error while waiting for query, will retry", "error", err)
+		default:
 			return nil, fmt.Errorf("%w: %w", ErrWaitQuery, err)
 		}
-		if IsTerminalStatus(query.Status) {
-			return query, nil
-		}
 
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-ticker.C:
-		}
-		continue
-
-	waitForNextPoll:
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -482,7 +444,7 @@ func (c *Client) CallContract(
 	callData any,
 	blockSelection BlockSelection,
 	idempotencyKey string,
-	options ...any,
+	options ...CallOption,
 ) (*CallContractResult, error) {
 	input := CallContractInput{
 		ChannelID:       channelID,
@@ -520,7 +482,7 @@ func ResultFromQuery(query *apiClient.Query) (*CallContractResult, error) {
 		QueryID:       query.QueryId.String(),
 		Status:        string(query.Status),
 		ChainSelector: string(query.ChainSelector),
-		Target:        queryTarget(query),
+		Target:        query.Target,
 		Query:         query,
 	}
 
@@ -545,7 +507,7 @@ func ResultFromQuery(query *apiClient.Query) (*CallContractResult, error) {
 		result.VerifiableQuery = decodedBytes
 		result.ChainSelector = verifiableEvent.ChainSelector
 		if result.Target == "" {
-			result.Target = displayTargetFromVerifiableEvent(verifiableEvent)
+			result.Target = verifiableEvent.Data.Target.ContractAddress
 		}
 
 		if verifiableEvent.Data.Result != nil {
@@ -593,20 +555,10 @@ func ResultFromQuery(query *apiClient.Query) (*CallContractResult, error) {
 	return result, nil
 }
 
-// ResultFromQuery builds a CallContractResult from a query resource.
-func (c *Client) ResultFromQuery(query *apiClient.Query) (*CallContractResult, error) {
-	return ResultFromQuery(query)
-}
-
 // DecodeVerifiableResult decodes a base64-encoded chain query verifiable_result.
 func DecodeVerifiableResult(verifiableResult string) (*models.ChainQueryVerifiableEvent, error) {
 	_, event, err := DecodeVerifiableResultBytes(verifiableResult)
 	return event, err
-}
-
-// DecodeVerifiableResult decodes a base64-encoded chain query verifiable_result.
-func (c *Client) DecodeVerifiableResult(verifiableResult string) (*models.ChainQueryVerifiableEvent, error) {
-	return DecodeVerifiableResult(verifiableResult)
 }
 
 // DecodeVerifiableResultBytes decodes verifiable_result and returns both decoded JSON bytes and typed data.
@@ -626,155 +578,6 @@ func DecodeVerifiableResultBytes(verifiableResult string) ([]byte, *models.Chain
 	}
 
 	return decoded, &event, nil
-}
-
-var chainQueryTargetFieldPriority = []string{
-	"TargetTxHash",
-	"TargetBlockNumber",
-	"TargetLogFilter",
-	"TargetFilterName",
-	"TargetContract",
-	"TargetAccount",
-	"TargetEmitterContract",
-	"ContractAddress",
-	"TxHash",
-	"BlockNumber",
-	"LogFilter",
-	"FilterName",
-	"Account",
-	"EmitterContract",
-	"Address",
-}
-
-var chainQueryTargetMapKeyPriority = []string{
-	"targetTxHash",
-	"targetBlockNumber",
-	"targetLogFilter",
-	"targetFilterName",
-	"targetContract",
-	"targetAccount",
-	"targetEmitterContract",
-	"contractAddress",
-	"txHash",
-	"blockNumber",
-	"logFilter",
-	"filterName",
-	"account",
-	"emitterContract",
-	"address",
-}
-
-func queryTarget(query *apiClient.Query) string {
-	if query == nil {
-		return ""
-	}
-	return targetStringFromNamedField(reflect.ValueOf(query), "Target")
-}
-
-func displayTargetFromVerifiableEvent(event *models.ChainQueryVerifiableEvent) string {
-	if event == nil {
-		return ""
-	}
-	return targetStringFromTargetValue(reflect.ValueOf(event.Data.Target))
-}
-
-func targetStringFromNamedField(value reflect.Value, fieldName string) string {
-	value = unwrapTargetValue(value)
-	if !value.IsValid() || value.Kind() != reflect.Struct {
-		return ""
-	}
-	return targetStringFromValue(value.FieldByName(fieldName))
-}
-
-func targetStringFromTargetValue(value reflect.Value) string {
-	value = unwrapTargetValue(value)
-	if !value.IsValid() {
-		return ""
-	}
-
-	switch value.Kind() {
-	case reflect.Struct:
-		for _, fieldName := range chainQueryTargetFieldPriority {
-			if target := targetStringFromValue(value.FieldByName(fieldName)); target != "" {
-				return target
-			}
-		}
-	case reflect.Map:
-		if value.Type().Key().Kind() != reflect.String {
-			return ""
-		}
-		for _, keyName := range chainQueryTargetMapKeyPriority {
-			key := reflect.ValueOf(keyName)
-			if key.Type().ConvertibleTo(value.Type().Key()) {
-				key = key.Convert(value.Type().Key())
-			} else {
-				continue
-			}
-			if target := targetStringFromValue(value.MapIndex(key)); target != "" {
-				return target
-			}
-		}
-	}
-
-	return ""
-}
-
-func unwrapTargetValue(value reflect.Value) reflect.Value {
-	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
-		if value.IsNil() {
-			return reflect.Value{}
-		}
-		value = value.Elem()
-	}
-	return value
-}
-
-func targetStringFromValue(value reflect.Value) string {
-	value = unwrapTargetValue(value)
-	if !value.IsValid() {
-		return ""
-	}
-
-	switch value.Kind() {
-	case reflect.String:
-		return strings.TrimSpace(value.String())
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return strconv.FormatInt(value.Int(), 10)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return strconv.FormatUint(value.Uint(), 10)
-	}
-
-	if value.CanInterface() {
-		if stringer, ok := value.Interface().(fmt.Stringer); ok {
-			return strings.TrimSpace(stringer.String())
-		}
-	}
-
-	switch value.Kind() {
-	case reflect.Slice, reflect.Array:
-		if value.Type().Elem().Kind() == reflect.Uint8 {
-			bytes := make([]byte, value.Len())
-			for i := range bytes {
-				bytes[i] = byte(value.Index(i).Uint())
-			}
-			if len(bytes) == 0 {
-				return ""
-			}
-			return "0x" + hex.EncodeToString(bytes)
-		}
-	}
-
-	if value.CanInterface() {
-		encoded, err := json.Marshal(value.Interface())
-		if err == nil {
-			target := strings.TrimSpace(string(encoded))
-			if target != "" && target != "null" && target != "{}" && target != "[]" {
-				return target
-			}
-		}
-	}
-
-	return ""
 }
 
 // IsTerminalStatus reports whether a query status is terminal.
@@ -875,38 +678,13 @@ func buildEVMCallQueryParams(input CallContractInput) (apiClient.EVMCallQueryPar
 	}, nil
 }
 
-func applyCallOptions(input *CallContractInput, options ...any) error {
+func applyCallOptions(input *CallContractInput, options ...CallOption) {
 	for _, option := range options {
-		switch opt := option.(type) {
-		case nil:
+		if option == nil {
 			continue
-		case CallOption:
-			opt(input)
-		case func(*CallContractInput):
-			opt(input)
-		case string:
-			v := opt
-			input.FromAddress = &v
-		case *string:
-			if opt != nil {
-				v := *opt
-				input.FromAddress = &v
-			}
-		case common.Address:
-			v := opt.Hex()
-			input.FromAddress = &v
-		case *common.Address:
-			if opt != nil {
-				v := opt.Hex()
-				input.FromAddress = &v
-			}
-		case map[string]interface{}:
-			input.Metadata = opt
-		default:
-			return fmt.Errorf("%w: %T", ErrInvalidCallOption, option)
 		}
+		option(input)
 	}
-	return nil
 }
 
 func validateBlockSelection(selection BlockSelection) error {
@@ -982,70 +760,15 @@ func hexToBytesStrict(value string) ([]byte, error) {
 	return decoded, nil
 }
 
-func readRawResponseBody(resp *http.Response, wrapErr error) ([]byte, error) {
-	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", wrapErr, ErrNilResponse)
-	}
-	if resp.Body == nil {
-		return nil, fmt.Errorf("%w: %w", wrapErr, ErrNilResponseBody)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", wrapErr, err)
-	}
-	return body, nil
-}
-
-func unmarshalJSONBody(body []byte, dest any, wrapErr error) error {
-	if len(body) == 0 {
-		return fmt.Errorf("%w: %w", wrapErr, ErrNilResponseBody)
-	}
-	if err := json.Unmarshal(body, dest); err != nil {
-		return fmt.Errorf("%w: %w", wrapErr, err)
-	}
-	return nil
-}
-
-func isTransientQueryError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return false
-	}
+// isTransientGetError is the policy that Client.Wait uses to decide whether a
+// Get failure should be retried. Validation errors and definitive 404s are
+// permanent; everything else delegates to the shared transient classifier.
+func isTransientGetError(err error) bool {
 	if errors.Is(err, ErrChannelIDRequired) ||
 		errors.Is(err, ErrQueryIDRequired) ||
 		errors.Is(err, ErrChannelNotFound) ||
 		errors.Is(err, ErrQueryNotFound) {
 		return false
 	}
-
-	errMsg := strings.ToLower(err.Error())
-	if matches := statusCodePattern.FindStringSubmatch(errMsg); len(matches) > 1 {
-		if statusCode, err := strconv.Atoi(matches[1]); err == nil {
-			if statusCode == http.StatusTooManyRequests || (statusCode >= http.StatusInternalServerError && statusCode < 600) {
-				return true
-			}
-		}
-	}
-
-	transientIndicators := []string{
-		"connection refused",
-		"connection reset",
-		"timeout",
-		"temporary failure",
-		"eof",
-		"broken pipe",
-		"no such host",
-		"network is unreachable",
-	}
-	for _, indicator := range transientIndicators {
-		if strings.Contains(errMsg, indicator) {
-			return true
-		}
-	}
-
-	return false
+	return retry.IsTransient(err)
 }

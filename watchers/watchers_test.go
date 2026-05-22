@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+
+	"github.com/smartcontractkit/crec-sdk/internal/retry"
 )
 
 func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Server) {
@@ -331,9 +333,9 @@ func TestIsTransientStatusCode(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := isTransientStatusCode(tc.statusCode)
+			result := retry.IsTransientStatusCode(tc.statusCode)
 			assert.Equal(t, tc.transient, result,
-				"Expected isTransientStatusCode(%d) to be %v", tc.statusCode, tc.transient)
+				"Expected retry.IsTransientStatusCode(%d) to be %v", tc.statusCode, tc.transient)
 		})
 	}
 }

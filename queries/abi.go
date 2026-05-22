@@ -32,7 +32,7 @@ func (c *Client) CallContractWithABI(
 	args []any,
 	blockSelection BlockSelection,
 	idempotencyKey string,
-	options ...any,
+	options ...CallOption,
 ) (*CallContractABIResult, error) {
 	contractABI, method, err := parseABIFragment(abiFragment, functionName)
 	if err != nil {

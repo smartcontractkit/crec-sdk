@@ -10,9 +10,8 @@
 //
 // The package wraps the generated CREC API client and adds:
 //
-//   - block-selection helpers: [Latest], [Finalized], [BlockNumber], and the
-//     longer [LatestBlockSelection], [FinalizedBlockSelection], and
-//     [BlockNumberBlockSelection] forms;
+//   - block-selection helpers: [Latest], [Finalized], [BlockNumber], plus
+//     [BlockNumberFromString] for parsing a decimal block-number string;
 //   - submission helpers: [Client.Create] for generic query creation and
 //     [Client.CreateEVMCall] for raw EVM call queries;
 //   - lookup helpers: [Client.Get] and [Client.List];
@@ -20,8 +19,7 @@
 //     is completed, failed, or expired;
 //   - wrapped call helpers: [Client.CallContract] and
 //     [Client.CallContractWithABI];
-//   - decoding helpers: [ResultFromQuery], [Client.ResultFromQuery],
-//     [DecodeVerifiableResult], [Client.DecodeVerifiableResult], and
+//   - decoding helpers: [ResultFromQuery], [DecodeVerifiableResult], and
 //     [DecodeVerifiableResultBytes].
 //
 // [Client.Wait] uses the client's poll interval (2 seconds by default) and
@@ -97,7 +95,7 @@
 //	    queries.WithMetadata(map[string]interface{}{"client_reference_id": "balance-ui"}),
 //	)
 //
-// # Most wrapped ABI approach
+// # Full ABI wrapper
 //
 // [Client.CallContractWithABI] packs function arguments, calls
 // [Client.CallContract], and ABI-unpacks successful return data into Outputs.
@@ -111,7 +109,7 @@
 //	    "function balanceOf(address owner) view returns (uint256)",
 //	    "balanceOf",
 //	    []any{"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"},
-//	    queries.FinalizedBlockSelection(),
+//	    queries.Finalized(),
 //	    "balance-finalized-001",
 //	)
 //	if err != nil {
@@ -132,7 +130,7 @@
 //	    ChainSelector:   chainSelector,
 //	    ContractAddress: tokenAddress,
 //	    CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-//	    BlockSelection:  queries.LatestBlockSelection(),
+//	    BlockSelection:  queries.Latest(),
 //	    IdempotencyKey:  "total-supply-async-001",
 //	})
 //	if err != nil {
@@ -145,7 +143,7 @@
 //	if err != nil {
 //	    return err
 //	}
-//	result, err := client.Queries.ResultFromQuery(query)
+//	result, err := queries.ResultFromQuery(query)
 //	if err != nil {
 //	    return err
 //	}
@@ -186,7 +184,7 @@
 //	    }
 //	    for i := range page {
 //	        if page[i].QueryId == queryID {
-//	            result, err := client.Queries.ResultFromQuery(&page[i])
+//	            result, err := queries.ResultFromQuery(&page[i])
 //	            _ = result
 //	            return err
 //	        }
@@ -253,7 +251,7 @@
 // Decoding and verification are intentionally separate:
 //
 //   - The queries package decodes terminal query data. Use
-//     [Client.ResultFromQuery] for a query resource or [DecodeVerifiableResult]
+//     [ResultFromQuery] for a query resource or [DecodeVerifiableResult]
 //     for a base64 verifiable_result string.
 //   - The events package verifies OCR signatures on query.status events. Create
 //     the root client with crec.WithOrgID or crec.WithWorkflowOwner plus valid
@@ -266,11 +264,11 @@
 //	if err != nil {
 //	    return err
 //	}
-//	result, err := client.Queries.ResultFromQuery(query)
+//	result, err := queries.ResultFromQuery(query)
 //	if err != nil {
 //	    return err
 //	}
-//	decoded, err := client.Queries.DecodeVerifiableResult(result.VerifiableResult)
+//	decoded, err := queries.DecodeVerifiableResult(result.VerifiableResult)
 //
 // Verified event decode:
 //

@@ -158,7 +158,7 @@
 //	    "16015286601757825753",
 //	    "0x1234567890123456789012345678901234567890",
 //	    []byte{0x18, 0x16, 0x0d, 0xdd},
-//	    queries.LatestBlockSelection(),
+//	    queries.Latest(),
 //	    "query-idempotency-key",
 //	)
 //	_ = result

@@ -249,7 +249,7 @@ func TestClient_CallContract(t *testing.T) {
 		testChainSelector,
 		testContractAddress,
 		[]byte{0x18, 0x16, 0x0d, 0xdd},
-		LatestBlockSelection(),
+		Latest(),
 		"call-contract-1",
 		WithFromAddress(testFromAddress),
 	)
@@ -339,7 +339,7 @@ func TestClient_CreateEVMCall_Wait_ResultFromQuery(t *testing.T) {
 	require.NotNil(t, query)
 	assert.Equal(t, apiClient.QueryStatusCompleted, query.Status)
 
-	result, err := client.ResultFromQuery(query)
+	result, err := ResultFromQuery(query)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, queryID.String(), result.QueryID)
@@ -389,7 +389,7 @@ func TestClient_CallContractWithABI(t *testing.T) {
 		"function totalSupply() view returns (uint256)",
 		"totalSupply",
 		nil,
-		LatestBlockSelection(),
+		Latest(),
 		"abi-call-1",
 	)
 
@@ -416,7 +416,7 @@ func TestClient_CallContractWithABI_Validation(t *testing.T) {
 		"",
 		"",
 		nil,
-		LatestBlockSelection(),
+		Latest(),
 		"abi-validation-1",
 	)
 	require.Error(t, err)
@@ -430,7 +430,7 @@ func TestClient_CallContractWithABI_Validation(t *testing.T) {
 		"function balanceOf(address) view returns (uint256)",
 		"balanceOf",
 		nil,
-		LatestBlockSelection(),
+		Latest(),
 		"abi-validation-2",
 	)
 	require.Error(t, err)
@@ -444,7 +444,7 @@ func TestClient_CallContractWithABI_Validation(t *testing.T) {
 		"function balanceOf(address) view returns (uint256)",
 		"balanceOf",
 		[]any{"not-an-address"},
-		LatestBlockSelection(),
+		Latest(),
 		"abi-validation-3",
 	)
 	require.Error(t, err)
