@@ -239,11 +239,15 @@ type QueryError struct {
 }
 
 // CallContractResult is the SDK structured result for raw EVM calls.
+//
+// The server-side query resource carries a Target display string derived from
+// the request params per query kind; consumers that need it should read
+// Query.Target (or branch on Query.QueryKind) rather than have the SDK
+// re-derive it here.
 type CallContractResult struct {
 	QueryID          string
 	Status           string
 	ChainSelector    string
-	Target           string
 	RawReturnData    []byte
 	VerifiableQuery  []byte
 	VerifiableResult string
@@ -482,7 +486,6 @@ func ResultFromQuery(query *apiClient.Query) (*CallContractResult, error) {
 		QueryID:       query.QueryId.String(),
 		Status:        string(query.Status),
 		ChainSelector: string(query.ChainSelector),
-		Target:        query.Target,
 		Query:         query,
 	}
 
@@ -506,9 +509,6 @@ func ResultFromQuery(query *apiClient.Query) (*CallContractResult, error) {
 		result.VerifiableResult = *query.VerifiableResult
 		result.VerifiableQuery = decodedBytes
 		result.ChainSelector = verifiableEvent.ChainSelector
-		if result.Target == "" {
-			result.Target = verifiableEvent.Data.Target.ContractAddress
-		}
 
 		if verifiableEvent.Data.Result != nil {
 			rawReturnData, err := hexToBytesStrict(verifiableEvent.Data.Result.RawReturnData)

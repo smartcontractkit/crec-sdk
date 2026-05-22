@@ -395,10 +395,7 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -447,10 +444,7 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -491,10 +485,7 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -523,10 +514,7 @@ func TestClient_List(t *testing.T) {
 				Data:    []apiClient.Channel{},
 				HasMore: true,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -548,12 +536,9 @@ func TestClient_List(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
-			})
-			if err != nil {
-				return
-			}
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -602,10 +587,7 @@ func TestClient_Update(t *testing.T) {
 				CreatedAt:   createdAt,
 				Status:      channelStatus,
 			}
-			err = json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -674,13 +656,10 @@ func TestClient_Update(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"message": "Channel not found",
 				"type":    "Not found",
-			})
-			if err != nil {
-				return
-			}
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -747,10 +726,7 @@ func TestClient_Archive(t *testing.T) {
 				CreatedAt: createdAt,
 				Status:    apiClient.ChannelStatusArchived,
 			}
-			err = json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -770,12 +746,9 @@ func TestClient_Archive(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Channel not found",
-			})
-			if err != nil {
-				return
-			}
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -794,12 +767,9 @@ func TestClient_Archive(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
-			})
-			if err != nil {
-				return
-			}
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)

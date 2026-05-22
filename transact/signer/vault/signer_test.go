@@ -856,10 +856,7 @@ func TestSigner_Public_TrailingGarbage(t *testing.T) {
 			},
 		}
 
-		err := json.NewEncoder(w).Encode(response)
-		if err != nil {
-			return
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(response))
 	}))
 	defer server.Close()
 

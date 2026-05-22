@@ -40,8 +40,11 @@
 //
 // [CallContractResult] is the SDK's decoded view of a terminal EVM call query:
 //
-//   - QueryID, Status, ChainSelector, Target, and Query identify the API query
-//     record;
+//   - QueryID, Status, ChainSelector, and Query identify the API query record.
+//     The display-friendly target (contract address for evm_call, transaction
+//     hash for tx-style reads, etc.) lives on Query.Target — derived server-side
+//     from the request per query kind — so consumers that need it should read
+//     Query.Target (or branch on Query.QueryKind);
 //   - VerifiableResult is the original base64 string returned by CREC;
 //   - VerifiableQuery is the decoded JSON bytes of VerifiableResult for logging
 //     or archival;

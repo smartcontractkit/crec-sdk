@@ -46,10 +46,7 @@ func TestClient_Archive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchiving,
 			}
-			err = json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -99,12 +96,9 @@ func TestClient_Archive(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Watcher not found",
-			})
-			if err != nil {
-				return
-			}
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -124,12 +118,9 @@ func TestClient_Archive(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
-			})
-			if err != nil {
-				return
-			}
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -159,10 +150,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -200,10 +188,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        status,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -232,10 +217,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusFailed,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -263,10 +245,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusPending,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -324,10 +303,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchiving,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -356,10 +332,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusPending,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -409,10 +382,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -503,10 +473,7 @@ func TestClient_WaitForActive(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)

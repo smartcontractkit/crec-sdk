@@ -36,10 +36,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusArchiving,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 			} else {
 				w.WriteHeader(http.StatusOK)
 				response := apiClient.Watcher{
@@ -49,10 +46,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusArchived,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 			}
 		}
 
@@ -80,10 +74,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchived,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -109,10 +100,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchiving,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -139,10 +127,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchiving,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -177,10 +162,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -245,10 +227,7 @@ func TestClient_WaitForArchived(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusArchived,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)

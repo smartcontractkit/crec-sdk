@@ -442,13 +442,10 @@ func TestSigner_Sign_ContextCancellation(t *testing.T) {
 		if r.Method == "GET" && r.URL.Path == "/v1/transactions/op-123" {
 			// Simulate slow response
 			time.Sleep(500 * time.Millisecond)
-			err := json.NewEncoder(w).Encode(map[string]any{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
 				"id":     "op-123",
 				"status": "PENDING_SIGNATURE",
-			})
-			if err != nil {
-				return
-			}
+			}))
 			return
 		}
 
@@ -487,12 +484,9 @@ func TestSigner_GetVaultAccountAddress(t *testing.T) {
 		{
 			name: "successful get address",
 			serverResponse: func(w http.ResponseWriter, r *http.Request) {
-				err := json.NewEncoder(w).Encode(map[string]string{
+				require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 					"address": "0x742d35Cc6634C0532925a3b8D100d3F01F14bFE4",
-				})
-				if err != nil {
-					return
-				}
+				}))
 			},
 			expectedAddress: "0x742d35Cc6634C0532925a3b8D100d3F01F14bFE4",
 			wantErr:         false,
@@ -748,13 +742,10 @@ func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubK
 			}
 
 			w.WriteHeader(http.StatusCreated)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"id":     "op-mock-123",
 				"status": "SUBMITTED",
-			})
-			if err != nil {
-				return
-			}
+			}))
 			return
 		}
 
@@ -762,24 +753,18 @@ func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubK
 			operationPolls++
 
 			if operationPolls < 2 {
-				err := json.NewEncoder(w).Encode(map[string]any{
+				require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
 					"id":     "op-mock-123",
 					"status": "PENDING_SIGNATURE",
-				})
-				if err != nil {
-					return
-				}
+				}))
 				return
 			}
 
 			if finalStatus != fireblocks.StatusCompleted {
-				err := json.NewEncoder(w).Encode(map[string]any{
+				require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
 					"id":     "op-mock-123",
 					"status": string(finalStatus),
-				})
-				if err != nil {
-					return
-				}
+				}))
 				return
 			}
 
@@ -795,7 +780,7 @@ func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubK
 			rVal := hex.EncodeToString(sigBytes[:32])
 			sVal := hex.EncodeToString(sigBytes[32:64])
 
-			err := json.NewEncoder(w).Encode(map[string]any{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
 				"id":     "op-mock-123",
 				"status": "COMPLETED",
 				"signedMessages": []map[string]any{
@@ -811,10 +796,7 @@ func createMockFireblocksServer(t *testing.T, signingKey *ecdsa.PrivateKey, pubK
 						"publicKey": hex.EncodeToString(pubKeyBytes),
 					},
 				},
-			})
-			if err != nil {
-				return
-			}
+			}))
 			return
 		}
 
@@ -837,10 +819,7 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 			operation, _ := payload["operation"].(string)
 			if operation != "TYPED_MESSAGE" {
 				w.WriteHeader(http.StatusBadRequest)
-				err := json.NewEncoder(w).Encode(map[string]string{"error": "expected TYPED_MESSAGE operation"})
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"error": "expected TYPED_MESSAGE operation"}))
 				return
 			}
 
@@ -852,13 +831,10 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 			}
 
 			w.WriteHeader(http.StatusCreated)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"id":     "op-typed-123",
 				"status": "SUBMITTED",
-			})
-			if err != nil {
-				return
-			}
+			}))
 			return
 		}
 
@@ -866,24 +842,18 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 			operationPolls++
 
 			if operationPolls < 2 {
-				err := json.NewEncoder(w).Encode(map[string]any{
+				require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
 					"id":     "op-typed-123",
 					"status": "PENDING_SIGNATURE",
-				})
-				if err != nil {
-					return
-				}
+				}))
 				return
 			}
 
 			if finalStatus != fireblocks.StatusCompleted {
-				err := json.NewEncoder(w).Encode(map[string]any{
+				require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
 					"id":     "op-typed-123",
 					"status": string(finalStatus),
-				})
-				if err != nil {
-					return
-				}
+				}))
 				return
 			}
 
@@ -905,7 +875,7 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 			rVal := hex.EncodeToString(sigBytes[:32])
 			sVal := hex.EncodeToString(sigBytes[32:64])
 
-			err := json.NewEncoder(w).Encode(map[string]any{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
 				"id":     "op-typed-123",
 				"status": "COMPLETED",
 				"signedMessages": []map[string]any{
@@ -921,10 +891,7 @@ func createMockTypedMessageServer(t *testing.T, signingKey *ecdsa.PrivateKey, pu
 						"publicKey": hex.EncodeToString(pubKeyBytes),
 					},
 				},
-			})
-			if err != nil {
-				return
-			}
+			}))
 			return
 		}
 

@@ -392,7 +392,7 @@ func (s *MockServer) CreateQuery(w http.ResponseWriter, r *http.Request, channel
 		ChainSelector: request.ChainSelector,
 		CreatedAt:     now,
 		UpdatedAt:     now,
-		Target:        string(request.Params.ContractAddress),
+		Target:        deriveQueryTarget(request),
 	}
 
 	s.mu.Lock()
@@ -473,6 +473,18 @@ func (s *MockServer) GetQuery(w http.ResponseWriter, r *http.Request, channelId 
 		}
 	}
 	http.Error(w, "query not found", http.StatusNotFound)
+}
+
+// deriveQueryTarget returns the server-side display target for a chain query,
+// selected from the inner read type by query kind. Mirrors the real API
+// contract: evm_call uses the contract address; new kinds add new cases here.
+func deriveQueryTarget(request stdserver.CreateQuery) string {
+	switch request.QueryKind {
+	case stdserver.QueryKindEVMCall:
+		return string(request.Params.ContractAddress)
+	default:
+		return ""
+	}
 }
 
 // ============================================================================

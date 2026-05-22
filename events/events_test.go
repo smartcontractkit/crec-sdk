@@ -78,7 +78,7 @@ func TestClient_ListEvents(t *testing.T) {
 				Events:  events,
 				HasMore: false,
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 		c, server := setupTestClient(t, handler, func(opts *Options) {
 			opts.MinRequiredSignatures = 2
@@ -112,7 +112,7 @@ func TestClient_ListEvents(t *testing.T) {
 				Events:  events,
 				HasMore: false,
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
@@ -191,7 +191,7 @@ func TestClient_ListEvents(t *testing.T) {
 				Events:  events,
 				HasMore: true,
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		c, server := setupTestClient(t, handler)
@@ -223,7 +223,7 @@ func TestClient_SearchEvents(t *testing.T) {
 				Events:  events,
 				HasMore: false,
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 		c, server := setupTestClient(t, handler, func(opts *Options) {
 			opts.MinRequiredSignatures = 2
@@ -282,7 +282,7 @@ func TestClient_SearchEvents(t *testing.T) {
 				Events:  events,
 				HasMore: true,
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
@@ -325,7 +325,7 @@ func TestClient_SearchEvents(t *testing.T) {
 				Events:  events,
 				HasMore: false,
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
@@ -353,7 +353,7 @@ func TestClient_SearchEvents(t *testing.T) {
 				Events:  events,
 				HasMore: false,
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
@@ -394,7 +394,7 @@ func TestClient_SearchEvents(t *testing.T) {
 				Type:    "Bad request",
 				Message: "Invalid parameter combination",
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 		c, server := setupTestClient(t, handler)
 		defer server.Close()
@@ -460,7 +460,7 @@ func TestClient_SearchEvents(t *testing.T) {
 				Events:  events,
 				HasMore: true,
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		c, server := setupTestClient(t, handler)

@@ -253,7 +253,7 @@ func TestClient_ListNetworks(t *testing.T) {
 			assert.Equal(t, "Apikey test-api-key", r.Header.Get("Authorization"))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(apiClient.NetworkList{
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.NetworkList{
 				Data: []apiClient.Network{
 					{
 						Id:            networkID,
@@ -266,7 +266,7 @@ func TestClient_ListNetworks(t *testing.T) {
 					},
 				},
 				HasMore: false,
-			})
+			}))
 		}))
 		defer server.Close()
 

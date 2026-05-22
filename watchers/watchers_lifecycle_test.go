@@ -43,10 +43,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusPending,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
@@ -65,10 +62,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x1234",
 					Status:        status,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 
 			case r.Method == "PATCH" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				body, _ := io.ReadAll(r.Body)
@@ -84,10 +78,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusArchived,
 					}
-					err := json.NewEncoder(w).Encode(response)
-					if err != nil {
-						return
-					}
+					require.NoError(t, json.NewEncoder(w).Encode(response))
 				} else {
 					w.WriteHeader(http.StatusOK)
 					response := apiClient.Watcher{
@@ -97,10 +88,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusActive,
 					}
-					err := json.NewEncoder(w).Encode(response)
-					if err != nil {
-						return
-					}
+					require.NoError(t, json.NewEncoder(w).Encode(response))
 				}
 
 			default:
@@ -172,10 +160,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x5678",
 					Status:        apiClient.WatcherStatusPending,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
@@ -186,10 +171,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x5678",
 					Status:        apiClient.WatcherStatusActive,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 
 			case r.Method == "GET" && strings.Contains(r.URL.Path, "/channels/"+channelID.String()+"/watchers") && !strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusOK)
@@ -208,10 +190,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					},
 					HasMore: false,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 
 			case r.Method == "PATCH" && strings.Contains(r.URL.Path, "/watchers/"+watcherID.String()):
 				w.WriteHeader(http.StatusAccepted)
@@ -222,10 +201,7 @@ func TestEndToEnd_WatcherLifecycle(t *testing.T) {
 					Address:       "0x5678",
 					Status:        apiClient.WatcherStatusArchiving,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 
 			default:
 				t.Fatalf("Unexpected request: %s %s", r.Method, r.URL.Path)
@@ -326,10 +302,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusPending,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 			case "GET":
 				// Watcher failed to deploy
 				w.WriteHeader(http.StatusOK)
@@ -340,10 +313,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusFailed,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 			}
 		}
 
@@ -388,10 +358,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusPending,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 			case "GET":
 				getCallCount++
 				if getCallCount == 1 {
@@ -403,10 +370,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusPending,
 					}
-					err := json.NewEncoder(w).Encode(response)
-					if err != nil {
-						return
-					}
+					require.NoError(t, json.NewEncoder(w).Encode(response))
 				} else {
 					w.WriteHeader(http.StatusOK)
 					response := apiClient.Watcher{
@@ -416,10 +380,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusArchived,
 					}
-					err := json.NewEncoder(w).Encode(response)
-					if err != nil {
-						return
-					}
+					require.NoError(t, json.NewEncoder(w).Encode(response))
 				}
 			}
 		}
@@ -509,10 +470,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 					Address:       "0x1234",
 					Status:        apiClient.WatcherStatusArchiving,
 				}
-				err := json.NewEncoder(w).Encode(response)
-				if err != nil {
-					return
-				}
+				require.NoError(t, json.NewEncoder(w).Encode(response))
 			} else if r.Method == "GET" {
 				getCallCount++
 				name := "test-watcher"
@@ -525,10 +483,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusArchiving,
 					}
-					err := json.NewEncoder(w).Encode(response)
-					if err != nil {
-						return
-					}
+					require.NoError(t, json.NewEncoder(w).Encode(response))
 				} else {
 					w.WriteHeader(http.StatusOK)
 					response := apiClient.Watcher{
@@ -538,10 +493,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 						Address:       "0x1234",
 						Status:        apiClient.WatcherStatusArchived,
 					}
-					err := json.NewEncoder(w).Encode(response)
-					if err != nil {
-						return
-					}
+					require.NoError(t, json.NewEncoder(w).Encode(response))
 				}
 			}
 		}
@@ -598,10 +550,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -669,10 +618,7 @@ func TestEndToEnd_Filtering(t *testing.T) {
 				Data:    watchers,
 				HasMore: hasMore,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)

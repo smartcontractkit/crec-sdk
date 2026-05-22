@@ -21,21 +21,21 @@ const (
 
 // Sentinel errors for operation and transaction validation.
 var (
-	ErrTransactionValueNonNegative = errors.New("transaction value must be non-negative")
-	ErrOperationIDNonNegative      = errors.New("id must be non-negative")
+	ErrTransactionValueNonNegative  = errors.New("transaction value must be non-negative")
+	ErrOperationIDNonNegative       = errors.New("id must be non-negative")
 	ErrOperationDeadlineNonNegative = errors.New("deadline must be non-negative")
-	ErrOperationIDRequired         = errors.New("id is required")
-	ErrOperationDeadlineRequired   = errors.New("deadline is required")
-	ErrNoTransactions              = errors.New("no transactions")
-	ErrTransactionValueRequired    = errors.New("transaction value is required")
-	ErrChainIDNonNegative          = errors.New("chain ID must be non-negative")
-	ErrFailedParseChainID          = errors.New("failed to parse chain ID")
+	ErrOperationIDRequired          = errors.New("id is required")
+	ErrOperationDeadlineRequired    = errors.New("deadline is required")
+	ErrNoTransactions               = errors.New("no transactions")
+	ErrTransactionValueRequired     = errors.New("transaction value is required")
+	ErrChainIDNonNegative           = errors.New("chain ID must be non-negative")
+	ErrFailedParseChainID           = errors.New("failed to parse chain ID")
 )
 
 // Transaction represents a single transaction within an operation for EIP-712 signing.
 type Transaction struct {
 	To    common.Address `json:"to"`
-	Value *big.Int       `json:"value,string"`
+	Value *big.Int       `json:"value,string"` //nolint:staticcheck // kept for contract/schema compatibility: emit value as a JSON string so amounts above 2^53 survive JS clients
 	Data  hexutil.Bytes  `json:"data"`
 }
 

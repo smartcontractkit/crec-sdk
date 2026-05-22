@@ -490,10 +490,7 @@ func TestClient_CreateUnsignedDraftOperation_Success(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		err = json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID})
-		if err != nil {
-			return
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID}))
 	}
 
 	client, server := setupTestClient(t, handler)
@@ -611,10 +608,7 @@ func TestClient_SendDraftOperation_SuccessWithPreview(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		err = json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID})
-		if err != nil {
-			return
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(apiClient.OperationResponse{OperationId: operationID}))
 	}
 
 	client, server := setupTestClient(t, handler)
@@ -718,10 +712,7 @@ func TestClient_SendSignedDraftOperation_Success(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(apiClient.Operation{})
-		if err != nil {
-			return
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(apiClient.Operation{}))
 	}
 
 	client, server := setupTestClient(t, handler)
@@ -739,10 +730,7 @@ func TestClient_ExecuteDraftOperation_SignsProvidedDigest(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err := json.NewEncoder(w).Encode(apiClient.Operation{})
-		if err != nil {
-			return
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(apiClient.Operation{}))
 	}
 
 	client, server := setupTestClient(t, handler)

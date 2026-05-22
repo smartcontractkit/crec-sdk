@@ -61,10 +61,7 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -117,10 +114,7 @@ func TestClient_List(t *testing.T) {
 				},
 				HasMore: false,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -161,12 +155,9 @@ func TestClient_List(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Internal server error",
-			})
-			if err != nil {
-				return
-			}
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -201,10 +192,7 @@ func TestClient_Get(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -239,10 +227,7 @@ func TestClient_Get(t *testing.T) {
 				Events:        []string{"Transfer"},
 				DonFamily:     "zone-a",
 			}
-			err := json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -295,12 +280,9 @@ func TestClient_Get(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Watcher not found",
-			})
-			if err != nil {
-				return
-			}
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -344,10 +326,7 @@ func TestClient_Update(t *testing.T) {
 				Address:       "0x1234",
 				Status:        apiClient.WatcherStatusActive,
 			}
-			err = json.NewEncoder(w).Encode(response)
-			if err != nil {
-				return
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
 		}
 
 		client, server := setupTestClient(t, handler)
@@ -422,12 +401,9 @@ func TestClient_Update(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			err := json.NewEncoder(w).Encode(map[string]string{
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 				"error": "Watcher not found",
-			})
-			if err != nil {
-				return
-			}
+			}))
 		}
 
 		client, server := setupTestClient(t, handler)
