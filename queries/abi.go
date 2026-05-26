@@ -21,25 +21,31 @@ type CallContractABIResult struct {
 	Outputs []any
 }
 
+// CallContractWithABIInput defines an ABI-typed EVM call query request.
+//
+// Set FromAddress to override the call sender (defaults to the zero address)
+// and Metadata to attach customer metadata to the create-query request.
+type CallContractWithABIInput struct {
+	ChannelID       uuid.UUID
+	ChainSelector   string
+	ContractAddress string
+	ABIFragment     string
+	FunctionName    string
+	Args            []any
+	BlockSelection  BlockSelection
+	IdempotencyKey  string
+	FromAddress     *string
+	Metadata        map[string]interface{}
+}
+
 // CallContractWithABI ABI-encodes function arguments, performs the query, and decodes return bytes.
-func (c *Client) CallContractWithABI(
-	ctx context.Context,
-	channelID uuid.UUID,
-	chainSelector string,
-	contractAddress string,
-	abiFragment string,
-	functionName string,
-	args []any,
-	blockSelection BlockSelection,
-	idempotencyKey string,
-	options ...CallOption,
-) (*CallContractABIResult, error) {
-	contractABI, method, err := parseABIFragment(abiFragment, functionName)
+func (c *Client) CallContractWithABI(ctx context.Context, input CallContractWithABIInput) (*CallContractABIResult, error) {
+	contractABI, method, err := parseABIFragment(input.ABIFragment, input.FunctionName)
 	if err != nil {
 		return nil, err
 	}
 
-	coercedArgs, err := coerceABIArgs(method.Inputs, args)
+	coercedArgs, err := coerceABIArgs(method.Inputs, input.Args)
 	if err != nil {
 		return nil, err
 	}
@@ -49,16 +55,16 @@ func (c *Client) CallContractWithABI(
 		return nil, fmt.Errorf("%w: %w", ErrABIArgumentType, err)
 	}
 
-	rawResult, err := c.CallContract(
-		ctx,
-		channelID,
-		chainSelector,
-		contractAddress,
-		callData,
-		blockSelection,
-		idempotencyKey,
-		options...,
-	)
+	rawResult, err := c.CallContract(ctx, CallContractInput{
+		ChannelID:       input.ChannelID,
+		ChainSelector:   input.ChainSelector,
+		ContractAddress: input.ContractAddress,
+		CallData:        callData,
+		BlockSelection:  input.BlockSelection,
+		IdempotencyKey:  input.IdempotencyKey,
+		FromAddress:     input.FromAddress,
+		Metadata:        input.Metadata,
+	})
 	if err != nil {
 		return nil, err
 	}

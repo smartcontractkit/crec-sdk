@@ -10,8 +10,8 @@
 //
 // The package wraps the generated CREC API client and adds:
 //
-//   - block-selection helpers: [Latest], [Finalized], [BlockNumber], plus
-//     [BlockNumberFromString] for parsing a decimal block-number string;
+//   - block-selection helpers: package vars [Latest] and [Finalized], plus
+//     [BlockNumber] and [BlockNumberFromString] for explicit block numbers;
 //   - submission helpers: [Client.Create] for generic query creation and
 //     [Client.CreateEVMCall] for raw EVM call queries;
 //   - lookup helpers: [Client.Get] and [Client.List];
@@ -25,6 +25,8 @@
 // [Client.Wait] uses the client's poll interval (2 seconds by default) and
 // retries transient 429, 5xx, and common network errors. It stops immediately for
 // validation errors, missing channels, missing queries, or context cancellation.
+// Bound a single [Client.Wait] call either by setting Options.WaitTimeout when
+// constructing the client or by passing a context.WithTimeout per call.
 //
 // # What each returned part means
 //
@@ -65,15 +67,14 @@
 // waits for completion, decodes verifiable_result, and returns a
 // [CallContractResult].
 //
-//	result, err := client.Queries.CallContract(
-//	    ctx,
-//	    channelID,
-//	    "16015286601757825753",
-//	    "0x1234567890123456789012345678901234567890",
-//	    []byte{0x18, 0x16, 0x0d, 0xdd}, // totalSupply()
-//	    queries.Finalized(),
-//	    "total-supply-finalized-001",
-//	)
+//	result, err := client.Queries.CallContract(ctx, queries.CallContractInput{
+//	    ChannelID:       channelID,
+//	    ChainSelector:   "16015286601757825753",
+//	    ContractAddress: "0x1234567890123456789012345678901234567890",
+//	    CallData:        []byte{0x18, 0x16, 0x0d, 0xdd}, // totalSupply()
+//	    BlockSelection:  queries.Finalized,
+//	    IdempotencyKey:  "total-supply-finalized-001",
+//	})
 //	if err != nil {
 //	    // API, polling, or decode error.
 //	    return err
@@ -84,19 +85,19 @@
 //	}
 //	totalSupply := new(big.Int).SetBytes(result.RawReturnData)
 //
-// Use call options when needed:
+// Set FromAddress or Metadata directly on the input when needed:
 //
-//	result, err = client.Queries.CallContract(
-//	    ctx,
-//	    channelID,
-//	    chainSelector,
-//	    tokenAddress,
-//	    "0x70a08231..." /* balanceOf(address) calldata */,
-//	    queries.Latest(),
-//	    "balance-query-001",
-//	    queries.WithFromAddress("0x000000000000000000000000000000000000dEaD"),
-//	    queries.WithMetadata(map[string]interface{}{"client_reference_id": "balance-ui"}),
-//	)
+//	fromAddress := "0x000000000000000000000000000000000000dEaD"
+//	result, err = client.Queries.CallContract(ctx, queries.CallContractInput{
+//	    ChannelID:       channelID,
+//	    ChainSelector:   chainSelector,
+//	    ContractAddress: tokenAddress,
+//	    CallData:        "0x70a08231...", // balanceOf(address) calldata
+//	    BlockSelection:  queries.Latest,
+//	    IdempotencyKey:  "balance-query-001",
+//	    FromAddress:     &fromAddress,
+//	    Metadata:        map[string]interface{}{"client_reference_id": "balance-ui"},
+//	})
 //
 // # Full ABI wrapper
 //
@@ -104,17 +105,16 @@
 // [Client.CallContract], and ABI-unpacks successful return data into Outputs.
 // Human-readable function fragments and JSON ABI fragments are both accepted.
 //
-//	result, err := client.Queries.CallContractWithABI(
-//	    ctx,
-//	    channelID,
-//	    chainSelector,
-//	    tokenAddress,
-//	    "function balanceOf(address owner) view returns (uint256)",
-//	    "balanceOf",
-//	    []any{"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"},
-//	    queries.Finalized(),
-//	    "balance-finalized-001",
-//	)
+//	result, err := client.Queries.CallContractWithABI(ctx, queries.CallContractWithABIInput{
+//	    ChannelID:       channelID,
+//	    ChainSelector:   chainSelector,
+//	    ContractAddress: tokenAddress,
+//	    ABIFragment:     "function balanceOf(address owner) view returns (uint256)",
+//	    FunctionName:    "balanceOf",
+//	    Args:            []any{"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"},
+//	    BlockSelection:  queries.Finalized,
+//	    IdempotencyKey:  "balance-finalized-001",
+//	})
 //	if err != nil {
 //	    return err
 //	}
@@ -133,7 +133,7 @@
 //	    ChainSelector:   chainSelector,
 //	    ContractAddress: tokenAddress,
 //	    CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-//	    BlockSelection:  queries.Latest(),
+//	    BlockSelection:  queries.Latest,
 //	    IdempotencyKey:  "total-supply-async-001",
 //	})
 //	if err != nil {
@@ -157,7 +157,7 @@
 //	params := apiClient.EVMCallQueryParams{
 //	    ContractAddress: apiClient.EthereumAddress(tokenAddress),
 //	    CallData:        "0x18160ddd",
-//	    BlockSelection:  queries.Finalized(),
+//	    BlockSelection:  queries.Finalized,
 //	}
 //	accepted, err = client.Queries.Create(ctx, queries.CreateInput{
 //	    ChannelID:      channelID,

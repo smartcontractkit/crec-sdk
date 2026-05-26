@@ -72,7 +72,7 @@ func validEVMParams() apiClient.EVMCallQueryParams {
 	return apiClient.EVMCallQueryParams{
 		ContractAddress: apiClient.EthereumAddress(testContractAddress),
 		CallData:        testCallData,
-		BlockSelection:  Latest(),
+		BlockSelection:  Latest,
 	}
 }
 
@@ -210,29 +210,26 @@ func TestNewClient(t *testing.T) {
 
 func TestBlockSelectionHelpers(t *testing.T) {
 	t.Run("Latest", func(t *testing.T) {
-		selection := Latest()
-
-		discriminator, err := selection.Discriminator()
+		discriminator, err := Latest.Discriminator()
 		require.NoError(t, err)
 		assert.Equal(t, "latest", discriminator)
-		require.NoError(t, validateBlockSelection(selection))
+		require.NoError(t, validateBlockSelection(Latest))
 
-		body, err := json.Marshal(selection)
+		body, err := json.Marshal(Latest)
 		require.NoError(t, err)
 		assert.JSONEq(t, `{"type":"latest"}`, string(body))
 	})
 
 	t.Run("Finalized", func(t *testing.T) {
-		selection := Finalized()
-
-		discriminator, err := selection.Discriminator()
+		discriminator, err := Finalized.Discriminator()
 		require.NoError(t, err)
 		assert.Equal(t, "finalized", discriminator)
-		require.NoError(t, validateBlockSelection(selection))
+		require.NoError(t, validateBlockSelection(Finalized))
 	})
 
 	t.Run("BlockNumber", func(t *testing.T) {
-		selection := BlockNumber(12345)
+		selection, err := BlockNumber(12345)
+		require.NoError(t, err)
 
 		discriminator, err := selection.Discriminator()
 		require.NoError(t, err)
@@ -315,7 +312,7 @@ func TestClient_Create(t *testing.T) {
 			Params: apiClient.EVMCallQueryParams{
 				ContractAddress: contractAddress,
 				CallData:        "0xABCD",
-				BlockSelection:  Latest(),
+				BlockSelection:  Latest,
 				FromAddress:     &fromAddress,
 			},
 		})
@@ -439,6 +436,7 @@ func TestClient_CreateEVMCall(t *testing.T) {
 	client, server := setupQueriesTestClient(t, handler)
 	defer server.Close()
 
+	fromAddress := testFromAddress
 	resp, err := client.CreateEVMCall(
 		context.Background(),
 		CallContractInput{
@@ -446,11 +444,11 @@ func TestClient_CreateEVMCall(t *testing.T) {
 			ChainSelector:   testChainSelector,
 			ContractAddress: testContractAddress,
 			CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-			BlockSelection:  Latest(),
+			BlockSelection:  Latest,
 			IdempotencyKey:  "raw-call-1",
+			FromAddress:     &fromAddress,
+			Metadata:        map[string]interface{}{"client_reference_id": "client-ref"},
 		},
-		WithFromAddress(testFromAddress),
-		WithMetadata(map[string]interface{}{"client_reference_id": "client-ref"}),
 	)
 
 	require.NoError(t, err)

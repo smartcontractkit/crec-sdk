@@ -90,6 +90,9 @@ type Options struct {
 	Logger       *slog.Logger
 	APIClient    *apiClient.ClientWithResponses
 	PollInterval time.Duration
+	// WaitTimeout, when > 0, bounds the total duration of a single Wait call.
+	// Per-call deadlines may still be supplied via context.
+	WaitTimeout time.Duration
 }
 
 // Client provides channel-scoped chain query operations.
@@ -97,6 +100,7 @@ type Client struct {
 	logger       *slog.Logger
 	apiClient    *apiClient.ClientWithResponses
 	pollInterval time.Duration
+	waitTimeout  time.Duration
 }
 
 // NewClient creates a new Queries client.
@@ -124,37 +128,34 @@ func NewClient(opts *Options) (*Client, error) {
 		logger:       logger,
 		apiClient:    opts.APIClient,
 		pollInterval: pollInterval,
+		waitTimeout:  opts.WaitTimeout,
 	}, nil
 }
 
-// Latest returns an explicit "latest" block selector.
-func Latest() BlockSelection {
-	var selection BlockSelection
-	if err := selection.FromLatestBlockSelection(apiClient.LatestBlockSelection{}); err != nil {
-		// FromLatestBlockSelection serializes a struct literal into a discriminated
-		// union; it cannot fail in practice. A non-nil error means the generated
-		// client's union shape changed and the SDK needs to be updated.
-		panic(fmt.Sprintf("queries: FromLatestBlockSelection unexpectedly failed: %v", err))
+// Latest is the "latest" block selector. It is built once at package init
+// from a constant struct literal and is safe to reuse across calls.
+var Latest BlockSelection
+
+// Finalized is the "finalized" block selector. It is built once at package
+// init from a constant struct literal and is safe to reuse across calls.
+var Finalized BlockSelection
+
+func init() {
+	if err := Latest.FromLatestBlockSelection(apiClient.LatestBlockSelection{}); err != nil {
+		// FromLatestBlockSelection serializes a constant struct literal into a
+		// discriminated union; reaching this branch means the generated client's
+		// union shape changed and the SDK was shipped broken.
+		panic(fmt.Sprintf("queries: FromLatestBlockSelection failed at init: %v", err))
 	}
-	return selection
+	if err := Finalized.FromFinalizedBlockSelection(apiClient.FinalizedBlockSelection{}); err != nil {
+		panic(fmt.Sprintf("queries: FromFinalizedBlockSelection failed at init: %v", err))
+	}
 }
 
-// Finalized returns an explicit "finalized" block selector.
-func Finalized() BlockSelection {
-	var selection BlockSelection
-	if err := selection.FromFinalizedBlockSelection(apiClient.FinalizedBlockSelection{}); err != nil {
-		panic(fmt.Sprintf("queries: FromFinalizedBlockSelection unexpectedly failed: %v", err))
-	}
-	return selection
-}
-
-// BlockNumber returns an explicit block_number selector.
-func BlockNumber(blockNumber uint64) BlockSelection {
-	selection, err := BlockNumberFromString(strconv.FormatUint(blockNumber, 10))
-	if err != nil {
-		panic(fmt.Sprintf("queries: BlockNumber unexpectedly failed: %v", err))
-	}
-	return selection
+// BlockNumber returns an explicit block_number selector. Returns an error if
+// the generated client cannot serialize the selector.
+func BlockNumber(blockNumber uint64) (BlockSelection, error) {
+	return BlockNumberFromString(strconv.FormatUint(blockNumber, 10))
 }
 
 // BlockNumberFromString returns an explicit block_number selector from a
@@ -195,6 +196,9 @@ type ListInput struct {
 }
 
 // CallContractInput defines a raw EVM call query request.
+//
+// Set FromAddress to override the call sender (defaults to the zero address)
+// and Metadata to attach customer metadata to the create-query request.
 type CallContractInput struct {
 	ChannelID       uuid.UUID
 	ChainSelector   string
@@ -204,23 +208,6 @@ type CallContractInput struct {
 	IdempotencyKey  string
 	FromAddress     *string
 	Metadata        map[string]interface{}
-}
-
-// CallOption customizes CallContract and CallContractWithABI requests.
-type CallOption func(*CallContractInput)
-
-// WithFromAddress sets the EVM call sender. If omitted, the SDK sends the zero address.
-func WithFromAddress(fromAddress string) CallOption {
-	return func(input *CallContractInput) {
-		input.FromAddress = &fromAddress
-	}
-}
-
-// WithMetadata attaches customer metadata to the create-query request.
-func WithMetadata(metadata map[string]interface{}) CallOption {
-	return func(input *CallContractInput) {
-		input.Metadata = metadata
-	}
 }
 
 // ResolvedBlock contains concrete block metadata decoded from a terminal verifiable_result.
@@ -309,8 +296,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 }
 
 // CreateEVMCall creates an evm_call query without waiting for terminal status.
-func (c *Client) CreateEVMCall(ctx context.Context, input CallContractInput, options ...CallOption) (*apiClient.QueryAcceptedResponse, error) {
-	applyCallOptions(&input, options...)
+func (c *Client) CreateEVMCall(ctx context.Context, input CallContractInput) (*apiClient.QueryAcceptedResponse, error) {
 	params, err := buildEVMCallQueryParams(input)
 	if err != nil {
 		return nil, err
@@ -396,7 +382,10 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 	}
 }
 
-// Wait polls a query until it reaches a terminal status.
+// Wait polls a query until it reaches a terminal status. The poll loop honors
+// the supplied context and, when the client was configured with a positive
+// Options.WaitTimeout, also stops after that duration. To bound a single call,
+// either set Options.WaitTimeout or pass a context.WithTimeout.
 func (c *Client) Wait(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID) (*apiClient.Query, error) {
 	if channelID == uuid.Nil {
 		return nil, ErrChannelIDRequired
@@ -406,6 +395,12 @@ func (c *Client) Wait(ctx context.Context, channelID uuid.UUID, queryID uuid.UUI
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+
+	if c.waitTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, c.waitTimeout)
+		defer cancel()
 	}
 
 	pollInterval := c.pollInterval
@@ -440,31 +435,13 @@ func (c *Client) Wait(ctx context.Context, channelID uuid.UUID, queryID uuid.UUI
 }
 
 // CallContract creates an evm_call query, waits for terminal status, and decodes the verifiable_result.
-func (c *Client) CallContract(
-	ctx context.Context,
-	channelID uuid.UUID,
-	chainSelector string,
-	contractAddress string,
-	callData any,
-	blockSelection BlockSelection,
-	idempotencyKey string,
-	options ...CallOption,
-) (*CallContractResult, error) {
-	input := CallContractInput{
-		ChannelID:       channelID,
-		ChainSelector:   chainSelector,
-		ContractAddress: contractAddress,
-		CallData:        callData,
-		BlockSelection:  blockSelection,
-		IdempotencyKey:  idempotencyKey,
-	}
-
-	accepted, err := c.CreateEVMCall(ctx, input, options...)
+func (c *Client) CallContract(ctx context.Context, input CallContractInput) (*CallContractResult, error) {
+	accepted, err := c.CreateEVMCall(ctx, input)
 	if err != nil {
 		return nil, err
 	}
 
-	query, err := c.Wait(ctx, channelID, accepted.QueryId)
+	query, err := c.Wait(ctx, input.ChannelID, accepted.QueryId)
 	if err != nil {
 		return nil, err
 	}
@@ -676,15 +653,6 @@ func buildEVMCallQueryParams(input CallContractInput) (apiClient.EVMCallQueryPar
 		BlockSelection:  input.BlockSelection,
 		FromAddress:     &from,
 	}, nil
-}
-
-func applyCallOptions(input *CallContractInput, options ...CallOption) {
-	for _, option := range options {
-		if option == nil {
-			continue
-		}
-		option(input)
-	}
 }
 
 func validateBlockSelection(selection BlockSelection) error {

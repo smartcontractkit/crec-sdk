@@ -243,16 +243,16 @@ func TestClient_CallContract(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	result, err := client.CallContract(
-		ctx,
-		channelID,
-		testChainSelector,
-		testContractAddress,
-		[]byte{0x18, 0x16, 0x0d, 0xdd},
-		Latest(),
-		"call-contract-1",
-		WithFromAddress(testFromAddress),
-	)
+	fromAddress := testFromAddress
+	result, err := client.CallContract(ctx, CallContractInput{
+		ChannelID:       channelID,
+		ChainSelector:   testChainSelector,
+		ContractAddress: testContractAddress,
+		CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
+		BlockSelection:  Latest,
+		IdempotencyKey:  "call-contract-1",
+		FromAddress:     &fromAddress,
+	})
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -325,7 +325,7 @@ func TestClient_CreateEVMCall_Wait_ResultFromQuery(t *testing.T) {
 			ChainSelector:   testChainSelector,
 			ContractAddress: testContractAddress,
 			CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-			BlockSelection:  Finalized(),
+			BlockSelection:  Finalized,
 			IdempotencyKey:  "async-read-1",
 		},
 	)
@@ -379,17 +379,15 @@ func TestClient_CallContractWithABI(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	result, err := client.CallContractWithABI(
-		ctx,
-		channelID,
-		testChainSelector,
-		testContractAddress,
-		"function totalSupply() view returns (uint256)",
-		"totalSupply",
-		nil,
-		Latest(),
-		"abi-call-1",
-	)
+	result, err := client.CallContractWithABI(ctx, CallContractWithABIInput{
+		ChannelID:       channelID,
+		ChainSelector:   testChainSelector,
+		ContractAddress: testContractAddress,
+		ABIFragment:     "function totalSupply() view returns (uint256)",
+		FunctionName:    "totalSupply",
+		BlockSelection:  Latest,
+		IdempotencyKey:  "abi-call-1",
+	})
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -406,45 +404,40 @@ func TestClient_CallContractWithABI_Validation(t *testing.T) {
 	})
 	defer server.Close()
 
-	_, err := client.CallContractWithABI(
-		context.Background(),
-		uuid.New(),
-		testChainSelector,
-		testContractAddress,
-		"",
-		"",
-		nil,
-		Latest(),
-		"abi-validation-1",
-	)
+	_, err := client.CallContractWithABI(context.Background(), CallContractWithABIInput{
+		ChannelID:       uuid.New(),
+		ChainSelector:   testChainSelector,
+		ContractAddress: testContractAddress,
+		ABIFragment:     "",
+		FunctionName:    "",
+		BlockSelection:  Latest,
+		IdempotencyKey:  "abi-validation-1",
+	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrABIRequired)
 
-	_, err = client.CallContractWithABI(
-		context.Background(),
-		uuid.New(),
-		testChainSelector,
-		testContractAddress,
-		"function balanceOf(address) view returns (uint256)",
-		"balanceOf",
-		nil,
-		Latest(),
-		"abi-validation-2",
-	)
+	_, err = client.CallContractWithABI(context.Background(), CallContractWithABIInput{
+		ChannelID:       uuid.New(),
+		ChainSelector:   testChainSelector,
+		ContractAddress: testContractAddress,
+		ABIFragment:     "function balanceOf(address) view returns (uint256)",
+		FunctionName:    "balanceOf",
+		BlockSelection:  Latest,
+		IdempotencyKey:  "abi-validation-2",
+	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrABIArgumentCount)
 
-	_, err = client.CallContractWithABI(
-		context.Background(),
-		uuid.New(),
-		testChainSelector,
-		testContractAddress,
-		"function balanceOf(address) view returns (uint256)",
-		"balanceOf",
-		[]any{"not-an-address"},
-		Latest(),
-		"abi-validation-3",
-	)
+	_, err = client.CallContractWithABI(context.Background(), CallContractWithABIInput{
+		ChannelID:       uuid.New(),
+		ChainSelector:   testChainSelector,
+		ContractAddress: testContractAddress,
+		ABIFragment:     "function balanceOf(address) view returns (uint256)",
+		FunctionName:    "balanceOf",
+		Args:            []any{"not-an-address"},
+		BlockSelection:  Latest,
+		IdempotencyKey:  "abi-validation-3",
+	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrABIArgumentType)
 }
