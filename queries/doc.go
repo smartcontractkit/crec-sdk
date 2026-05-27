@@ -10,8 +10,9 @@
 //
 // The package wraps the generated CREC API client and adds:
 //
-//   - block-selection helpers: package vars [Latest] and [Finalized], plus
-//     [BlockNumber] and [BlockNumberFromString] for explicit block numbers;
+//   - block-selection helpers: [Latest], [Finalized], [BlockNumber], and
+//     [BlockNumberFromString], all of which return (BlockSelection, error)
+//     so an invalid selector surfaces as a normal error;
 //   - submission helpers: [Client.Create] for generic query creation and
 //     [Client.CreateEVMCall] for raw EVM call queries;
 //   - lookup helpers: [Client.Get] and [Client.List];
@@ -24,9 +25,9 @@
 //
 // [Client.Wait] uses the client's poll interval (2 seconds by default) and
 // retries transient 429, 5xx, and common network errors. It stops immediately for
-// validation errors, missing channels, missing queries, or context cancellation.
-// Bound a single [Client.Wait] call either by setting Options.WaitTimeout when
-// constructing the client or by passing a context.WithTimeout per call.
+// validation errors, missing channels, missing queries, or context cancellation,
+// and returns [ErrWaitQueryTimeout] when the supplied maxWaitTime elapses
+// before the query reaches a terminal status.
 //
 // # What each returned part means
 //
@@ -67,13 +68,18 @@
 // waits for completion, decodes verifiable_result, and returns a
 // [CallContractResult].
 //
+//	finalized, err := queries.Finalized()
+//	if err != nil {
+//	    return err
+//	}
 //	result, err := client.Queries.CallContract(ctx, queries.CallContractInput{
 //	    ChannelID:       channelID,
 //	    ChainSelector:   "16015286601757825753",
 //	    ContractAddress: "0x1234567890123456789012345678901234567890",
 //	    CallData:        []byte{0x18, 0x16, 0x0d, 0xdd}, // totalSupply()
-//	    BlockSelection:  queries.Finalized,
+//	    BlockSelection:  finalized,
 //	    IdempotencyKey:  "total-supply-finalized-001",
+//	    MaxWaitTime:     30 * time.Second,
 //	})
 //	if err != nil {
 //	    // API, polling, or decode error.
@@ -88,15 +94,20 @@
 // Set FromAddress or Metadata directly on the input when needed:
 //
 //	fromAddress := "0x000000000000000000000000000000000000dEaD"
+//	latest, err := queries.Latest()
+//	if err != nil {
+//	    return err
+//	}
 //	result, err = client.Queries.CallContract(ctx, queries.CallContractInput{
 //	    ChannelID:       channelID,
 //	    ChainSelector:   chainSelector,
 //	    ContractAddress: tokenAddress,
 //	    CallData:        "0x70a08231...", // balanceOf(address) calldata
-//	    BlockSelection:  queries.Latest,
+//	    BlockSelection:  latest,
 //	    IdempotencyKey:  "balance-query-001",
 //	    FromAddress:     &fromAddress,
 //	    Metadata:        map[string]interface{}{"client_reference_id": "balance-ui"},
+//	    MaxWaitTime:     30 * time.Second,
 //	})
 //
 // # Full ABI wrapper
@@ -105,6 +116,10 @@
 // [Client.CallContract], and ABI-unpacks successful return data into Outputs.
 // Human-readable function fragments and JSON ABI fragments are both accepted.
 //
+//	finalized, err := queries.Finalized()
+//	if err != nil {
+//	    return err
+//	}
 //	result, err := client.Queries.CallContractWithABI(ctx, queries.CallContractWithABIInput{
 //	    ChannelID:       channelID,
 //	    ChainSelector:   chainSelector,
@@ -112,8 +127,9 @@
 //	    ABIFragment:     "function balanceOf(address owner) view returns (uint256)",
 //	    FunctionName:    "balanceOf",
 //	    Args:            []any{"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"},
-//	    BlockSelection:  queries.Finalized,
+//	    BlockSelection:  finalized,
 //	    IdempotencyKey:  "balance-finalized-001",
+//	    MaxWaitTime:     30 * time.Second,
 //	})
 //	if err != nil {
 //	    return err
@@ -128,12 +144,16 @@
 // Use [Client.CreateEVMCall] when you want to submit now and process completion
 // later. It returns only the accepted query ID and status.
 //
+//	latest, err := queries.Latest()
+//	if err != nil {
+//	    return err
+//	}
 //	accepted, err := client.Queries.CreateEVMCall(ctx, queries.CallContractInput{
 //	    ChannelID:       channelID,
 //	    ChainSelector:   chainSelector,
 //	    ContractAddress: tokenAddress,
 //	    CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-//	    BlockSelection:  queries.Latest,
+//	    BlockSelection:  latest,
 //	    IdempotencyKey:  "total-supply-async-001",
 //	})
 //	if err != nil {
@@ -142,7 +162,7 @@
 //
 // Later, await the terminal query resource and decode it:
 //
-//	query, err := client.Queries.Wait(ctx, channelID, accepted.QueryId)
+//	query, err := client.Queries.Wait(ctx, channelID, accepted.QueryId, 30*time.Second)
 //	if err != nil {
 //	    return err
 //	}
@@ -154,10 +174,14 @@
 // For the lowest-level path, build the generated EVM params yourself and call
 // [Client.Create]. The current SDK accepts only QueryKindEVMCall.
 //
+//	finalized, err := queries.Finalized()
+//	if err != nil {
+//	    return err
+//	}
 //	params := apiClient.EVMCallQueryParams{
 //	    ContractAddress: apiClient.EthereumAddress(tokenAddress),
 //	    CallData:        "0x18160ddd",
-//	    BlockSelection:  queries.Finalized,
+//	    BlockSelection:  finalized,
 //	}
 //	accepted, err = client.Queries.Create(ctx, queries.CreateInput{
 //	    ChannelID:      channelID,

@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,8 +24,9 @@ type CallContractABIResult struct {
 
 // CallContractWithABIInput defines an ABI-typed EVM call query request.
 //
-// Set FromAddress to override the call sender (defaults to the zero address)
-// and Metadata to attach customer metadata to the create-query request.
+// Set FromAddress to override the call sender (defaults to the zero address),
+// Metadata to attach customer metadata to the create-query request, and
+// MaxWaitTime to bound the terminal-status poll loop.
 type CallContractWithABIInput struct {
 	ChannelID       uuid.UUID
 	ChainSelector   string
@@ -36,6 +38,7 @@ type CallContractWithABIInput struct {
 	IdempotencyKey  string
 	FromAddress     *string
 	Metadata        map[string]interface{}
+	MaxWaitTime     time.Duration
 }
 
 // CallContractWithABI ABI-encodes function arguments, performs the query, and decodes return bytes.
@@ -64,6 +67,7 @@ func (c *Client) CallContractWithABI(ctx context.Context, input CallContractWith
 		IdempotencyKey:  input.IdempotencyKey,
 		FromAddress:     input.FromAddress,
 		Metadata:        input.Metadata,
+		MaxWaitTime:     input.MaxWaitTime,
 	})
 	if err != nil {
 		return nil, err

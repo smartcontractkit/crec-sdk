@@ -61,6 +61,7 @@ var (
 	ErrGetQuery             = errors.New("failed to get query")
 	ErrListQueries          = errors.New("failed to list queries")
 	ErrWaitQuery            = errors.New("failed waiting for query")
+	ErrWaitQueryTimeout     = errors.New("timeout waiting for query to reach a terminal status")
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 
 	// Decoding/result errors.
@@ -90,9 +91,6 @@ type Options struct {
 	Logger       *slog.Logger
 	APIClient    *apiClient.ClientWithResponses
 	PollInterval time.Duration
-	// WaitTimeout, when > 0, bounds the total duration of a single Wait call.
-	// Per-call deadlines may still be supplied via context.
-	WaitTimeout time.Duration
 }
 
 // Client provides channel-scoped chain query operations.
@@ -100,7 +98,6 @@ type Client struct {
 	logger       *slog.Logger
 	apiClient    *apiClient.ClientWithResponses
 	pollInterval time.Duration
-	waitTimeout  time.Duration
 }
 
 // NewClient creates a new Queries client.
@@ -128,28 +125,27 @@ func NewClient(opts *Options) (*Client, error) {
 		logger:       logger,
 		apiClient:    opts.APIClient,
 		pollInterval: pollInterval,
-		waitTimeout:  opts.WaitTimeout,
 	}, nil
 }
 
-// Latest is the "latest" block selector. It is built once at package init
-// from a constant struct literal and is safe to reuse across calls.
-var Latest BlockSelection
-
-// Finalized is the "finalized" block selector. It is built once at package
-// init from a constant struct literal and is safe to reuse across calls.
-var Finalized BlockSelection
-
-func init() {
-	if err := Latest.FromLatestBlockSelection(apiClient.LatestBlockSelection{}); err != nil {
-		// FromLatestBlockSelection serializes a constant struct literal into a
-		// discriminated union; reaching this branch means the generated client's
-		// union shape changed and the SDK was shipped broken.
-		panic(fmt.Sprintf("queries: FromLatestBlockSelection failed at init: %v", err))
+// Latest returns the "latest" block selector. It cannot fail in practice;
+// any non-nil error indicates the generated client's union shape changed.
+func Latest() (BlockSelection, error) {
+	var selection BlockSelection
+	if err := selection.FromLatestBlockSelection(apiClient.LatestBlockSelection{}); err != nil {
+		return BlockSelection{}, fmt.Errorf("%w: %w", ErrInvalidBlockSelection, err)
 	}
-	if err := Finalized.FromFinalizedBlockSelection(apiClient.FinalizedBlockSelection{}); err != nil {
-		panic(fmt.Sprintf("queries: FromFinalizedBlockSelection failed at init: %v", err))
+	return selection, nil
+}
+
+// Finalized returns the "finalized" block selector. It cannot fail in practice;
+// any non-nil error indicates the generated client's union shape changed.
+func Finalized() (BlockSelection, error) {
+	var selection BlockSelection
+	if err := selection.FromFinalizedBlockSelection(apiClient.FinalizedBlockSelection{}); err != nil {
+		return BlockSelection{}, fmt.Errorf("%w: %w", ErrInvalidBlockSelection, err)
 	}
+	return selection, nil
 }
 
 // BlockNumber returns an explicit block_number selector. Returns an error if
@@ -197,8 +193,9 @@ type ListInput struct {
 
 // CallContractInput defines a raw EVM call query request.
 //
-// Set FromAddress to override the call sender (defaults to the zero address)
-// and Metadata to attach customer metadata to the create-query request.
+// Set FromAddress to override the call sender (defaults to the zero address),
+// Metadata to attach customer metadata to the create-query request, and
+// MaxWaitTime to bound the terminal-status poll loop used by CallContract.
 type CallContractInput struct {
 	ChannelID       uuid.UUID
 	ChainSelector   string
@@ -208,6 +205,7 @@ type CallContractInput struct {
 	IdempotencyKey  string
 	FromAddress     *string
 	Metadata        map[string]interface{}
+	MaxWaitTime     time.Duration
 }
 
 // ResolvedBlock contains concrete block metadata decoded from a terminal verifiable_result.
@@ -382,11 +380,10 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 	}
 }
 
-// Wait polls a query until it reaches a terminal status. The poll loop honors
-// the supplied context and, when the client was configured with a positive
-// Options.WaitTimeout, also stops after that duration. To bound a single call,
-// either set Options.WaitTimeout or pass a context.WithTimeout.
-func (c *Client) Wait(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID) (*apiClient.Query, error) {
+// Wait polls a query until it reaches a terminal status, the supplied context
+// is cancelled, or maxWaitTime elapses. Returns ErrWaitQueryTimeout if
+// maxWaitTime is exceeded before the query reaches a terminal status.
+func (c *Client) Wait(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID, maxWaitTime time.Duration) (*apiClient.Query, error) {
 	if channelID == uuid.Nil {
 		return nil, ErrChannelIDRequired
 	}
@@ -397,17 +394,12 @@ func (c *Client) Wait(ctx context.Context, channelID uuid.UUID, queryID uuid.UUI
 		return nil, err
 	}
 
-	if c.waitTimeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, c.waitTimeout)
-		defer cancel()
-	}
-
 	pollInterval := c.pollInterval
 	if pollInterval <= 0 {
 		pollInterval = defaultPollInterval
 	}
 
+	timeout := time.After(maxWaitTime)
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
@@ -429,6 +421,12 @@ func (c *Client) Wait(ctx context.Context, channelID uuid.UUID, queryID uuid.UUI
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
+		case <-timeout:
+			c.logger.Error("Timeout waiting for query to reach a terminal status",
+				"channel_id", channelID.String(),
+				"query_id", queryID.String(),
+				"max_wait_time", maxWaitTime)
+			return nil, ErrWaitQueryTimeout
 		case <-ticker.C:
 		}
 	}
@@ -441,7 +439,7 @@ func (c *Client) CallContract(ctx context.Context, input CallContractInput) (*Ca
 		return nil, err
 	}
 
-	query, err := c.Wait(ctx, input.ChannelID, accepted.QueryId)
+	query, err := c.Wait(ctx, input.ChannelID, accepted.QueryId, input.MaxWaitTime)
 	if err != nil {
 		return nil, err
 	}

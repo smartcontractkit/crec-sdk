@@ -176,10 +176,7 @@ func TestClient_Wait(t *testing.T) {
 	client, server := setupQueriesTestClient(t, handler)
 	defer server.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	query, err := client.Wait(ctx, channelID, queryID)
+	query, err := client.Wait(context.Background(), channelID, queryID, time.Second)
 
 	require.NoError(t, err)
 	require.NotNil(t, query)
@@ -196,11 +193,24 @@ func TestClient_Wait_ContextDeadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
 	defer cancel()
 
-	query, err := client.Wait(ctx, uuid.New(), uuid.New())
+	query, err := client.Wait(ctx, uuid.New(), uuid.New(), time.Second)
 
 	require.Error(t, err)
 	assert.Nil(t, query)
 	assert.True(t, errors.Is(err, context.DeadlineExceeded), "expected context deadline exceeded, got %v", err)
+}
+
+func TestClient_Wait_MaxWaitTimeout(t *testing.T) {
+	client, server := setupQueriesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(t, w, http.StatusOK, makeAcceptedQuery(uuid.New(), uuid.New(), apiClient.QueryStatusSent))
+	})
+	defer server.Close()
+
+	query, err := client.Wait(context.Background(), uuid.New(), uuid.New(), 5*time.Millisecond)
+
+	require.Error(t, err)
+	assert.Nil(t, query)
+	assert.ErrorIs(t, err, ErrWaitQueryTimeout)
 }
 
 func TestClient_CallContract(t *testing.T) {
@@ -240,18 +250,18 @@ func TestClient_CallContract(t *testing.T) {
 	client, server := setupQueriesTestClient(t, handler)
 	defer server.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
 	fromAddress := testFromAddress
-	result, err := client.CallContract(ctx, CallContractInput{
+	latest, err := Latest()
+	require.NoError(t, err)
+	result, err := client.CallContract(context.Background(), CallContractInput{
 		ChannelID:       channelID,
 		ChainSelector:   testChainSelector,
 		ContractAddress: testContractAddress,
 		CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-		BlockSelection:  Latest,
+		BlockSelection:  latest,
 		IdempotencyKey:  "call-contract-1",
 		FromAddress:     &fromAddress,
+		MaxWaitTime:     time.Second,
 	})
 
 	require.NoError(t, err)
@@ -315,17 +325,16 @@ func TestClient_CreateEVMCall_Wait_ResultFromQuery(t *testing.T) {
 	client, server := setupQueriesTestClient(t, handler)
 	defer server.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
+	finalized, err := Finalized()
+	require.NoError(t, err)
 	accepted, err := client.CreateEVMCall(
-		ctx,
+		context.Background(),
 		CallContractInput{
 			ChannelID:       channelID,
 			ChainSelector:   testChainSelector,
 			ContractAddress: testContractAddress,
 			CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-			BlockSelection:  Finalized,
+			BlockSelection:  finalized,
 			IdempotencyKey:  "async-read-1",
 		},
 	)
@@ -333,7 +342,7 @@ func TestClient_CreateEVMCall_Wait_ResultFromQuery(t *testing.T) {
 	require.NotNil(t, accepted)
 	assert.Equal(t, queryID, accepted.QueryId)
 
-	query, err := client.Wait(ctx, channelID, accepted.QueryId)
+	query, err := client.Wait(context.Background(), channelID, accepted.QueryId, time.Second)
 	require.NoError(t, err)
 	require.NotNil(t, query)
 	assert.Equal(t, apiClient.QueryStatusCompleted, query.Status)
@@ -376,17 +385,17 @@ func TestClient_CallContractWithABI(t *testing.T) {
 	client, server := setupQueriesTestClient(t, handler)
 	defer server.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	result, err := client.CallContractWithABI(ctx, CallContractWithABIInput{
+	latest, err := Latest()
+	require.NoError(t, err)
+	result, err := client.CallContractWithABI(context.Background(), CallContractWithABIInput{
 		ChannelID:       channelID,
 		ChainSelector:   testChainSelector,
 		ContractAddress: testContractAddress,
 		ABIFragment:     "function totalSupply() view returns (uint256)",
 		FunctionName:    "totalSupply",
-		BlockSelection:  Latest,
+		BlockSelection:  latest,
 		IdempotencyKey:  "abi-call-1",
+		MaxWaitTime:     time.Second,
 	})
 
 	require.NoError(t, err)
@@ -404,13 +413,16 @@ func TestClient_CallContractWithABI_Validation(t *testing.T) {
 	})
 	defer server.Close()
 
-	_, err := client.CallContractWithABI(context.Background(), CallContractWithABIInput{
+	latest, err := Latest()
+	require.NoError(t, err)
+
+	_, err = client.CallContractWithABI(context.Background(), CallContractWithABIInput{
 		ChannelID:       uuid.New(),
 		ChainSelector:   testChainSelector,
 		ContractAddress: testContractAddress,
 		ABIFragment:     "",
 		FunctionName:    "",
-		BlockSelection:  Latest,
+		BlockSelection:  latest,
 		IdempotencyKey:  "abi-validation-1",
 	})
 	require.Error(t, err)
@@ -422,7 +434,7 @@ func TestClient_CallContractWithABI_Validation(t *testing.T) {
 		ContractAddress: testContractAddress,
 		ABIFragment:     "function balanceOf(address) view returns (uint256)",
 		FunctionName:    "balanceOf",
-		BlockSelection:  Latest,
+		BlockSelection:  latest,
 		IdempotencyKey:  "abi-validation-2",
 	})
 	require.Error(t, err)
@@ -435,7 +447,7 @@ func TestClient_CallContractWithABI_Validation(t *testing.T) {
 		ABIFragment:     "function balanceOf(address) view returns (uint256)",
 		FunctionName:    "balanceOf",
 		Args:            []any{"not-an-address"},
-		BlockSelection:  Latest,
+		BlockSelection:  latest,
 		IdempotencyKey:  "abi-validation-3",
 	})
 	require.Error(t, err)
