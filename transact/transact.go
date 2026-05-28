@@ -694,7 +694,7 @@ func (c *Client) SendSignedDraftOperation(
 	}
 
 	finalize := apiClient.FinalizeOperation{
-		Status:    apiClient.Accepted,
+		Status:    apiClient.FinalizeOperationStatusAccepted,
 		Signature: "0x" + common.Bytes2Hex(signature),
 		Digest:    "0x" + common.Bytes2Hex(digest),
 	}
