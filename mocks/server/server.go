@@ -600,15 +600,14 @@ func (s *MockServer) ListWatchers(w http.ResponseWriter, r *http.Request, channe
 		watchersSlice := filteredWatchers[offset:end]
 		for _, watcher := range watchersSlice {
 			summary := stdserver.WatcherSummary{
-				WatcherId:       watcher.WatcherId,
-				Name:            watcher.Name,
-				ChainSelector:   watcher.ChainSelector,
-				Address:         watcher.Address,
-				Status:          watcher.Status,
-				ChannelId:       watcher.ChannelId,
-				CreatedAt:       watcher.CreatedAt,
-				DonFamily:       watcher.DonFamily,
-				ConfidenceLevel: watcher.ConfidenceLevel,
+				WatcherId:     watcher.WatcherId,
+				Name:          watcher.Name,
+				ChainSelector: watcher.ChainSelector,
+				Address:       watcher.Address,
+				Status:        watcher.Status,
+				ChannelId:     watcher.ChannelId,
+				CreatedAt:     watcher.CreatedAt,
+				DonFamily:     watcher.DonFamily,
 			}
 			data = append(data, summary)
 		}
@@ -648,18 +647,12 @@ func (s *MockServer) CreateWatcher(w http.ResponseWriter, r *http.Request, chann
 		watcher.Address = svcReq.Address
 		watcher.ChainSelector = svcReq.ChainSelector
 		watcher.Events = svcReq.Events
-		if svcReq.ConfidenceLevel != nil {
-			watcher.ConfidenceLevel = *svcReq.ConfidenceLevel
-		}
 	} else if abiReq, err := request.AsCreateWatcherWithABI(); err == nil {
 		watcher.Name = &abiReq.Name
 		watcher.Address = abiReq.Address
 		watcher.ChainSelector = abiReq.ChainSelector
 		watcher.Events = abiReq.Events
 		watcher.Abi = &abiReq.Abi
-		if abiReq.ConfidenceLevel != nil {
-			watcher.ConfidenceLevel = *abiReq.ConfidenceLevel
-		}
 	} else {
 		http.Error(w, "invalid watcher request", http.StatusBadRequest)
 		return

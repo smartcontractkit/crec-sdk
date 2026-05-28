@@ -706,7 +706,7 @@ func TestClient_SendSignedDraftOperation_Success(t *testing.T) {
 
 		finalize, err := patchReq.AsFinalizeOperation()
 		require.NoError(t, err)
-		require.Equal(t, apiClient.Accepted, finalize.Status)
+		require.Equal(t, apiClient.FinalizeOperationStatusAccepted, finalize.Status)
 		require.Equal(t, "0x"+common.Bytes2Hex(signature), finalize.Signature)
 		require.Equal(t, "0x"+common.Bytes2Hex(digest), finalize.Digest)
 

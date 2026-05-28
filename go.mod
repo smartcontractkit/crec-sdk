@@ -1,6 +1,6 @@
 module github.com/smartcontractkit/crec-sdk
 
-go 1.25.9
+go 1.26.3
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.38.0
@@ -13,6 +13,7 @@ require (
 	github.com/smartcontractkit/chain-selectors v1.0.89
 	github.com/smartcontractkit/chainlink-common v0.10.0
 	github.com/smartcontractkit/crec-api-go v0.7.0-rc10
+	github.com/smartcontractkit/crec-api-go v0.7.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/vault v0.38.0
