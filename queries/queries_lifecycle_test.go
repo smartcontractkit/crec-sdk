@@ -407,6 +407,45 @@ func TestClient_CallContractWithABI(t *testing.T) {
 	assert.Equal(t, big.NewInt(1000), output)
 }
 
+func TestClient_CallContractWithABI_MaxWaitTimeout(t *testing.T) {
+	channelID := uuid.New()
+	queryID := uuid.New()
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			writeJSON(t, w, http.StatusAccepted, apiClient.QueryAcceptedResponse{
+				QueryId: queryID,
+				Status:  apiClient.QueryStatusAccepted,
+			})
+		case http.MethodGet:
+			writeJSON(t, w, http.StatusOK, makeAcceptedQuery(channelID, queryID, apiClient.QueryStatusSent))
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}
+
+	client, server := setupQueriesTestClient(t, handler)
+	defer server.Close()
+
+	latest, err := Latest()
+	require.NoError(t, err)
+	result, err := client.CallContractWithABI(context.Background(), CallContractWithABIInput{
+		ChannelID:       channelID,
+		ChainSelector:   testChainSelector,
+		ContractAddress: testContractAddress,
+		ABIFragment:     "function totalSupply() view returns (uint256)",
+		FunctionName:    "totalSupply",
+		BlockSelection:  latest,
+		IdempotencyKey:  "abi-call-timeout",
+		MaxWaitTime:     5 * time.Millisecond,
+	})
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, ErrWaitQueryTimeout)
+}
+
 func TestClient_CallContractWithABI_Validation(t *testing.T) {
 	client, server := setupQueriesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("request should not be sent for ABI validation failures")
