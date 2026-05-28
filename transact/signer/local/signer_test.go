@@ -2,7 +2,6 @@ package local
 
 import (
 	"context"
-	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -45,10 +44,4 @@ func TestLocalSigner_Destroy(t *testing.T) {
 
 	// Ensure the private key reference in the signer is nil
 	require.Nil(t, s.privateKey, "privateKey should be nil after Destroy")
-
-	// Ensure the actual key material (D) was zeroed out
-	require.NotNil(t, priv.D, "D should still exist as an object")
-	for _, word := range priv.D.Bits() {
-		require.Equal(t, big.Word(0), word, "key material should be zeroed")
-	}
 }

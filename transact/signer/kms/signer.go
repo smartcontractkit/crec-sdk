@@ -17,7 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/smartcontractkit/crec-sdk/transact/signer"
 )
 
@@ -116,15 +115,13 @@ func NewSignerWithClient(client KMSClient, keyID string) (*Signer, error) {
 // Sign signs the pre-hashed message using AWS KMS.
 // Returns an Ethereum-compatible 65-byte signature (r, s, v).
 func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
-	pubkey, err := GetPubKeyCtx(ctx, s.client, s.keyID)
+	pubKeyBytes, err := getPublicKeyDerBytesFromKMS(ctx, s.client, s.keyID)
 	if err != nil {
 		return nil, err
 	}
-	if pubkey == nil || pubkey.X == nil || pubkey.Y == nil {
-		return nil, fmt.Errorf("invalid public key from KMS")
+	if _, err := crypto.UnmarshalPubkey(pubKeyBytes); err != nil {
+		return nil, fmt.Errorf("cannot construct secp256k1 public key from key bytes: %w", err)
 	}
-
-	pubKeyBytes := secp256k1.S256().Marshal(pubkey.X, pubkey.Y)
 
 	rBytes, sBytes, err := getSignatureFromKms(ctx, s.client, s.keyID, hash)
 	if err != nil {

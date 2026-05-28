@@ -22,7 +22,6 @@ import (
 	"time"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/smartcontractkit/crec-sdk/transact/signer"
@@ -913,10 +912,13 @@ func (s *Signer) extractSignature(op *OperationResponse, hash []byte) ([]byte, e
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress public key: %w", err)
 		}
-		if pubKey == nil || pubKey.X == nil || pubKey.Y == nil {
+		if pubKey == nil {
 			return nil, fmt.Errorf("invalid decompressed public key")
 		}
-		pubKeyBytes = secp256k1.S256().Marshal(pubKey.X, pubKey.Y)
+		pubKeyBytes = ethcrypto.FromECDSAPub(pubKey)
+		if pubKeyBytes == nil {
+			return nil, fmt.Errorf("invalid decompressed public key")
+		}
 	}
 
 	// Build the signature and recover V

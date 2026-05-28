@@ -31,15 +31,9 @@ func (s *Signer) Sign(_ context.Context, hash []byte) ([]byte, error) {
 	return sig, nil
 }
 
-// Destroy attempts to zeroize the private key material in memory.
-// Note that Go's garbage collector and escape analysis make it hard to guarantee
-// complete zeroization, but this clears the immediate reference.
+// Destroy clears the signer's private key reference.
+// Note that Go's supported ECDSA APIs no longer expose mutable scalar internals,
+// so complete zeroization cannot be guaranteed.
 func (s *Signer) Destroy() {
-	if s.privateKey != nil && s.privateKey.D != nil {
-		words := s.privateKey.D.Bits()
-		for i := range words {
-			words[i] = 0
-		}
-	}
 	s.privateKey = nil
 }
