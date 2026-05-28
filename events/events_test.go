@@ -1289,7 +1289,7 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 		statusPayload := apiClient.WatcherStatusPayload{
 			ChainSelector: "16015286601757825753",
 			WatcherId:     "550e8400-e29b-41d4-a716-446655440000",
-			Status:        apiClient.WatcherEventStatusPending,
+			Status:        apiClient.WatcherStatusPending,
 			StatusReason:  "Watcher is pending",
 			Timestamp:     1700000000,
 		}
@@ -2150,8 +2150,8 @@ func TestClient_DecodeOperationStatusVerifiableEvent(t *testing.T) {
 	t.Run("Success_FailedWithOperationStatusData", func(t *testing.T) {
 		// Failed operation status events have no chain event but contain OperationStatusData in Data
 		service := "_crec"
-		operationStatusData := models.OperationStatusData{
-			Status:            models.Failed,
+		operationStatusData := models.OperationStatusUpdate{
+			Status:            models.OperationStatusUpdateFailed,
 			StatusReason:      "Insufficient funds",
 			WalletAddress:     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
 			WalletOperationId: "wallet-op-456",
