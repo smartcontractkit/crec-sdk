@@ -400,7 +400,13 @@ func (it *Erc20ApprovalIterator) Error() error {
 // resources.
 func (it *Erc20ApprovalIterator) Close() error {
 	it.sub.Unsubscribe()
-	return nil
+	for {
+		select {
+		case <-it.logs:
+		default:
+			return nil
+		}
+	}
 }
 
 // Erc20Approval represents a Approval event raised by the Erc20 contract.
@@ -554,7 +560,13 @@ func (it *Erc20TransferIterator) Error() error {
 // resources.
 func (it *Erc20TransferIterator) Close() error {
 	it.sub.Unsubscribe()
-	return nil
+	for {
+		select {
+		case <-it.logs:
+		default:
+			return nil
+		}
+	}
 }
 
 // Erc20Transfer represents a Transfer event raised by the Erc20 contract.
