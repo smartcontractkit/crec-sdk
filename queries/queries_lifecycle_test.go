@@ -254,14 +254,16 @@ func TestClient_CallContract(t *testing.T) {
 	latest, err := Latest()
 	require.NoError(t, err)
 	result, err := client.CallContract(context.Background(), CallContractInput{
-		ChannelID:       channelID,
-		ChainSelector:   testChainSelector,
-		ContractAddress: testContractAddress,
-		CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-		BlockSelection:  latest,
-		IdempotencyKey:  "call-contract-1",
-		FromAddress:     &fromAddress,
-		MaxWaitTime:     time.Second,
+		CallInput: EVMCallInput{
+			ChannelID:       channelID,
+			ChainSelector:   testChainSelector,
+			ContractAddress: testContractAddress,
+			CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
+			BlockSelection:  latest,
+			IdempotencyKey:  "call-contract-1",
+			FromAddress:     &fromAddress,
+		},
+		MaxWaitTime: time.Second,
 	})
 
 	require.NoError(t, err)
@@ -329,7 +331,7 @@ func TestClient_CreateEVMCall_Wait_ResultFromQuery(t *testing.T) {
 	require.NoError(t, err)
 	accepted, err := client.CreateEVMCall(
 		context.Background(),
-		CallContractInput{
+		EVMCallInput{
 			ChannelID:       channelID,
 			ChainSelector:   testChainSelector,
 			ContractAddress: testContractAddress,

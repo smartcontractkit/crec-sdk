@@ -157,13 +157,15 @@
 //	    return err
 //	}
 //	result, err := client.Queries.CallContract(ctx, queries.CallContractInput{
-//	    ChannelID:       channelID,
-//	    ChainSelector:   "16015286601757825753",
-//	    ContractAddress: "0x1234567890123456789012345678901234567890",
-//	    CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
-//	    BlockSelection:  latest,
-//	    IdempotencyKey:  "query-idempotency-key",
-//	    MaxWaitTime:     30 * time.Second,
+//	    CallInput: queries.EVMCallInput{
+//	        ChannelID:       channelID,
+//	        ChainSelector:   "16015286601757825753",
+//	        ContractAddress: "0x1234567890123456789012345678901234567890",
+//	        CallData:        []byte{0x18, 0x16, 0x0d, 0xdd},
+//	        BlockSelection:  latest,
+//	        IdempotencyKey:  "query-idempotency-key",
+//	    },
+//	    MaxWaitTime: 30 * time.Second,
 //	})
 //	_ = result
 //	_ = err

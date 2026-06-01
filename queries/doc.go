@@ -73,13 +73,15 @@
 //	    return err
 //	}
 //	result, err := client.Queries.CallContract(ctx, queries.CallContractInput{
-//	    ChannelID:       channelID,
-//	    ChainSelector:   "16015286601757825753",
-//	    ContractAddress: "0x1234567890123456789012345678901234567890",
-//	    CallData:        []byte{0x18, 0x16, 0x0d, 0xdd}, // totalSupply()
-//	    BlockSelection:  finalized,
-//	    IdempotencyKey:  "total-supply-finalized-001",
-//	    MaxWaitTime:     30 * time.Second,
+//	    CallInput: queries.EVMCallInput{
+//	        ChannelID:       channelID,
+//	        ChainSelector:   "16015286601757825753",
+//	        ContractAddress: "0x1234567890123456789012345678901234567890",
+//	        CallData:        []byte{0x18, 0x16, 0x0d, 0xdd}, // totalSupply()
+//	        BlockSelection:  finalized,
+//	        IdempotencyKey:  "total-supply-finalized-001",
+//	    },
+//	    MaxWaitTime: 30 * time.Second,
 //	})
 //	if err != nil {
 //	    // API, polling, or decode error.
@@ -99,15 +101,17 @@
 //	    return err
 //	}
 //	result, err = client.Queries.CallContract(ctx, queries.CallContractInput{
-//	    ChannelID:       channelID,
-//	    ChainSelector:   chainSelector,
-//	    ContractAddress: tokenAddress,
-//	    CallData:        "0x70a08231...", // balanceOf(address) calldata
-//	    BlockSelection:  latest,
-//	    IdempotencyKey:  "balance-query-001",
-//	    FromAddress:     &fromAddress,
-//	    Metadata:        map[string]interface{}{"client_reference_id": "balance-ui"},
-//	    MaxWaitTime:     30 * time.Second,
+//	    CallInput: queries.EVMCallInput{
+//	        ChannelID:       channelID,
+//	        ChainSelector:   chainSelector,
+//	        ContractAddress: tokenAddress,
+//	        CallData:        "0x70a08231...", // balanceOf(address) calldata
+//	        BlockSelection:  latest,
+//	        IdempotencyKey:  "balance-query-001",
+//	        FromAddress:     &fromAddress,
+//	        Metadata:        map[string]interface{}{"client_reference_id": "balance-ui"},
+//	    },
+//	    MaxWaitTime: 30 * time.Second,
 //	})
 //
 // # Full ABI wrapper
@@ -148,7 +152,7 @@
 //	if err != nil {
 //	    return err
 //	}
-//	accepted, err := client.Queries.CreateEVMCall(ctx, queries.CallContractInput{
+//	accepted, err := client.Queries.CreateEVMCall(ctx, queries.EVMCallInput{
 //	    ChannelID:       channelID,
 //	    ChainSelector:   chainSelector,
 //	    ContractAddress: tokenAddress,

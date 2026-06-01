@@ -191,12 +191,12 @@ type ListInput struct {
 	Offset    *int64
 }
 
-// CallContractInput defines a raw EVM call query request.
+// EVMCallInput defines a raw EVM call query request without any wait-loop
+// options.
 //
-// Set FromAddress to override the call sender (defaults to the zero address),
-// Metadata to attach customer metadata to the create-query request, and
-// MaxWaitTime to bound the terminal-status poll loop used by CallContract.
-type CallContractInput struct {
+// Set FromAddress to override the call sender (defaults to the zero address)
+// and Metadata to attach customer metadata to the create-query request.
+type EVMCallInput struct {
 	ChannelID       uuid.UUID
 	ChainSelector   string
 	ContractAddress string
@@ -205,7 +205,13 @@ type CallContractInput struct {
 	IdempotencyKey  string
 	FromAddress     *string
 	Metadata        map[string]interface{}
-	MaxWaitTime     time.Duration
+}
+
+// CallContractInput wraps an EVMCallInput with the terminal-status poll
+// timeout used by Client.CallContract.
+type CallContractInput struct {
+	CallInput   EVMCallInput
+	MaxWaitTime time.Duration
 }
 
 // ResolvedBlock contains concrete block metadata decoded from a terminal verifiable_result.
@@ -294,7 +300,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 }
 
 // CreateEVMCall creates an evm_call query without waiting for terminal status.
-func (c *Client) CreateEVMCall(ctx context.Context, input CallContractInput) (*apiClient.QueryAcceptedResponse, error) {
+func (c *Client) CreateEVMCall(ctx context.Context, input EVMCallInput) (*apiClient.QueryAcceptedResponse, error) {
 	params, err := buildEVMCallQueryParams(input)
 	if err != nil {
 		return nil, err
@@ -434,12 +440,12 @@ func (c *Client) Wait(ctx context.Context, channelID uuid.UUID, queryID uuid.UUI
 
 // CallContract creates an evm_call query, waits for terminal status, and decodes the verifiable_result.
 func (c *Client) CallContract(ctx context.Context, input CallContractInput) (*CallContractResult, error) {
-	accepted, err := c.CreateEVMCall(ctx, input)
+	accepted, err := c.CreateEVMCall(ctx, input.CallInput)
 	if err != nil {
 		return nil, err
 	}
 
-	query, err := c.Wait(ctx, input.ChannelID, accepted.QueryId, input.MaxWaitTime)
+	query, err := c.Wait(ctx, input.CallInput.ChannelID, accepted.QueryId, input.MaxWaitTime)
 	if err != nil {
 		return nil, err
 	}
@@ -610,7 +616,7 @@ func validateCreateInput(input *CreateInput) error {
 	return nil
 }
 
-func buildEVMCallQueryParams(input CallContractInput) (apiClient.EVMCallQueryParams, error) {
+func buildEVMCallQueryParams(input EVMCallInput) (apiClient.EVMCallQueryParams, error) {
 	if input.ChannelID == uuid.Nil {
 		return apiClient.EVMCallQueryParams{}, ErrChannelIDRequired
 	}

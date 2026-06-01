@@ -59,15 +59,17 @@ func (c *Client) CallContractWithABI(ctx context.Context, input CallContractWith
 	}
 
 	rawResult, err := c.CallContract(ctx, CallContractInput{
-		ChannelID:       input.ChannelID,
-		ChainSelector:   input.ChainSelector,
-		ContractAddress: input.ContractAddress,
-		CallData:        callData,
-		BlockSelection:  input.BlockSelection,
-		IdempotencyKey:  input.IdempotencyKey,
-		FromAddress:     input.FromAddress,
-		Metadata:        input.Metadata,
-		MaxWaitTime:     input.MaxWaitTime,
+		CallInput: EVMCallInput{
+			ChannelID:       input.ChannelID,
+			ChainSelector:   input.ChainSelector,
+			ContractAddress: input.ContractAddress,
+			CallData:        callData,
+			BlockSelection:  input.BlockSelection,
+			IdempotencyKey:  input.IdempotencyKey,
+			FromAddress:     input.FromAddress,
+			Metadata:        input.Metadata,
+		},
+		MaxWaitTime: input.MaxWaitTime,
 	})
 	if err != nil {
 		return nil, err

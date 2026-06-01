@@ -453,7 +453,7 @@ func TestClient_CreateEVMCall(t *testing.T) {
 	require.NoError(t, err)
 	resp, err := client.CreateEVMCall(
 		context.Background(),
-		CallContractInput{
+		EVMCallInput{
 			ChannelID:       channelID,
 			ChainSelector:   testChainSelector,
 			ContractAddress: testContractAddress,
