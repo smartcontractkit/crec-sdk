@@ -256,6 +256,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		address := []string{"0x1234567890123456789012345678901234567890"}
 		walletOperationID := "op-123"
 		operationID := uuid.New().String()
+		queryID := uuid.New().String()
 		eventName := "Transfer"
 		service := []string{"dvp"}
 
@@ -274,6 +275,7 @@ func TestClient_SearchEvents(t *testing.T) {
 			assert.Equal(t, "0x1234567890123456789012345678901234567890", q.Get("address"))
 			assert.Equal(t, "op-123", q.Get("wallet_operation_id"))
 			assert.Equal(t, operationID, q.Get("operation_id"))
+			assert.Equal(t, queryID, q.Get("query_id"))
 			assert.Equal(t, "Transfer", q.Get("event_name"))
 			assert.Equal(t, "dvp", q.Get("service"))
 			w.Header().Set("Content-Type", "application/json")
@@ -301,6 +303,7 @@ func TestClient_SearchEvents(t *testing.T) {
 			Address:           &address,
 			WalletOperationId: &walletOperationID,
 			OperationId:       &operationID,
+			QueryId:           &queryID,
 			EventName:         &eventName,
 			Service:           &service,
 		}
