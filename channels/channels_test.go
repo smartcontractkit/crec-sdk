@@ -213,6 +213,23 @@ func TestClient_Create(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrChannelNameRequired), "Expected ErrChannelNameRequired, got: %v", err)
 	})
 
+	t.Run("WhitespaceOnlyName", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("Should not make request with whitespace-only name")
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		channel, err := client.Create(context.Background(), CreateInput{
+			Name: "   ",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, channel)
+		assert.True(t, errors.Is(err, ErrChannelNameRequired))
+	})
+
 	t.Run("NameTooLong", func(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			t.Fatal("Should not make request with name too long")

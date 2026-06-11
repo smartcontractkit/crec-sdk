@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -92,6 +93,16 @@ type CreateInput struct {
 	Description *string
 }
 
+func validateChannelName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return ErrChannelNameRequired
+	}
+	if len(name) > MaxChannelNameLength {
+		return fmt.Errorf("%w: cannot exceed %d characters", ErrChannelNameTooLong, MaxChannelNameLength)
+	}
+	return nil
+}
+
 // Create creates a new channel in the CREC backend.
 //
 // Parameters:
@@ -102,12 +113,8 @@ type CreateInput struct {
 func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Channel, error) {
 	c.logger.Debug("Creating channel", "name", input.Name)
 
-	if input.Name == "" {
-		return nil, ErrChannelNameRequired
-	}
-
-	if len(input.Name) > MaxChannelNameLength {
-		return nil, fmt.Errorf("%w: cannot exceed %d characters", ErrChannelNameTooLong, MaxChannelNameLength)
+	if err := validateChannelName(input.Name); err != nil {
+		return nil, err
 	}
 
 	createChannelReq := apiClient.CreateChannel{
@@ -262,12 +269,8 @@ type UpdateInput struct {
 func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateInput) (*apiClient.Channel, error) {
 	c.logger.Debug("Updating channel", "channel_id", channelID.String(), "name", input.Name)
 
-	if input.Name == "" {
-		return nil, ErrChannelNameRequired
-	}
-
-	if len(input.Name) > MaxChannelNameLength {
-		return nil, fmt.Errorf("%w: cannot exceed %d characters", ErrChannelNameTooLong, MaxChannelNameLength)
+	if err := validateChannelName(input.Name); err != nil {
+		return nil, err
 	}
 
 	patchChannelReq := apiClient.PatchChannel{
