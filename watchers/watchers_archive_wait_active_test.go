@@ -97,7 +97,9 @@ func TestClient_Archive(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
-				"error": "Watcher not found",
+				"message": "watcher with ID " + watcherID.String() + " not found",
+				"type":    "NOT_FOUND",
+				"code":    "WATCHER_NOT_FOUND",
 			}))
 		}
 

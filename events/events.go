@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/workflows"
+	"github.com/smartcontractkit/crec-sdk/internal/apierrors"
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/models"
 )
@@ -265,7 +266,18 @@ func (c *Client) Poll(
 
 	if resp.StatusCode() == 404 {
 		c.logger.Warn("Channel not found", "channel_id", channelID.String())
-		return nil, false, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
+		return nil, false, apierrors.MapNotFound(
+			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
+			apierrors.NotFoundMapping{
+				Channel: ErrChannelNotFound,
+				Empty: func() error {
+					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+				},
+				Unknown: func(msg string) error {
+					return fmt.Errorf("%w: %s", ErrGetEvents, msg)
+				},
+			},
+		)
 	}
 
 	if resp.StatusCode() != 200 {
@@ -320,11 +332,19 @@ func (c *Client) SearchEvents(
 	}
 
 	if resp.StatusCode() == 404 {
-		c.logger.Warn(
-			"Channel not found",
-			"channel_id", channelID.String(),
+		c.logger.Warn("Channel not found", "channel_id", channelID.String())
+		return nil, false, apierrors.MapNotFound(
+			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
+			apierrors.NotFoundMapping{
+				Channel: ErrChannelNotFound,
+				Empty: func() error {
+					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+				},
+				Unknown: func(msg string) error {
+					return fmt.Errorf("%w: %s", ErrSearchEvents, msg)
+				},
+			},
 		)
-		return nil, false, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
 	}
 
 	if resp.StatusCode() == 400 {

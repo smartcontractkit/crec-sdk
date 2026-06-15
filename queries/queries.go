@@ -19,6 +19,7 @@ import (
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/models"
 
+	"github.com/smartcontractkit/crec-sdk/internal/apierrors"
 	"github.com/smartcontractkit/crec-sdk/internal/retry"
 )
 
@@ -286,7 +287,18 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 			"status", resp.JSON202.Status)
 		return resp.JSON202, nil
 	case http.StatusNotFound:
-		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+		return nil, apierrors.MapNotFound(
+			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
+			apierrors.NotFoundMapping{
+				Channel: ErrChannelNotFound,
+				Empty: func() error {
+					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+				},
+				Unknown: func(msg string) error {
+					return fmt.Errorf("%w: %s", ErrCreateQuery, msg)
+				},
+			},
+		)
 	case http.StatusConflict:
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict)
 	case http.StatusTooManyRequests:
@@ -337,7 +349,19 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID
 		}
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		return nil, fmt.Errorf("%w: query ID %s in channel %s", ErrQueryNotFound, queryID.String(), channelID.String())
+		return nil, apierrors.MapNotFound(
+			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
+			apierrors.NotFoundMapping{
+				Channel: ErrChannelNotFound,
+				Query:   ErrQueryNotFound,
+				Empty: func() error {
+					return fmt.Errorf("%w: query ID %s in channel %s", ErrQueryNotFound, queryID.String(), channelID.String())
+				},
+				Unknown: func(msg string) error {
+					return fmt.Errorf("%w: %s", ErrGetQuery, msg)
+				},
+			},
+		)
 	default:
 		c.logger.Error("Unexpected status code when getting query",
 			"status_code", resp.StatusCode(),
@@ -377,7 +401,18 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 		}
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
-		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+		return nil, false, apierrors.MapNotFound(
+			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
+			apierrors.NotFoundMapping{
+				Channel: ErrChannelNotFound,
+				Empty: func() error {
+					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+				},
+				Unknown: func(msg string) error {
+					return fmt.Errorf("%w: %s", ErrListQueries, msg)
+				},
+			},
+		)
 	default:
 		c.logger.Error("Unexpected status code when listing queries",
 			"status_code", resp.StatusCode(),

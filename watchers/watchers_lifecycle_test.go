@@ -431,7 +431,7 @@ func TestEndToEnd_ErrorScenarios(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "PATCH" {
 				w.WriteHeader(http.StatusNotFound)
-				_, writeErr := w.Write([]byte(`{"error": "watcher not found"}`))
+				_, writeErr := w.Write([]byte(`{"type":"NOT_FOUND","code":"WATCHER_NOT_FOUND","message":"watcher not found"}`))
 				require.NoError(t, writeErr)
 			}
 		}
