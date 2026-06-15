@@ -140,6 +140,9 @@
 //	if errors.Is(err, ErrChannelNotFound) {
 //	    // Handle missing channel
 //	}
+//	if errors.Is(err, ErrWalletNotFound) {
+//	    // Handle missing wallet referenced by an operation
+//	}
 //	if errors.Is(err, ErrOperationNotFound) {
 //	    // Handle missing operation
 //	}

@@ -74,6 +74,46 @@ func TestClient_Get(t *testing.T) {
 		assert.Nil(t, query)
 		assert.ErrorIs(t, err, ErrQueryNotFound)
 	})
+
+	t.Run("QueryNotFound", func(t *testing.T) {
+		channelID := uuid.New()
+		queryID := uuid.New()
+
+		client, server := setupQueriesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+			queryCode := apiClient.ApplicationErrorCodeQueryNotFound
+			writeJSON(t, w, http.StatusNotFound, apiClient.ApplicationError{
+				Message: "query with ID " + queryID.String() + " not found in channel " + channelID.String(),
+				Code:    &queryCode,
+			})
+		})
+		defer server.Close()
+
+		query, err := client.Get(context.Background(), channelID, queryID)
+
+		require.Error(t, err)
+		assert.Nil(t, query)
+		assert.ErrorIs(t, err, ErrQueryNotFound)
+	})
+
+	t.Run("ChannelNotFound", func(t *testing.T) {
+		channelID := uuid.New()
+		queryID := uuid.New()
+
+		client, server := setupQueriesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+			channelCode := apiClient.ApplicationErrorCodeChannelNotFound
+			writeJSON(t, w, http.StatusNotFound, apiClient.ApplicationError{
+				Message: "channel with ID " + channelID.String() + " not found",
+				Code:    &channelCode,
+			})
+		})
+		defer server.Close()
+
+		query, err := client.Get(context.Background(), channelID, queryID)
+
+		require.Error(t, err)
+		assert.Nil(t, query)
+		assert.ErrorIs(t, err, ErrChannelNotFound)
+	})
 }
 
 func TestClient_List(t *testing.T) {
@@ -140,12 +180,18 @@ func TestClient_List_ValidationAndErrors(t *testing.T) {
 	})
 
 	t.Run("ChannelNotFound", func(t *testing.T) {
+		channelID := uuid.New()
+
 		client, server := setupQueriesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-			writeJSON(t, w, http.StatusNotFound, nil)
+			channelCode := apiClient.ApplicationErrorCodeChannelNotFound
+			writeJSON(t, w, http.StatusNotFound, apiClient.ApplicationError{
+				Message: "channel with ID " + channelID.String() + " not found",
+				Code:    &channelCode,
+			})
 		})
 		defer server.Close()
 
-		queries, hasMore, err := client.List(context.Background(), ListInput{ChannelID: uuid.New()})
+		queries, hasMore, err := client.List(context.Background(), ListInput{ChannelID: channelID})
 
 		require.Error(t, err)
 		assert.Nil(t, queries)

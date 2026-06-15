@@ -13,6 +13,7 @@ import (
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
+	"github.com/smartcontractkit/crec-sdk/internal/apierrors"
 	"github.com/smartcontractkit/crec-sdk/internal/retry"
 )
 
@@ -24,6 +25,9 @@ var (
 
 	// ErrWatcherNotFound is returned when a watcher is not found (404 response).
 	ErrWatcherNotFound = errors.New("watcher not found")
+
+	// ErrChannelNotFound is returned when the channel does not exist (404 response).
+	ErrChannelNotFound = errors.New("channel not found")
 
 	// ErrChannelIDRequired is returned when the channel ID is nil or empty.
 	ErrChannelIDRequired = errors.New("channel_id cannot be empty")
@@ -486,7 +490,19 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UU
 		)
 
 		if resp.StatusCode() == 404 {
-			return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
+			return nil, apierrors.MapNotFound(
+				apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
+				apierrors.NotFoundMapping{
+					Channel: ErrChannelNotFound,
+					Watcher: ErrWatcherNotFound,
+					Empty: func() error {
+						return fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
+					},
+					Unknown: func(msg string) error {
+						return fmt.Errorf("%w: %s", ErrGetWatcher, msg)
+					},
+				},
+			)
 		}
 
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
@@ -542,7 +558,19 @@ func (c *Client) Update(
 		)
 
 		if resp.StatusCode() == 404 {
-			return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
+			return nil, apierrors.MapNotFound(
+				apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
+				apierrors.NotFoundMapping{
+					Channel: ErrChannelNotFound,
+					Watcher: ErrWatcherNotFound,
+					Empty: func() error {
+						return fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
+					},
+					Unknown: func(msg string) error {
+						return fmt.Errorf("%w: %s", ErrUpdateWatcher, msg)
+					},
+				},
+			)
 		}
 
 		return nil, fmt.Errorf("%w: %w (status code %d)", ErrUpdateWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
@@ -677,7 +705,19 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 	}
 
 	if resp.StatusCode() == 404 {
-		return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
+		return nil, apierrors.MapNotFound(
+			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
+			apierrors.NotFoundMapping{
+				Channel: ErrChannelNotFound,
+				Watcher: ErrWatcherNotFound,
+				Empty: func() error {
+					return fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
+				},
+				Unknown: func(string) error {
+					return fmt.Errorf("%w: %w", ErrArchiveWatcher, ErrWatcherNotFound)
+				},
+			},
+		)
 	}
 
 	if resp.StatusCode() == 202 {

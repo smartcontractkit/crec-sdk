@@ -256,7 +256,9 @@ func TestClient_CreateOperation(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
-				"error": "Channel not found",
+				"message": "channel with ID " + channelID.String() + " not found",
+				"type":    "NOT_FOUND",
+				"code":    "CHANNEL_NOT_FOUND",
 			}))
 		}
 
@@ -277,6 +279,41 @@ func TestClient_CreateOperation(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, opID)
 		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
+		assert.Contains(t, err.Error(), "channel with ID")
+	})
+
+	t.Run("WalletNotFound", func(t *testing.T) {
+		channelID := uuid.New()
+		walletMsg := "wallet with address 0xF8dD123456789012345678901234567890123456 and chain_selector 16015286601757825753 not found"
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+				"message": walletMsg,
+				"type":    "NOT_FOUND",
+				"code":    "WALLET_NOT_FOUND",
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		opID, err := client.CreateOperation(context.Background(), CreateOperationInput{
+			ChannelID:         channelID,
+			ChainSelector:     "16015286601757825753",
+			Address:           "0xF8dD123456789012345678901234567890123456",
+			WalletOperationID: "op-123",
+			Transactions: []TransactionRequest{
+				{To: "0x5678", Value: "0", Data: "0xabcd"},
+			},
+			Signature: "0xsig",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, opID)
+		assert.True(t, errors.Is(err, ErrWalletNotFound), "Expected ErrWalletNotFound, got: %v", err)
+		assert.Contains(t, err.Error(), walletMsg)
 	})
 
 	t.Run("BadRequest", func(t *testing.T) {
@@ -362,7 +399,9 @@ func TestClient_GetOperation(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
-				"error": "Operation not found",
+				"message": "operation with ID " + operationID.String() + " not found",
+				"type":    "NOT_FOUND",
+				"code":    "OPERATION_NOT_FOUND",
 			}))
 		}
 
@@ -374,6 +413,30 @@ func TestClient_GetOperation(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, operation)
 		assert.True(t, errors.Is(err, ErrOperationNotFound), "Expected ErrOperationNotFound, got: %v", err)
+	})
+
+	t.Run("ChannelNotFound", func(t *testing.T) {
+		channelID := uuid.New()
+		operationID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+				"message": "channel with ID " + channelID.String() + " not found",
+				"type":    "NOT_FOUND",
+				"code":    "CHANNEL_NOT_FOUND",
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		operation, err := client.GetOperation(context.Background(), channelID, operationID)
+
+		require.Error(t, err)
+		assert.Nil(t, operation)
+		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
 	})
 
 	t.Run("ServerError", func(t *testing.T) {
@@ -634,7 +697,9 @@ func TestClient_ListOperations(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
-				"error": "Channel not found",
+				"message": "channel with ID " + channelID.String() + " not found",
+				"type":    "NOT_FOUND",
+				"code":    "CHANNEL_NOT_FOUND",
 			}))
 		}
 

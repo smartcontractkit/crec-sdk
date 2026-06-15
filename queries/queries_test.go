@@ -350,8 +350,16 @@ func TestClient_Create(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				handler := func(w http.ResponseWriter, r *http.Request) {
+					msg := "error"
+					code := (*apiClient.ApplicationErrorCode)(nil)
+					if tt.wantErr == ErrChannelNotFound {
+						msg = "channel with ID abc not found"
+						channelCode := apiClient.ApplicationErrorCodeChannelNotFound
+						code = &channelCode
+					}
 					writeJSON(t, w, tt.statusCode, apiClient.ApplicationError{
-						Message: "error",
+						Message: msg,
+						Code:    code,
 					})
 				}
 

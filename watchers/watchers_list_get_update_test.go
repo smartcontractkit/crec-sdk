@@ -281,7 +281,9 @@ func TestClient_Get(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
-				"error": "Watcher not found",
+				"message": "watcher with ID " + watcherID.String() + " not found",
+				"type":    "NOT_FOUND",
+				"code":    "WATCHER_NOT_FOUND",
 			}))
 		}
 
@@ -293,6 +295,30 @@ func TestClient_Get(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, watcher)
 		assert.True(t, errors.Is(err, ErrWatcherNotFound), "Expected ErrWatcherNotFound, got: %v", err)
+	})
+
+	t.Run("ChannelNotFound", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+				"message": "channel with ID " + channelID.String() + " not found",
+				"type":    "NOT_FOUND",
+				"code":    "CHANNEL_NOT_FOUND",
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		watcher, err := client.Get(context.Background(), channelID, watcherID)
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
 	})
 }
 
@@ -402,7 +428,9 @@ func TestClient_Update(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
-				"error": "Watcher not found",
+				"message": "watcher with ID " + watcherID.String() + " not found",
+				"type":    "NOT_FOUND",
+				"code":    "WATCHER_NOT_FOUND",
 			}))
 		}
 
