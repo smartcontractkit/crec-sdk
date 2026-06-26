@@ -19,6 +19,7 @@ import (
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/models"
 
+	"github.com/smartcontractkit/crec-sdk/apierror"
 	"github.com/smartcontractkit/crec-sdk/internal/retry"
 )
 
@@ -53,16 +54,15 @@ var (
 	ErrInvalidHexBytes          = errors.New("invalid 0x-prefixed even-length hex bytes")
 
 	// API/resource errors.
-	ErrChannelNotFound      = errors.New("channel not found")
-	ErrQueryNotFound        = errors.New("query not found")
-	ErrIdempotencyConflict  = errors.New("idempotency conflict")
-	ErrRateLimitExceeded    = errors.New("rate limit exceeded")
-	ErrCreateQuery          = errors.New("failed to create query")
-	ErrGetQuery             = errors.New("failed to get query")
-	ErrListQueries          = errors.New("failed to list queries")
-	ErrWaitQuery            = errors.New("failed waiting for query")
-	ErrWaitQueryTimeout     = errors.New("timeout waiting for query to reach a terminal status")
-	ErrUnexpectedStatusCode = errors.New("unexpected status code")
+	ErrChannelNotFound     = errors.New("channel not found")
+	ErrQueryNotFound       = errors.New("query not found")
+	ErrIdempotencyConflict = errors.New("idempotency conflict")
+	ErrRateLimitExceeded   = errors.New("rate limit exceeded")
+	ErrCreateQuery         = errors.New("failed to create query")
+	ErrGetQuery            = errors.New("failed to get query")
+	ErrListQueries         = errors.New("failed to list queries")
+	ErrWaitQuery           = errors.New("failed waiting for query")
+	ErrWaitQueryTimeout    = errors.New("timeout waiting for query to reach a terminal status")
 
 	// Decoding/result errors.
 	ErrDecodeVerifiableResult        = errors.New("failed to decode verifiable_result")
@@ -291,11 +291,16 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict)
 	case http.StatusTooManyRequests:
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrRateLimitExceeded)
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when creating query",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrCreateQuery, resp.StatusCode())
 	default:
 		c.logger.Error("Unexpected status code when creating query",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateQuery, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateQuery, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 }
 
@@ -338,11 +343,16 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID
 		return resp.JSON200, nil
 	case http.StatusNotFound:
 		return nil, fmt.Errorf("%w: query ID %s in channel %s", ErrQueryNotFound, queryID.String(), channelID.String())
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when getting query",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrGetQuery, resp.StatusCode())
 	default:
 		c.logger.Error("Unexpected status code when getting query",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetQuery, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetQuery, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 }
 
@@ -378,11 +388,16 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
 		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when listing queries",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, apierror.Wrap(resp.JSON401, ErrListQueries, resp.StatusCode())
 	default:
 		c.logger.Error("Unexpected status code when listing queries",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListQueries, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListQueries, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 }
 

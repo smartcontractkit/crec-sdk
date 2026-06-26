@@ -19,6 +19,8 @@ import (
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/models"
+
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 const (
@@ -160,7 +162,7 @@ func TestClient_ListEvents(t *testing.T) {
 		require.Error(t, err)
 		// nil response checked
 		assert.ErrorIs(t, err, ErrPollEvents)
-		assert.ErrorIs(t, err, ErrUnexpectedStatusCode)
+		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
 	})
 
 	t.Run("NilResponseBody", func(t *testing.T) {
@@ -172,7 +174,7 @@ func TestClient_ListEvents(t *testing.T) {
 
 		_, _, err := c.Poll(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrNilResponseBody)
+		assert.ErrorIs(t, err, apierror.ErrNilResponseBody)
 	})
 
 	t.Run("WithPagination", func(t *testing.T) {
@@ -432,7 +434,7 @@ func TestClient_SearchEvents(t *testing.T) {
 		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrSearchEvents)
-		assert.ErrorIs(t, err, ErrUnexpectedStatusCode)
+		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
 	})
 
 	t.Run("NilResponseBody", func(t *testing.T) {
@@ -444,7 +446,7 @@ func TestClient_SearchEvents(t *testing.T) {
 
 		_, _, err := c.SearchEvents(context.Background(), channelID, nil)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrNilResponseBody)
+		assert.ErrorIs(t, err, apierror.ErrNilResponseBody)
 	})
 
 	t.Run("WithPagination", func(t *testing.T) {

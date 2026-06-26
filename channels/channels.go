@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 const (
@@ -35,13 +38,6 @@ var (
 	ErrListChannels   = errors.New("failed to list channels")
 	ErrUpdateChannel  = errors.New("failed to update channel")
 	ErrArchiveChannel = errors.New("failed to archive channel")
-
-	// Response errors
-	ErrUnexpectedStatusCode = errors.New("unexpected status code")
-	// ErrNilResponse is returned when the API response is nil.
-	ErrNilResponse = errors.New("unexpected nil response")
-	// ErrNilResponseBody is returned when the API response body is nil.
-	ErrNilResponseBody = errors.New("unexpected nil response body")
 )
 
 // Options defines the options for creating a new CREC Channels client.
@@ -129,25 +125,29 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Chan
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateChannel, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrCreateChannel, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 201 {
+	switch resp.StatusCode() {
+	case http.StatusCreated:
+		if resp.JSON201 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrCreateChannel, apierror.ErrNilResponseBody)
+		}
+		c.logger.Info("Channel created successfully",
+			"channel_id", resp.JSON201.ChannelId.String(),
+			"name", resp.JSON201.Name)
+		return resp.JSON201, nil
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when creating channel",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrCreateChannel, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when creating channel",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateChannel, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateChannel, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON201 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateChannel, ErrNilResponseBody)
-	}
-
-	c.logger.Info("Channel created successfully",
-		"channel_id", resp.JSON201.ChannelId.String(),
-		"name", resp.JSON201.Name)
-
-	return resp.JSON201, nil
 }
 
 // Get retrieves a specific channel by its ID.
@@ -167,30 +167,32 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID) (*apiClient.Chann
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrGetChannel, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrGetChannel, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrGetChannel, apierror.ErrNilResponseBody)
+		}
+		c.logger.Debug("Channel retrieved successfully",
+			"channel_id", resp.JSON200.ChannelId.String(),
+			"name", resp.JSON200.Name)
+		return resp.JSON200, nil
+	case http.StatusNotFound:
 		c.logger.Warn("Channel not found", "channel_id", channelID.String())
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when getting channel",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrGetChannel, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when getting channel",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetChannel, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetChannel, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrGetChannel, ErrNilResponseBody)
-	}
-
-	c.logger.Debug("Channel retrieved successfully",
-		"channel_id", resp.JSON200.ChannelId.String(),
-		"name", resp.JSON200.Name)
-
-	return resp.JSON200, nil
 }
 
 // ListInput defines the input parameters for listing channels.
@@ -229,25 +231,29 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Channel
 	}
 
 	if resp == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrListChannels, ErrNilResponse)
+		return nil, false, fmt.Errorf("%w: %w", ErrListChannels, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 200 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, false, fmt.Errorf("%w: %w", ErrListChannels, apierror.ErrNilResponseBody)
+		}
+		c.logger.Debug("Channels listed successfully",
+			"count", len(resp.JSON200.Data),
+			"has_more", resp.JSON200.HasMore)
+		return resp.JSON200.Data, resp.JSON200.HasMore, nil
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when listing channels",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, apierror.Wrap(resp.JSON401, ErrListChannels, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when listing channels",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListChannels, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListChannels, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrListChannels, ErrNilResponseBody)
-	}
-
-	c.logger.Debug("Channels listed successfully",
-		"count", len(resp.JSON200.Data),
-		"has_more", resp.JSON200.HasMore)
-
-	return resp.JSON200.Data, resp.JSON200.HasMore, nil
 }
 
 // UpdateInput defines the input parameters for updating a channel.
@@ -285,30 +291,32 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateIn
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, apierror.ErrNilResponseBody)
+		}
+		c.logger.Info("Channel updated successfully",
+			"channel_id", resp.JSON200.ChannelId.String(),
+			"name", resp.JSON200.Name)
+		return resp.JSON200, nil
+	case http.StatusNotFound:
 		c.logger.Warn("Channel not found", "channel_id", channelID.String())
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when updating channel",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrUpdateChannel, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when updating channel",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrUpdateChannel, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrUpdateChannel, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrUpdateChannel, ErrNilResponseBody)
-	}
-
-	c.logger.Info("Channel updated successfully",
-		"channel_id", resp.JSON200.ChannelId.String(),
-		"name", resp.JSON200.Name)
-
-	return resp.JSON200, nil
 }
 
 // Archive archives a channel by transitioning it to archived status via PATCH.
@@ -335,26 +343,28 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID) (*apiClient.C
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrArchiveChannel, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrArchiveChannel, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrArchiveChannel, apierror.ErrNilResponseBody)
+		}
+		c.logger.Info("Channel archived successfully", "channel_id", channelID.String())
+		return resp.JSON200, nil
+	case http.StatusNotFound:
 		c.logger.Warn("Channel not found", "channel_id", channelID.String())
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when archiving channel",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrArchiveChannel, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when archiving channel",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrArchiveChannel, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrArchiveChannel, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrArchiveChannel, ErrNilResponseBody)
-	}
-
-	c.logger.Info("Channel archived successfully", "channel_id", channelID.String())
-
-	return resp.JSON200, nil
 }

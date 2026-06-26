@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	openapitypes "github.com/oapi-codegen/runtime/types"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 const (
@@ -56,11 +59,6 @@ var (
 	ErrListWallets   = errors.New("failed to list wallets")
 	ErrUpdateWallet  = errors.New("failed to update wallet")
 	ErrArchiveWallet = errors.New("failed to archive wallet")
-
-	// Response errors
-	ErrUnexpectedStatusCode = errors.New("unexpected status code")
-	ErrNilResponse          = errors.New("unexpected nil response")
-	ErrNilResponseBody      = errors.New("unexpected nil response body")
 )
 
 // Options defines the options for creating a new CREC Wallets client.
@@ -240,27 +238,31 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateWallet, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrCreateWallet, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 201 {
+	switch resp.StatusCode() {
+	case http.StatusCreated:
+		if resp.JSON201 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrCreateWallet, apierror.ErrNilResponseBody)
+		}
+		c.logger.Info("Wallet created successfully",
+			"wallet_id", resp.JSON201.WalletId.String(),
+			"name", resp.JSON201.Name,
+			"address", resp.JSON201.Address,
+			"chain_selector", resp.JSON201.ChainSelector)
+		return resp.JSON201, nil
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when creating wallet",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrCreateWallet, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when creating wallet",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWallet, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateWallet, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON201 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateWallet, ErrNilResponseBody)
-	}
-
-	c.logger.Info("Wallet created successfully",
-		"wallet_id", resp.JSON201.WalletId.String(),
-		"name", resp.JSON201.Name,
-		"address", resp.JSON201.Address,
-		"chain_selector", resp.JSON201.ChainSelector)
-
-	return resp.JSON201, nil
 }
 
 // Get retrieves a specific wallet by its ID.
@@ -284,31 +286,33 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrGetWallet, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrGetWallet, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrGetWallet, apierror.ErrNilResponseBody)
+		}
+		c.logger.Debug("Wallet retrieved successfully",
+			"wallet_id", resp.JSON200.WalletId.String(),
+			"name", resp.JSON200.Name,
+			"address", resp.JSON200.Address)
+		return resp.JSON200, nil
+	case http.StatusNotFound:
 		c.logger.Warn("Wallet not found", "wallet_id", walletID.String())
 		return nil, fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when getting wallet",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrGetWallet, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when getting wallet",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetWallet, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetWallet, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrGetWallet, ErrNilResponseBody)
-	}
-
-	c.logger.Debug("Wallet retrieved successfully",
-		"wallet_id", resp.JSON200.WalletId.String(),
-		"name", resp.JSON200.Name,
-		"address", resp.JSON200.Address)
-
-	return resp.JSON200, nil
 }
 
 // ListInput defines the input parameters for listing wallets.
@@ -379,25 +383,29 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 	}
 
 	if resp == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrListWallets, ErrNilResponse)
+		return nil, false, fmt.Errorf("%w: %w", ErrListWallets, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 200 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, false, fmt.Errorf("%w: %w", ErrListWallets, apierror.ErrNilResponseBody)
+		}
+		c.logger.Debug("Wallets listed successfully",
+			"count", len(resp.JSON200.Data),
+			"has_more", resp.JSON200.HasMore)
+		return resp.JSON200.Data, resp.JSON200.HasMore, nil
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when listing wallets",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, apierror.Wrap(resp.JSON401, ErrListWallets, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when listing wallets",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListWallets, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListWallets, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrListWallets, ErrNilResponseBody)
-	}
-
-	c.logger.Debug("Wallets listed successfully",
-		"count", len(resp.JSON200.Data),
-		"has_more", resp.JSON200.HasMore)
-
-	return resp.JSON200.Data, resp.JSON200.HasMore, nil
 }
 
 // UpdateInput defines the input parameters for updating a wallet.
@@ -440,24 +448,27 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 	}
 
 	if resp == nil {
-		return fmt.Errorf("%w: %w", ErrUpdateWallet, ErrNilResponse)
+		return fmt.Errorf("%w: %w", ErrUpdateWallet, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		c.logger.Info("Wallet updated successfully", "wallet_id", walletID.String())
+		return nil
+	case http.StatusNotFound:
 		c.logger.Warn("Wallet not found", "wallet_id", walletID.String())
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when updating wallet",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return apierror.Wrap(resp.JSON401, ErrUpdateWallet, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when updating wallet",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return fmt.Errorf("%w: %w (status code %d)", ErrUpdateWallet, ErrUnexpectedStatusCode, resp.StatusCode())
+		return fmt.Errorf("%w: %w (status code %d)", ErrUpdateWallet, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	c.logger.Info("Wallet updated successfully", "wallet_id", walletID.String())
-
-	return nil
 }
 
 // Archive archives a wallet by transitioning it to archived status via PATCH.
@@ -487,22 +498,25 @@ func (c *Client) Archive(ctx context.Context, walletID uuid.UUID) error {
 	}
 
 	if resp == nil {
-		return fmt.Errorf("%w: %w", ErrArchiveWallet, ErrNilResponse)
+		return fmt.Errorf("%w: %w", ErrArchiveWallet, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		c.logger.Info("Wallet archived successfully", "wallet_id", walletID.String())
+		return nil
+	case http.StatusNotFound:
 		c.logger.Warn("Wallet not found", "wallet_id", walletID.String())
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when archiving wallet",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return apierror.Wrap(resp.JSON401, ErrArchiveWallet, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when archiving wallet",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return fmt.Errorf("%w: %w (status code %d)", ErrArchiveWallet, ErrUnexpectedStatusCode, resp.StatusCode())
+		return fmt.Errorf("%w: %w (status code %d)", ErrArchiveWallet, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	c.logger.Info("Wallet archived successfully", "wallet_id", walletID.String())
-
-	return nil
 }
