@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -13,15 +14,13 @@ import (
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
+	"github.com/smartcontractkit/crec-sdk/apierror"
 	"github.com/smartcontractkit/crec-sdk/internal/retry"
 )
 
 const watcherNameMinRunes = 4
 
 var (
-	// ErrNilResponse is returned when the API response is nil.
-	ErrNilResponse = errors.New("unexpected nil response")
-
 	// ErrWatcherNotFound is returned when a watcher is not found (404 response).
 	ErrWatcherNotFound = errors.New("watcher not found")
 
@@ -87,8 +86,6 @@ var (
 	ErrArchiveWatcher = errors.New("failed to archive watcher")
 	// ErrCheckWatcherStatus is returned when checking watcher status fails.
 	ErrCheckWatcherStatus = errors.New("failed to check watcher status")
-	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
-	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 )
 
 // EventABIInput describes a single input parameter of an event in the ABI.
@@ -259,27 +256,33 @@ func (c *Client) CreateWithService(
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherService, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherService, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 201 {
+	switch resp.StatusCode() {
+	case http.StatusCreated:
+		if resp.JSON201 == nil {
+			return nil, ErrEmptyResponse
+		}
+		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
+		return resp.JSON201, nil
+	case http.StatusUnauthorized:
+		c.logger.Error(
+			"Failed to create watcher with service - unauthorized",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON401, ErrCreateWatcherService, resp.StatusCode())
+	default:
 		c.logger.Error(
 			"Failed to create watcher with service - unexpected status code",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body),
 		)
 		return nil, fmt.Errorf(
-			"%w: %w (status code %d)", ErrCreateWatcherService, ErrUnexpectedStatusCode, resp.StatusCode(),
+			"%w: %w (status code %d)", ErrCreateWatcherService, apierror.ErrUnexpectedStatusCode, resp.StatusCode(),
 		)
 	}
-
-	if resp.JSON201 == nil {
-		return nil, ErrEmptyResponse
-	}
-
-	c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
-
-	return resp.JSON201, nil
 }
 
 // CreateWithABI creates a new watcher with a custom event ABI.
@@ -383,27 +386,33 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherABI, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrCreateWatcherABI, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 201 {
+	switch resp.StatusCode() {
+	case http.StatusCreated:
+		if resp.JSON201 == nil {
+			return nil, ErrEmptyResponse
+		}
+		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
+		return resp.JSON201, nil
+	case http.StatusUnauthorized:
+		c.logger.Error(
+			"Failed to create watcher with ABI - unauthorized",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON401, ErrCreateWatcherABI, resp.StatusCode())
+	default:
 		c.logger.Error(
 			"Failed to create watcher with ABI - unexpected status code",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body),
 		)
 		return nil, fmt.Errorf(
-			"%w: %w (status code %d)", ErrCreateWatcherABI, ErrUnexpectedStatusCode, resp.StatusCode(),
+			"%w: %w (status code %d)", ErrCreateWatcherABI, apierror.ErrUnexpectedStatusCode, resp.StatusCode(),
 		)
 	}
-
-	if resp.JSON201 == nil {
-		return nil, ErrEmptyResponse
-	}
-
-	c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
-
-	return resp.JSON201, nil
 }
 
 // List retrieves watchers for a specific channel with optional filters.
@@ -432,25 +441,31 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrListWatchers, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrListWatchers, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 200 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, ErrEmptyResponse
+		}
+		c.logger.Debug("Watchers listed successfully", "count", len(resp.JSON200.Data))
+		return resp.JSON200, nil
+	case http.StatusUnauthorized:
+		c.logger.Error(
+			"Failed to list watchers - unauthorized",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON401, ErrListWatchers, resp.StatusCode())
+	default:
 		c.logger.Error(
 			"Failed to list watchers - unexpected status code",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body),
 		)
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrListWatchers, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrListWatchers, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, ErrEmptyResponse
-	}
-
-	c.logger.Debug("Watchers listed successfully", "count", len(resp.JSON200.Data))
-
-	return resp.JSON200, nil
 }
 
 // Get retrieves a specific watcher by channel ID and watcher ID.
@@ -475,28 +490,32 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UU
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrGetWatcher, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrGetWatcher, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 200 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, ErrEmptyResponse
+		}
+		return resp.JSON200, nil
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
+	case http.StatusUnauthorized:
+		c.logger.Error(
+			"Failed to get watcher - unauthorized",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON401, ErrGetWatcher, resp.StatusCode())
+	default:
 		c.logger.Error(
 			"Failed to get watcher - unexpected status code",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body),
 		)
-
-		if resp.StatusCode() == 404 {
-			return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
-		}
-
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetWatcher, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, ErrEmptyResponse
-	}
-
-	return resp.JSON200, nil
 }
 
 // Update updates a watcher's name.
@@ -531,30 +550,33 @@ func (c *Client) Update(
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrUpdateWatcher, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrUpdateWatcher, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 200 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, ErrEmptyResponse
+		}
+		c.logger.Info("Watcher updated successfully", "watcher_id", watcherID.String())
+		return resp.JSON200, nil
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
+	case http.StatusUnauthorized:
+		c.logger.Error(
+			"Failed to update watcher - unauthorized",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON401, ErrUpdateWatcher, resp.StatusCode())
+	default:
 		c.logger.Error(
 			"Failed to update watcher - unexpected status code",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body),
 		)
-
-		if resp.StatusCode() == 404 {
-			return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
-		}
-
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrUpdateWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrUpdateWatcher, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, ErrEmptyResponse
-	}
-
-	c.logger.Info("Watcher updated successfully", "watcher_id", watcherID.String())
-
-	return resp.JSON200, nil
 }
 
 // WaitForActive polls a watcher until it reaches active status, fails, or times out.
@@ -673,36 +695,39 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
-		return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
-	}
-
-	if resp.StatusCode() == 202 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, ErrEmptyResponse)
+		}
+		c.logger.Info("Watcher archived successfully", "watcher_id", watcherID.String())
+		return resp.JSON200, nil
+	case http.StatusAccepted:
 		if resp.JSON202 == nil {
 			return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, ErrEmptyResponse)
 		}
 		c.logger.Info("Watcher archive initiated (async)", "watcher_id", watcherID.String())
 		return resp.JSON202, nil
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
+	case http.StatusUnauthorized:
+		c.logger.Error(
+			"Failed to archive watcher - unauthorized",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON401, ErrArchiveWatcher, resp.StatusCode())
+	default:
 		c.logger.Error(
 			"Failed to archive watcher - unexpected status code",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body),
 		)
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrArchiveWatcher, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrArchiveWatcher, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrArchiveWatcher, ErrEmptyResponse)
-	}
-
-	c.logger.Info("Watcher archived successfully", "watcher_id", watcherID.String())
-	return resp.JSON200, nil
 }
 
 // WaitForArchived polls the watcher until it reaches "archived" status or the timeout is reached.

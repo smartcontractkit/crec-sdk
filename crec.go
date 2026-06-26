@@ -26,6 +26,7 @@ import (
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
+	"github.com/smartcontractkit/crec-sdk/apierror"
 	"github.com/smartcontractkit/crec-sdk/channels"
 	"github.com/smartcontractkit/crec-sdk/events"
 	"github.com/smartcontractkit/crec-sdk/queries"
@@ -52,9 +53,6 @@ var (
 
 	// ErrListNetworks is returned when listing networks fails.
 	ErrListNetworks = errors.New("failed to list networks")
-
-	// ErrNilResponse is returned when the API response is nil.
-	ErrNilResponse = errors.New("unexpected nil response")
 )
 
 // NewAPIClient creates an authenticated CREC API client that can be used
@@ -263,17 +261,27 @@ func (c *Client) ListNetworks(ctx context.Context) ([]apiClient.Network, bool, e
 	}
 
 	if resp == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrListNetworks, ErrNilResponse)
+		return nil, false, fmt.Errorf("%w: %w", ErrListNetworks, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() != 200 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, false, ErrListNetworks
+		}
+		return resp.JSON200.Data, resp.JSON200.HasMore, nil
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when listing networks",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		if mapped := apierror.FromApplicationError(resp.JSON401); mapped != nil {
+			return nil, false, fmt.Errorf("%w: %w", ErrListNetworks, mapped)
+		}
+		return nil, false, fmt.Errorf("%w (status code %d)", ErrListNetworks, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when listing networks",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
 		return nil, false, fmt.Errorf("%w (status code %d)", ErrListNetworks, resp.StatusCode())
 	}
-	if resp.JSON200 == nil {
-		return nil, false, ErrListNetworks
-	}
-	return resp.JSON200.Data, resp.JSON200.HasMore, nil
 }

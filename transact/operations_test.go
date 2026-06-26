@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Server) {
@@ -307,7 +309,7 @@ func TestClient_CreateOperation(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, opID)
 		assert.True(t, errors.Is(err, ErrCreateOperation), "Expected ErrCreateOperation, got: %v", err)
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
 
@@ -396,7 +398,7 @@ func TestClient_GetOperation(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, operation)
 		assert.True(t, errors.Is(err, ErrGetOperation), "Expected ErrGetOperation, got: %v", err)
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
 
@@ -673,6 +675,6 @@ func TestClient_ListOperations(t *testing.T) {
 		assert.Nil(t, operations)
 		assert.False(t, hasMore)
 		assert.True(t, errors.Is(err, ErrListOperations), "Expected ErrListOperations, got: %v", err)
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
 	})
 }

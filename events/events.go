@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -15,6 +16,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/workflows"
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/models"
+
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 const (
@@ -75,12 +78,6 @@ var (
 	// ErrMultipleOCRProofs is returned when the event has more than one OCR proof.
 	ErrMultipleOCRProofs = errors.New("multiple OCR proofs found but should be 1")
 
-	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
-	ErrUnexpectedStatusCode = errors.New("unexpected status code")
-	// ErrNilResponse is returned when the API response is nil.
-	ErrNilResponse = errors.New("unexpected nil response")
-	// ErrNilResponseBody is returned when the API response body is nil.
-	ErrNilResponseBody = errors.New("unexpected nil response body")
 	// ErrBadRequest is returned when the request parameters are invalid.
 	ErrBadRequest = errors.New("invalid request parameters")
 	// ErrOCRReportTooShort is returned when the OCR report is shorter than the minimum required length.
@@ -260,36 +257,40 @@ func (c *Client) Poll(
 	}
 
 	if resp == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, ErrNilResponse)
+		return nil, false, fmt.Errorf("%w: %w", ErrGetEvents, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, false, fmt.Errorf("%w: %w", ErrPollEvents, apierror.ErrNilResponseBody)
+		}
+		c.logger.Debug(
+			"Events polled successfully",
+			"count", len(resp.JSON200.Events),
+			"has_more", resp.JSON200.HasMore,
+		)
+		return resp.JSON200.Events, resp.JSON200.HasMore, nil
+	case http.StatusNotFound:
 		c.logger.Warn("Channel not found", "channel_id", channelID.String())
 		return nil, false, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error(
+			"Failed to get events - unauthorized",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, false, apierror.Wrap(resp.JSON401, ErrPollEvents, resp.StatusCode())
+	default:
 		c.logger.Error(
 			"Failed to get events - unexpected status code",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body),
 		)
 		return nil, false, fmt.Errorf(
-			"%w: %w (status code %d)", ErrPollEvents, ErrUnexpectedStatusCode, resp.StatusCode(),
+			"%w: %w (status code %d)", ErrPollEvents, apierror.ErrUnexpectedStatusCode, resp.StatusCode(),
 		)
 	}
-
-	if resp.JSON200 == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrPollEvents, ErrNilResponseBody)
-	}
-
-	c.logger.Debug(
-		"Events polled successfully",
-		"count", len(resp.JSON200.Events),
-		"has_more", resp.JSON200.HasMore,
-	)
-
-	return resp.JSON200.Events, resp.JSON200.HasMore, nil
 }
 
 // SearchEvents queries and searches historical events from a channel with filtering capabilities.
@@ -316,18 +317,27 @@ func (c *Client) SearchEvents(
 	}
 
 	if resp == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, ErrNilResponse)
+		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, apierror.ErrNilResponseBody)
+		}
+		c.logger.Debug(
+			"Events searched successfully",
+			"count", len(resp.JSON200.Events),
+			"has_more", resp.JSON200.HasMore,
+		)
+		return resp.JSON200.Events, resp.JSON200.HasMore, nil
+	case http.StatusNotFound:
 		c.logger.Warn(
 			"Channel not found",
 			"channel_id", channelID.String(),
 		)
 		return nil, false, fmt.Errorf("%w (status code %d)", ErrChannelNotFound, resp.StatusCode())
-	}
-
-	if resp.StatusCode() == 400 {
+	case http.StatusBadRequest:
 		var errorMsg string
 		if resp.JSON400 != nil && resp.JSON400.Message != "" {
 			errorMsg = resp.JSON400.Message
@@ -343,30 +353,23 @@ func (c *Client) SearchEvents(
 		return nil, false, fmt.Errorf(
 			"%w: %w: %s (status code %d)", ErrSearchEvents, ErrBadRequest, errorMsg, resp.StatusCode(),
 		)
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error(
+			"Failed to search events - unauthorized",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, false, apierror.Wrap(resp.JSON401, ErrSearchEvents, resp.StatusCode())
+	default:
 		c.logger.Error(
 			"Failed to search events - unexpected status code",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body),
 		)
 		return nil, false, fmt.Errorf(
-			"%w: %w (status code %d)", ErrSearchEvents, ErrUnexpectedStatusCode, resp.StatusCode(),
+			"%w: %w (status code %d)", ErrSearchEvents, apierror.ErrUnexpectedStatusCode, resp.StatusCode(),
 		)
 	}
-
-	if resp.JSON200 == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrSearchEvents, ErrNilResponseBody)
-	}
-
-	c.logger.Debug(
-		"Events searched successfully",
-		"count", len(resp.JSON200.Events),
-		"has_more", resp.JSON200.HasMore,
-	)
-
-	return resp.JSON200.Events, resp.JSON200.HasMore, nil
 }
 
 // Verify verifies the authenticity of a given watcher event using the default org ID or
