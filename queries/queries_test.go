@@ -18,6 +18,8 @@ import (
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/models"
+
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 const (
@@ -344,7 +346,7 @@ func TestClient_Create(t *testing.T) {
 			{name: "ChannelNotFound", statusCode: http.StatusNotFound, wantErr: ErrChannelNotFound},
 			{name: "IdempotencyConflict", statusCode: http.StatusConflict, wantErr: ErrIdempotencyConflict},
 			{name: "RateLimitExceeded", statusCode: http.StatusTooManyRequests, wantErr: ErrRateLimitExceeded},
-			{name: "Unexpected", statusCode: http.StatusInternalServerError, wantErr: ErrUnexpectedStatusCode},
+			{name: "Unexpected", statusCode: http.StatusInternalServerError, wantErr: apierror.ErrUnexpectedStatusCode},
 		}
 
 		for _, tt := range tests {

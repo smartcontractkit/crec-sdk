@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Server) {
@@ -1150,6 +1152,6 @@ func TestClient_Archive(t *testing.T) {
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrArchiveWallet))
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode))
 	})
 }

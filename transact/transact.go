@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
+	"github.com/smartcontractkit/crec-sdk/apierror"
 	"github.com/smartcontractkit/crec-sdk/internal/apierrors"
 	"github.com/smartcontractkit/crec-sdk/transact/eip712"
 	"github.com/smartcontractkit/crec-sdk/transact/signer"
@@ -69,13 +70,6 @@ var (
 
 	// ErrInvalidDeadline is returned when the operation deadline is negative or overflows int64.
 	ErrInvalidDeadline = errors.New("invalid deadline: must be a non-negative value that fits in int64")
-
-	// ErrUnexpectedStatusCode is returned when the API returns an unexpected HTTP status code.
-	ErrUnexpectedStatusCode = errors.New("unexpected status code")
-	// ErrNilResponse is returned when the API response is nil.
-	ErrNilResponse = errors.New("unexpected nil response")
-	// ErrNilResponseBody is returned when the API response body is nil.
-	ErrNilResponseBody = errors.New("unexpected nil response body")
 
 	// ErrOperationRequired is returned when an operation pointer is required but nil.
 	ErrOperationRequired = eip712.ErrOperationRequired
@@ -238,10 +232,21 @@ func (c *Client) postCreateOperation(
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusCreated:
+		if resp.JSON201 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrCreateOperation, apierror.ErrNilResponseBody)
+		}
+		operationID := resp.JSON201.OperationId
+		c.logger.Info("Operation created successfully",
+			"operation_id", operationID.String(),
+			"channel_id", channelID.String(),
+			"wallet_operation_id", walletOperationID)
+		return &operationID, nil
+	case http.StatusNotFound:
 		c.logger.Warn("Create operation not found", "channel_id", channelID.String())
 		return nil, apierrors.MapNotFound(
 			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
@@ -256,27 +261,17 @@ func (c *Client) postCreateOperation(
 				},
 			},
 		)
-	}
-
-	if resp.StatusCode() != 201 {
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when creating operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrCreateOperation, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when creating operation",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateOperation, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON201 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrCreateOperation, ErrNilResponseBody)
-	}
-
-	operationID := resp.JSON201.OperationId
-
-	c.logger.Info("Operation created successfully",
-		"operation_id", operationID.String(),
-		"channel_id", channelID.String(),
-		"wallet_operation_id", walletOperationID)
-
-	return &operationID, nil
 }
 
 // CreateOperation creates a new operation in the specified channel.
@@ -524,10 +519,19 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrGetOperation, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrGetOperation, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, fmt.Errorf("%w: %w", ErrGetOperation, apierror.ErrNilResponseBody)
+		}
+		c.logger.Debug("Operation retrieved successfully",
+			"operation_id", resp.JSON200.OperationId.String(),
+			"status", resp.JSON200.Status)
+		return resp.JSON200, nil
+	case http.StatusNotFound:
 		c.logger.Warn("Operation not found",
 			"channel_id", channelID.String(),
 			"operation_id", operationID.String())
@@ -544,24 +548,17 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 				},
 			},
 		)
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when getting operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrGetOperation, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when getting operation",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetOperation, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("%w: %w", ErrGetOperation, ErrNilResponseBody)
-	}
-
-	c.logger.Debug("Operation retrieved successfully",
-		"operation_id", resp.JSON200.OperationId.String(),
-		"status", resp.JSON200.Status)
-
-	return resp.JSON200, nil
 }
 
 // ListOperationsInput defines the input parameters for listing operations.
@@ -614,10 +611,19 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 	}
 
 	if resp == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, ErrNilResponse)
+		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, apierror.ErrNilResponse)
 	}
 
-	if resp.StatusCode() == 404 {
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		if resp.JSON200 == nil {
+			return nil, false, fmt.Errorf("%w: %w", ErrListOperations, apierror.ErrNilResponseBody)
+		}
+		c.logger.Debug("Operations listed successfully",
+			"count", len(resp.JSON200.Data),
+			"has_more", resp.JSON200.HasMore)
+		return resp.JSON200.Data, resp.JSON200.HasMore, nil
+	case http.StatusNotFound:
 		c.logger.Warn("List operations not found", "channel_id", input.ChannelID.String())
 		return nil, false, apierrors.MapNotFound(
 			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
@@ -631,24 +637,17 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 				},
 			},
 		)
-	}
-
-	if resp.StatusCode() != 200 {
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when listing operations",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, apierror.Wrap(resp.JSON401, ErrListOperations, resp.StatusCode())
+	default:
 		c.logger.Error("Unexpected status code when listing operations",
 			"status_code", resp.StatusCode(),
 			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListOperations, ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListOperations, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
-
-	if resp.JSON200 == nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrListOperations, ErrNilResponseBody)
-	}
-
-	c.logger.Debug("Operations listed successfully",
-		"count", len(resp.JSON200.Data),
-		"has_more", resp.JSON200.HasMore)
-
-	return resp.JSON200.Data, resp.JSON200.HasMore, nil
 }
 
 // ExecuteTransactions executes a list of transactions using the provided signer and executor account.
@@ -747,21 +746,29 @@ func (c *Client) SendSignedDraftOperation(
 		return nil, fmt.Errorf("%w: %w", ErrSendOperation, err)
 	}
 	if resp == nil {
-		return nil, fmt.Errorf("%w: %w", ErrSendOperation, ErrNilResponse)
+		return nil, fmt.Errorf("%w: %w", ErrSendOperation, apierror.ErrNilResponse)
 	}
 
 	switch resp.StatusCode() {
 	case http.StatusOK:
 		if resp.JSON200 == nil {
-			return nil, fmt.Errorf("%w: %w", ErrSendOperation, ErrNilResponseBody)
+			return nil, fmt.Errorf("%w: %w", ErrSendOperation, apierror.ErrNilResponseBody)
 		}
 		return resp.JSON200, nil
 	case http.StatusNotFound:
 		return nil, ErrDraftNotFound
 	case http.StatusConflict:
 		return nil, ErrDraftNotFinalizable
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when sending operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON401, ErrSendOperation, resp.StatusCode())
 	default:
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, ErrUnexpectedStatusCode, resp.StatusCode())
+		c.logger.Error("Unexpected status code when sending operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 }
 
@@ -808,7 +815,7 @@ func (c *Client) CancelDraftOperation(ctx context.Context, channelID uuid.UUID, 
 		return fmt.Errorf("%w: %w", ErrSendOperation, err)
 	}
 	if resp == nil {
-		return fmt.Errorf("%w: %w", ErrSendOperation, ErrNilResponse)
+		return fmt.Errorf("%w: %w", ErrSendOperation, apierror.ErrNilResponse)
 	}
 
 	switch resp.StatusCode() {
@@ -818,7 +825,15 @@ func (c *Client) CancelDraftOperation(ctx context.Context, channelID uuid.UUID, 
 		return ErrDraftNotFound
 	case http.StatusConflict:
 		return ErrDraftNotCancellable
+	case http.StatusUnauthorized:
+		c.logger.Error("Unauthorized when cancelling operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return apierror.Wrap(resp.JSON401, ErrSendOperation, resp.StatusCode())
 	default:
-		return fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, ErrUnexpectedStatusCode, resp.StatusCode())
+		c.logger.Error("Unexpected status code when cancelling operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
 	}
 }

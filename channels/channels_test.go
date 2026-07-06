@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Server) {
@@ -41,6 +43,19 @@ func setupTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest
 	require.NoError(t, err)
 
 	return client, server
+}
+
+// organizationNotFoundHandler responds with a 401 ORGANIZATION_NOT_FOUND
+// ApplicationError, mimicking the CREC API's not-onboarded response.
+func organizationNotFoundHandler(t *testing.T) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+			Type:    apiClient.ORGANIZATIONNOTFOUND,
+			Message: "organization not found",
+		}))
+	}
 }
 
 func TestNewClient(t *testing.T) {
@@ -271,7 +286,7 @@ func TestClient_Create(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, channel)
 		assert.True(t, errors.Is(err, ErrCreateChannel), "Expected ErrCreateChannel, got: %v", err)
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
 	})
 
 	t.Run("AlreadyExists", func(t *testing.T) {
@@ -293,7 +308,22 @@ func TestClient_Create(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, channel)
 		assert.True(t, errors.Is(err, ErrCreateChannel), "Expected ErrCreateChannel, got: %v", err)
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
+	})
+
+	t.Run("OrganizationNotFound", func(t *testing.T) {
+		client, server := setupTestClient(t, organizationNotFoundHandler(t))
+		defer server.Close()
+
+		channel, err := client.Create(context.Background(), CreateInput{
+			Name: "test-channel",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, channel)
+		assert.True(t, errors.Is(err, ErrCreateChannel), "Expected ErrCreateChannel, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrOrganizationNotFound), "Expected apierror.ErrOrganizationNotFound, got: %v", err)
+		assert.False(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Did not expect apierror.ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
 
@@ -372,7 +402,21 @@ func TestClient_Get(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, channel)
 		assert.True(t, errors.Is(err, ErrGetChannel), "Expected ErrGetChannel, got: %v", err)
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
+	})
+
+	t.Run("OrganizationNotFound", func(t *testing.T) {
+		channelID := uuid.New()
+
+		client, server := setupTestClient(t, organizationNotFoundHandler(t))
+		defer server.Close()
+
+		channel, err := client.Get(context.Background(), channelID)
+
+		require.Error(t, err)
+		assert.Nil(t, channel)
+		assert.True(t, errors.Is(err, ErrGetChannel), "Expected ErrGetChannel, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrOrganizationNotFound), "Expected apierror.ErrOrganizationNotFound, got: %v", err)
 	})
 }
 
@@ -567,7 +611,7 @@ func TestClient_List(t *testing.T) {
 		assert.Nil(t, channels)
 		assert.False(t, hasMore)
 		assert.True(t, errors.Is(err, ErrListChannels), "Expected ErrListChannels, got: %v", err)
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
 
@@ -712,7 +756,7 @@ func TestClient_Update(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, channel)
 		assert.True(t, errors.Is(err, ErrUpdateChannel))
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode))
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode))
 	})
 }
 
@@ -797,6 +841,6 @@ func TestClient_Archive(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, channel)
 		assert.True(t, errors.Is(err, ErrArchiveChannel), "Expected ErrArchiveChannel, got: %v", err)
-		assert.True(t, errors.Is(err, ErrUnexpectedStatusCode), "Expected ErrUnexpectedStatusCode, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
 	})
 }
