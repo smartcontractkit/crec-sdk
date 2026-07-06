@@ -14,7 +14,6 @@ import (
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
 	"github.com/smartcontractkit/crec-sdk/apierror"
-	"github.com/smartcontractkit/crec-sdk/internal/apierrors"
 	"github.com/smartcontractkit/crec-sdk/transact/eip712"
 	"github.com/smartcontractkit/crec-sdk/transact/signer"
 	"github.com/smartcontractkit/crec-sdk/transact/types"
@@ -53,11 +52,11 @@ var (
 	ErrDraftNotCancellable = errors.New("draft operation not cancellable")
 
 	// ErrChannelNotFound is returned when the channel does not exist (404 response).
-	ErrChannelNotFound = errors.New("channel not found")
+	ErrChannelNotFound = apierror.ErrChannelNotFound
 	// ErrWalletNotFound is returned when the wallet referenced by an operation does not exist (404 response).
-	ErrWalletNotFound = errors.New("wallet not found")
+	ErrWalletNotFound = apierror.ErrWalletNotFound
 	// ErrOperationNotFound is returned when the operation does not exist (404 response).
-	ErrOperationNotFound = errors.New("operation not found")
+	ErrOperationNotFound = apierror.ErrOperationNotFound
 
 	// ErrCreateOperation is returned when creating an operation fails.
 	ErrCreateOperation = errors.New("failed to create operation")
@@ -248,19 +247,7 @@ func (c *Client) postCreateOperation(
 		return &operationID, nil
 	case http.StatusNotFound:
 		c.logger.Warn("Create operation not found", "channel_id", channelID.String())
-		return nil, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Wallet:  ErrWalletNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrCreateOperation, msg)
-				},
-			},
-		)
+		return nil, apierror.WrapNotFound(resp.JSON404, ErrCreateOperation, ErrChannelNotFound)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when creating operation",
 			"status_code", resp.StatusCode(),
@@ -535,19 +522,7 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 		c.logger.Warn("Operation not found",
 			"channel_id", channelID.String(),
 			"operation_id", operationID.String())
-		return nil, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel:   ErrChannelNotFound,
-				Operation: ErrOperationNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: operation ID %s in channel %s", ErrOperationNotFound, operationID.String(), channelID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrGetOperation, msg)
-				},
-			},
-		)
+		return nil, apierror.WrapNotFound(resp.JSON404, ErrGetOperation, ErrOperationNotFound)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when getting operation",
 			"status_code", resp.StatusCode(),
@@ -625,18 +600,7 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
 		c.logger.Warn("List operations not found", "channel_id", input.ChannelID.String())
-		return nil, false, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrListOperations, msg)
-				},
-			},
-		)
+		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when listing operations",
 			"status_code", resp.StatusCode(),

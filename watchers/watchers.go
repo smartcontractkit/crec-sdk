@@ -15,7 +15,6 @@ import (
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
 	"github.com/smartcontractkit/crec-sdk/apierror"
-	"github.com/smartcontractkit/crec-sdk/internal/apierrors"
 	"github.com/smartcontractkit/crec-sdk/internal/retry"
 )
 
@@ -23,10 +22,10 @@ const watcherNameMinRunes = 4
 
 var (
 	// ErrWatcherNotFound is returned when a watcher is not found (404 response).
-	ErrWatcherNotFound = errors.New("watcher not found")
+	ErrWatcherNotFound = apierror.ErrWatcherNotFound
 
 	// ErrChannelNotFound is returned when the channel does not exist (404 response).
-	ErrChannelNotFound = errors.New("channel not found")
+	ErrChannelNotFound = apierror.ErrChannelNotFound
 
 	// ErrChannelIDRequired is returned when the channel ID is nil or empty.
 	ErrChannelIDRequired = errors.New("channel_id cannot be empty")
@@ -504,19 +503,7 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UU
 		}
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		return nil, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Watcher: ErrWatcherNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrGetWatcher, msg)
-				},
-			},
-		)
+		return nil, apierror.WrapNotFound(resp.JSON404, ErrGetWatcher, ErrWatcherNotFound)
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to get watcher - unauthorized",
@@ -577,19 +564,7 @@ func (c *Client) Update(
 		c.logger.Info("Watcher updated successfully", "watcher_id", watcherID.String())
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		return nil, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Watcher: ErrWatcherNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrUpdateWatcher, msg)
-				},
-			},
-		)
+		return nil, apierror.WrapNotFound(resp.JSON404, ErrUpdateWatcher, ErrWatcherNotFound)
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to update watcher - unauthorized",
@@ -740,19 +715,7 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 		c.logger.Info("Watcher archive initiated (async)", "watcher_id", watcherID.String())
 		return resp.JSON202, nil
 	case http.StatusNotFound:
-		return nil, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Watcher: ErrWatcherNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: watcher ID %s", ErrWatcherNotFound, watcherID.String())
-				},
-				Unknown: func(string) error {
-					return fmt.Errorf("%w: %w", ErrArchiveWatcher, ErrWatcherNotFound)
-				},
-			},
-		)
+		return nil, apierror.WrapNotFound(resp.JSON404, ErrArchiveWatcher, ErrWatcherNotFound)
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to archive watcher - unauthorized",

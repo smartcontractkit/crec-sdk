@@ -47,6 +47,81 @@ func TestApierror_FromApplicationError(t *testing.T) {
 	}
 }
 
+func TestApierror_NotFound(t *testing.T) {
+	channelCode := apiClient.ApplicationErrorCodeChannelNotFound
+	walletCode := apiClient.ApplicationErrorCodeWalletNotFound
+	operationCode := apiClient.ApplicationErrorCodeOperationNotFound
+	watcherCode := apiClient.ApplicationErrorCodeWatcherNotFound
+	queryCode := apiClient.ApplicationErrorCodeQueryNotFound
+	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_NOT_FOUND")
+
+	tests := []struct {
+		name    string
+		appErr  *apiClient.ApplicationError
+		wantErr error
+	}{
+		{name: "nil application error returns nil", appErr: nil, wantErr: nil},
+		{name: "nil code returns nil", appErr: &apiClient.ApplicationError{Type: apiClient.NOTFOUND}, wantErr: nil},
+		{name: "channel", appErr: &apiClient.ApplicationError{Code: &channelCode}, wantErr: apierror.ErrChannelNotFound},
+		{name: "wallet", appErr: &apiClient.ApplicationError{Code: &walletCode}, wantErr: apierror.ErrWalletNotFound},
+		{name: "operation", appErr: &apiClient.ApplicationError{Code: &operationCode}, wantErr: apierror.ErrOperationNotFound},
+		{name: "watcher", appErr: &apiClient.ApplicationError{Code: &watcherCode}, wantErr: apierror.ErrWatcherNotFound},
+		{name: "query", appErr: &apiClient.ApplicationError{Code: &queryCode}, wantErr: apierror.ErrQueryNotFound},
+		{name: "unknown future code degrades to nil", appErr: &apiClient.ApplicationError{Code: &futureCode}, wantErr: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := apierror.NotFound(tt.appErr)
+
+			if tt.wantErr == nil {
+				assert.NoError(t, got)
+				return
+			}
+			assert.ErrorIs(t, got, tt.wantErr)
+		})
+	}
+}
+
+func TestApierror_WrapNotFound(t *testing.T) {
+	opErr := errors.New("failed to get watcher")
+	channelCode := apiClient.ApplicationErrorCodeChannelNotFound
+	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_NOT_FOUND")
+
+	t.Run("recognized code overrides fallback and appends message", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Code: &channelCode, Message: "channel with ID abc not found"}
+		err := apierror.WrapNotFound(appErr, opErr, apierror.ErrWatcherNotFound)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrChannelNotFound)
+		assert.NotErrorIs(t, err, apierror.ErrWatcherNotFound)
+		assert.Contains(t, err.Error(), "channel with ID abc not found")
+	})
+
+	t.Run("missing code falls back to endpoint primary sentinel", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Type: apiClient.NOTFOUND, Message: "not found"}
+		err := apierror.WrapNotFound(appErr, opErr, apierror.ErrWatcherNotFound)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrWatcherNotFound)
+	})
+
+	t.Run("unknown future code falls back to endpoint primary sentinel", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Code: &futureCode}
+		err := apierror.WrapNotFound(appErr, opErr, apierror.ErrWatcherNotFound)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrWatcherNotFound)
+	})
+
+	t.Run("nil application error falls back without panicking", func(t *testing.T) {
+		err := apierror.WrapNotFound(nil, opErr, apierror.ErrWatcherNotFound)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrWatcherNotFound)
+	})
+}
+
 func TestApierror_Wrap(t *testing.T) {
 	opErr := errors.New("operation failed")
 

@@ -20,7 +20,6 @@ import (
 	"github.com/smartcontractkit/crec-api-go/models"
 
 	"github.com/smartcontractkit/crec-sdk/apierror"
-	"github.com/smartcontractkit/crec-sdk/internal/apierrors"
 	"github.com/smartcontractkit/crec-sdk/internal/retry"
 )
 
@@ -55,8 +54,8 @@ var (
 	ErrInvalidHexBytes          = errors.New("invalid 0x-prefixed even-length hex bytes")
 
 	// API/resource errors.
-	ErrChannelNotFound     = errors.New("channel not found")
-	ErrQueryNotFound       = errors.New("query not found")
+	ErrChannelNotFound     = apierror.ErrChannelNotFound
+	ErrQueryNotFound       = apierror.ErrQueryNotFound
 	ErrIdempotencyConflict = errors.New("idempotency conflict")
 	ErrRateLimitExceeded   = errors.New("rate limit exceeded")
 	ErrCreateQuery         = errors.New("failed to create query")
@@ -287,18 +286,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 			"status", resp.JSON202.Status)
 		return resp.JSON202, nil
 	case http.StatusNotFound:
-		return nil, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrCreateQuery, msg)
-				},
-			},
-		)
+		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
 	case http.StatusConflict:
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict)
 	case http.StatusTooManyRequests:
@@ -354,19 +342,7 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID
 		}
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		return nil, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Query:   ErrQueryNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: query ID %s in channel %s", ErrQueryNotFound, queryID.String(), channelID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrGetQuery, msg)
-				},
-			},
-		)
+		return nil, apierror.WrapNotFound(resp.JSON404, ErrGetQuery, ErrQueryNotFound)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when getting query",
 			"status_code", resp.StatusCode(),
@@ -411,18 +387,7 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 		}
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
-		return nil, false, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrListQueries, msg)
-				},
-			},
-		)
+		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when listing queries",
 			"status_code", resp.StatusCode(),

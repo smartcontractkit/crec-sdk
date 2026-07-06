@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/workflows"
-	"github.com/smartcontractkit/crec-sdk/internal/apierrors"
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/smartcontractkit/crec-api-go/models"
 
@@ -36,7 +35,7 @@ var (
 	ErrCRECClientRequired = errors.New("CRECClient is required")
 
 	// ErrChannelNotFound is returned when the channel does not exist (404 response).
-	ErrChannelNotFound = errors.New("channel not found")
+	ErrChannelNotFound = apierror.ErrChannelNotFound
 	// ErrPollEvents is returned when polling events fails.
 	ErrPollEvents = errors.New("failed to poll events")
 	// ErrSearchEvents is returned when searching events fails.
@@ -274,18 +273,7 @@ func (c *Client) Poll(
 		return resp.JSON200.Events, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
 		c.logger.Warn("Channel not found", "channel_id", channelID.String())
-		return nil, false, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrGetEvents, msg)
-				},
-			},
-		)
+		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to get events - unauthorized",
@@ -348,18 +336,7 @@ func (c *Client) SearchEvents(
 			"Channel not found",
 			"channel_id", channelID.String(),
 		)
-		return nil, false, apierrors.MapNotFound(
-			apierrors.NotFoundResponse{JSON404: resp.JSON404, Body: resp.Body},
-			apierrors.NotFoundMapping{
-				Channel: ErrChannelNotFound,
-				Empty: func() error {
-					return fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
-				},
-				Unknown: func(msg string) error {
-					return fmt.Errorf("%w: %s", ErrSearchEvents, msg)
-				},
-			},
-		)
+		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
 	case http.StatusBadRequest:
 		var errorMsg string
 		if resp.JSON400 != nil && resp.JSON400.Message != "" {
