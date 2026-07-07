@@ -247,7 +247,7 @@ func (c *Client) postCreateOperation(
 		return &operationID, nil
 	case http.StatusNotFound:
 		c.logger.Warn("Create operation not found", "channel_id", channelID.String())
-		return nil, apierror.WrapNotFound(resp.JSON404, ErrCreateOperation)
+		return nil, apierror.WrapNotFound(resp.JSON404, ErrCreateOperation, "channel ID "+channelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when creating operation",
 			"status_code", resp.StatusCode(),
@@ -522,7 +522,11 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 		c.logger.Warn("Operation not found",
 			"channel_id", channelID.String(),
 			"operation_id", operationID.String())
-		return nil, apierror.WrapNotFound(resp.JSON404, ErrGetOperation)
+		return nil, apierror.WrapNotFound(
+			resp.JSON404,
+			ErrGetOperation,
+			fmt.Sprintf("channel ID %s, operation ID %s", channelID.String(), operationID.String()),
+		)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when getting operation",
 			"status_code", resp.StatusCode(),
@@ -599,7 +603,7 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 			"has_more", resp.JSON200.HasMore)
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
-		c.logger.Warn("List operations not found", "channel_id", input.ChannelID.String())
+		c.logger.Warn("Channel not found", "channel_id", input.ChannelID.String())
 		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when listing operations",

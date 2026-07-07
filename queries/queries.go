@@ -342,7 +342,11 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID
 		}
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		return nil, apierror.WrapNotFound(resp.JSON404, ErrGetQuery)
+		return nil, apierror.WrapNotFound(
+			resp.JSON404,
+			ErrGetQuery,
+			fmt.Sprintf("channel ID %s, query ID %s", channelID.String(), queryID.String()),
+		)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when getting query",
 			"status_code", resp.StatusCode(),

@@ -72,7 +72,8 @@ func TestClient_Get(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, query)
-		assert.ErrorIs(t, err, ErrQueryNotFound)
+		assert.ErrorIs(t, err, ErrGetQuery)
+		assert.NotErrorIs(t, err, ErrQueryNotFound)
 	})
 
 	t.Run("QueryNotFound", func(t *testing.T) {
