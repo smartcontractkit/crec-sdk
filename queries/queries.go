@@ -275,6 +275,10 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, apierror.ErrNilResponse)
+	}
+
 	switch resp.StatusCode() {
 	case http.StatusAccepted:
 		if resp.JSON202 == nil {
@@ -399,6 +403,10 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 	if err != nil {
 		c.logger.Error("Failed to list queries", "error", err)
 		return nil, false, fmt.Errorf("%w: %w", ErrListQueries, err)
+	}
+
+	if resp == nil {
+		return nil, false, fmt.Errorf("%w: %w", ErrListQueries, apierror.ErrNilResponse)
 	}
 
 	switch resp.StatusCode() {
