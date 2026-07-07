@@ -169,6 +169,7 @@ func TestClient_List(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, result)
+		assert.True(t, errors.Is(err, ErrListWatchers), "Expected ErrListWatchers, got: %v", err)
 		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
 	})
 

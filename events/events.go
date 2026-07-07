@@ -272,8 +272,14 @@ func (c *Client) Poll(
 		)
 		return resp.JSON200.Events, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
-		c.logger.Warn("Channel not found", "channel_id", channelID.String())
-		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "polling events", apierror.ErrChannelNotFound),
+			"channel_id", channelID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
+		return nil, false, apierror.WrapChannelNotFound(
+			resp.JSON404, ErrPollEvents, "channel ID "+channelID.String(),
+		)
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to get events - unauthorized",
@@ -333,10 +339,13 @@ func (c *Client) SearchEvents(
 		return resp.JSON200.Events, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
 		c.logger.Warn(
-			"Channel not found",
+			apierror.NotFoundWarnMessage(resp.JSON404, "searching events", apierror.ErrChannelNotFound),
 			"channel_id", channelID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
 		)
-		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+		return nil, false, apierror.WrapChannelNotFound(
+			resp.JSON404, ErrSearchEvents, "channel ID "+channelID.String(),
+		)
 	case http.StatusBadRequest:
 		var errorMsg string
 		if resp.JSON400 != nil && resp.JSON400.Message != "" {

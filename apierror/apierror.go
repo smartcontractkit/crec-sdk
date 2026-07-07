@@ -15,8 +15,9 @@ import (
 var ErrOrganizationNotFound = errors.New("organization not found")
 
 // Canonical not-found sentinels for HTTP 404 responses. The API disambiguates
-// which resource was missing via ApplicationError.code; domain packages alias
-// these so consumers can match with errors.Is regardless of the calling package.
+// which resource was missing via ApplicationError.code. Packages that assign
+// these variables (rather than defining their own) share the same sentinel
+// instances so errors.Is works across those packages.
 var (
 	// ErrChannelNotFound is returned when the channel does not exist.
 	ErrChannelNotFound = errors.New("channel not found")
@@ -112,9 +113,42 @@ func WrapNotFound(appErr *apiClient.ApplicationError, opErr error, detail string
 	return opErr
 }
 
+// WrapChannelNotFound wraps opErr with ErrChannelNotFound for channel-scoped
+// endpoints whose 404 can only mean a missing channel. detail is appended when
+// the server message is absent.
+func WrapChannelNotFound(appErr *apiClient.ApplicationError, opErr error, detail string) error {
+	msg := notFoundMessage(appErr, detail)
+	if msg != "" {
+		return fmt.Errorf("%w: %w: %s", opErr, ErrChannelNotFound, msg)
+	}
+	return fmt.Errorf("%w: %w", opErr, ErrChannelNotFound)
+}
+
 func notFoundMessage(appErr *apiClient.ApplicationError, detail string) string {
 	if appErr != nil && appErr.Message != "" {
 		return appErr.Message
 	}
 	return detail
+}
+
+// NotFoundCode returns ApplicationError.code as a string, or empty when absent.
+func NotFoundCode(appErr *apiClient.ApplicationError) string {
+	if appErr == nil || appErr.Code == nil {
+		return ""
+	}
+	return string(*appErr.Code)
+}
+
+// NotFoundWarnMessage builds a log message for a 404 response. When
+// ApplicationError.code is recognized, the message names that resource; otherwise
+// it uses expectedFallback when provided (for single-cause endpoints), or a
+// generic label.
+func NotFoundWarnMessage(appErr *apiClient.ApplicationError, operationDesc string, expectedFallback error) string {
+	if mapped := NotFound(appErr); mapped != nil {
+		return mapped.Error() + " when " + operationDesc
+	}
+	if expectedFallback != nil {
+		return expectedFallback.Error() + " when " + operationDesc
+	}
+	return "Resource not found when " + operationDesc
 }

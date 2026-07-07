@@ -148,6 +148,54 @@ func TestApierror_WrapNotFound(t *testing.T) {
 	})
 }
 
+func TestApierror_WrapChannelNotFound(t *testing.T) {
+	opErr := errors.New("failed to list watchers")
+	detail := "channel ID abc"
+
+	t.Run("wraps opErr with channel sentinel and server message", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Message: "channel with ID abc not found"}
+		err := apierror.WrapChannelNotFound(appErr, opErr, detail)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrChannelNotFound)
+		assert.Contains(t, err.Error(), "channel with ID abc not found")
+	})
+
+	t.Run("uses detail when server message is empty", func(t *testing.T) {
+		err := apierror.WrapChannelNotFound(nil, opErr, detail)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrChannelNotFound)
+		assert.Contains(t, err.Error(), detail)
+	})
+}
+
+func TestApierror_NotFoundWarnMessage(t *testing.T) {
+	channelCode := apiClient.ApplicationErrorCodeChannelNotFound
+
+	t.Run("uses code when present", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Code: &channelCode}
+		msg := apierror.NotFoundWarnMessage(appErr, "getting operation", nil)
+		assert.Equal(t, "channel not found when getting operation", msg)
+	})
+
+	t.Run("uses fallback for single-cause endpoints without code", func(t *testing.T) {
+		msg := apierror.NotFoundWarnMessage(nil, "listing watchers", apierror.ErrChannelNotFound)
+		assert.Equal(t, "channel not found when listing watchers", msg)
+	})
+
+	t.Run("generic when no code and no fallback", func(t *testing.T) {
+		msg := apierror.NotFoundWarnMessage(nil, "creating operation", nil)
+		assert.Equal(t, "Resource not found when creating operation", msg)
+	})
+}
+
+func TestApierror_NotFoundCode(t *testing.T) {
+	channelCode := apiClient.ApplicationErrorCodeChannelNotFound
+	assert.Equal(t, "", apierror.NotFoundCode(nil))
+	assert.Equal(t, "CHANNEL_NOT_FOUND", apierror.NotFoundCode(&apiClient.ApplicationError{Code: &channelCode}))
+}
+
 func TestApierror_Wrap(t *testing.T) {
 	opErr := errors.New("operation failed")
 

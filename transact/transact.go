@@ -250,10 +250,12 @@ func (c *Client) postCreateOperation(
 			"channel ID %s, address %s, chain_selector %s",
 			channelID.String(), createReq.Address, createReq.ChainSelector,
 		)
-		c.logger.Warn("Referenced resource not found when creating operation",
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "creating operation", nil),
 			"channel_id", channelID.String(),
 			"address", createReq.Address,
 			"chain_selector", createReq.ChainSelector,
+			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return nil, apierror.WrapNotFound(resp.JSON404, ErrCreateOperation, detail)
 	case http.StatusUnauthorized:
@@ -527,9 +529,12 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 			"status", resp.JSON200.Status)
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		c.logger.Warn("Operation not found",
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "getting operation", nil),
 			"channel_id", channelID.String(),
-			"operation_id", operationID.String())
+			"operation_id", operationID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return nil, apierror.WrapNotFound(
 			resp.JSON404,
 			ErrGetOperation,
@@ -611,8 +616,14 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 			"has_more", resp.JSON200.HasMore)
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
-		c.logger.Warn("Channel not found", "channel_id", input.ChannelID.String())
-		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "listing operations", apierror.ErrChannelNotFound),
+			"channel_id", input.ChannelID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
+		return nil, false, apierror.WrapChannelNotFound(
+			resp.JSON404, ErrListOperations, "channel ID "+input.ChannelID.String(),
+		)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when listing operations",
 			"status_code", resp.StatusCode(),

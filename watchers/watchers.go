@@ -455,8 +455,14 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 		c.logger.Debug("Watchers listed successfully", "count", len(resp.JSON200.Data))
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		c.logger.Warn("Channel not found", "channel_id", channelID.String())
-		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "listing watchers", apierror.ErrChannelNotFound),
+			"channel_id", channelID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
+		return nil, apierror.WrapChannelNotFound(
+			resp.JSON404, ErrListWatchers, "channel ID "+channelID.String(),
+		)
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to list watchers - unauthorized",
@@ -506,6 +512,12 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UU
 		}
 		return resp.JSON200, nil
 	case http.StatusNotFound:
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "getting watcher", nil),
+			"channel_id", channelID.String(),
+			"watcher_id", watcherID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return nil, apierror.WrapNotFound(
 			resp.JSON404,
 			ErrGetWatcher,
@@ -571,6 +583,12 @@ func (c *Client) Update(
 		c.logger.Info("Watcher updated successfully", "watcher_id", watcherID.String())
 		return resp.JSON200, nil
 	case http.StatusNotFound:
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "updating watcher", nil),
+			"channel_id", channelID.String(),
+			"watcher_id", watcherID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return nil, apierror.WrapNotFound(
 			resp.JSON404,
 			ErrUpdateWatcher,
@@ -726,6 +744,12 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 		c.logger.Info("Watcher archive initiated (async)", "watcher_id", watcherID.String())
 		return resp.JSON202, nil
 	case http.StatusNotFound:
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "archiving watcher", nil),
+			"channel_id", channelID.String(),
+			"watcher_id", watcherID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return nil, apierror.WrapNotFound(
 			resp.JSON404,
 			ErrArchiveWatcher,

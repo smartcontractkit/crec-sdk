@@ -24,7 +24,7 @@ const (
 // Sentinel errors
 var (
 	// ErrWalletNotFound is returned when a wallet is not found (404 response)
-	ErrWalletNotFound = errors.New("wallet not found")
+	ErrWalletNotFound = apierror.ErrWalletNotFound
 
 	// Client initialization errors
 	ErrOptionsRequired   = errors.New("options is required")
@@ -300,7 +300,11 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 			"address", resp.JSON200.Address)
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		c.logger.Warn("Wallet not found", "wallet_id", walletID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "getting wallet", apierror.ErrWalletNotFound),
+			"wallet_id", walletID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return nil, fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when getting wallet",
@@ -456,7 +460,11 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 		c.logger.Info("Wallet updated successfully", "wallet_id", walletID.String())
 		return nil
 	case http.StatusNotFound:
-		c.logger.Warn("Wallet not found", "wallet_id", walletID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "updating wallet", apierror.ErrWalletNotFound),
+			"wallet_id", walletID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when updating wallet",
@@ -506,7 +514,11 @@ func (c *Client) Archive(ctx context.Context, walletID uuid.UUID) error {
 		c.logger.Info("Wallet archived successfully", "wallet_id", walletID.String())
 		return nil
 	case http.StatusNotFound:
-		c.logger.Warn("Wallet not found", "wallet_id", walletID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "archiving wallet", apierror.ErrWalletNotFound),
+			"wallet_id", walletID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when archiving wallet",

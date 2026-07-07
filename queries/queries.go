@@ -286,7 +286,14 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 			"status", resp.JSON202.Status)
 		return resp.JSON202, nil
 	case http.StatusNotFound:
-		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "creating query", apierror.ErrChannelNotFound),
+			"channel_id", input.ChannelID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
+		return nil, apierror.WrapChannelNotFound(
+			resp.JSON404, ErrCreateQuery, "channel ID "+input.ChannelID.String(),
+		)
 	case http.StatusConflict:
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict)
 	case http.StatusTooManyRequests:
@@ -346,6 +353,12 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID
 		}
 		return resp.JSON200, nil
 	case http.StatusNotFound:
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "getting query", nil),
+			"channel_id", channelID.String(),
+			"query_id", queryID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return nil, apierror.WrapNotFound(
 			resp.JSON404,
 			ErrGetQuery,
@@ -395,7 +408,14 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 		}
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
 	case http.StatusNotFound:
-		return nil, false, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, input.ChannelID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "listing queries", apierror.ErrChannelNotFound),
+			"channel_id", input.ChannelID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
+		return nil, false, apierror.WrapChannelNotFound(
+			resp.JSON404, ErrListQueries, "channel ID "+input.ChannelID.String(),
+		)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when listing queries",
 			"status_code", resp.StatusCode(),

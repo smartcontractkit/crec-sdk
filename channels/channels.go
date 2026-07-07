@@ -22,7 +22,7 @@ const (
 // Sentinel errors
 var (
 	// ErrChannelNotFound is returned when a channel is not found (404 response)
-	ErrChannelNotFound = errors.New("channel not found")
+	ErrChannelNotFound = apierror.ErrChannelNotFound
 
 	// Client initialization errors
 	ErrOptionsRequired   = errors.New("options is required")
@@ -180,7 +180,11 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID) (*apiClient.Chann
 			"name", resp.JSON200.Name)
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		c.logger.Warn("Channel not found", "channel_id", channelID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "getting channel", apierror.ErrChannelNotFound),
+			"channel_id", channelID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when getting channel",
@@ -304,7 +308,11 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateIn
 			"name", resp.JSON200.Name)
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		c.logger.Warn("Channel not found", "channel_id", channelID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "updating channel", apierror.ErrChannelNotFound),
+			"channel_id", channelID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when updating channel",
@@ -354,7 +362,11 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID) (*apiClient.C
 		c.logger.Info("Channel archived successfully", "channel_id", channelID.String())
 		return resp.JSON200, nil
 	case http.StatusNotFound:
-		c.logger.Warn("Channel not found", "channel_id", channelID.String())
+		c.logger.Warn(
+			apierror.NotFoundWarnMessage(resp.JSON404, "archiving channel", apierror.ErrChannelNotFound),
+			"channel_id", channelID.String(),
+			"code", apierror.NotFoundCode(resp.JSON404),
+		)
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when archiving channel",
