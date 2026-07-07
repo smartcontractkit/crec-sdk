@@ -88,9 +88,9 @@ func TestApierror_WrapNotFound(t *testing.T) {
 	channelCode := apiClient.ApplicationErrorCodeChannelNotFound
 	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_NOT_FOUND")
 
-	t.Run("recognized code overrides fallback and appends message", func(t *testing.T) {
+	t.Run("recognized code wraps opErr with typed sentinel and message", func(t *testing.T) {
 		appErr := &apiClient.ApplicationError{Code: &channelCode, Message: "channel with ID abc not found"}
-		err := apierror.WrapNotFound(appErr, opErr, apierror.ErrWatcherNotFound)
+		err := apierror.WrapNotFound(appErr, opErr)
 
 		assert.ErrorIs(t, err, opErr)
 		assert.ErrorIs(t, err, apierror.ErrChannelNotFound)
@@ -98,27 +98,30 @@ func TestApierror_WrapNotFound(t *testing.T) {
 		assert.Contains(t, err.Error(), "channel with ID abc not found")
 	})
 
-	t.Run("missing code falls back to endpoint primary sentinel", func(t *testing.T) {
+	t.Run("missing code returns only opErr with message", func(t *testing.T) {
 		appErr := &apiClient.ApplicationError{Type: apiClient.NOTFOUND, Message: "not found"}
-		err := apierror.WrapNotFound(appErr, opErr, apierror.ErrWatcherNotFound)
+		err := apierror.WrapNotFound(appErr, opErr)
 
 		assert.ErrorIs(t, err, opErr)
-		assert.ErrorIs(t, err, apierror.ErrWatcherNotFound)
+		assert.NotErrorIs(t, err, apierror.ErrWatcherNotFound)
+		assert.NotErrorIs(t, err, apierror.ErrChannelNotFound)
+		assert.Contains(t, err.Error(), "not found")
 	})
 
-	t.Run("unknown future code falls back to endpoint primary sentinel", func(t *testing.T) {
+	t.Run("unknown future code returns only opErr", func(t *testing.T) {
 		appErr := &apiClient.ApplicationError{Code: &futureCode}
-		err := apierror.WrapNotFound(appErr, opErr, apierror.ErrWatcherNotFound)
+		err := apierror.WrapNotFound(appErr, opErr)
 
 		assert.ErrorIs(t, err, opErr)
-		assert.ErrorIs(t, err, apierror.ErrWatcherNotFound)
+		assert.NotErrorIs(t, err, apierror.ErrWatcherNotFound)
+		assert.NotErrorIs(t, err, apierror.ErrChannelNotFound)
 	})
 
-	t.Run("nil application error falls back without panicking", func(t *testing.T) {
-		err := apierror.WrapNotFound(nil, opErr, apierror.ErrWatcherNotFound)
+	t.Run("nil application error returns opErr without panicking", func(t *testing.T) {
+		err := apierror.WrapNotFound(nil, opErr)
 
 		assert.ErrorIs(t, err, opErr)
-		assert.ErrorIs(t, err, apierror.ErrWatcherNotFound)
+		assert.NotErrorIs(t, err, apierror.ErrWatcherNotFound)
 	})
 }
 

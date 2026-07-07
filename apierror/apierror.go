@@ -91,18 +91,20 @@ func NotFound(appErr *apiClient.ApplicationError) error {
 }
 
 // WrapNotFound resolves a 404 ApplicationError to its canonical not-found
-// sentinel and wraps it with opErr. When the response carries no recognizable
-// code, it falls back to the caller-supplied sentinel for the endpoint's primary
-// resource. The server's diagnostic message is appended when present. Use this
-// only for endpoints whose 404 can mean more than one thing; for single-cause
-// endpoints wrap the sole sentinel directly.
-func WrapNotFound(appErr *apiClient.ApplicationError, opErr, fallback error) error {
-	mapped := NotFound(appErr)
-	if mapped == nil {
-		mapped = fallback
+// sentinel and wraps it with opErr when ApplicationError.code is recognized.
+// When the code is missing or unknown, it returns only opErr (optionally with
+// the server message appended) so callers are not given a wrong typed sentinel.
+// Use this only for endpoints whose 404 can mean more than one thing; for
+// single-cause endpoints wrap the sole sentinel directly.
+func WrapNotFound(appErr *apiClient.ApplicationError, opErr error) error {
+	if mapped := NotFound(appErr); mapped != nil {
+		if appErr != nil && appErr.Message != "" {
+			return fmt.Errorf("%w: %w: %s", opErr, mapped, appErr.Message)
+		}
+		return fmt.Errorf("%w: %w", opErr, mapped)
 	}
 	if appErr != nil && appErr.Message != "" {
-		return fmt.Errorf("%w: %w: %s", opErr, mapped, appErr.Message)
+		return fmt.Errorf("%w: %s", opErr, appErr.Message)
 	}
-	return fmt.Errorf("%w: %w", opErr, mapped)
+	return opErr
 }
