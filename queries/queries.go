@@ -335,6 +335,10 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID
 		return nil, fmt.Errorf("%w: %w", ErrGetQuery, err)
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("%w: %w", ErrGetQuery, apierror.ErrNilResponse)
+	}
+
 	switch resp.StatusCode() {
 	case http.StatusOK:
 		if resp.JSON200 == nil {

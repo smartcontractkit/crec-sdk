@@ -454,6 +454,9 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 		}
 		c.logger.Debug("Watchers listed successfully", "count", len(resp.JSON200.Data))
 		return resp.JSON200, nil
+	case http.StatusNotFound:
+		c.logger.Warn("Channel not found", "channel_id", channelID.String())
+		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to list watchers - unauthorized",

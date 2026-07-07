@@ -246,8 +246,16 @@ func (c *Client) postCreateOperation(
 			"wallet_operation_id", walletOperationID)
 		return &operationID, nil
 	case http.StatusNotFound:
-		c.logger.Warn("Create operation not found", "channel_id", channelID.String())
-		return nil, apierror.WrapNotFound(resp.JSON404, ErrCreateOperation, "channel ID "+channelID.String())
+		detail := fmt.Sprintf(
+			"channel ID %s, address %s, chain_selector %s",
+			channelID.String(), createReq.Address, createReq.ChainSelector,
+		)
+		c.logger.Warn("Referenced resource not found when creating operation",
+			"channel_id", channelID.String(),
+			"address", createReq.Address,
+			"chain_selector", createReq.ChainSelector,
+		)
+		return nil, apierror.WrapNotFound(resp.JSON404, ErrCreateOperation, detail)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when creating operation",
 			"status_code", resp.StatusCode(),

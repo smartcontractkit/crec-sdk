@@ -149,6 +149,29 @@ func TestClient_List(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrChannelIDRequired), "Expected ErrChannelIDRequired, got: %v", err)
 	})
 
+	t.Run("ChannelNotFound", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+				"message": "channel with ID " + channelID.String() + " not found",
+				"type":    "NOT_FOUND",
+				"code":    "CHANNEL_NOT_FOUND",
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		result, err := client.List(context.Background(), channelID, ListFilters{})
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.True(t, errors.Is(err, ErrChannelNotFound), "Expected ErrChannelNotFound, got: %v", err)
+	})
+
 	t.Run("ServerError", func(t *testing.T) {
 		channelID := uuid.New()
 
