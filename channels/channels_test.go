@@ -289,12 +289,13 @@ func TestClient_Create(t *testing.T) {
 		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
 	})
 
-	t.Run("AlreadyExists", func(t *testing.T) {
+	t.Run("AlreadyExists_UncodedFallback", func(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
 			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
-				"error": "Channel already exists",
+				"type":    "CONFLICT",
+				"message": "Channel already exists",
 			}))
 		}
 
@@ -308,7 +309,32 @@ func TestClient_Create(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, channel)
 		assert.True(t, errors.Is(err, ErrCreateChannel), "Expected ErrCreateChannel, got: %v", err)
-		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
+		assert.False(t, errors.Is(err, ErrChannelAlreadyExists),
+			"missing code must not resolve to a typed sentinel, got: %v", err)
+	})
+
+	t.Run("AlreadyExists", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+				"type":    "CONFLICT",
+				"code":    "CHANNEL_ALREADY_EXISTS",
+				"message": "Channel already exists",
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		channel, err := client.Create(context.Background(), CreateInput{
+			Name: "existing-channel",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, channel)
+		assert.True(t, errors.Is(err, ErrCreateChannel), "Expected ErrCreateChannel, got: %v", err)
+		assert.True(t, errors.Is(err, ErrChannelAlreadyExists), "Expected ErrChannelAlreadyExists, got: %v", err)
 	})
 
 	t.Run("OrganizationNotFound", func(t *testing.T) {

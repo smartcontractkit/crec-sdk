@@ -21,6 +21,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	vaultcontainer "github.com/testcontainers/testcontainers-go/modules/vault"
 
+	"github.com/smartcontractkit/crec-sdk/apierror"
 	"github.com/smartcontractkit/crec-sdk/mocks/server"
 	"github.com/smartcontractkit/crec-sdk/transact/signer/local"
 	vaultSigner "github.com/smartcontractkit/crec-sdk/transact/signer/vault"
@@ -722,6 +723,31 @@ func TestClient_SendSignedDraftOperation_Success(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestClient_SendSignedDraftOperation_ConflictWithCode(t *testing.T) {
+	channelID := uuid.New()
+	operationID := uuid.New()
+	digest := []byte{0x11, 0x22}
+	signature := []byte{0x33, 0x44}
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+			"type":    "CONFLICT",
+			"code":    "OPERATION_DEADLINE_ELAPSED",
+			"message": "operation deadline has elapsed",
+		}))
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	_, err := client.SendSignedDraftOperation(context.Background(), channelID, operationID, digest, signature)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrDraftNotFinalizable)
+	require.ErrorIs(t, err, apierror.ErrOperationDeadlineElapsed)
+}
+
 func TestClient_ExecuteDraftOperation_SignsProvidedDigest(t *testing.T) {
 	channelID := uuid.New()
 	operationID := uuid.New()
@@ -773,6 +799,19 @@ func TestClient_CancelDraftOperation(t *testing.T) {
 			expectedError: ErrDraftNotCancellable,
 		},
 		{
+			name: "ConflictWithCode",
+			handler: func(t *testing.T, w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusConflict)
+				require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+					"type":    "CONFLICT",
+					"code":    "OPERATION_NOT_CANCELLABLE",
+					"message": "operation is not in a cancellable state",
+				}))
+			},
+			expectedError: ErrDraftNotCancellable,
+		},
+		{
 			name: "NotFound",
 			handler: func(t *testing.T, w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
@@ -796,6 +835,9 @@ func TestClient_CancelDraftOperation(t *testing.T) {
 				require.NoError(t, err)
 			} else {
 				require.ErrorIs(t, err, tc.expectedError)
+			}
+			if tc.name == "ConflictWithCode" {
+				require.ErrorIs(t, err, apierror.ErrOperationNotCancellable)
 			}
 		})
 	}

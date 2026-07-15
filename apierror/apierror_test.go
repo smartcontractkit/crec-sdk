@@ -224,3 +224,98 @@ func TestApierror_Wrap(t *testing.T) {
 		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
 	})
 }
+
+func TestApierror_Conflict(t *testing.T) {
+	channelCode := apiClient.ApplicationErrorCodeChannelAlreadyExists
+	walletCode := apiClient.ApplicationErrorCodeWalletAlreadyExists
+	watcherCode := apiClient.ApplicationErrorCodeWatcherAlreadyExists
+	idempotencyCode := apiClient.ApplicationErrorCodeIdempotencyKeyMismatch
+	notFinalizableCode := apiClient.ApplicationErrorCodeOperationNotFinalizable
+	notCancellableCode := apiClient.ApplicationErrorCodeOperationNotCancellable
+	deadlineCode := apiClient.ApplicationErrorCodeOperationDeadlineElapsed
+	versionCode := apiClient.ApplicationErrorCodeResourceVersionConflict
+	archivedCode := apiClient.ApplicationErrorCodeWalletAlreadyArchived
+	entrypointCode := apiClient.ApplicationErrorCodeEntrypointNotReady
+	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_CONFLICT")
+
+	tests := []struct {
+		name    string
+		appErr  *apiClient.ApplicationError
+		wantErr error
+	}{
+		{name: "nil application error returns nil", appErr: nil, wantErr: nil},
+		{name: "nil code returns nil", appErr: &apiClient.ApplicationError{Type: apiClient.CONFLICT}, wantErr: nil},
+		{name: "channel", appErr: &apiClient.ApplicationError{Code: &channelCode}, wantErr: apierror.ErrChannelAlreadyExists},
+		{name: "wallet", appErr: &apiClient.ApplicationError{Code: &walletCode}, wantErr: apierror.ErrWalletAlreadyExists},
+		{name: "watcher", appErr: &apiClient.ApplicationError{Code: &watcherCode}, wantErr: apierror.ErrWatcherAlreadyExists},
+		{name: "idempotency", appErr: &apiClient.ApplicationError{Code: &idempotencyCode}, wantErr: apierror.ErrIdempotencyKeyMismatch},
+		{name: "not finalizable", appErr: &apiClient.ApplicationError{Code: &notFinalizableCode}, wantErr: apierror.ErrOperationNotFinalizable},
+		{name: "not cancellable", appErr: &apiClient.ApplicationError{Code: &notCancellableCode}, wantErr: apierror.ErrOperationNotCancellable},
+		{name: "deadline elapsed", appErr: &apiClient.ApplicationError{Code: &deadlineCode}, wantErr: apierror.ErrOperationDeadlineElapsed},
+		{name: "version conflict", appErr: &apiClient.ApplicationError{Code: &versionCode}, wantErr: apierror.ErrResourceVersionConflict},
+		{name: "already archived", appErr: &apiClient.ApplicationError{Code: &archivedCode}, wantErr: apierror.ErrWalletAlreadyArchived},
+		{name: "entrypoint not ready", appErr: &apiClient.ApplicationError{Code: &entrypointCode}, wantErr: apierror.ErrEntrypointNotReady},
+		{name: "unknown future code degrades to nil", appErr: &apiClient.ApplicationError{Code: &futureCode}, wantErr: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := apierror.Conflict(tt.appErr)
+
+			if tt.wantErr == nil {
+				assert.NoError(t, got)
+				return
+			}
+			assert.ErrorIs(t, got, tt.wantErr)
+		})
+	}
+}
+
+func TestApierror_WrapConflict(t *testing.T) {
+	opErr := errors.New("failed to create channel")
+	channelCode := apiClient.ApplicationErrorCodeChannelAlreadyExists
+	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_CONFLICT")
+	detail := "name my-channel"
+
+	t.Run("recognized code wraps opErr with typed sentinel and server message", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Code: &channelCode, Message: "channel already exists"}
+		err := apierror.WrapConflict(appErr, opErr, detail)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrChannelAlreadyExists)
+		assert.NotErrorIs(t, err, apierror.ErrWalletAlreadyExists)
+		assert.Contains(t, err.Error(), "channel already exists")
+		assert.NotContains(t, err.Error(), detail)
+	})
+
+	t.Run("missing code returns only opErr with server message", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Type: apiClient.CONFLICT, Message: "conflict"}
+		err := apierror.WrapConflict(appErr, opErr, detail)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.NotErrorIs(t, err, apierror.ErrChannelAlreadyExists)
+		assert.Contains(t, err.Error(), "conflict")
+	})
+
+	t.Run("unknown future code returns only opErr with detail", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Code: &futureCode}
+		err := apierror.WrapConflict(appErr, opErr, detail)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.NotErrorIs(t, err, apierror.ErrChannelAlreadyExists)
+		assert.Contains(t, err.Error(), detail)
+	})
+
+	t.Run("nil application error uses detail without panicking", func(t *testing.T) {
+		err := apierror.WrapConflict(nil, opErr, detail)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.Contains(t, err.Error(), detail)
+	})
+}
+
+func TestApierror_ConflictCode(t *testing.T) {
+	channelCode := apiClient.ApplicationErrorCodeChannelAlreadyExists
+	assert.Equal(t, "", apierror.ConflictCode(nil))
+	assert.Equal(t, "CHANNEL_ALREADY_EXISTS", apierror.ConflictCode(&apiClient.ApplicationError{Code: &channelCode}))
+}

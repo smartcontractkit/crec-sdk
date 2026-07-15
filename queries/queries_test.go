@@ -345,6 +345,7 @@ func TestClient_Create(t *testing.T) {
 		}{
 			{name: "ChannelNotFound", statusCode: http.StatusNotFound, wantErr: ErrChannelNotFound},
 			{name: "IdempotencyConflict", statusCode: http.StatusConflict, wantErr: ErrIdempotencyConflict},
+			{name: "IdempotencyKeyMismatch", statusCode: http.StatusConflict, wantErr: ErrIdempotencyKeyMismatch},
 			{name: "RateLimitExceeded", statusCode: http.StatusTooManyRequests, wantErr: ErrRateLimitExceeded},
 			{name: "Unexpected", statusCode: http.StatusInternalServerError, wantErr: apierror.ErrUnexpectedStatusCode},
 		}
@@ -358,6 +359,11 @@ func TestClient_Create(t *testing.T) {
 						msg = "channel with ID abc not found"
 						channelCode := apiClient.ApplicationErrorCodeChannelNotFound
 						code = &channelCode
+					}
+					if tt.wantErr == ErrIdempotencyKeyMismatch {
+						msg = "idempotency key reused with different query request"
+						mismatchCode := apiClient.ApplicationErrorCodeIdempotencyKeyMismatch
+						code = &mismatchCode
 					}
 					writeJSON(t, w, tt.statusCode, apiClient.ApplicationError{
 						Message: msg,

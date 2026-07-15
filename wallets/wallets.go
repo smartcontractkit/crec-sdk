@@ -25,6 +25,16 @@ const (
 var (
 	// ErrWalletNotFound is returned when a wallet is not found (404 response)
 	ErrWalletNotFound = apierror.ErrWalletNotFound
+	// ErrWalletAlreadyExists is returned when a wallet with the same name already exists (409 response)
+	ErrWalletAlreadyExists = apierror.ErrWalletAlreadyExists
+	// ErrEntrypointNotReady is returned when the chain entrypoint required to create a wallet
+	// is not ready (409 response)
+	ErrEntrypointNotReady = apierror.ErrEntrypointNotReady
+	// ErrWalletAlreadyArchived is returned when the wallet is already archived (409 response)
+	ErrWalletAlreadyArchived = apierror.ErrWalletAlreadyArchived
+	// ErrResourceVersionConflict is returned when the wallet was modified concurrently by
+	// another request (409 response)
+	ErrResourceVersionConflict = apierror.ErrResourceVersionConflict
 
 	// Client initialization errors
 	ErrOptionsRequired   = errors.New("options is required")
@@ -252,6 +262,11 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 			"address", resp.JSON201.Address,
 			"chain_selector", resp.JSON201.ChainSelector)
 		return resp.JSON201, nil
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when creating wallet",
+			"name", input.Name,
+			"code", apierror.ConflictCode(resp.JSON409))
+		return nil, apierror.WrapConflict(resp.JSON409, ErrCreateWallet, "name "+input.Name)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when creating wallet",
 			"status_code", resp.StatusCode(),
@@ -466,6 +481,11 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when updating wallet",
+			"wallet_id", walletID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		return apierror.WrapConflict(resp.JSON409, ErrUpdateWallet, "wallet ID "+walletID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when updating wallet",
 			"status_code", resp.StatusCode(),
