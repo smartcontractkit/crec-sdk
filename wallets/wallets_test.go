@@ -242,7 +242,7 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
-		rsaSigners := []apiClient.RSAPublicKey{
+		rsaSigners := []RSAPublicKey{
 			{E: "010001", N: "abc"},
 			{E: "010001", N: "abc"}, // duplicate
 		}
@@ -489,7 +489,7 @@ func TestClient_Create(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrCreateWallet))
 	})
 
-	t.Run("UnsupportedWalletType", func(t *testing.T) {
+	t.Run("WalletTypeWithoutConfiguration", func(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
@@ -505,7 +505,59 @@ func TestClient_Create(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, wallet)
-		assert.True(t, errors.Is(err, ErrUnsupportedWalletType))
+		assert.True(t, errors.Is(err, ErrConfigurationRequired))
+	})
+
+	t.Run("ProtectedEcdsaWalletWithConfiguration", func(t *testing.T) {
+		walletID := uuid.New()
+		walletName := "test-wallet"
+		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
+		chainSelector := "5009297550715157269"
+		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var createReq apiClient.CreateWallet
+			require.NoError(t, json.Unmarshal(body, &createReq))
+			assert.Equal(t, apiClient.WalletTypeProtectedECDSA, createReq.WalletType)
+
+			expectedConfig := apiClient.WalletConfiguration{"allowed_signers": []string{"0x1234567890abcdef1234567890abcdef12345678"}}
+			expectedJSON, err := json.Marshal(expectedConfig)
+			require.NoError(t, err)
+			actualJSON, err := json.Marshal(createReq.Configuration)
+			require.NoError(t, err)
+			assert.JSONEq(t, string(expectedJSON), string(actualJSON))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			response := apiClient.Wallet{
+				WalletId:      walletID,
+				Name:          walletName,
+				Address:       walletAddress,
+				ChainSelector: chainSelector,
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		statusChannelID := uuid.New()
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:               walletName,
+			ChainSelector:      chainSelector,
+			WalletOwnerAddress: ownerAddress,
+			WalletType:         apiClient.WalletTypeProtectedECDSA,
+			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{"0x1234567890abcdef1234567890abcdef12345678"}},
+			StatusChannelId:    &statusChannelID,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, wallet)
+		assert.Equal(t, walletID, wallet.WalletId)
 	})
 
 	t.Run("EcdsaWalletWithRsaSigners", func(t *testing.T) {
@@ -516,7 +568,7 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		rsaSigners := apiClient.RSASignersList{{E: "AQAB", N: "abc123"}}
+		rsaSigners := RSASignersList{{E: "AQAB", N: "abc123"}}
 
 		statusChannelID := uuid.New()
 
@@ -643,7 +695,7 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, handler)
 		defer server.Close()
 
-		rsaSigners := apiClient.RSASignersList{{E: "AQAB", N: "abc123"}}
+		rsaSigners := RSASignersList{{E: "AQAB", N: "abc123"}}
 
 		statusChannelID := uuid.New()
 
@@ -664,7 +716,7 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
-		rsaSigners := apiClient.RSASignersList{{E: "", N: "abc123"}}
+		rsaSigners := RSASignersList{{E: "", N: "abc123"}}
 
 		statusChannelID := uuid.New()
 
@@ -686,7 +738,7 @@ func TestClient_Create(t *testing.T) {
 		client, server := setupTestClient(t, nil)
 		defer server.Close()
 
-		rsaSigners := apiClient.RSASignersList{{E: "AQAB", N: ""}}
+		rsaSigners := RSASignersList{{E: "AQAB", N: ""}}
 
 		statusChannelID := uuid.New()
 

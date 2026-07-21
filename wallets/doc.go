@@ -33,6 +33,7 @@
 //   - RSA (Rivest-Shamir-Adleman): Alternative signing algorithm using RSA keys.
 //     Specify "rsa" as the wallet type and provide AllowedRsaSigners with public
 //     exponent (E) and modulus (N) values.
+//   - Other wallet types (e.g., "protected_ecdsa") require an explicit Configuration map.
 //
 // Create a new Smart Wallet with required configuration:
 //
@@ -42,6 +43,16 @@
 //	    WalletOwnerAddress: "0xabcdef...",
 //	    WalletType:         "ecdsa",
 //	    AllowedEcdsaSigners: &[]string{"0x123...", "0x456..."},
+//	})
+//
+// Create a wallet using a raw configuration map:
+//
+//	wallet, err := client.Wallets.Create(ctx, CreateInput{
+//	    Name:               "my-wallet",
+//	    ChainSelector:      "5009297550715157269",
+//	    WalletOwnerAddress: "0xabcdef...",
+//	    WalletType:         "protected_ecdsa",
+//	    Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{"0x123..."}},
 //	})
 //	fmt.Printf("Created: %s (ID: %s, Address: %s)\n",
 //	    wallet.Name, wallet.WalletId, wallet.Address)

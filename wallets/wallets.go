@@ -37,7 +37,6 @@ var (
 	ErrWalletOwnerAddressRequired = errors.New("wallet owner address is required")
 	ErrInvalidWalletOwnerAddress  = errors.New("wallet owner address must be a valid hex address")
 	ErrWalletTypeRequired         = errors.New("wallet type is required")
-	ErrUnsupportedWalletType      = errors.New("unsupported wallet type")
 	ErrWalletIDRequired           = errors.New("wallet ID is required")
 	ErrStatusChannelIDZero        = errors.New("status channel ID cannot be the zero UUID")
 	ErrEcdsaSignersRequired       = errors.New("allowed_ecdsa_signers is required for ecdsa wallet type")
@@ -52,6 +51,7 @@ var (
 	ErrInvalidLimit           = errors.New("limit must be positive")
 	ErrInvalidOffset          = errors.New("offset cannot be negative")
 	ErrInvalidOwnerAddress    = errors.New("owner address must be a valid hex address")
+	ErrConfigurationRequired  = errors.New("configuration is required when no signer list is provided")
 
 	// API operation errors
 	ErrCreateWallet  = errors.New("failed to create wallet")
@@ -102,13 +102,26 @@ func NewClient(opts *Options) (*Client, error) {
 	}, nil
 }
 
+// RSAPublicKey represents an RSA public key with exponent and modulus.
+type RSAPublicKey struct {
+	// E is the RSA public exponent (e.g., "010001" or "AQAB").
+	E string
+	// N is the RSA public modulus.
+	N string
+}
+
+// RSASignersList is a list of allowed RSA public signing keys.
+type RSASignersList = []RSAPublicKey
+
 // CreateInput defines the input parameters for creating a new wallet.
 //   - Name: The name of the wallet.
 //   - ChainSelector: The chain selector identifying the blockchain network.
 //   - WalletOwnerAddress: The wallet contract owner address (42-character hex string starting with 0x).
 //   - WalletType: The type of the wallet (e.g., "ecdsa").
-//   - AllowedEcdsaSigners: Optional list of allowed ECDSA public signing keys.
-//   - AllowedRsaSigners: Optional list of allowed RSA public signing keys.
+//   - AllowedEcdsaSigners: Optional list of allowed ECDSA public signing keys (used for ecdsa wallet type).
+//   - AllowedRsaSigners: Optional list of allowed RSA public signing keys (used for rsa wallet type).
+//   - Configuration: Optional wallet type-specific configuration. If provided, it takes precedence over signer lists.
+//   - Description: Optional description of the wallet.
 //   - StatusChannelId: Optional unique identifier for the channel where the wallet status will be published
 type CreateInput struct {
 	Name                string
@@ -116,7 +129,9 @@ type CreateInput struct {
 	WalletOwnerAddress  string
 	WalletType          apiClient.WalletType
 	AllowedEcdsaSigners *[]string
-	AllowedRsaSigners   *apiClient.RSASignersList
+	AllowedRsaSigners   *RSASignersList
+	Configuration       apiClient.WalletConfiguration
+	Description         *string
 	StatusChannelId     *uuid.UUID `json:"status_channel_id,omitempty"`
 }
 
@@ -158,61 +173,67 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, ErrStatusChannelIDZero
 	}
 
-	// Validate that wallet type matches the provided signers
-	switch input.WalletType {
-	case apiClient.WalletTypeECDSA:
-		if input.AllowedRsaSigners != nil {
-			return nil, ErrInvalidSignersForEcdsa
-		}
-		if input.AllowedEcdsaSigners == nil {
-			return nil, ErrEcdsaSignersRequired
-		}
-		// Validate ECDSA signers (can be empty array)
-		seenEcdsa := make(map[string]bool)
-		for _, signer := range *input.AllowedEcdsaSigners {
-			if !common.IsHexAddress(signer) {
-				return nil, fmt.Errorf("%w: %s", ErrInvalidEcdsaSigner, signer)
-			}
-			addr := common.HexToAddress(signer).Hex()
-			if seenEcdsa[addr] {
-				return nil, fmt.Errorf("%w: %s", ErrDuplicateEcdsaSigner, signer)
-			}
-			seenEcdsa[addr] = true
-		}
-	case apiClient.WalletTypeRSA:
-		if input.AllowedEcdsaSigners != nil {
-			return nil, ErrInvalidSignersForRsa
-		}
-		if input.AllowedRsaSigners == nil {
-			return nil, ErrRsaSignersRequired
-		}
-		// Validate RSA signers (can be empty array)
-		seenRsa := make(map[string]bool)
-		for _, signer := range *input.AllowedRsaSigners {
-			if signer.E == "" || signer.N == "" {
-				return nil, ErrInvalidRsaSigner
-			}
-			key := signer.N + ":" + signer.E
-			if seenRsa[key] {
-				return nil, ErrDuplicateRsaSigner
-			}
-			seenRsa[key] = true
-		}
-	default:
-		return nil, fmt.Errorf("%w: %s", ErrUnsupportedWalletType, input.WalletType)
-	}
+	var configuration apiClient.WalletConfiguration
 
-	var allowedRsaSigners *[]apiClient.RSAPublicKey
-
-	if input.AllowedRsaSigners != nil {
-		rs := make([]apiClient.RSAPublicKey, len(*input.AllowedRsaSigners))
-		for i, signer := range *input.AllowedRsaSigners {
-			rs[i] = apiClient.RSAPublicKey{
-				E: signer.E,
-				N: signer.N,
+	// If an explicit configuration is provided, use it directly.
+	// Otherwise, build the configuration from the legacy signer fields.
+	if len(input.Configuration) > 0 {
+		configuration = input.Configuration
+	} else {
+		// Validate that wallet type matches the provided signers and build the configuration.
+		switch input.WalletType {
+		case apiClient.WalletTypeECDSA:
+			if input.AllowedRsaSigners != nil {
+				return nil, ErrInvalidSignersForEcdsa
 			}
+			if input.AllowedEcdsaSigners == nil {
+				return nil, ErrEcdsaSignersRequired
+			}
+			// Validate ECDSA signers (can be empty array)
+			seenEcdsa := make(map[string]bool)
+			for _, signer := range *input.AllowedEcdsaSigners {
+				if !common.IsHexAddress(signer) {
+					return nil, fmt.Errorf("%w: %s", ErrInvalidEcdsaSigner, signer)
+				}
+				addr := common.HexToAddress(signer).Hex()
+				if seenEcdsa[addr] {
+					return nil, fmt.Errorf("%w: %s", ErrDuplicateEcdsaSigner, signer)
+				}
+				seenEcdsa[addr] = true
+			}
+			configuration = apiClient.WalletConfiguration{
+				"allowed_signers": *input.AllowedEcdsaSigners,
+			}
+		case apiClient.WalletTypeRSA:
+			if input.AllowedEcdsaSigners != nil {
+				return nil, ErrInvalidSignersForRsa
+			}
+			if input.AllowedRsaSigners == nil {
+				return nil, ErrRsaSignersRequired
+			}
+			// Validate RSA signers (can be empty array)
+			seenRsa := make(map[string]bool)
+			rsaSigners := make([]map[string]string, len(*input.AllowedRsaSigners))
+			for i, signer := range *input.AllowedRsaSigners {
+				if signer.E == "" || signer.N == "" {
+					return nil, ErrInvalidRsaSigner
+				}
+				key := signer.N + ":" + signer.E
+				if seenRsa[key] {
+					return nil, fmt.Errorf("%w: %s", ErrDuplicateRsaSigner, signer)
+				}
+				seenRsa[key] = true
+				rsaSigners[i] = map[string]string{
+					"e": signer.E,
+					"n": signer.N,
+				}
+			}
+			configuration = apiClient.WalletConfiguration{
+				"allowed_signers": rsaSigners,
+			}
+		default:
+			return nil, fmt.Errorf("%w: %s", ErrConfigurationRequired, input.WalletType)
 		}
-		allowedRsaSigners = &rs
 	}
 
 	var apiStatusChannelID *openapitypes.UUID
@@ -222,13 +243,13 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 	}
 
 	createWalletReq := apiClient.CreateWallet{
-		Name:                input.Name,
-		ChainSelector:       input.ChainSelector,
-		WalletOwnerAddress:  input.WalletOwnerAddress,
-		WalletType:          input.WalletType,
-		AllowedEcdsaSigners: input.AllowedEcdsaSigners,
-		AllowedRsaSigners:   allowedRsaSigners,
-		StatusChannelId:     apiStatusChannelID,
+		Name:               input.Name,
+		ChainSelector:      input.ChainSelector,
+		WalletOwnerAddress: input.WalletOwnerAddress,
+		WalletType:         input.WalletType,
+		Configuration:      configuration,
+		Description:        input.Description,
+		StatusChannelId:    apiStatusChannelID,
 	}
 
 	resp, err := c.apiClient.CreateWalletWithResponse(ctx, createWalletReq)
