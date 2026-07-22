@@ -58,9 +58,11 @@ var (
 	ErrResourceVersionConflict = errors.New("resource version conflict")
 	// ErrWalletAlreadyArchived is returned when a wallet is already archived.
 	ErrWalletAlreadyArchived = errors.New("wallet already archived")
-	// ErrEntrypointNotReady is returned when the chain entrypoint required to create a
-	// wallet is not ready (e.g. in a failed state).
-	ErrEntrypointNotReady = errors.New("entrypoint not ready")
+	// ErrChainUnavailable is returned when the chain infrastructure required to
+	// create a wallet is not available (e.g. deployment infrastructure is in a
+	// failed state). This is a rare operational case that typically requires
+	// support to resolve.
+	ErrChainUnavailable = errors.New("chain unavailable for wallet creation")
 )
 
 // ErrUnexpectedStatusCode is returned when the API responds with an HTTP status
@@ -198,8 +200,8 @@ func Conflict(appErr *apiClient.ApplicationError) error {
 		return ErrResourceVersionConflict
 	case apiClient.ApplicationErrorCodeWalletAlreadyArchived:
 		return ErrWalletAlreadyArchived
-	case apiClient.ApplicationErrorCodeEntrypointNotReady:
-		return ErrEntrypointNotReady
+	case apiClient.ApplicationErrorCodeChainUnavailable:
+		return ErrChainUnavailable
 	default:
 		return nil
 	}

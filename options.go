@@ -30,7 +30,8 @@ var DefaultValidSigners = []string{
 	"0xd7f22fb5382ff477d2ff5c702cab0ef8abf18233", // linkforest-wf-zone-a-5
 	"0xcdf20f8ffd41b02c680988b20e68735cc8c1ca17", // linkpool-wf-zone-a-0
 	"0x4d7d71c7e584cfa1f5c06275e5d283b9d3176924", // linkriver-wf-zone-a-6
-	"0x1a89c98e75983ec384ad8e83eaf7d0176eeaf155", // piertwo-wf-zone-a-7
+	"0x1a89c98e75983ec384ad8e83eaf7d0176eeaf155", // piertwo-wf-zone-a-7 (old key; remove after prod key rotation completes)
+	"0xedf4bc027a750d1a88b8ca3ec5e8a5506f6019be", // piertwo-wf-zone-a-7 (new key; added for rotation)
 	"0x4f99b550623e77b807df7cbed9c79d55e1163b48", // simplyvc-wf-zone-a-8
 }
 

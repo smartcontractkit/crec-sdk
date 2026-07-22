@@ -235,7 +235,7 @@ func TestApierror_Conflict(t *testing.T) {
 	deadlineCode := apiClient.ApplicationErrorCodeOperationDeadlineElapsed
 	versionCode := apiClient.ApplicationErrorCodeResourceVersionConflict
 	archivedCode := apiClient.ApplicationErrorCodeWalletAlreadyArchived
-	entrypointCode := apiClient.ApplicationErrorCodeEntrypointNotReady
+	chainUnavailableCode := apiClient.ApplicationErrorCodeChainUnavailable
 	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_CONFLICT")
 
 	tests := []struct {
@@ -254,7 +254,7 @@ func TestApierror_Conflict(t *testing.T) {
 		{name: "deadline elapsed", appErr: &apiClient.ApplicationError{Code: &deadlineCode}, wantErr: apierror.ErrOperationDeadlineElapsed},
 		{name: "version conflict", appErr: &apiClient.ApplicationError{Code: &versionCode}, wantErr: apierror.ErrResourceVersionConflict},
 		{name: "already archived", appErr: &apiClient.ApplicationError{Code: &archivedCode}, wantErr: apierror.ErrWalletAlreadyArchived},
-		{name: "entrypoint not ready", appErr: &apiClient.ApplicationError{Code: &entrypointCode}, wantErr: apierror.ErrEntrypointNotReady},
+		{name: "chain unavailable", appErr: &apiClient.ApplicationError{Code: &chainUnavailableCode}, wantErr: apierror.ErrChainUnavailable},
 		{name: "unknown future code degrades to nil", appErr: &apiClient.ApplicationError{Code: &futureCode}, wantErr: nil},
 	}
 
