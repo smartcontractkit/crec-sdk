@@ -442,7 +442,8 @@ func (c *Client) SendSignedOperation(
 	// Retrieve the created operation
 	operation, err := c.GetOperation(ctx, channelID, *opID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: created but failed to retrieve: %w", ErrSendOperation, err)
+		return nil, fmt.Errorf("%w: created but failed to retrieve (channel_id=%s, operation_id=%s): %w",
+			ErrSendOperation, channelID.String(), opID.String(), err)
 	}
 
 	return operation, nil
