@@ -129,10 +129,10 @@ func (h *Handler) HashOperation(op *types.Operation, chainSelector string) (comm
 func (h *Handler) SignOperation(
 	ctx context.Context,
 	op *types.Operation,
-	signer signer.Signer,
+	s signer.Signer,
 	chainSelector string,
 ) (common.Hash, []byte, error) {
-	if signer == nil {
+	if s == nil {
 		return common.Hash{}, nil, ErrSignerRequired
 	}
 
@@ -140,10 +140,24 @@ func (h *Handler) SignOperation(
 	if err != nil {
 		return common.Hash{}, nil, fmt.Errorf("%w: %w", ErrHashOperation, err)
 	}
-	sig, err := signer.Sign(ctx, hash.Bytes())
-	if err != nil {
-		return common.Hash{}, nil, fmt.Errorf("%w: %w", ErrSignOperation, err)
+
+	var sig []byte
+	if typedDataSigner, ok := s.(signer.TypedDataSigner); ok {
+		typedData, err := h.buildSignerTypedData(op, chainSelector)
+		if err != nil {
+			return common.Hash{}, nil, fmt.Errorf("%w: %w", ErrSignOperation, err)
+		}
+		sig, err = typedDataSigner.SignTypedData(ctx, typedData)
+		if err != nil {
+			return common.Hash{}, nil, fmt.Errorf("%w: %w", ErrSignOperation, err)
+		}
+	} else {
+		sig, err = s.Sign(ctx, hash.Bytes())
+		if err != nil {
+			return common.Hash{}, nil, fmt.Errorf("%w: %w", ErrSignOperation, err)
+		}
 	}
+
 	h.logger.Debug("Signed Operation",
 		"chain_selector", chainSelector,
 		"operation_id", op.ID.String(),
@@ -180,6 +194,67 @@ func (h *Handler) SignOperationHash(
 //   - chainSelector: The chain selector string to parse.
 //
 // Returns the chain ID as a big.Int or an error if the selector is invalid or unsupported.
+func (h *Handler) buildSignerTypedData(op *types.Operation, chainSelector string) (*signer.TypedData, error) {
+	chainSelectorUint, err := strconv.ParseUint(chainSelector, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrParseChainSelector, err)
+	}
+	chainFamily, err := chainselectors.GetSelectorFamily(chainSelectorUint)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrGetChainFamily, err)
+	}
+	if chainFamily != chainselectors.FamilyEVM {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedChainFamily, chainFamily)
+	}
+	chainIdStr, err := chainselectors.GetChainIDFromSelector(chainSelectorUint)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrGetChainID, err)
+	}
+	chainIdInt, err := strconv.ParseInt(chainIdStr, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidChainIDString, chainIdStr)
+	}
+
+	domain := types.SmartAccountEIP712Domain(chainIdInt, op.Account)
+
+	message, err := op.EIP712Message()
+	if err != nil {
+		return nil, err
+	}
+
+	typesMap := map[string][]signer.TypedDataField{
+		"EIP712Domain": {
+			{Name: "name", Type: "string"},
+			{Name: "version", Type: "string"},
+			{Name: "chainId", Type: "uint256"},
+			{Name: "verifyingContract", Type: "address"},
+		},
+		"Operation": {
+			{Name: "id", Type: "uint256"},
+			{Name: "account", Type: "address"},
+			{Name: "deadline", Type: "uint256"},
+			{Name: "transactions", Type: "Transaction[]"},
+		},
+		"Transaction": {
+			{Name: "to", Type: "address"},
+			{Name: "value", Type: "uint256"},
+			{Name: "data", Type: "bytes"},
+		},
+	}
+
+	return &signer.TypedData{
+		Types:       typesMap,
+		PrimaryType: "Operation",
+		Domain: signer.TypedDataDomain{
+			Name:              domain.Name,
+			Version:           domain.Version,
+			ChainID:           domain.ChainId,
+			VerifyingContract: domain.VerifyingContract.Hex(),
+		},
+		Message: message,
+	}, nil
+}
+
 func GetChainIDFromSelector(chainSelector string) (*big.Int, error) {
 	if chainSelector == "" || chainSelector == "0" {
 		return nil, ErrParseChainSelector
