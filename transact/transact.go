@@ -663,7 +663,7 @@ func (c *Client) ExecuteTransactions(
 		ID:           big.NewInt(time.Now().Unix()),
 		Account:      executorAccount,
 		Deadline:     deadline,
-		Transactions: txs,
+		Transactions: append([]types.Transaction(nil), txs...),
 	}
 
 	return c.ExecuteOperation(ctx, channelID, operationSigner, operation, chainSelector)
