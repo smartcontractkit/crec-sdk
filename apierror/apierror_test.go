@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	apiClient "github.com/smartcontractkit/crec-api-go/client"
 	"github.com/stretchr/testify/assert"
+
+	apiClient "github.com/smartcontractkit/crec-api-go/client"
 
 	"github.com/smartcontractkit/crec-sdk/apierror"
 )
@@ -233,7 +234,6 @@ func TestApierror_Conflict(t *testing.T) {
 	notFinalizableCode := apiClient.ApplicationErrorCodeOperationNotFinalizable
 	notCancellableCode := apiClient.ApplicationErrorCodeOperationNotCancellable
 	deadlineCode := apiClient.ApplicationErrorCodeOperationDeadlineElapsed
-	versionCode := apiClient.ApplicationErrorCodeResourceVersionConflict
 	archivedCode := apiClient.ApplicationErrorCodeWalletAlreadyArchived
 	chainUnavailableCode := apiClient.ApplicationErrorCodeChainUnavailable
 	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_CONFLICT")
@@ -252,7 +252,6 @@ func TestApierror_Conflict(t *testing.T) {
 		{name: "not finalizable", appErr: &apiClient.ApplicationError{Code: &notFinalizableCode}, wantErr: apierror.ErrOperationNotFinalizable},
 		{name: "not cancellable", appErr: &apiClient.ApplicationError{Code: &notCancellableCode}, wantErr: apierror.ErrOperationNotCancellable},
 		{name: "deadline elapsed", appErr: &apiClient.ApplicationError{Code: &deadlineCode}, wantErr: apierror.ErrOperationDeadlineElapsed},
-		{name: "version conflict", appErr: &apiClient.ApplicationError{Code: &versionCode}, wantErr: apierror.ErrResourceVersionConflict},
 		{name: "already archived", appErr: &apiClient.ApplicationError{Code: &archivedCode}, wantErr: apierror.ErrWalletAlreadyArchived},
 		{name: "chain unavailable", appErr: &apiClient.ApplicationError{Code: &chainUnavailableCode}, wantErr: apierror.ErrChainUnavailable},
 		{name: "unknown future code degrades to nil", appErr: &apiClient.ApplicationError{Code: &futureCode}, wantErr: nil},

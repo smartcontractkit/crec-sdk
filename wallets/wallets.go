@@ -25,16 +25,6 @@ const (
 var (
 	// ErrWalletNotFound is returned when a wallet is not found (404 response)
 	ErrWalletNotFound = apierror.ErrWalletNotFound
-	// ErrWalletAlreadyExists is returned when a wallet with the same name already exists (409 response)
-	ErrWalletAlreadyExists = apierror.ErrWalletAlreadyExists
-	// ErrChainUnavailable is returned when the chain infrastructure required to
-	// create a wallet is not available (409 response). Rare operational case.
-	ErrChainUnavailable = apierror.ErrChainUnavailable
-	// ErrWalletAlreadyArchived is returned when the wallet is already archived (409 response)
-	ErrWalletAlreadyArchived = apierror.ErrWalletAlreadyArchived
-	// ErrResourceVersionConflict is returned when the wallet was modified concurrently by
-	// another request (409 response)
-	ErrResourceVersionConflict = apierror.ErrResourceVersionConflict
 
 	// Client initialization errors
 	ErrOptionsRequired   = errors.New("options is required")

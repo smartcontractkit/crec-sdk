@@ -27,12 +27,6 @@ var (
 	// ErrChannelNotFound is returned when the channel does not exist (404 response).
 	ErrChannelNotFound = apierror.ErrChannelNotFound
 
-	// ErrWatcherAlreadyExists is returned when a watcher with the same name already exists (409 response).
-	ErrWatcherAlreadyExists = apierror.ErrWatcherAlreadyExists
-	// ErrResourceVersionConflict is returned when the watcher was modified concurrently by
-	// another request (409 response).
-	ErrResourceVersionConflict = apierror.ErrResourceVersionConflict
-
 	// ErrChannelIDRequired is returned when the channel ID is nil or empty.
 	ErrChannelIDRequired = errors.New("channel_id cannot be empty")
 	// ErrWatcherIDRequired is returned when the watcher ID is nil or empty.

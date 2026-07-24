@@ -784,6 +784,63 @@ func TestClient_Update(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrUpdateChannel))
 		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode))
 	})
+
+	t.Run("Conflict_ChannelAlreadyExists", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			code := apiClient.ApplicationErrorCodeChannelAlreadyExists
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Code:    &code,
+				Message: "channel already exists",
+				Type:    apiClient.CONFLICT,
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		desc := "description"
+		channel, err := client.Update(context.Background(), channelID, UpdateInput{
+			Name:        "updated-channel",
+			Description: &desc,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, channel)
+		assert.ErrorIs(t, err, ErrUpdateChannel)
+		assert.ErrorIs(t, err, ErrChannelAlreadyExists)
+	})
+
+	t.Run("Conflict_UnknownCode", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			// No code field — exercises the fallback path in WrapConflict.
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Message: "conflict without a recognized code",
+				Type:    apiClient.CONFLICT,
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		desc := "description"
+		channel, err := client.Update(context.Background(), channelID, UpdateInput{
+			Name:        "updated-channel",
+			Description: &desc,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, channel)
+		assert.ErrorIs(t, err, ErrUpdateChannel)
+		assert.False(t, errors.Is(err, ErrChannelAlreadyExists), "unknown code must not produce ErrChannelAlreadyExists")
+	})
 }
 
 func TestClient_Archive(t *testing.T) {

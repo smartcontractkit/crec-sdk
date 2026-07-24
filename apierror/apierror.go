@@ -53,9 +53,6 @@ var (
 	ErrOperationNotCancellable = errors.New("operation not cancellable")
 	// ErrOperationDeadlineElapsed is returned when an operation's deadline has elapsed.
 	ErrOperationDeadlineElapsed = errors.New("operation deadline elapsed")
-	// ErrResourceVersionConflict is returned when a resource was modified concurrently
-	// by another request (optimistic lock).
-	ErrResourceVersionConflict = errors.New("resource version conflict")
 	// ErrWalletAlreadyArchived is returned when a wallet is already archived.
 	ErrWalletAlreadyArchived = errors.New("wallet already archived")
 	// ErrChainUnavailable is returned when the chain infrastructure required to
@@ -196,8 +193,6 @@ func Conflict(appErr *apiClient.ApplicationError) error {
 		return ErrOperationNotCancellable
 	case apiClient.ApplicationErrorCodeOperationDeadlineElapsed:
 		return ErrOperationDeadlineElapsed
-	case apiClient.ApplicationErrorCodeResourceVersionConflict:
-		return ErrResourceVersionConflict
 	case apiClient.ApplicationErrorCodeWalletAlreadyArchived:
 		return ErrWalletAlreadyArchived
 	case apiClient.ApplicationErrorCodeChainUnavailable:
