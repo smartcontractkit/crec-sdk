@@ -189,11 +189,6 @@ func (h *Handler) SignOperationHash(
 	return sig, nil
 }
 
-// GetChainIDFromSelector is a utility function that extracts the chain ID from a chain selector string.
-// This is useful for applications that need the numeric chain ID for other purposes.
-//   - chainSelector: The chain selector string to parse.
-//
-// Returns the chain ID as a big.Int or an error if the selector is invalid or unsupported.
 func (h *Handler) buildSignerTypedData(op *types.Operation, chainSelector string) (*signer.TypedData, error) {
 	chainSelectorUint, err := strconv.ParseUint(chainSelector, 10, 64)
 	if err != nil {
@@ -255,6 +250,11 @@ func (h *Handler) buildSignerTypedData(op *types.Operation, chainSelector string
 	}, nil
 }
 
+// GetChainIDFromSelector is a utility function that extracts the chain ID from a chain selector string.
+// This is useful for applications that need the numeric chain ID for other purposes.
+//   - chainSelector: The chain selector string to parse.
+//
+// Returns the chain ID as a big.Int or an error if the selector is invalid or unsupported.
 func GetChainIDFromSelector(chainSelector string) (*big.Int, error) {
 	if chainSelector == "" || chainSelector == "0" {
 		return nil, ErrParseChainSelector
