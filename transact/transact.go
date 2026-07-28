@@ -2,12 +2,12 @@ package transact
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
 	"net/http"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
@@ -659,8 +659,13 @@ func (c *Client) ExecuteTransactions(
 		deadline = big.NewInt(0)
 	}
 
+	opID, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate operation ID: %w", err)
+	}
+
 	operation := &types.Operation{
-		ID:           big.NewInt(time.Now().Unix()),
+		ID:           opID,
 		Account:      executorAccount,
 		Deadline:     deadline,
 		Transactions: txs,
