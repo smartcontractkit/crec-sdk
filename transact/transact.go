@@ -713,6 +713,9 @@ func (c *Client) SendSignedDraftOperation(
 	if len(digest) == 0 {
 		return nil, ErrDigestRequired
 	}
+	if len(digest) != 32 {
+		return nil, fmt.Errorf("%w: digest must be 32 bytes", ErrDigestRequired)
+	}
 	if len(signature) == 0 {
 		return nil, ErrSignatureRequired
 	}
@@ -772,6 +775,9 @@ func (c *Client) ExecuteDraftOperation(
 	}
 	if len(digest) == 0 {
 		return nil, ErrDigestRequired
+	}
+	if len(digest) != 32 {
+		return nil, fmt.Errorf("%w: digest must be 32 bytes", ErrDigestRequired)
 	}
 
 	signature, err := operationSigner.Sign(ctx, digest)

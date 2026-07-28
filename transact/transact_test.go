@@ -693,7 +693,10 @@ func (s *stubSigner) Sign(_ context.Context, digest []byte) ([]byte, error) {
 func TestClient_SendSignedDraftOperation_Success(t *testing.T) {
 	channelID := uuid.New()
 	operationID := uuid.New()
-	digest := []byte{0x11, 0x22}
+	digest := make([]byte, 32)
+	for i := range digest {
+		digest[i] = byte(i)
+	}
 	signature := []byte{0x33, 0x44}
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -725,7 +728,10 @@ func TestClient_SendSignedDraftOperation_Success(t *testing.T) {
 func TestClient_ExecuteDraftOperation_SignsProvidedDigest(t *testing.T) {
 	channelID := uuid.New()
 	operationID := uuid.New()
-	digest := []byte{0xde, 0xad}
+	digest := make([]byte, 32)
+	for i := range digest {
+		digest[i] = byte(i + 1)
+	}
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
