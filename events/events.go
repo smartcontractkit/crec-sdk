@@ -24,6 +24,10 @@ const (
 	ocrReportPayloadOffset = 109 // Offset of the report payload (event hash) in the OCR report
 	// CreMainlineTenantID is the CRE mainline tenant ID used as default for workflow owner address derivation.
 	CreMainlineTenantID = "1"
+	// maxOCRContextBytes is the maximum allowed size of the OCR context after hex decoding.
+	maxOCRContextBytes = 1_048_576 // 1 MiB
+	// maxSignatures is the absolute cap on signature count to bound ECDSA recovery work.
+	maxSignatures = 256
 )
 
 var (
@@ -132,6 +136,10 @@ var (
 	ErrInvalidOCRSignatureLength = errors.New("signature length must be 65 bytes")
 	// ErrInvalidOCRSignatureRecovery is returned when the secp256k1 recovery byte is not in {0,1,27,28}.
 	ErrInvalidOCRSignatureRecovery = errors.New("invalid recovery byte")
+	// ErrExcessiveSignatureCount is returned when the number of signatures exceeds the maximum allowed.
+	ErrExcessiveSignatureCount = errors.New("signature count exceeds maximum allowed")
+	// ErrOCRContextTooLarge is returned when the OCR context exceeds the maximum allowed size.
+	ErrOCRContextTooLarge = errors.New("OCR context exceeds maximum allowed size")
 )
 
 // Options holds the configuration options for the CREC events client.
@@ -440,7 +448,7 @@ func (c *Client) VerifyWithWorkflowOwner(event *apiClient.Event, workflowOwner s
 		return false, ErrOnlyWatcherEventsSupported
 	}
 
-	ocrReport, ocrContext, err := c.parseOCRProofData(ocrProof)
+	ocrReport, err := c.parseOCRProofData(ocrProof)
 	if err != nil {
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
@@ -463,6 +471,12 @@ func (c *Client) VerifyWithWorkflowOwner(event *apiClient.Event, workflowOwner s
 	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowOwner)
 	if !eventHashValid {
 		return false, ErrInvalidEventHash
+	}
+
+	// decode context only after event hash verification to avoid large allocations on invalid reports
+	ocrContext, err := c.parseOCRContext(ocrProof)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
 	// verify signatures
@@ -539,7 +553,7 @@ func (c *Client) VerifyOperationStatusWithWorkflowOwner(event *apiClient.Event, 
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, ErrVerifiableEventRequired)
 	}
 
-	ocrReport, ocrContext, err := c.parseOCRProofData(ocrProof)
+	ocrReport, err := c.parseOCRProofData(ocrProof)
 	if err != nil {
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
@@ -563,6 +577,12 @@ func (c *Client) VerifyOperationStatusWithWorkflowOwner(event *apiClient.Event, 
 	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowOwner)
 	if !eventHashValid {
 		return false, ErrInvalidEventHash
+	}
+
+	// decode context only after event hash verification to avoid large allocations on invalid reports
+	ocrContext, err := c.parseOCRContext(ocrProof)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
 	// verify signatures
@@ -623,7 +643,7 @@ func (c *Client) VerifyQueryStatusWithWorkflowOwner(event *apiClient.Event, work
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, ErrVerifiableEventRequired)
 	}
 
-	ocrReport, ocrContext, err := c.parseOCRProofData(ocrProof)
+	ocrReport, err := c.parseOCRProofData(ocrProof)
 	if err != nil {
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
@@ -644,6 +664,12 @@ func (c *Client) VerifyQueryStatusWithWorkflowOwner(event *apiClient.Event, work
 	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowOwner)
 	if !eventHashValid {
 		return false, ErrInvalidEventHash
+	}
+
+	// decode context only after event hash verification to avoid large allocations on invalid reports
+	ocrContext, err := c.parseOCRContext(ocrProof)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
 	verified, err := c.verifySignatures(ocrProof, ocrReport, ocrContext)
@@ -673,7 +699,12 @@ func (c *Client) VerifyOCRSignatures(ocrReport, ocrContext string, signatures []
 		Signatures: signatures,
 	}
 
-	reportBytes, contextBytes, err := c.parseOCRProofData(ocrProof)
+	reportBytes, err := c.parseOCRProofData(ocrProof)
+	if err != nil {
+		return false, err
+	}
+
+	contextBytes, err := c.parseOCRContext(ocrProof)
 	if err != nil {
 		return false, err
 	}
@@ -860,26 +891,45 @@ func (c *Client) prepareVerification(event *apiClient.Event) (apiClient.OCRProof
 
 // parseOCRProofData parses the OCR proof and returns the OCR report and context bytes.
 // It also validates that the OCR report has the minimum required length.
-func (c *Client) parseOCRProofData(ocrProof apiClient.OCRProof) ([]byte, []byte, error) {
+func (c *Client) parseOCRProofData(ocrProof apiClient.OCRProof) ([]byte, error) {
 	ocrReport, err := common.ParseHexOrString(ocrProof.OcrReport)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrParseOCRReport, err)
-	}
-	ocrContext, err := common.ParseHexOrString(ocrProof.OcrContext)
-	if err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrParseOCRContext, err)
+		return nil, fmt.Errorf("%w: %w", ErrParseOCRReport, err)
 	}
 
 	if len(ocrReport) < ocrReportPayloadOffset+32 { // 32 bytes for event hash
-		return nil, nil, ErrOCRReportTooShort
+		return nil, ErrOCRReportTooShort
 	}
 
-	return ocrReport, ocrContext, nil
+	return ocrReport, nil
+}
+
+func (c *Client) parseOCRContext(ocrProof apiClient.OCRProof) ([]byte, error) {
+	ocrContext, err := common.ParseHexOrString(ocrProof.OcrContext)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrParseOCRContext, err)
+	}
+	if len(ocrContext) > maxOCRContextBytes {
+		return nil, ErrOCRContextTooLarge
+	}
+	return ocrContext, nil
 }
 
 // verifySignatures verifies that the OCR proof signatures are valid and signed by authorized signers.
 // It returns true if at least minRequiredSignatures valid signatures are found, false otherwise.
 func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrContext []byte) (bool, error) {
+	// Cap signature count to bound ECDSA recovery work.
+	maxSigs := c.minRequiredSignatures
+	if len(c.validSigners)*2 > maxSigs {
+		maxSigs = len(c.validSigners) * 2
+	}
+	if maxSigs > maxSignatures {
+		maxSigs = maxSignatures
+	}
+	if len(ocrProof.Signatures) > maxSigs {
+		return false, ErrExcessiveSignatureCount
+	}
+
 	// generate the report hash matching the DON signing format
 	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
 
