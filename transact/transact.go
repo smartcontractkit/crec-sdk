@@ -668,7 +668,7 @@ func (c *Client) ExecuteTransactions(
 		ID:           opID,
 		Account:      executorAccount,
 		Deadline:     deadline,
-		Transactions: txs,
+		Transactions: append([]types.Transaction(nil), txs...),
 	}
 
 	return c.ExecuteOperation(ctx, channelID, operationSigner, operation, chainSelector)
