@@ -264,17 +264,19 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 //   - Address: Optional filter to search wallets by wallet address (42-character hex string starting with 0x).
 //   - Type: Optional filter to search wallets by type (e.g., "ecdsa", "rsa").
 //   - Status: Optional filter to search wallets by status (e.g., "deployed", "deploying", "failed", "pending", "deleted").
+//   - ChainEnvironment: Optional filter by chain environment (mainnet or testnet).
 //   - Limit: Maximum number of wallets to return per page.
 //   - Offset: Number of wallets to skip for pagination (default: 0).
 type ListInput struct {
-	Name          *string
-	ChainSelector *string
-	Owner         *string
-	Address       *string
-	Type          *apiClient.WalletType
-	Status        *[]apiClient.WalletStatus
-	Limit         *int
-	Offset        *int64
+	Name             *string
+	ChainSelector    *string
+	Owner            *string
+	Address          *string
+	Type             *apiClient.WalletType
+	Status           *[]apiClient.WalletStatus
+	ChainEnvironment *apiClient.NetworkType
+	Limit            *int
+	Offset           *int64
 }
 
 // List retrieves a list of wallets.
@@ -308,14 +310,15 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 	}
 
 	params := apiClient.ListWalletsParams{
-		Name:          input.Name,
-		ChainSelector: input.ChainSelector,
-		Owner:         input.Owner,
-		Address:       input.Address,
-		Type:          input.Type,
-		Status:        input.Status,
-		Limit:         input.Limit,
-		Offset:        input.Offset,
+		Name:             input.Name,
+		ChainSelector:    input.ChainSelector,
+		Owner:            input.Owner,
+		Address:          input.Address,
+		Type:             input.Type,
+		Status:           input.Status,
+		ChainEnvironment: input.ChainEnvironment,
+		Limit:            input.Limit,
+		Offset:           input.Offset,
 	}
 
 	resp, err := c.apiClient.ListWalletsWithResponse(ctx, &params)

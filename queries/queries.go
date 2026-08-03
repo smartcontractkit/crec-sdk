@@ -185,10 +185,11 @@ type CreateInput struct {
 
 // ListInput defines filters and pagination for listing channel queries.
 type ListInput struct {
-	ChannelID uuid.UUID
-	Status    *[]apiClient.QueryStatus
-	Limit     *int
-	Offset    *int64
+	ChannelID        uuid.UUID
+	Status           *[]apiClient.QueryStatus
+	ChainEnvironment *apiClient.NetworkType
+	Limit            *int
+	Offset           *int64
 }
 
 // EVMCallInput defines a raw EVM call query request without any wait-loop
@@ -394,9 +395,10 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 	}
 
 	params := apiClient.ListQueriesParams{
-		Status: input.Status,
-		Limit:  input.Limit,
-		Offset: input.Offset,
+		Status:           input.Status,
+		ChainEnvironment: input.ChainEnvironment,
+		Limit:            input.Limit,
+		Offset:           input.Offset,
 	}
 
 	resp, err := c.apiClient.ListQueriesWithResponse(ctx, input.ChannelID, &params)

@@ -133,14 +133,15 @@ type UpdateInput struct {
 
 // ListFilters defines optional filters for listing watchers (pagination, status, chain, etc.).
 type ListFilters struct {
-	Limit         *int                       `url:"limit,omitempty"`
-	Offset        *int64                     `url:"offset,omitempty"`
-	Name          *string                    `url:"name,omitempty"`
-	Status        *[]apiClient.WatcherStatus `url:"status,omitempty"`
-	ChainSelector *string                    `url:"chain_selector,omitempty"`
-	Address       *string                    `url:"address,omitempty"`
-	Service       *[]string                  `url:"service,omitempty"`
-	EventName     *string                    `url:"event_name,omitempty"`
+	Limit            *int                       `url:"limit,omitempty"`
+	Offset           *int64                     `url:"offset,omitempty"`
+	Name             *string                    `url:"name,omitempty"`
+	Status           *[]apiClient.WatcherStatus `url:"status,omitempty"`
+	ChainSelector    *string                    `url:"chain_selector,omitempty"`
+	Address          *string                    `url:"address,omitempty"`
+	Service          *[]string                  `url:"service,omitempty"`
+	EventName        *string                    `url:"event_name,omitempty"`
+	ChainEnvironment *apiClient.NetworkType     `url:"chain_environment,omitempty"`
 }
 
 // Options defines the options for creating a new CREC Watchers client.
@@ -427,14 +428,15 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 	}
 
 	params := &apiClient.ListWatchersParams{
-		Limit:         filters.Limit,
-		Offset:        filters.Offset,
-		Name:          filters.Name,
-		ChainSelector: filters.ChainSelector,
-		Address:       filters.Address,
-		EventName:     filters.EventName,
-		Service:       filters.Service,
-		Status:        filters.Status,
+		Limit:            filters.Limit,
+		Offset:           filters.Offset,
+		Name:             filters.Name,
+		ChainSelector:    filters.ChainSelector,
+		Address:          filters.Address,
+		EventName:        filters.EventName,
+		Service:          filters.Service,
+		Status:           filters.Status,
+		ChainEnvironment: filters.ChainEnvironment,
 	}
 
 	resp, err := c.apiClient.ListWatchersWithResponse(ctx, channelID, params)
