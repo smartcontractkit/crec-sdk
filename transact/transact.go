@@ -560,16 +560,18 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 //   - ChainSelector: Optional filter for chain selector.
 //   - Address: Optional filter for account address.
 //   - WalletID: Optional filter for wallet ID.
+//   - ChainEnvironment: Optional filter by chain environment (mainnet or testnet).
 //   - Limit: Maximum number of operations to return (1-100, default: 20).
 //   - Offset: Number of operations to skip for pagination (default: 0).
 type ListOperationsInput struct {
-	ChannelID     uuid.UUID
-	Status        *[]apiClient.OperationStatus
-	ChainSelector *string
-	Address       *string
-	WalletID      *uuid.UUID
-	Limit         *int
-	Offset        *int64
+	ChannelID        uuid.UUID
+	Status           *[]apiClient.OperationStatus
+	ChainSelector    *string
+	Address          *string
+	WalletID         *uuid.UUID
+	ChainEnvironment *apiClient.NetworkType
+	Limit            *int
+	Offset           *int64
 }
 
 // ListOperations retrieves a list of operations for a channel.
@@ -589,12 +591,13 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 	}
 
 	params := apiClient.ListOperationsParams{
-		ChainSelector: input.ChainSelector,
-		Address:       input.Address,
-		WalletId:      input.WalletID,
-		Limit:         input.Limit,
-		Offset:        input.Offset,
-		Status:        input.Status,
+		ChainSelector:    input.ChainSelector,
+		Address:          input.Address,
+		WalletId:         input.WalletID,
+		ChainEnvironment: input.ChainEnvironment,
+		Limit:            input.Limit,
+		Offset:           input.Offset,
+		Status:           input.Status,
 	}
 
 	resp, err := c.crecClient.ListOperationsWithResponse(ctx, input.ChannelID, &params)
