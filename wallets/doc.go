@@ -2,7 +2,7 @@
 //
 // Smart Wallets are blockchain wallets that can be used to sign transactions and interact
 // with smart contracts. They are associated with specific blockchain networks through chain
-// selectors and carry a type-specific configuration map.
+// selectors and carry type-specific allowed signer lists.
 //
 // # Usage
 //
@@ -10,12 +10,13 @@
 //
 //	client, _ := crec.NewClient(baseURL, apiKey)
 //
+//	ecdsaSigners := apiClient.ECDSASignersList{"0x..."}
 //	wallet, err := client.Wallets.Create(ctx, CreateInput{
-//	    Name:               "production-wallet",
-//	    ChainSelector:      "5009297550715157269",
-//	    WalletOwnerAddress: "0x1234...",
-//	    WalletType:         "ecdsa",
-//	    Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{"0x..."}},
+//	    Name:                "production-wallet",
+//	    ChainSelector:       "5009297550715157269",
+//	    WalletOwnerAddress:  "0x1234...",
+//	    WalletType:          "ecdsa",
+//	    AllowedEcdsaSigners: &ecdsaSigners,
 //	})
 //
 // For advanced use cases, create the client directly:
@@ -27,29 +28,32 @@
 //
 // # Creating Smart Wallets
 //
-// The CREC API represents wallet-specific parameters through the `configuration` field.
-// The exact shape depends on the wallet type and is validated by the server.
+// The CREC API accepts explicit allowed-signer lists on wallet creation. ECDSA wallets
+// take a list of Ethereum addresses; RSA wallets take a list of RSA public keys (each
+// defined by a hex-encoded exponent E and modulus N).
 //
 // Create an ECDSA wallet:
 //
+//	ecdsaSigners := apiClient.ECDSASignersList{"0x123...", "0x456..."}
 //	wallet, err := client.Wallets.Create(ctx, CreateInput{
-//	    Name:               "my-wallet",
-//	    ChainSelector:      "5009297550715157269",
-//	    WalletOwnerAddress: "0xabcdef...",
-//	    WalletType:         "ecdsa",
-//	    Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{"0x123...", "0x456..."}},
+//	    Name:                "my-wallet",
+//	    ChainSelector:       "5009297550715157269",
+//	    WalletOwnerAddress:  "0xabcdef...",
+//	    WalletType:          "ecdsa",
+//	    AllowedEcdsaSigners: &ecdsaSigners,
 //	})
 //
 // Create an RSA wallet:
 //
+//	rsaSigners := apiClient.RSASignersList{
+//	    {E: "0x010001", N: "0x00c458..."},
+//	}
 //	wallet, err := client.Wallets.Create(ctx, CreateInput{
-//	    Name:               "my-wallet",
-//	    ChainSelector:      "5009297550715157269",
+//	    Name:              "my-wallet",
+//	    ChainSelector:     "5009297550715157269",
 //	    WalletOwnerAddress: "0xabcdef...",
-//	    WalletType:         "rsa",
-//	    Configuration: apiClient.WalletConfiguration{"allowed_signers": []map[string]string{
-//	        {"e": "AQAB", "n": "..."},
-//	    }},
+//	    WalletType:        "rsa",
+//	    AllowedRsaSigners: &rsaSigners,
 //	})
 //
 // # Listing Smart Wallets

@@ -138,12 +138,12 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               walletName,
-			ChainSelector:      chainSelector,
-			WalletOwnerAddress: ownerAddress,
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &statusChannelID,
+			Name:                walletName,
+			ChainSelector:       chainSelector,
+			WalletOwnerAddress:  ownerAddress,
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.NoError(t, err)
@@ -182,11 +182,11 @@ func TestClient_Create(t *testing.T) {
 		defer server.Close()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               walletName,
-			ChainSelector:      chainSelector,
-			WalletOwnerAddress: ownerAddress,
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
+			Name:                walletName,
+			ChainSelector:       chainSelector,
+			WalletOwnerAddress:  ownerAddress,
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
 		})
 		require.NoError(t, err)
 		require.NotNil(t, wallet)
@@ -198,12 +198,12 @@ func TestClient_Create(t *testing.T) {
 		defer server.Close()
 		z := uuid.Nil
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test",
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &z,
+			Name:                "test",
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &z,
 		})
 		require.Error(t, err)
 		assert.Nil(t, wallet)
@@ -253,12 +253,12 @@ func TestClient_Create(t *testing.T) {
 		defer server.Close()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               walletName,
-			ChainSelector:      chainSelector,
-			WalletOwnerAddress: ownerAddress,
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &statusChannelID,
+			Name:                walletName,
+			ChainSelector:       chainSelector,
+			WalletOwnerAddress:  ownerAddress,
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.NoError(t, err)
@@ -282,12 +282,12 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "",
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &statusChannelID,
+			Name:                "",
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.Error(t, err)
@@ -306,12 +306,12 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test-wallet",
-			ChainSelector:      "",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &statusChannelID,
+			Name:                "test-wallet",
+			ChainSelector:       "",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.Error(t, err)
@@ -330,12 +330,12 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test-wallet",
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "",
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &statusChannelID,
+			Name:                "test-wallet",
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "",
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.Error(t, err)
@@ -354,12 +354,12 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test-wallet",
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "not-a-valid-hex-address",
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &statusChannelID,
+			Name:                "test-wallet",
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "not-a-valid-hex-address",
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.Error(t, err)
@@ -378,12 +378,12 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test-wallet",
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         "",
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &statusChannelID,
+			Name:                "test-wallet",
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          "",
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.Error(t, err)
@@ -402,12 +402,12 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 		longName := string(make([]byte, MaxWalletNameLength+1))
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               longName,
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &statusChannelID,
+			Name:                longName,
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.Error(t, err)
@@ -426,12 +426,12 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test-wallet",
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-			StatusChannelId:    &statusChannelID,
+			Name:                "test-wallet",
+			ChainSelector:       "5009297550715157269",
+			WalletOwnerAddress:  "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &apiClient.ECDSASignersList{},
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.Error(t, err)
@@ -439,32 +439,13 @@ func TestClient_Create(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrCreateWallet))
 	})
 
-	t.Run("MissingConfiguration", func(t *testing.T) {
-		client, server := setupTestClient(t, nil)
-		defer server.Close()
-
-		statusChannelID := uuid.New()
-
-		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test-wallet",
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.WalletTypeECDSA,
-			StatusChannelId:    &statusChannelID,
-		})
-
-		require.Error(t, err)
-		assert.Nil(t, wallet)
-		assert.True(t, errors.Is(err, ErrConfigurationRequired))
-	})
-
-	t.Run("EcdsaWalletWithConfiguration", func(t *testing.T) {
+	t.Run("EcdsaWalletWithSigners", func(t *testing.T) {
 		walletID := uuid.New()
 		walletName := "test-wallet"
 		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
 		chainSelector := "5009297550715157269"
 		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
-		ecdsaSigners := []string{"0x1234567890abcdef1234567890abcdef12345678", "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"}
+		ecdsaSigners := apiClient.ECDSASignersList{"0x1234567890abcdef1234567890abcdef12345678", "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"}
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -484,19 +465,19 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               walletName,
-			ChainSelector:      chainSelector,
-			WalletOwnerAddress: ownerAddress,
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": ecdsaSigners},
-			StatusChannelId:    &statusChannelID,
+			Name:                walletName,
+			ChainSelector:       chainSelector,
+			WalletOwnerAddress:  ownerAddress,
+			WalletType:          apiClient.WalletTypeECDSA,
+			AllowedEcdsaSigners: &ecdsaSigners,
+			StatusChannelId:     &statusChannelID,
 		})
 
 		require.NoError(t, err)
 		assert.NotNil(t, wallet)
 	})
 
-	t.Run("RsaWalletWithConfiguration", func(t *testing.T) {
+	t.Run("RsaWalletWithSigners", func(t *testing.T) {
 		walletID := uuid.New()
 		walletName := "test-wallet"
 		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
@@ -519,72 +500,22 @@ func TestClient_Create(t *testing.T) {
 		defer server.Close()
 
 		statusChannelID := uuid.New()
+
+		rsaSigners := apiClient.RSASignersList{
+			{E: "0x010001", N: "0x00c458b08a5b7939c97a5611389823468087f90918712a20166d3215917263548596071234567890abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef"},
+		}
 
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               walletName,
 			ChainSelector:      chainSelector,
 			WalletOwnerAddress: ownerAddress,
 			WalletType:         apiClient.WalletTypeRSA,
-			Configuration: apiClient.WalletConfiguration{"allowed_signers": []map[string]string{
-				{"e": "AQAB", "n": "abc123"},
-			}},
-			StatusChannelId: &statusChannelID,
-		})
-
-		require.NoError(t, err)
-		assert.NotNil(t, wallet)
-	})
-
-	t.Run("ProtectedEcdsaWalletWithConfiguration", func(t *testing.T) {
-		walletID := uuid.New()
-		walletName := "test-wallet"
-		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
-		chainSelector := "5009297550715157269"
-		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
-
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			body, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
-
-			var createReq apiClient.CreateWallet
-			require.NoError(t, json.Unmarshal(body, &createReq))
-			assert.Equal(t, apiClient.WalletTypeProtectedECDSA, createReq.WalletType)
-
-			expectedConfig := apiClient.WalletConfiguration{"allowed_signers": []string{"0x1234567890abcdef1234567890abcdef12345678"}}
-			expectedJSON, err := json.Marshal(expectedConfig)
-			require.NoError(t, err)
-			actualJSON, err := json.Marshal(createReq.Configuration)
-			require.NoError(t, err)
-			assert.JSONEq(t, string(expectedJSON), string(actualJSON))
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			response := apiClient.Wallet{
-				WalletId:      walletID,
-				Name:          walletName,
-				Address:       walletAddress,
-				ChainSelector: chainSelector,
-			}
-			require.NoError(t, json.NewEncoder(w).Encode(response))
-		}
-
-		client, server := setupTestClient(t, handler)
-		defer server.Close()
-
-		statusChannelID := uuid.New()
-
-		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               walletName,
-			ChainSelector:      chainSelector,
-			WalletOwnerAddress: ownerAddress,
-			WalletType:         apiClient.WalletTypeProtectedECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{"0x1234567890abcdef1234567890abcdef12345678"}},
+			AllowedRsaSigners:  &rsaSigners,
 			StatusChannelId:    &statusChannelID,
 		})
 
 		require.NoError(t, err)
 		assert.NotNil(t, wallet)
-		assert.Equal(t, walletID, wallet.WalletId)
 	})
 }
 

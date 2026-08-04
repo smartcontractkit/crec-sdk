@@ -39,7 +39,6 @@ var (
 	ErrWalletTypeRequired         = errors.New("wallet type is required")
 	ErrWalletIDRequired           = errors.New("wallet ID is required")
 	ErrStatusChannelIDZero        = errors.New("status channel ID cannot be the zero UUID")
-	ErrConfigurationRequired      = errors.New("configuration is required")
 	ErrInvalidLimit               = errors.New("limit must be positive")
 	ErrInvalidOffset              = errors.New("offset cannot be negative")
 	ErrInvalidOwnerAddress        = errors.New("owner address must be a valid hex address")
@@ -97,18 +96,20 @@ func NewClient(opts *Options) (*Client, error) {
 //   - Name: The name of the wallet.
 //   - ChainSelector: The chain selector identifying the blockchain network.
 //   - WalletOwnerAddress: The wallet contract owner address (42-character hex string starting with 0x).
-//   - WalletType: The type of the wallet (e.g., "ecdsa").
-//   - Configuration: Wallet type-specific configuration (required by the CREC API).
+//   - WalletType: The type of the wallet (e.g., "ecdsa", "rsa").
+//   - AllowedEcdsaSigners: Optional list of allowed ECDSA public signing keys (Ethereum addresses).
+//   - AllowedRsaSigners: Optional list of allowed RSA public signing keys (each with exponent E and modulus N).
 //   - Description: Optional description of the wallet.
 //   - StatusChannelId: Optional unique identifier for the channel where the wallet status will be published
 type CreateInput struct {
-	Name               string
-	ChainSelector      string
-	WalletOwnerAddress string
-	WalletType         apiClient.WalletType
-	Configuration      apiClient.WalletConfiguration
-	Description        *string
-	StatusChannelId    *uuid.UUID `json:"status_channel_id,omitempty"`
+	Name                string
+	ChainSelector       string
+	WalletOwnerAddress  string
+	WalletType          apiClient.WalletType
+	AllowedEcdsaSigners *apiClient.ECDSASignersList
+	AllowedRsaSigners   *apiClient.RSASignersList
+	Description         *string
+	StatusChannelId     *uuid.UUID `json:"status_channel_id,omitempty"`
 }
 
 // Create creates a new wallet in the CREC backend.
@@ -149,10 +150,6 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, ErrStatusChannelIDZero
 	}
 
-	if len(input.Configuration) == 0 {
-		return nil, fmt.Errorf("%w: wallet configuration is required", ErrConfigurationRequired)
-	}
-
 	var apiStatusChannelID *openapitypes.UUID
 	if input.StatusChannelId != nil {
 		v := openapitypes.UUID(*input.StatusChannelId)
@@ -160,13 +157,14 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 	}
 
 	createWalletReq := apiClient.CreateWallet{
-		Name:               input.Name,
-		ChainSelector:      input.ChainSelector,
-		WalletOwnerAddress: input.WalletOwnerAddress,
-		WalletType:         input.WalletType,
-		Configuration:      input.Configuration,
-		Description:        input.Description,
-		StatusChannelId:    apiStatusChannelID,
+		Name:                input.Name,
+		ChainSelector:       input.ChainSelector,
+		WalletOwnerAddress:  input.WalletOwnerAddress,
+		WalletType:          input.WalletType,
+		AllowedEcdsaSigners: input.AllowedEcdsaSigners,
+		AllowedRsaSigners:   input.AllowedRsaSigners,
+		Description:         input.Description,
+		StatusChannelId:     apiStatusChannelID,
 	}
 
 	resp, err := c.apiClient.CreateWalletWithResponse(ctx, createWalletReq)
@@ -274,7 +272,7 @@ type ListInput struct {
 	Address          *string
 	Type             *apiClient.WalletType
 	Status           *[]apiClient.WalletStatus
-	ChainEnvironment *apiClient.NetworkType
+	ChainEnvironment *apiClient.ChainEnvironment
 	Limit            *int
 	Offset           *int64
 }

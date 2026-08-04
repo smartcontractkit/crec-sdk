@@ -187,7 +187,7 @@ type CreateInput struct {
 type ListInput struct {
 	ChannelID        uuid.UUID
 	Status           *[]apiClient.QueryStatus
-	ChainEnvironment *apiClient.NetworkType
+	ChainEnvironment *apiClient.ChainEnvironment
 	Limit            *int
 	Offset           *int64
 }
