@@ -569,7 +569,7 @@ type ListOperationsInput struct {
 	ChainSelector    *string
 	Address          *string
 	WalletID         *uuid.UUID
-	ChainEnvironment *apiClient.NetworkType
+	ChainEnvironment *apiClient.ChainEnvironment
 	Limit            *int
 	Offset           *int64
 }

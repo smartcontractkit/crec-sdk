@@ -47,9 +47,9 @@
 //	}
 //	wallet, err := client.Wallets.Create(ctx, wallets.CreateInput{
 //	    WalletType: "rsa",
-//	    Configuration: apiClient.WalletConfiguration{"allowed_signers": []map[string]string{
-//	        {"e": e, "n": n},
-//	    }},
+//	    AllowedRsaSigners: &apiClient.RSASignersList{
+//	        {E: e, N: n},
+//	    },
 //	    ...
 //	})
 //

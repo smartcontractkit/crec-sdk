@@ -133,15 +133,15 @@ type UpdateInput struct {
 
 // ListFilters defines optional filters for listing watchers (pagination, status, chain, etc.).
 type ListFilters struct {
-	Limit            *int                       `url:"limit,omitempty"`
-	Offset           *int64                     `url:"offset,omitempty"`
-	Name             *string                    `url:"name,omitempty"`
-	Status           *[]apiClient.WatcherStatus `url:"status,omitempty"`
-	ChainSelector    *string                    `url:"chain_selector,omitempty"`
-	Address          *string                    `url:"address,omitempty"`
-	Service          *[]string                  `url:"service,omitempty"`
-	EventName        *string                    `url:"event_name,omitempty"`
-	ChainEnvironment *apiClient.NetworkType     `url:"chain_environment,omitempty"`
+	Limit            *int                        `url:"limit,omitempty"`
+	Offset           *int64                      `url:"offset,omitempty"`
+	Name             *string                     `url:"name,omitempty"`
+	Status           *[]apiClient.WatcherStatus  `url:"status,omitempty"`
+	ChainSelector    *string                     `url:"chain_selector,omitempty"`
+	Address          *string                     `url:"address,omitempty"`
+	Service          *[]string                   `url:"service,omitempty"`
+	EventName        *string                     `url:"event_name,omitempty"`
+	ChainEnvironment *apiClient.ChainEnvironment `url:"chain_environment,omitempty"`
 }
 
 // Options defines the options for creating a new CREC Watchers client.
