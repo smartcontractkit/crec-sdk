@@ -586,6 +586,61 @@ func TestClient_Create(t *testing.T) {
 		assert.NotNil(t, wallet)
 		assert.Equal(t, walletID, wallet.WalletId)
 	})
+
+	t.Run("DeprecatedAllowedSignersFields", func(t *testing.T) {
+		walletID := uuid.New()
+		walletName := "test-wallet-deprecated"
+		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
+		chainSelector := "5009297550715157269"
+		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+		ecdsaSigners := []string{"0x1234567890abcdef1234567890abcdef12345678"}
+		rsaSigners := []string{"rsa-signer-1"}
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+
+			var createReq apiClient.CreateWallet
+			require.NoError(t, json.Unmarshal(body, &createReq))
+			assert.NotNil(t, createReq.AllowedEcdsaSigners)
+			assert.Equal(t, ecdsaSigners, *createReq.AllowedEcdsaSigners)
+			assert.NotNil(t, createReq.AllowedRsaSigners)
+			assert.Equal(t, rsaSigners, *createReq.AllowedRsaSigners)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			response := apiClient.Wallet{
+				WalletId:            walletID,
+				Name:                walletName,
+				Address:             walletAddress,
+				ChainSelector:       chainSelector,
+				AllowedEcdsaSigners: &ecdsaSigners,
+				AllowedRsaSigners:   &rsaSigners,
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:                walletName,
+			ChainSelector:       chainSelector,
+			WalletOwnerAddress:  ownerAddress,
+			WalletType:          apiClient.WalletTypeECDSA,
+			Configuration:       apiClient.WalletConfiguration{"allowed_signers": ecdsaSigners},
+			AllowedEcdsaSigners: &ecdsaSigners,
+			AllowedRsaSigners:   &rsaSigners,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, wallet)
+		assert.Equal(t, walletID, wallet.WalletId)
+		assert.NotNil(t, wallet.AllowedEcdsaSigners)
+		assert.Equal(t, ecdsaSigners, *wallet.AllowedEcdsaSigners)
+		assert.NotNil(t, wallet.AllowedRsaSigners)
+		assert.Equal(t, rsaSigners, *wallet.AllowedRsaSigners)
+	})
 }
 
 func TestClient_Get(t *testing.T) {

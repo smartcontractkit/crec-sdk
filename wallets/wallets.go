@@ -101,14 +101,18 @@ func NewClient(opts *Options) (*Client, error) {
 //   - Configuration: Wallet type-specific configuration (required by the CREC API).
 //   - Description: Optional description of the wallet.
 //   - StatusChannelId: Optional unique identifier for the channel where the wallet status will be published
+//   - AllowedEcdsaSigners: DEPRECATED - use Configuration parameter instead.
+//   - AllowedRsaSigners: DEPRECATED - use Configuration parameter instead.
 type CreateInput struct {
-	Name               string
-	ChainSelector      string
-	WalletOwnerAddress string
-	WalletType         apiClient.WalletType
-	Configuration      apiClient.WalletConfiguration
-	Description        *string
-	StatusChannelId    *uuid.UUID `json:"status_channel_id,omitempty"`
+	Name                string
+	ChainSelector       string
+	WalletOwnerAddress  string
+	WalletType          apiClient.WalletType
+	Configuration       apiClient.WalletConfiguration
+	Description         *string
+	StatusChannelId     *uuid.UUID `json:"status_channel_id,omitempty"`
+	AllowedEcdsaSigners *[]string  `json:"allowed_ecdsa_signers,omitempty"`
+	AllowedRsaSigners   *[]string  `json:"allowed_rsa_signers,omitempty"`
 }
 
 // Create creates a new wallet in the CREC backend.
@@ -160,13 +164,15 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 	}
 
 	createWalletReq := apiClient.CreateWallet{
-		Name:               input.Name,
-		ChainSelector:      input.ChainSelector,
-		WalletOwnerAddress: input.WalletOwnerAddress,
-		WalletType:         input.WalletType,
-		Configuration:      input.Configuration,
-		Description:        input.Description,
-		StatusChannelId:    apiStatusChannelID,
+		Name:                input.Name,
+		ChainSelector:       input.ChainSelector,
+		WalletOwnerAddress:  input.WalletOwnerAddress,
+		WalletType:          input.WalletType,
+		Configuration:       input.Configuration,
+		Description:         input.Description,
+		StatusChannelId:     apiStatusChannelID,
+		AllowedEcdsaSigners: input.AllowedEcdsaSigners,
+		AllowedRsaSigners:   input.AllowedRsaSigners,
 	}
 
 	resp, err := c.apiClient.CreateWalletWithResponse(ctx, createWalletReq)
