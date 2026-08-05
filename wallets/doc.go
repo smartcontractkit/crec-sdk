@@ -2,7 +2,7 @@
 //
 // Smart Wallets are blockchain wallets that can be used to sign transactions and interact
 // with smart contracts. They are associated with specific blockchain networks through chain
-// selectors and carry type-specific allowed signer lists.
+// selectors and carry type-specific configuration.
 //
 // # Usage
 //
@@ -10,13 +10,12 @@
 //
 //	client, _ := crec.NewClient(baseURL, apiKey)
 //
-//	ecdsaSigners := apiClient.ECDSASignersList{"0x..."}
 //	wallet, err := client.Wallets.Create(ctx, CreateInput{
-//	    Name:                "production-wallet",
-//	    ChainSelector:       "5009297550715157269",
-//	    WalletOwnerAddress:  "0x1234...",
-//	    WalletType:          "ecdsa",
-//	    AllowedEcdsaSigners: &ecdsaSigners,
+//	    Name:               "production-wallet",
+//	    ChainSelector:      "5009297550715157269",
+//	    WalletOwnerAddress: "0x1234...",
+//	    WalletType:         "ecdsa",
+//	    Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{"0x..."}},
 //	})
 //
 // For advanced use cases, create the client directly:
@@ -28,33 +27,40 @@
 //
 // # Creating Smart Wallets
 //
-// The CREC API accepts explicit allowed-signer lists on wallet creation. ECDSA wallets
-// take a list of Ethereum addresses; RSA wallets take a list of RSA public keys (each
-// defined by a hex-encoded exponent E and modulus N).
+// Wallet creation takes a type-specific Configuration object. The expected shape depends on
+// the wallet type and is validated by the server at creation time. The most common key is
+// "allowed_signers", which for ECDSA wallets is a list of Ethereum addresses and for RSA
+// wallets is a list of RSA public keys (each a map with hex-encoded exponent "e" and modulus
+// "n").
 //
 // Create an ECDSA wallet:
 //
-//	ecdsaSigners := apiClient.ECDSASignersList{"0x123...", "0x456..."}
 //	wallet, err := client.Wallets.Create(ctx, CreateInput{
-//	    Name:                "my-wallet",
-//	    ChainSelector:       "5009297550715157269",
-//	    WalletOwnerAddress:  "0xabcdef...",
-//	    WalletType:          "ecdsa",
-//	    AllowedEcdsaSigners: &ecdsaSigners,
+//	    Name:               "my-wallet",
+//	    ChainSelector:      "5009297550715157269",
+//	    WalletOwnerAddress: "0xabcdef...",
+//	    WalletType:         "ecdsa",
+//	    Configuration: apiClient.WalletConfiguration{
+//	        "allowed_signers": []string{"0x123...", "0x456..."},
+//	    },
 //	})
 //
 // Create an RSA wallet:
 //
-//	rsaSigners := apiClient.RSASignersList{
-//	    {E: "0x010001", N: "0x00c458..."},
-//	}
 //	wallet, err := client.Wallets.Create(ctx, CreateInput{
-//	    Name:              "my-wallet",
-//	    ChainSelector:     "5009297550715157269",
+//	    Name:               "my-wallet",
+//	    ChainSelector:      "5009297550715157269",
 //	    WalletOwnerAddress: "0xabcdef...",
-//	    WalletType:        "rsa",
-//	    AllowedRsaSigners: &rsaSigners,
+//	    WalletType:         "rsa",
+//	    Configuration: apiClient.WalletConfiguration{
+//	        "allowed_signers": []map[string]string{
+//	            {"e": "0x010001", "n": "0x00c458..."},
+//	        },
+//	    },
 //	})
+//
+// The deprecated AllowedEcdsaSigners and AllowedRsaSigners fields are still accepted for
+// backwards compatibility, but new code should prefer Configuration.
 //
 // # Listing Smart Wallets
 //
