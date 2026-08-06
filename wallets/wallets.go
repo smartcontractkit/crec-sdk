@@ -96,20 +96,20 @@ func NewClient(opts *Options) (*Client, error) {
 //   - Name: The name of the wallet.
 //   - ChainSelector: The chain selector identifying the blockchain network.
 //   - WalletOwnerAddress: The wallet contract owner address (42-character hex string starting with 0x).
-//   - WalletType: The type of the wallet (e.g., "ecdsa", "rsa").
-//   - AllowedEcdsaSigners: Optional list of allowed ECDSA public signing keys (Ethereum addresses).
-//   - AllowedRsaSigners: Optional list of allowed RSA public signing keys (each with exponent E and modulus N).
+//   - WalletType: The type of the wallet (e.g., "ecdsa", "rsa", "protected_ecdsa", "protected_rsa").
+//   - Configuration: Type-specific wallet configuration. The expected shape depends on WalletType and is
+//     validated by the server at creation time. When nil, an empty object ({}) is sent. This is the
+//     preferred way to supply allowed signers and other type-specific options.
 //   - Description: Optional description of the wallet.
 //   - StatusChannelId: Optional unique identifier for the channel where the wallet status will be published
 type CreateInput struct {
-	Name                string
-	ChainSelector       string
-	WalletOwnerAddress  string
-	WalletType          apiClient.WalletType
-	AllowedEcdsaSigners *apiClient.ECDSASignersList
-	AllowedRsaSigners   *apiClient.RSASignersList
-	Description         *string
-	StatusChannelId     *uuid.UUID `json:"status_channel_id,omitempty"`
+	Name               string
+	ChainSelector      string
+	WalletOwnerAddress string
+	WalletType         apiClient.WalletType
+	Configuration      apiClient.WalletConfiguration
+	Description        *string
+	StatusChannelId    *uuid.UUID `json:"status_channel_id,omitempty"`
 }
 
 // Create creates a new wallet in the CREC backend.
@@ -156,15 +156,21 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		apiStatusChannelID = &v
 	}
 
+	// Configuration is required by the API. Default to an empty object so
+	// callers that omit it still send a valid body.
+	configuration := input.Configuration
+	if configuration == nil {
+		configuration = apiClient.WalletConfiguration{}
+	}
+
 	createWalletReq := apiClient.CreateWallet{
-		Name:                input.Name,
-		ChainSelector:       input.ChainSelector,
-		WalletOwnerAddress:  input.WalletOwnerAddress,
-		WalletType:          input.WalletType,
-		AllowedEcdsaSigners: input.AllowedEcdsaSigners,
-		AllowedRsaSigners:   input.AllowedRsaSigners,
-		Description:         input.Description,
-		StatusChannelId:     apiStatusChannelID,
+		Name:               input.Name,
+		ChainSelector:      input.ChainSelector,
+		WalletOwnerAddress: input.WalletOwnerAddress,
+		WalletType:         input.WalletType,
+		Configuration:      configuration,
+		Description:        input.Description,
+		StatusChannelId:    apiStatusChannelID,
 	}
 
 	resp, err := c.apiClient.CreateWalletWithResponse(ctx, createWalletReq)
@@ -260,7 +266,7 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 //   - ChainSelector: Optional filter to search wallets by chain selector.
 //   - Owner: Optional filter to search wallets by owner address (42-character hex string starting with 0x).
 //   - Address: Optional filter to search wallets by wallet address (42-character hex string starting with 0x).
-//   - Type: Optional filter to search wallets by type (e.g., "ecdsa", "rsa").
+//   - Type: Optional filter to search wallets by type (e.g., "ecdsa", "rsa", "protected_ecdsa", "protected_rsa").
 //   - Status: Optional filter to search wallets by status (e.g., "deployed", "deploying", "failed", "pending", "deleted").
 //   - ChainEnvironment: Optional filter by chain environment (mainnet or testnet).
 //   - Limit: Maximum number of wallets to return per page.

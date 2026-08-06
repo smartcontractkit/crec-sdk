@@ -746,8 +746,16 @@ func (s *MockServer) CreateWallet(w http.ResponseWriter, r *http.Request) {
 		Address:       in.WalletOwnerAddress,
 		ChainSelector: in.ChainSelector,
 		Name:          in.Name,
+		WalletType:    in.WalletType,
+		Configuration: in.Configuration,
 		CreatedAt:     &now,
 		Status:        stdserver.WalletStatusDeployed,
+	}
+	if in.AllowedEcdsaSigners != nil {
+		wallet.AllowedEcdsaSigners = *in.AllowedEcdsaSigners
+	}
+	if in.AllowedRsaSigners != nil {
+		wallet.AllowedRsaSigners = *in.AllowedRsaSigners
 	}
 
 	s.mu.Lock()
