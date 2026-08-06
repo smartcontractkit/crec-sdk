@@ -60,8 +60,7 @@
 //	})
 //
 // The Configuration object is the canonical way to supply type-specific options such as
-// allowed signers. The deprecated allowed_ecdsa_signers/allowed_rsa_signers top-level fields
-// are no longer exposed by the SDK; callers must use Configuration instead.
+// allowed signers. 
 //
 // # Listing Smart Wallets
 //
