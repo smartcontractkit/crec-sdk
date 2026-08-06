@@ -100,22 +100,16 @@ func NewClient(opts *Options) (*Client, error) {
 //   - Configuration: Type-specific wallet configuration. The expected shape depends on WalletType and is
 //     validated by the server at creation time. When nil, an empty object ({}) is sent. This is the
 //     preferred way to supply allowed signers and other type-specific options.
-//   - AllowedEcdsaSigners: Deprecated: use Configuration instead. Optional list of allowed ECDSA public
-//     signing keys (Ethereum addresses).
-//   - AllowedRsaSigners: Deprecated: use Configuration instead. Optional list of allowed RSA public signing
-//     keys (each with exponent E and modulus N).
 //   - Description: Optional description of the wallet.
 //   - StatusChannelId: Optional unique identifier for the channel where the wallet status will be published
 type CreateInput struct {
-	Name                string
-	ChainSelector       string
-	WalletOwnerAddress  string
-	WalletType          apiClient.WalletType
-	Configuration       apiClient.WalletConfiguration
-	AllowedEcdsaSigners *apiClient.ECDSASignersList
-	AllowedRsaSigners   *apiClient.RSASignersList
-	Description         *string
-	StatusChannelId     *uuid.UUID `json:"status_channel_id,omitempty"`
+	Name               string
+	ChainSelector      string
+	WalletOwnerAddress string
+	WalletType         apiClient.WalletType
+	Configuration      apiClient.WalletConfiguration
+	Description        *string
+	StatusChannelId    *uuid.UUID `json:"status_channel_id,omitempty"`
 }
 
 // Create creates a new wallet in the CREC backend.
@@ -163,22 +157,20 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 	}
 
 	// Configuration is required by the API. Default to an empty object so
-	// callers that rely on the deprecated signer lists still send a valid body.
+	// callers that omit it still send a valid body.
 	configuration := input.Configuration
 	if configuration == nil {
 		configuration = apiClient.WalletConfiguration{}
 	}
 
 	createWalletReq := apiClient.CreateWallet{
-		Name:                input.Name,
-		ChainSelector:       input.ChainSelector,
-		WalletOwnerAddress:  input.WalletOwnerAddress,
-		WalletType:          input.WalletType,
-		Configuration:       configuration,
-		AllowedEcdsaSigners: input.AllowedEcdsaSigners,
-		AllowedRsaSigners:   input.AllowedRsaSigners,
-		Description:         input.Description,
-		StatusChannelId:     apiStatusChannelID,
+		Name:               input.Name,
+		ChainSelector:      input.ChainSelector,
+		WalletOwnerAddress: input.WalletOwnerAddress,
+		WalletType:         input.WalletType,
+		Configuration:      configuration,
+		Description:        input.Description,
+		StatusChannelId:    apiStatusChannelID,
 	}
 
 	resp, err := c.apiClient.CreateWalletWithResponse(ctx, createWalletReq)

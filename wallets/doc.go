@@ -59,8 +59,9 @@
 //	    },
 //	})
 //
-// The deprecated AllowedEcdsaSigners and AllowedRsaSigners fields are still accepted for
-// backwards compatibility, but new code should prefer Configuration.
+// The Configuration object is the canonical way to supply type-specific options such as
+// allowed signers. The deprecated allowed_ecdsa_signers/allowed_rsa_signers top-level fields
+// are no longer exposed by the SDK; callers must use Configuration instead.
 //
 // # Listing Smart Wallets
 //

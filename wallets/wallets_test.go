@@ -450,9 +450,15 @@ func TestClient_Create(t *testing.T) {
 		walletAddress := "0x1234567890abcdef1234567890abcdef12345678"
 		chainSelector := "5009297550715157269"
 		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
-		ecdsaSigners := apiClient.ECDSASignersList{"0x1234567890abcdef1234567890abcdef12345678", "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"}
+		signers := []string{"0x1234567890abcdef1234567890abcdef12345678", "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"}
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var createReq apiClient.CreateWallet
+			require.NoError(t, json.Unmarshal(body, &createReq))
+			assert.Equal(t, apiClient.WalletTypeECDSA, createReq.WalletType)
+
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			response := apiClient.Wallet{
@@ -470,12 +476,12 @@ func TestClient_Create(t *testing.T) {
 		statusChannelID := uuid.New()
 
 		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:                walletName,
-			ChainSelector:       chainSelector,
-			WalletOwnerAddress:  ownerAddress,
-			WalletType:          apiClient.WalletTypeECDSA,
-			AllowedEcdsaSigners: &ecdsaSigners,
-			StatusChannelId:     &statusChannelID,
+			Name:               walletName,
+			ChainSelector:      chainSelector,
+			WalletOwnerAddress: ownerAddress,
+			WalletType:         apiClient.WalletTypeECDSA,
+			Configuration:      apiClient.WalletConfiguration{"allowed_signers": signers},
+			StatusChannelId:    &statusChannelID,
 		})
 
 		require.NoError(t, err)
@@ -490,6 +496,12 @@ func TestClient_Create(t *testing.T) {
 		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
 
 		handler := func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var createReq apiClient.CreateWallet
+			require.NoError(t, json.Unmarshal(body, &createReq))
+			assert.Equal(t, apiClient.WalletTypeRSA, createReq.WalletType)
+
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			response := apiClient.Wallet{
@@ -506,17 +518,20 @@ func TestClient_Create(t *testing.T) {
 
 		statusChannelID := uuid.New()
 
-		rsaSigners := apiClient.RSASignersList{
-			{E: "0x010001", N: "0x00c458b08a5b7939c97a5611389823468087f90918712a20166d3215917263548596071234567890abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef"},
-		}
-
 		wallet, err := client.Create(context.Background(), CreateInput{
 			Name:               walletName,
 			ChainSelector:      chainSelector,
 			WalletOwnerAddress: ownerAddress,
 			WalletType:         apiClient.WalletTypeRSA,
-			AllowedRsaSigners:  &rsaSigners,
-			StatusChannelId:    &statusChannelID,
+			Configuration: apiClient.WalletConfiguration{
+				"allowed_signers": []map[string]string{
+					{
+						"e": "0x010001",
+						"n": "0x00c458b08a5b7939c97a5611389823468087f90918712a20166d3215917263548596071234567890abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef",
+					},
+				},
+			},
+			StatusChannelId: &statusChannelID,
 		})
 
 		require.NoError(t, err)
