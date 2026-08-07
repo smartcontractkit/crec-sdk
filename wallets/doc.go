@@ -27,7 +27,7 @@
 //
 // # Creating Smart Wallets
 //
-// Wallet creation takes a type-specific Configuration object. The expected shape depends on
+// Wallet creation takes an optional type-specific Configuration object. The expected shape depends on
 // the wallet type and is validated by the server at creation time. The most common key is
 // "allowed_signers", which for ECDSA wallets is a list of Ethereum addresses and for RSA
 // wallets is a list of RSA public keys (each a map with hex-encoded exponent "e" and modulus
@@ -60,7 +60,7 @@
 //	})
 //
 // The Configuration object is the canonical way to supply type-specific options such as
-// allowed signers. 
+// allowed signers. It may be omitted when no type-specific options are needed.
 //
 // # Listing Smart Wallets
 //

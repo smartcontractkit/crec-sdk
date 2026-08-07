@@ -97,9 +97,9 @@ func NewClient(opts *Options) (*Client, error) {
 //   - ChainSelector: The chain selector identifying the blockchain network.
 //   - WalletOwnerAddress: The wallet contract owner address (42-character hex string starting with 0x).
 //   - WalletType: The type of the wallet (e.g., "ecdsa", "rsa", "protected_ecdsa", "protected_rsa").
-//   - Configuration: Type-specific wallet configuration. The expected shape depends on WalletType and is
-//     validated by the server at creation time. When nil, an empty object ({}) is sent. This is the
-//     preferred way to supply allowed signers and other type-specific options.
+//   - Configuration: Optional type-specific wallet configuration. The expected shape depends on WalletType
+//     and is validated by the server at creation time. When nil, the field is omitted from the request
+//     body. This is the preferred way to supply allowed signers and other type-specific options.
 //   - Description: Optional description of the wallet.
 //   - StatusChannelId: Optional unique identifier for the channel where the wallet status will be published
 type CreateInput struct {
@@ -156,11 +156,11 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		apiStatusChannelID = &v
 	}
 
-	// Configuration is required by the API. Default to an empty object so
-	// callers that omit it still send a valid body.
-	configuration := input.Configuration
-	if configuration == nil {
-		configuration = apiClient.WalletConfiguration{}
+	// Configuration is optional. When nil, the field is omitted from the
+	// request body (via omitempty) rather than sent as an empty object.
+	var configuration *apiClient.WalletConfiguration
+	if input.Configuration != nil {
+		configuration = &input.Configuration
 	}
 
 	createWalletReq := apiClient.CreateWallet{
