@@ -122,7 +122,7 @@ func TestClient_Create(t *testing.T) {
 			assert.Equal(t, ownerAddress, createReq.WalletOwnerAddress)
 			require.NotNil(t, createReq.Configuration)
 			expectedJSON, _ := json.Marshal(configuration["allowed_signers"])
-			actualJSON, _ := json.Marshal(createReq.Configuration["allowed_signers"])
+			actualJSON, _ := json.Marshal((*createReq.Configuration)["allowed_signers"])
 			assert.JSONEq(t, string(expectedJSON), string(actualJSON))
 
 			// Return success response
@@ -577,7 +577,7 @@ func TestClient_Create(t *testing.T) {
 		assert.NotNil(t, wallet)
 	})
 
-	t.Run("NilConfigurationDefaultsToEmptyObject", func(t *testing.T) {
+	t.Run("NilConfigurationIsOmitted", func(t *testing.T) {
 		walletID := uuid.New()
 		chainSelector := "5009297550715157269"
 		ownerAddress := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
@@ -586,13 +586,12 @@ func TestClient_Create(t *testing.T) {
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
 
-			// The serialized body must contain an explicit (empty) configuration object,
-			// not a null, because Configuration is a required field.
+			// Configuration is optional. When nil, the configuration key
+			// must be absent from the serialized body (not null, not {}).
 			var raw map[string]json.RawMessage
 			require.NoError(t, json.Unmarshal(body, &raw))
-			cfg, ok := raw["configuration"]
-			require.True(t, ok, "configuration key must be present")
-			assert.JSONEq(t, `{}`, string(cfg))
+			_, ok := raw["configuration"]
+			assert.False(t, ok, "configuration key must be absent when nil")
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
