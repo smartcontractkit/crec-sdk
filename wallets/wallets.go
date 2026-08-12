@@ -39,7 +39,6 @@ var (
 	ErrWalletTypeRequired         = errors.New("wallet type is required")
 	ErrWalletIDRequired           = errors.New("wallet ID is required")
 	ErrStatusChannelIDZero        = errors.New("status channel ID cannot be the zero UUID")
-	ErrConfigurationRequired      = errors.New("configuration is required")
 	ErrInvalidLimit               = errors.New("limit must be positive")
 	ErrInvalidOffset              = errors.New("offset cannot be negative")
 	ErrInvalidOwnerAddress        = errors.New("owner address must be a valid hex address")
@@ -97,8 +96,10 @@ func NewClient(opts *Options) (*Client, error) {
 //   - Name: The name of the wallet.
 //   - ChainSelector: The chain selector identifying the blockchain network.
 //   - WalletOwnerAddress: The wallet contract owner address (42-character hex string starting with 0x).
-//   - WalletType: The type of the wallet (e.g., "ecdsa").
-//   - Configuration: Wallet type-specific configuration (required by the CREC API).
+//   - WalletType: The type of the wallet (e.g., "ecdsa", "rsa", "protected_ecdsa", "protected_rsa").
+//   - Configuration: Optional type-specific wallet configuration. The expected shape depends on WalletType
+//     and is validated by the server at creation time. When nil, the field is omitted from the request
+//     body. This is the preferred way to supply allowed signers and other type-specific options.
 //   - Description: Optional description of the wallet.
 //   - StatusChannelId: Optional unique identifier for the channel where the wallet status will be published
 type CreateInput struct {
@@ -149,14 +150,17 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		return nil, ErrStatusChannelIDZero
 	}
 
-	if len(input.Configuration) == 0 {
-		return nil, fmt.Errorf("%w: wallet configuration is required", ErrConfigurationRequired)
-	}
-
 	var apiStatusChannelID *openapitypes.UUID
 	if input.StatusChannelId != nil {
 		v := openapitypes.UUID(*input.StatusChannelId)
 		apiStatusChannelID = &v
+	}
+
+	// Configuration is optional. When nil, the field is omitted from the
+	// request body (via omitempty) rather than sent as an empty object.
+	var configuration *apiClient.WalletConfiguration
+	if input.Configuration != nil {
+		configuration = &input.Configuration
 	}
 
 	createWalletReq := apiClient.CreateWallet{
@@ -164,7 +168,7 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 		ChainSelector:      input.ChainSelector,
 		WalletOwnerAddress: input.WalletOwnerAddress,
 		WalletType:         input.WalletType,
-		Configuration:      input.Configuration,
+		Configuration:      configuration,
 		Description:        input.Description,
 		StatusChannelId:    apiStatusChannelID,
 	}
@@ -267,19 +271,21 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 //   - ChainSelector: Optional filter to search wallets by chain selector.
 //   - Owner: Optional filter to search wallets by owner address (42-character hex string starting with 0x).
 //   - Address: Optional filter to search wallets by wallet address (42-character hex string starting with 0x).
-//   - Type: Optional filter to search wallets by type (e.g., "ecdsa", "rsa").
+//   - Type: Optional filter to search wallets by type (e.g., "ecdsa", "rsa", "protected_ecdsa", "protected_rsa").
 //   - Status: Optional filter to search wallets by status (e.g., "deployed", "deploying", "failed", "pending", "deleted").
+//   - ChainEnvironment: Optional filter by chain environment (mainnet or testnet).
 //   - Limit: Maximum number of wallets to return per page.
 //   - Offset: Number of wallets to skip for pagination (default: 0).
 type ListInput struct {
-	Name          *string
-	ChainSelector *string
-	Owner         *string
-	Address       *string
-	Type          *apiClient.WalletType
-	Status        *[]apiClient.WalletStatus
-	Limit         *int
-	Offset        *int64
+	Name             *string
+	ChainSelector    *string
+	Owner            *string
+	Address          *string
+	Type             *apiClient.WalletType
+	Status           *[]apiClient.WalletStatus
+	ChainEnvironment *apiClient.ChainEnvironment
+	Limit            *int
+	Offset           *int64
 }
 
 // List retrieves a list of wallets.
@@ -313,14 +319,15 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 	}
 
 	params := apiClient.ListWalletsParams{
-		Name:          input.Name,
-		ChainSelector: input.ChainSelector,
-		Owner:         input.Owner,
-		Address:       input.Address,
-		Type:          input.Type,
-		Status:        input.Status,
-		Limit:         input.Limit,
-		Offset:        input.Offset,
+		Name:             input.Name,
+		ChainSelector:    input.ChainSelector,
+		Owner:            input.Owner,
+		Address:          input.Address,
+		Type:             input.Type,
+		Status:           input.Status,
+		ChainEnvironment: input.ChainEnvironment,
+		Limit:            input.Limit,
+		Offset:           input.Offset,
 	}
 
 	resp, err := c.apiClient.ListWalletsWithResponse(ctx, &params)

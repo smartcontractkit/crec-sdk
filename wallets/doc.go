@@ -2,7 +2,7 @@
 //
 // Smart Wallets are blockchain wallets that can be used to sign transactions and interact
 // with smart contracts. They are associated with specific blockchain networks through chain
-// selectors and carry a type-specific configuration map.
+// selectors and carry type-specific configuration.
 //
 // # Usage
 //
@@ -27,8 +27,11 @@
 //
 // # Creating Smart Wallets
 //
-// The CREC API represents wallet-specific parameters through the `configuration` field.
-// The exact shape depends on the wallet type and is validated by the server.
+// Wallet creation takes an optional type-specific Configuration object. The expected shape depends on
+// the wallet type and is validated by the server at creation time. The most common key is
+// "allowed_signers", which for ECDSA wallets is a list of Ethereum addresses and for RSA
+// wallets is a list of RSA public keys (each a map with hex-encoded exponent "e" and modulus
+// "n").
 //
 // Create an ECDSA wallet:
 //
@@ -37,7 +40,9 @@
 //	    ChainSelector:      "5009297550715157269",
 //	    WalletOwnerAddress: "0xabcdef...",
 //	    WalletType:         "ecdsa",
-//	    Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{"0x123...", "0x456..."}},
+//	    Configuration: apiClient.WalletConfiguration{
+//	        "allowed_signers": []string{"0x123...", "0x456..."},
+//	    },
 //	})
 //
 // Create an RSA wallet:
@@ -47,10 +52,15 @@
 //	    ChainSelector:      "5009297550715157269",
 //	    WalletOwnerAddress: "0xabcdef...",
 //	    WalletType:         "rsa",
-//	    Configuration: apiClient.WalletConfiguration{"allowed_signers": []map[string]string{
-//	        {"e": "AQAB", "n": "..."},
-//	    }},
+//	    Configuration: apiClient.WalletConfiguration{
+//	        "allowed_signers": []map[string]string{
+//	            {"e": "0x010001", "n": "0x00c458..."},
+//	        },
+//	    },
 //	})
+//
+// The Configuration object is the canonical way to supply type-specific options such as
+// allowed signers. It may be omitted when no type-specific options are needed.
 //
 // # Listing Smart Wallets
 //

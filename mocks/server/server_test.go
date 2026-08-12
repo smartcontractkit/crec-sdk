@@ -39,11 +39,14 @@ func TestMockServer_Health_Events_Listeners_Wallets(t *testing.T) {
 
 	// Wallets: create, list, get by id
 	testWalletName := "Test Wallet"
+	walletCfg := apiClient.WalletConfiguration{"allowed_signers": []string{}}
 	wallet, err := c.CreateWalletWithResponse(
 		context.Background(), apiClient.CreateWallet{
 			WalletOwnerAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 			ChainSelector:      "1337",
 			Name:               testWalletName,
+			WalletType:         apiClient.WalletTypeECDSA,
+			Configuration:      &walletCfg,
 		},
 	)
 	if err != nil {

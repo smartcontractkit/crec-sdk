@@ -2,12 +2,12 @@ package transact
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
 	"net/http"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
@@ -451,7 +451,8 @@ func (c *Client) SendSignedOperation(
 	// Retrieve the created operation
 	operation, err := c.GetOperation(ctx, channelID, *opID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: created but failed to retrieve: %w", ErrSendOperation, err)
+		return nil, fmt.Errorf("%w: created but failed to retrieve (channel_id=%s, operation_id=%s): %w",
+			ErrSendOperation, channelID.String(), opID.String(), err)
 	}
 
 	return operation, nil
@@ -568,16 +569,18 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 //   - ChainSelector: Optional filter for chain selector.
 //   - Address: Optional filter for account address.
 //   - WalletID: Optional filter for wallet ID.
+//   - ChainEnvironment: Optional filter by chain environment (mainnet or testnet).
 //   - Limit: Maximum number of operations to return (1-100, default: 20).
 //   - Offset: Number of operations to skip for pagination (default: 0).
 type ListOperationsInput struct {
-	ChannelID     uuid.UUID
-	Status        *[]apiClient.OperationStatus
-	ChainSelector *string
-	Address       *string
-	WalletID      *uuid.UUID
-	Limit         *int
-	Offset        *int64
+	ChannelID        uuid.UUID
+	Status           *[]apiClient.OperationStatus
+	ChainSelector    *string
+	Address          *string
+	WalletID         *uuid.UUID
+	ChainEnvironment *apiClient.ChainEnvironment
+	Limit            *int
+	Offset           *int64
 }
 
 // ListOperations retrieves a list of operations for a channel.
@@ -597,12 +600,13 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 	}
 
 	params := apiClient.ListOperationsParams{
-		ChainSelector: input.ChainSelector,
-		Address:       input.Address,
-		WalletId:      input.WalletID,
-		Limit:         input.Limit,
-		Offset:        input.Offset,
-		Status:        input.Status,
+		ChainSelector:    input.ChainSelector,
+		Address:          input.Address,
+		WalletId:         input.WalletID,
+		ChainEnvironment: input.ChainEnvironment,
+		Limit:            input.Limit,
+		Offset:           input.Offset,
+		Status:           input.Status,
 	}
 
 	resp, err := c.crecClient.ListOperationsWithResponse(ctx, input.ChannelID, &params)
@@ -668,11 +672,16 @@ func (c *Client) ExecuteTransactions(
 		deadline = big.NewInt(0)
 	}
 
+	opID, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate operation ID: %w", err)
+	}
+
 	operation := &types.Operation{
-		ID:           big.NewInt(time.Now().Unix()),
+		ID:           opID,
 		Account:      executorAccount,
 		Deadline:     deadline,
-		Transactions: txs,
+		Transactions: append([]types.Transaction(nil), txs...),
 	}
 
 	return c.ExecuteOperation(ctx, channelID, operationSigner, operation, chainSelector)
@@ -721,6 +730,9 @@ func (c *Client) SendSignedDraftOperation(
 	}
 	if len(digest) == 0 {
 		return nil, ErrDigestRequired
+	}
+	if len(digest) != 32 {
+		return nil, fmt.Errorf("%w: digest must be 32 bytes", ErrDigestRequired)
 	}
 	if len(signature) == 0 {
 		return nil, ErrSignatureRequired
@@ -781,6 +793,9 @@ func (c *Client) ExecuteDraftOperation(
 	}
 	if len(digest) == 0 {
 		return nil, ErrDigestRequired
+	}
+	if len(digest) != 32 {
+		return nil, fmt.Errorf("%w: digest must be 32 bytes", ErrDigestRequired)
 	}
 
 	signature, err := operationSigner.Sign(ctx, digest)

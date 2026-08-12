@@ -1148,8 +1148,13 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 		c := setupLocalClient(t)
 		eventPayload := createTestEventPayload(t)
 
-		// Create valid OCR report but invalid context (odd length hex will fail)
+		// Create valid OCR report with matching workflow owner and event hash
 		ocrReport := make([]byte, 141)
+		workflowOwner := common.HexToAddress(testWorkflowOwner)
+		copy(ocrReport[87:107], workflowOwner.Bytes())
+		eventHash := crypto.Keccak256Hash([]byte(eventPayload.VerifiableEvent))
+		copy(ocrReport[109:], eventHash.Bytes())
+
 		ocrProof := apiClient.OCRProof{
 			Alg:        "ecdsa-secp256k1",
 			OcrContext: "0xabc", // Invalid - odd length hex!

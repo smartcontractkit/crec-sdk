@@ -186,10 +186,11 @@ type CreateInput struct {
 
 // ListInput defines filters and pagination for listing channel queries.
 type ListInput struct {
-	ChannelID uuid.UUID
-	Status    *[]apiClient.QueryStatus
-	Limit     *int
-	Offset    *int64
+	ChannelID        uuid.UUID
+	Status           *[]apiClient.QueryStatus
+	ChainEnvironment *apiClient.ChainEnvironment
+	Limit            *int
+	Offset           *int64
 }
 
 // EVMCallInput defines a raw EVM call query request without any wait-loop
@@ -300,10 +301,15 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 			resp.JSON404, ErrCreateQuery, "channel ID "+input.ChannelID.String(),
 		)
 	case http.StatusConflict:
-		if mapped := apierror.Conflict(resp.JSON409); mapped != nil {
-			return nil, fmt.Errorf("%w: %w: %w", ErrCreateQuery, ErrIdempotencyConflict, mapped)
-		}
-		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict)
+		c.logger.Warn("Conflict when creating query",
+			"channel_id", input.ChannelID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		conflictDetail := fmt.Sprintf(
+			"channel ID %s, idempotency_key %s", input.ChannelID.String(), input.IdempotencyKey,
+		)
+		return nil, apierror.WrapConflict(
+			resp.JSON409, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict), conflictDetail,
+		)
 	case http.StatusTooManyRequests:
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrRateLimitExceeded)
 	case http.StatusUnauthorized:
@@ -398,9 +404,10 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 	}
 
 	params := apiClient.ListQueriesParams{
-		Status: input.Status,
-		Limit:  input.Limit,
-		Offset: input.Offset,
+		Status:           input.Status,
+		ChainEnvironment: input.ChainEnvironment,
+		Limit:            input.Limit,
+		Offset:           input.Offset,
 	}
 
 	resp, err := c.apiClient.ListQueriesWithResponse(ctx, input.ChannelID, &params)

@@ -20,6 +20,7 @@ var transientNetworkIndicators = []string{
 	"connection refused",
 	"connection reset",
 	"timeout",
+	"timed out", // OS-level socket timeouts (ETIMEDOUT) render as "operation timed out", which "timeout" misses
 	"temporary failure",
 	"eof",
 	"broken pipe",

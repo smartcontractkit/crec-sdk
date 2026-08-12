@@ -49,6 +49,7 @@ func TestIsTransient(t *testing.T) {
 			"dial tcp: connection refused",
 			"read tcp: connection reset by peer",
 			"request timeout",
+			"read tcp 100.75.20.5:56710->10.198.65.200:443: read: operation timed out", // ETIMEDOUT phrasing
 			"unexpected EOF",
 			"write: broken pipe",
 			"lookup api.example.com: no such host",
