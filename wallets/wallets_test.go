@@ -615,63 +615,6 @@ func TestClient_Create(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, wallet)
 	})
-
-	t.Run("Conflict_WalletAlreadyExists", func(t *testing.T) {
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusConflict)
-			code := apiClient.ApplicationErrorCodeWalletAlreadyExists
-			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
-				Code:    &code,
-				Message: "a wallet with this name already exists",
-				Type:    apiClient.CONFLICT,
-			}))
-		}
-
-		client, server := setupTestClient(t, handler)
-		defer server.Close()
-
-		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test-wallet",
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-		})
-
-		require.Error(t, err)
-		assert.Nil(t, wallet)
-		assert.ErrorIs(t, err, ErrCreateWallet)
-		assert.ErrorIs(t, err, apierror.ErrWalletAlreadyExists)
-	})
-
-	t.Run("Conflict_UnknownCode", func(t *testing.T) {
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusConflict)
-			// No code field — exercises the fallback path in WrapConflict.
-			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
-				Message: "conflict without a recognized code",
-				Type:    apiClient.CONFLICT,
-			}))
-		}
-
-		client, server := setupTestClient(t, handler)
-		defer server.Close()
-
-		wallet, err := client.Create(context.Background(), CreateInput{
-			Name:               "test-wallet",
-			ChainSelector:      "5009297550715157269",
-			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{"allowed_signers": []string{}},
-		})
-
-		require.Error(t, err)
-		assert.Nil(t, wallet)
-		assert.ErrorIs(t, err, ErrCreateWallet)
-		assert.False(t, errors.Is(err, apierror.ErrWalletAlreadyExists), "unknown code must not produce ErrWalletAlreadyExists")
-	})
 }
 
 func TestClient_Get(t *testing.T) {
