@@ -137,6 +137,11 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Chan
 			"channel_id", resp.JSON201.ChannelId.String(),
 			"name", resp.JSON201.Name)
 		return resp.JSON201, nil
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when creating channel",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON403, ErrCreateChannel, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when creating channel",
 			"status_code", resp.StatusCode(),
@@ -186,6 +191,11 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID) (*apiClient.Chann
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when getting channel",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON403, ErrGetChannel, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when getting channel",
 			"status_code", resp.StatusCode(),
@@ -247,6 +257,11 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Channel
 			"count", len(resp.JSON200.Data),
 			"has_more", resp.JSON200.HasMore)
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when listing channels",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, apierror.Wrap(resp.JSON403, ErrListChannels, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when listing channels",
 			"status_code", resp.StatusCode(),
@@ -314,6 +329,11 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateIn
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when updating channel",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON403, ErrUpdateChannel, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when updating channel",
 			"status_code", resp.StatusCode(),
@@ -368,6 +388,11 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID) (*apiClient.C
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when archiving channel",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON403, ErrArchiveChannel, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when archiving channel",
 			"status_code", resp.StatusCode(),

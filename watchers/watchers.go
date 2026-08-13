@@ -270,6 +270,13 @@ func (c *Client) CreateWithService(
 		}
 		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 		return resp.JSON201, nil
+	case http.StatusForbidden:
+		c.logger.Error(
+			"Failed to create watcher with service - permission denied",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON403, ErrCreateWatcherService, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to create watcher with service - unauthorized",
@@ -400,6 +407,13 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 		}
 		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 		return resp.JSON201, nil
+	case http.StatusForbidden:
+		c.logger.Error(
+			"Failed to create watcher with ABI - permission denied",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON403, ErrCreateWatcherABI, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to create watcher with ABI - unauthorized",
@@ -465,6 +479,13 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 		return nil, apierror.WrapChannelNotFound(
 			resp.JSON404, ErrListWatchers, "channel ID "+channelID.String(),
 		)
+	case http.StatusForbidden:
+		c.logger.Error(
+			"Failed to list watchers - permission denied",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON403, ErrListWatchers, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to list watchers - unauthorized",
@@ -525,6 +546,13 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UU
 			ErrGetWatcher,
 			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
 		)
+	case http.StatusForbidden:
+		c.logger.Error(
+			"Failed to get watcher - permission denied",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON403, ErrGetWatcher, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to get watcher - unauthorized",
@@ -596,6 +624,13 @@ func (c *Client) Update(
 			ErrUpdateWatcher,
 			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
 		)
+	case http.StatusForbidden:
+		c.logger.Error(
+			"Failed to update watcher - permission denied",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON403, ErrUpdateWatcher, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to update watcher - unauthorized",
@@ -757,6 +792,13 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 			ErrArchiveWatcher,
 			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
 		)
+	case http.StatusForbidden:
+		c.logger.Error(
+			"Failed to archive watcher - permission denied",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, apierror.Wrap(resp.JSON403, ErrArchiveWatcher, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to archive watcher - unauthorized",

@@ -258,6 +258,11 @@ func (c *Client) postCreateOperation(
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return nil, apierror.WrapNotFound(resp.JSON404, ErrCreateOperation, detail)
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when creating operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON403, ErrCreateOperation, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when creating operation",
 			"status_code", resp.StatusCode(),
@@ -541,6 +546,11 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 			ErrGetOperation,
 			fmt.Sprintf("channel ID %s, operation ID %s", channelID.String(), operationID.String()),
 		)
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when getting operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON403, ErrGetOperation, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when getting operation",
 			"status_code", resp.StatusCode(),
@@ -628,6 +638,11 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 		return nil, false, apierror.WrapChannelNotFound(
 			resp.JSON404, ErrListOperations, "channel ID "+input.ChannelID.String(),
 		)
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when listing operations",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, apierror.Wrap(resp.JSON403, ErrListOperations, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when listing operations",
 			"status_code", resp.StatusCode(),
@@ -758,6 +773,11 @@ func (c *Client) SendSignedDraftOperation(
 		return nil, ErrDraftNotFound
 	case http.StatusConflict:
 		return nil, ErrDraftNotFinalizable
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when sending operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON403, ErrSendOperation, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when sending operation",
 			"status_code", resp.StatusCode(),
@@ -827,6 +847,11 @@ func (c *Client) CancelDraftOperation(ctx context.Context, channelID uuid.UUID, 
 		return ErrDraftNotFound
 	case http.StatusConflict:
 		return ErrDraftNotCancellable
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when cancelling operation",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return apierror.Wrap(resp.JSON403, ErrSendOperation, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when cancelling operation",
 			"status_code", resp.StatusCode(),

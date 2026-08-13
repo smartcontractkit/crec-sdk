@@ -288,6 +288,13 @@ func (c *Client) Poll(
 		return nil, false, apierror.WrapChannelNotFound(
 			resp.JSON404, ErrPollEvents, "channel ID "+channelID.String(),
 		)
+	case http.StatusForbidden:
+		c.logger.Error(
+			"Failed to get events - permission denied",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, false, apierror.Wrap(resp.JSON403, ErrPollEvents, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to get events - unauthorized",
@@ -370,6 +377,13 @@ func (c *Client) SearchEvents(
 		return nil, false, fmt.Errorf(
 			"%w: %w: %s (status code %d)", ErrSearchEvents, ErrBadRequest, errorMsg, resp.StatusCode(),
 		)
+	case http.StatusForbidden:
+		c.logger.Error(
+			"Failed to search events - permission denied",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body),
+		)
+		return nil, false, apierror.Wrap(resp.JSON403, ErrSearchEvents, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to search events - unauthorized",

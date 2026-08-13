@@ -14,6 +14,11 @@ import (
 // ApplicationError of type ORGANIZATION_NOT_FOUND).
 var ErrOrganizationNotFound = errors.New("organization not found")
 
+// ErrPermissionDenied is returned when the CREC API reports that the
+// authenticated principal lacks the required permission for the operation
+// (HTTP 403 with an ApplicationError of type PERMISSION_DENIED).
+var ErrPermissionDenied = errors.New("permission denied")
+
 // Canonical not-found sentinels for HTTP 404 responses. The API disambiguates
 // which resource was missing via ApplicationError.code. Packages that assign
 // these variables (rather than defining their own) share the same sentinel
@@ -51,6 +56,8 @@ func FromApplicationError(appErr *apiClient.ApplicationError) error {
 	switch appErr.Type {
 	case apiClient.ORGANIZATIONNOTFOUND:
 		return ErrOrganizationNotFound
+	case apiClient.PERMISSIONDENIED:
+		return ErrPermissionDenied
 	default:
 		return nil
 	}

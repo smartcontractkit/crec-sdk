@@ -28,6 +28,11 @@ func TestApierror_FromApplicationError(t *testing.T) {
 			wantErr: apierror.ErrOrganizationNotFound,
 		},
 		{
+			name:    "permission denied maps to sentinel",
+			appErr:  &apiClient.ApplicationError{Type: apiClient.PERMISSIONDENIED, Message: "principal lacks permission crec:wallet:create"},
+			wantErr: apierror.ErrPermissionDenied,
+		},
+		{
 			name:    "unknown future type degrades to nil",
 			appErr:  &apiClient.ApplicationError{Type: "SOME_FUTURE_TYPE", Message: "new"},
 			wantErr: nil,
@@ -205,6 +210,15 @@ func TestApierror_Wrap(t *testing.T) {
 
 		assert.ErrorIs(t, err, opErr)
 		assert.ErrorIs(t, err, apierror.ErrOrganizationNotFound)
+		assert.NotErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+	})
+
+	t.Run("permission denied wraps opErr", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Type: apiClient.PERMISSIONDENIED, Message: "principal lacks permission crec:wallet:create"}
+		err := apierror.Wrap(appErr, opErr, http.StatusForbidden)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrPermissionDenied)
 		assert.NotErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
 	})
 

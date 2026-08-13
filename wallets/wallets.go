@@ -194,6 +194,11 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 			"address", resp.JSON201.Address,
 			"chain_selector", resp.JSON201.ChainSelector)
 		return resp.JSON201, nil
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when creating wallet",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON403, ErrCreateWallet, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when creating wallet",
 			"status_code", resp.StatusCode(),
@@ -248,6 +253,11 @@ func (c *Client) Get(ctx context.Context, walletID uuid.UUID) (*apiClient.Wallet
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return nil, fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when getting wallet",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, apierror.Wrap(resp.JSON403, ErrGetWallet, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when getting wallet",
 			"status_code", resp.StatusCode(),
@@ -344,6 +354,11 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Wallet,
 			"count", len(resp.JSON200.Data),
 			"has_more", resp.JSON200.HasMore)
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when listing wallets",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return nil, false, apierror.Wrap(resp.JSON403, ErrListWallets, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when listing wallets",
 			"status_code", resp.StatusCode(),
@@ -411,6 +426,11 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when updating wallet",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return apierror.Wrap(resp.JSON403, ErrUpdateWallet, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when updating wallet",
 			"status_code", resp.StatusCode(),
@@ -465,6 +485,11 @@ func (c *Client) Archive(ctx context.Context, walletID uuid.UUID) error {
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
+	case http.StatusForbidden:
+		c.logger.Error("Permission denied when archiving wallet",
+			"status_code", resp.StatusCode(),
+			"body", string(resp.Body))
+		return apierror.Wrap(resp.JSON403, ErrArchiveWallet, resp.StatusCode())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when archiving wallet",
 			"status_code", resp.StatusCode(),
