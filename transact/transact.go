@@ -258,21 +258,8 @@ func (c *Client) postCreateOperation(
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return nil, apierror.WrapNotFound(resp.JSON404, ErrCreateOperation, detail)
-	case http.StatusForbidden:
-		c.logger.Error("Permission denied when creating operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON403, ErrCreateOperation, resp.StatusCode())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when creating operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON401, ErrCreateOperation, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when creating operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrCreateOperation, "creating operation", resp.Body, c.logger)
 	}
 }
 
@@ -546,21 +533,8 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 			ErrGetOperation,
 			fmt.Sprintf("channel ID %s, operation ID %s", channelID.String(), operationID.String()),
 		)
-	case http.StatusForbidden:
-		c.logger.Error("Permission denied when getting operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON403, ErrGetOperation, resp.StatusCode())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when getting operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON401, ErrGetOperation, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when getting operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrGetOperation, "getting operation", resp.Body, c.logger)
 	}
 }
 
@@ -638,21 +612,8 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 		return nil, false, apierror.WrapChannelNotFound(
 			resp.JSON404, ErrListOperations, "channel ID "+input.ChannelID.String(),
 		)
-	case http.StatusForbidden:
-		c.logger.Error("Permission denied when listing operations",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, apierror.Wrap(resp.JSON403, ErrListOperations, resp.StatusCode())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when listing operations",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, apierror.Wrap(resp.JSON401, ErrListOperations, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when listing operations",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListOperations, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, false, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrListOperations, "listing operations", resp.Body, c.logger)
 	}
 }
 
@@ -773,21 +734,8 @@ func (c *Client) SendSignedDraftOperation(
 		return nil, ErrDraftNotFound
 	case http.StatusConflict:
 		return nil, ErrDraftNotFinalizable
-	case http.StatusForbidden:
-		c.logger.Error("Permission denied when sending operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON403, ErrSendOperation, resp.StatusCode())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when sending operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON401, ErrSendOperation, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when sending operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrSendOperation, "sending operation", resp.Body, c.logger)
 	}
 }
 
@@ -847,20 +795,7 @@ func (c *Client) CancelDraftOperation(ctx context.Context, channelID uuid.UUID, 
 		return ErrDraftNotFound
 	case http.StatusConflict:
 		return ErrDraftNotCancellable
-	case http.StatusForbidden:
-		c.logger.Error("Permission denied when cancelling operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return apierror.Wrap(resp.JSON403, ErrSendOperation, resp.StatusCode())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when cancelling operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return apierror.Wrap(resp.JSON401, ErrSendOperation, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when cancelling operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrSendOperation, "cancelling operation", resp.Body, c.logger)
 	}
 }

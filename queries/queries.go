@@ -303,21 +303,8 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict)
 	case http.StatusTooManyRequests:
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrRateLimitExceeded)
-	case http.StatusForbidden:
-		c.logger.Error("Permission denied when creating query",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON403, ErrCreateQuery, resp.StatusCode())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when creating query",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON401, ErrCreateQuery, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when creating query",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateQuery, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrCreateQuery, "creating query", resp.Body, c.logger)
 	}
 }
 
@@ -374,21 +361,8 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, queryID uuid.UUID
 			ErrGetQuery,
 			fmt.Sprintf("channel ID %s, query ID %s", channelID.String(), queryID.String()),
 		)
-	case http.StatusForbidden:
-		c.logger.Error("Permission denied when getting query",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON403, ErrGetQuery, resp.StatusCode())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when getting query",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON401, ErrGetQuery, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when getting query",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetQuery, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrGetQuery, "getting query", resp.Body, c.logger)
 	}
 }
 
@@ -436,21 +410,8 @@ func (c *Client) List(ctx context.Context, input ListInput) ([]apiClient.Query, 
 		return nil, false, apierror.WrapChannelNotFound(
 			resp.JSON404, ErrListQueries, "channel ID "+input.ChannelID.String(),
 		)
-	case http.StatusForbidden:
-		c.logger.Error("Permission denied when listing queries",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, apierror.Wrap(resp.JSON403, ErrListQueries, resp.StatusCode())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when listing queries",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, apierror.Wrap(resp.JSON401, ErrListQueries, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when listing queries",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListQueries, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, false, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrListQueries, "listing queries", resp.Body, c.logger)
 	}
 }
 
