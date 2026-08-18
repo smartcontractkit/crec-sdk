@@ -36,30 +36,15 @@ var (
 // (rather than defining their own) share the same sentinel instances so
 // errors.Is works across those packages.
 var (
-	// ErrChannelAlreadyExists is returned when a channel with the same name already exists.
-	ErrChannelAlreadyExists = errors.New("channel already exists")
-	// ErrWalletAlreadyExists is returned when a wallet with the same name already exists.
-	ErrWalletAlreadyExists = errors.New("wallet already exists")
-	// ErrWatcherAlreadyExists is returned when a watcher with the same name already exists.
-	ErrWatcherAlreadyExists = errors.New("watcher already exists")
-	// ErrIdempotencyKeyMismatch is returned when an idempotency key is reused with a
-	// different canonical request body.
-	ErrIdempotencyKeyMismatch = errors.New("idempotency key reused with different request")
-	// ErrOperationNotFinalizable is returned when a draft operation cannot be finalized
-	// in its current state.
-	ErrOperationNotFinalizable = errors.New("operation not finalizable")
-	// ErrOperationNotCancellable is returned when a draft operation cannot be cancelled
-	// in its current state.
-	ErrOperationNotCancellable = errors.New("operation not cancellable")
-	// ErrOperationDeadlineElapsed is returned when an operation's deadline has elapsed.
+	ErrChannelAlreadyExists     = errors.New("channel already exists")
+	ErrWalletAlreadyExists      = errors.New("wallet already exists")
+	ErrWatcherAlreadyExists     = errors.New("watcher already exists")
+	ErrIdempotencyKeyMismatch   = errors.New("idempotency key reused with different request")
+	ErrOperationNotFinalizable  = errors.New("operation not finalizable")
+	ErrOperationNotCancellable  = errors.New("operation not cancellable")
 	ErrOperationDeadlineElapsed = errors.New("operation deadline elapsed")
-	// ErrWalletAlreadyArchived is returned when a wallet is already archived.
-	ErrWalletAlreadyArchived = errors.New("wallet already archived")
-	// ErrChainUnavailable is returned when the chain infrastructure required to
-	// create a wallet is not available (e.g. deployment infrastructure is in a
-	// failed state). This is a rare operational case that typically requires
-	// support to resolve.
-	ErrChainUnavailable = errors.New("chain unavailable for wallet creation")
+	ErrWalletAlreadyArchived    = errors.New("wallet already archived")
+	ErrChainUnavailable         = errors.New("chain unavailable for wallet creation")
 )
 
 // ErrUnexpectedStatusCode is returned when the API responds with an HTTP status
