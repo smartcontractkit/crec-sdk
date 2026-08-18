@@ -318,6 +318,39 @@ func TestClient_CreateOperation(t *testing.T) {
 		assert.Contains(t, err.Error(), walletMsg)
 	})
 
+	t.Run("Conflict", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+				"message": "conflict error: cannot create operations on an archived wallet",
+				"type":    "CONFLICT",
+				"code":    "WALLET_ALREADY_ARCHIVED",
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		opID, err := client.CreateOperation(context.Background(), CreateOperationInput{
+			ChannelID:         channelID,
+			ChainSelector:     "1337",
+			Address:           "0x1234",
+			WalletOperationID: "op-123",
+			Transactions: []TransactionRequest{
+				{To: "0x5678", Value: "0", Data: "0xabcd"},
+			},
+			Signature: "0xsig",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, opID)
+		assert.True(t, errors.Is(err, ErrCreateOperation), "Expected ErrCreateOperation, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrWalletAlreadyArchived), "Expected apierror.ErrWalletAlreadyArchived, got: %v", err)
+	})
+
 	t.Run("BadRequest", func(t *testing.T) {
 		channelID := uuid.New()
 

@@ -54,10 +54,11 @@ var (
 	ErrInvalidHexBytes          = errors.New("invalid 0x-prefixed even-length hex bytes")
 
 	// API/resource errors.
-	ErrChannelNotFound     = apierror.ErrChannelNotFound
-	ErrQueryNotFound       = apierror.ErrQueryNotFound
-	ErrIdempotencyConflict = errors.New("idempotency conflict")
-	ErrRateLimitExceeded   = errors.New("rate limit exceeded")
+	ErrChannelNotFound        = apierror.ErrChannelNotFound
+	ErrQueryNotFound          = apierror.ErrQueryNotFound
+	ErrIdempotencyConflict    = errors.New("idempotency conflict")
+	ErrIdempotencyKeyMismatch = apierror.ErrIdempotencyKeyMismatch
+	ErrRateLimitExceeded      = errors.New("rate limit exceeded")
 	ErrCreateQuery         = errors.New("failed to create query")
 	ErrGetQuery            = errors.New("failed to get query")
 	ErrListQueries         = errors.New("failed to list queries")
@@ -300,7 +301,15 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 			resp.JSON404, ErrCreateQuery, "channel ID "+input.ChannelID.String(),
 		)
 	case http.StatusConflict:
-		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict)
+		c.logger.Warn("Conflict when creating query",
+			"channel_id", input.ChannelID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		conflictDetail := fmt.Sprintf(
+			"channel ID %s, idempotency_key %s", input.ChannelID.String(), input.IdempotencyKey,
+		)
+		return nil, apierror.WrapConflict(
+			resp.JSON409, fmt.Errorf("%w: %w", ErrCreateQuery, ErrIdempotencyConflict), conflictDetail,
+		)
 	case http.StatusTooManyRequests:
 		return nil, fmt.Errorf("%w: %w", ErrCreateQuery, ErrRateLimitExceeded)
 	default:

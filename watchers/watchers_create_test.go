@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 func TestClient_CreateWithService(t *testing.T) {
@@ -169,6 +170,67 @@ func TestClient_CreateWithService(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, watcher)
 		assert.True(t, errors.Is(err, ErrCreateWatcherService), "Expected ErrCreateWatcherService, got: %v", err)
+	})
+
+	t.Run("Conflict_WatcherAlreadyExists", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			code := apiClient.ApplicationErrorCodeWatcherAlreadyExists
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Code:    &code,
+				Message: "watcher already exists for this channel",
+				Type:    apiClient.CONFLICT,
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		watcher, err := client.CreateWithService(context.Background(), channelID, CreateWithServiceInput{
+			Name:          "test-watcher",
+			Service:       "dvp",
+			ChainSelector: "1337",
+			Address:       "0x1234",
+			Events:        []string{"TestEvent"},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.ErrorIs(t, err, ErrCreateWatcherService)
+		assert.ErrorIs(t, err, apierror.ErrWatcherAlreadyExists)
+	})
+
+	t.Run("Conflict_UnknownCode", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			// Return a 409 with no code to exercise the fallback path.
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Message: "conflict without a recognized code",
+				Type:    apiClient.CONFLICT,
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		watcher, err := client.CreateWithService(context.Background(), channelID, CreateWithServiceInput{
+			Name:          "test-watcher",
+			Service:       "dvp",
+			ChainSelector: "1337",
+			Address:       "0x1234",
+			Events:        []string{"TestEvent"},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.ErrorIs(t, err, ErrCreateWatcherService)
+		assert.False(t, errors.Is(err, apierror.ErrWatcherAlreadyExists), "unknown code must not produce ErrWatcherAlreadyExists")
 	})
 }
 
@@ -393,6 +455,85 @@ func TestClient_CreateWithABI(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, watcher)
 		assert.ErrorIs(t, err, ErrEventNotInABI)
+	})
+
+	t.Run("Conflict_WatcherAlreadyExists", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			code := apiClient.ApplicationErrorCodeWatcherAlreadyExists
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Code:    &code,
+				Message: "watcher already exists for this channel",
+				Type:    apiClient.CONFLICT,
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		watcher, err := client.CreateWithABI(context.Background(), channelID, CreateWithABIInput{
+			Name:          "test-watcher",
+			ChainSelector: "1337",
+			Address:       "0x1234",
+			Events:        []string{"Transfer"},
+			ABI: []EventABI{
+				{
+					Name: "Transfer", Type: "event",
+					Inputs: []EventABIInput{
+						{Name: "from", Type: "address", Indexed: true},
+						{Name: "to", Type: "address", Indexed: true},
+						{Name: "value", Type: "uint256", Indexed: false},
+					},
+				},
+			},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.ErrorIs(t, err, ErrCreateWatcherABI)
+		assert.ErrorIs(t, err, apierror.ErrWatcherAlreadyExists)
+	})
+
+	t.Run("Conflict_UnknownCode", func(t *testing.T) {
+		channelID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			// Return a 409 with no code to exercise the fallback path.
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Message: "conflict without a recognized code",
+				Type:    apiClient.CONFLICT,
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		watcher, err := client.CreateWithABI(context.Background(), channelID, CreateWithABIInput{
+			Name:          "test-watcher",
+			ChainSelector: "1337",
+			Address:       "0x1234",
+			Events:        []string{"Transfer"},
+			ABI: []EventABI{
+				{
+					Name: "Transfer", Type: "event",
+					Inputs: []EventABIInput{
+						{Name: "from", Type: "address", Indexed: true},
+						{Name: "to", Type: "address", Indexed: true},
+						{Name: "value", Type: "uint256", Indexed: false},
+					},
+				},
+			},
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.ErrorIs(t, err, ErrCreateWatcherABI)
+		assert.False(t, errors.Is(err, apierror.ErrWatcherAlreadyExists), "unknown code must not produce ErrWatcherAlreadyExists")
 	})
 }
 

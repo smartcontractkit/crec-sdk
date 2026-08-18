@@ -23,6 +23,8 @@ const (
 var (
 	// ErrChannelNotFound is returned when a channel is not found (404 response)
 	ErrChannelNotFound = apierror.ErrChannelNotFound
+	// ErrChannelAlreadyExists is returned when a channel with the same name already exists (409 response)
+	ErrChannelAlreadyExists = apierror.ErrChannelAlreadyExists
 
 	// Client initialization errors
 	ErrOptionsRequired   = errors.New("options is required")
@@ -137,6 +139,11 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Chan
 			"channel_id", resp.JSON201.ChannelId.String(),
 			"name", resp.JSON201.Name)
 		return resp.JSON201, nil
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when creating channel",
+			"name", input.Name,
+			"code", apierror.ConflictCode(resp.JSON409))
+		return nil, apierror.WrapConflict(resp.JSON409, ErrCreateChannel, "name "+input.Name)
 	default:
 		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrCreateChannel, "creating channel", resp.Body, c.logger)
 	}
@@ -290,6 +297,11 @@ func (c *Client) Update(ctx context.Context, channelID uuid.UUID, input UpdateIn
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return nil, fmt.Errorf("%w: channel ID %s", ErrChannelNotFound, channelID.String())
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when updating channel",
+			"channel_id", channelID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		return nil, apierror.WrapConflict(resp.JSON409, ErrUpdateChannel, "channel ID "+channelID.String())
 	default:
 		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrUpdateChannel, "updating channel", resp.Body, c.logger)
 	}
