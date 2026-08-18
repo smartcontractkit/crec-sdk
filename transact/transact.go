@@ -258,6 +258,15 @@ func (c *Client) postCreateOperation(
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return nil, apierror.WrapNotFound(resp.JSON404, ErrCreateOperation, detail)
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when creating operation",
+			"channel_id", channelID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		conflictDetail := fmt.Sprintf(
+			"channel ID %s, address %s, chain_selector %s, wallet_operation_id %s",
+			channelID.String(), createReq.Address, createReq.ChainSelector, walletOperationID,
+		)
+		return nil, apierror.WrapConflict(resp.JSON409, ErrCreateOperation, conflictDetail)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when creating operation",
 			"status_code", resp.StatusCode(),
@@ -757,7 +766,7 @@ func (c *Client) SendSignedDraftOperation(
 	case http.StatusNotFound:
 		return nil, ErrDraftNotFound
 	case http.StatusConflict:
-		return nil, ErrDraftNotFinalizable
+		return nil, apierror.WrapConflict(resp.JSON409, ErrDraftNotFinalizable, "operation ID "+operationID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when sending operation",
 			"status_code", resp.StatusCode(),
@@ -826,7 +835,7 @@ func (c *Client) CancelDraftOperation(ctx context.Context, channelID uuid.UUID, 
 	case http.StatusNotFound:
 		return ErrDraftNotFound
 	case http.StatusConflict:
-		return ErrDraftNotCancellable
+		return apierror.WrapConflict(resp.JSON409, ErrDraftNotCancellable, "operation ID "+operationID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when cancelling operation",
 			"status_code", resp.StatusCode(),

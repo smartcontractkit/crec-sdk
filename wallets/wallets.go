@@ -194,6 +194,11 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Wall
 			"address", resp.JSON201.Address,
 			"chain_selector", resp.JSON201.ChainSelector)
 		return resp.JSON201, nil
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when creating wallet",
+			"name", input.Name,
+			"code", apierror.ConflictCode(resp.JSON409))
+		return nil, apierror.WrapConflict(resp.JSON409, ErrCreateWallet, "name "+input.Name)
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when creating wallet",
 			"status_code", resp.StatusCode(),
@@ -411,6 +416,11 @@ func (c *Client) Update(ctx context.Context, walletID uuid.UUID, input UpdateInp
 			"code", apierror.NotFoundCode(resp.JSON404),
 		)
 		return fmt.Errorf("%w: wallet ID %s", ErrWalletNotFound, walletID.String())
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when updating wallet",
+			"wallet_id", walletID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		return apierror.WrapConflict(resp.JSON409, ErrUpdateWallet, "wallet ID "+walletID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error("Unauthorized when updating wallet",
 			"status_code", resp.StatusCode(),

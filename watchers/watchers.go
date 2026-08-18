@@ -270,6 +270,11 @@ func (c *Client) CreateWithService(
 		}
 		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 		return resp.JSON201, nil
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when creating watcher with service",
+			"channel_id", channelID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		return nil, apierror.WrapConflict(resp.JSON409, ErrCreateWatcherService, "channel ID "+channelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to create watcher with service - unauthorized",
@@ -400,6 +405,11 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 		}
 		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 		return resp.JSON201, nil
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when creating watcher with ABI",
+			"channel_id", channelID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		return nil, apierror.WrapConflict(resp.JSON409, ErrCreateWatcherABI, "channel ID "+channelID.String())
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to create watcher with ABI - unauthorized",
@@ -596,6 +606,16 @@ func (c *Client) Update(
 			ErrUpdateWatcher,
 			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
 		)
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when updating watcher",
+			"channel_id", channelID.String(),
+			"watcher_id", watcherID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		return nil, apierror.WrapConflict(
+			resp.JSON409,
+			ErrUpdateWatcher,
+			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
+		)
 	case http.StatusUnauthorized:
 		c.logger.Error(
 			"Failed to update watcher - unauthorized",
@@ -754,6 +774,16 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 		)
 		return nil, apierror.WrapNotFound(
 			resp.JSON404,
+			ErrArchiveWatcher,
+			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
+		)
+	case http.StatusConflict:
+		c.logger.Warn("Conflict when archiving watcher",
+			"channel_id", channelID.String(),
+			"watcher_id", watcherID.String(),
+			"code", apierror.ConflictCode(resp.JSON409))
+		return nil, apierror.WrapConflict(
+			resp.JSON409,
 			ErrArchiveWatcher,
 			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
 		)

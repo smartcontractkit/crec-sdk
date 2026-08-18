@@ -31,6 +31,22 @@ var (
 	ErrQueryNotFound = errors.New("query not found")
 )
 
+// Canonical conflict sentinels for HTTP 409 responses. The API disambiguates
+// the cause via ApplicationError.code. Packages that assign these variables
+// (rather than defining their own) share the same sentinel instances so
+// errors.Is works across those packages.
+var (
+	ErrChannelAlreadyExists     = errors.New("channel already exists")
+	ErrWalletAlreadyExists      = errors.New("wallet already exists")
+	ErrWatcherAlreadyExists     = errors.New("watcher already exists")
+	ErrIdempotencyKeyMismatch   = errors.New("idempotency key reused with different request")
+	ErrOperationNotFinalizable  = errors.New("operation not finalizable")
+	ErrOperationNotCancellable  = errors.New("operation not cancellable")
+	ErrOperationDeadlineElapsed = errors.New("operation deadline elapsed")
+	ErrWalletAlreadyArchived    = errors.New("wallet already archived")
+	ErrChainUnavailable         = errors.New("chain unavailable for wallet creation")
+)
+
 // ErrUnexpectedStatusCode is returned when the API responds with an HTTP status
 // the SDK does not handle explicitly.
 var ErrUnexpectedStatusCode = errors.New("unexpected status code")
@@ -133,6 +149,66 @@ func notFoundMessage(appErr *apiClient.ApplicationError, detail string) string {
 
 // NotFoundCode returns ApplicationError.code as a string, or empty when absent.
 func NotFoundCode(appErr *apiClient.ApplicationError) string {
+	if appErr == nil || appErr.Code == nil {
+		return ""
+	}
+	return string(*appErr.Code)
+}
+
+// Conflict maps a 409 ApplicationError to its canonical conflict sentinel based
+// on ApplicationError.code, or returns nil when the code is missing or
+// unrecognized (forward-compatible for codes added after this SDK release).
+func Conflict(appErr *apiClient.ApplicationError) error {
+	if appErr == nil || appErr.Code == nil {
+		return nil
+	}
+
+	switch *appErr.Code {
+	case apiClient.ApplicationErrorCodeChannelAlreadyExists:
+		return ErrChannelAlreadyExists
+	case apiClient.ApplicationErrorCodeWalletAlreadyExists:
+		return ErrWalletAlreadyExists
+	case apiClient.ApplicationErrorCodeWatcherAlreadyExists:
+		return ErrWatcherAlreadyExists
+	case apiClient.ApplicationErrorCodeIdempotencyKeyMismatch:
+		return ErrIdempotencyKeyMismatch
+	case apiClient.ApplicationErrorCodeOperationNotFinalizable:
+		return ErrOperationNotFinalizable
+	case apiClient.ApplicationErrorCodeOperationNotCancellable:
+		return ErrOperationNotCancellable
+	case apiClient.ApplicationErrorCodeOperationDeadlineElapsed:
+		return ErrOperationDeadlineElapsed
+	case apiClient.ApplicationErrorCodeWalletAlreadyArchived:
+		return ErrWalletAlreadyArchived
+	case apiClient.ApplicationErrorCodeChainUnavailable:
+		return ErrChainUnavailable
+	default:
+		return nil
+	}
+}
+
+// WrapConflict resolves a 409 ApplicationError to its canonical conflict
+// sentinel and wraps it with opErr when ApplicationError.code is recognized.
+// When the code is missing or unknown, it returns only opErr so callers are not
+// given a wrong typed sentinel. detail is appended when the server message is
+// absent.
+func WrapConflict(appErr *apiClient.ApplicationError, opErr error, detail string) error {
+	msg := notFoundMessage(appErr, detail)
+
+	if mapped := Conflict(appErr); mapped != nil {
+		if msg != "" {
+			return fmt.Errorf("%w: %w: %s", opErr, mapped, msg)
+		}
+		return fmt.Errorf("%w: %w", opErr, mapped)
+	}
+	if msg != "" {
+		return fmt.Errorf("%w: %s", opErr, msg)
+	}
+	return opErr
+}
+
+// ConflictCode returns ApplicationError.code as a string, or empty when absent.
+func ConflictCode(appErr *apiClient.ApplicationError) string {
 	if appErr == nil || appErr.Code == nil {
 		return ""
 	}

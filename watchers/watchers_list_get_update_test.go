@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
+
+	"github.com/smartcontractkit/crec-sdk/apierror"
 )
 
 func TestClient_List(t *testing.T) {
@@ -468,5 +470,32 @@ func TestClient_Update(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, watcher)
 		assert.True(t, errors.Is(err, ErrWatcherNotFound), "Expected ErrWatcherNotFound, got: %v", err)
+	})
+
+	t.Run("Conflict", func(t *testing.T) {
+		channelID := uuid.New()
+		watcherID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+				"message": "conflict error: a watcher with name 'updated-watcher' already exists in this channel",
+				"type":    "CONFLICT",
+				"code":    "WATCHER_ALREADY_EXISTS",
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		watcher, err := client.Update(context.Background(), channelID, watcherID, UpdateInput{
+			Name: "updated-watcher",
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, watcher)
+		assert.ErrorIs(t, err, ErrUpdateWatcher, "Expected ErrUpdateWatcher, got: %v", err)
+		assert.ErrorIs(t, err, apierror.ErrWatcherAlreadyExists, "Expected apierror.ErrWatcherAlreadyExists, got: %v", err)
 	})
 }

@@ -444,6 +444,38 @@ func TestClient_Create(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrCreateWallet))
 	})
 
+	t.Run("Conflict", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			code := apiClient.ApplicationErrorCodeWalletAlreadyExists
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Code:    &code,
+				Message: "wallet name already exists in the organization",
+				Type:    apiClient.CONFLICT,
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		statusChannelID := uuid.New()
+
+		wallet, err := client.Create(context.Background(), CreateInput{
+			Name:               "test-wallet",
+			ChainSelector:      "5009297550715157269",
+			WalletOwnerAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+			WalletType:         apiClient.WalletTypeECDSA,
+			Configuration:      apiClient.WalletConfiguration{},
+			StatusChannelId:    &statusChannelID,
+		})
+
+		require.Error(t, err)
+		assert.Nil(t, wallet)
+		assert.ErrorIs(t, err, ErrCreateWallet)
+		assert.ErrorIs(t, err, apierror.ErrWalletAlreadyExists)
+	})
+
 	t.Run("EcdsaWalletWithSigners", func(t *testing.T) {
 		walletID := uuid.New()
 		walletName := "test-wallet"
@@ -980,6 +1012,32 @@ func TestClient_Update(t *testing.T) {
 
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrUpdateWallet))
+	})
+
+	t.Run("Conflict", func(t *testing.T) {
+		walletID := uuid.New()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			code := apiClient.ApplicationErrorCodeWalletAlreadyArchived
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Code:    &code,
+				Message: "conflict error: wallet already in archived state",
+				Type:    apiClient.CONFLICT,
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		err := client.Update(context.Background(), walletID, UpdateInput{
+			Name: "new-name",
+		})
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrUpdateWallet)
+		assert.ErrorIs(t, err, apierror.ErrWalletAlreadyArchived)
 	})
 }
 
