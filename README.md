@@ -234,17 +234,20 @@ client, err := crec.NewClient(
     crec.WithEventVerification("1", 2, []string{  // CRE tenant ID, then require 2 signatures
         "0xff9b062fccb2f042311343048b9518068370f837",
         "0xe55fcaf921e76c6bbcf9415bba12b1236f07b0c3",
+        "0x4d6cfd44f94408a39fb1af94a53c107a730ba161",
         // ... your DON's signer list ...
     }),
 )
 
-// Or disable verification entirely
+// Or skip the default signer set (verification calls will fail until signers are configured)
 client, err := crec.NewClient(
     "https://cre-connect.api.chain.link/v1",
     "your-api-key",
     crec.WithoutEventVerification(),
 )
 ```
+
+> **Note**: `WithoutEventVerification` only suppresses the default signer set; an explicit `WithEventVerification` unit still applies.
 
 > **Note**: Keys rarely change. When they do, update the SDK to get the latest defaults.
 

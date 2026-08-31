@@ -88,8 +88,10 @@ func WithEventVerification(creTenantID string, minRequiredSignatures int, validS
 	}
 }
 
-// WithoutEventVerification disables event verification entirely.
-// Use this option if you don't need to verify event signatures.
+// WithoutEventVerification skips the default signer-set backfill, so the client
+// ends up with no signers and verification calls fail with
+// events.ErrVerificationNotConfigured. It does not override an explicitly
+// configured unit: signers set via WithEventVerification still apply.
 func WithoutEventVerification() Option {
 	return func(cfg *clientConfig) {
 		cfg.disableEventVerification = true
