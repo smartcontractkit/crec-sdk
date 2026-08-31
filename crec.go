@@ -48,13 +48,10 @@ var (
 	// ErrAPIKeyRequired is returned when the API key is empty.
 	ErrAPIKeyRequired = errors.New("API key is required")
 
-	// ErrInvalidEventVerificationConfig is returned when event verification is misconfigured.
-	ErrInvalidEventVerificationConfig = errors.New("minRequiredSignatures must be > 0 when validSigners are provided")
-
-	// ErrIncompleteDONConfig is returned when WithDONConfig was used but the DON
-	// unit is incomplete: the CRE tenant ID is empty, no valid signers were given,
-	// or minRequiredSignatures is not positive.
-	ErrIncompleteDONConfig = errors.New("incomplete DON configuration")
+	// ErrInvalidEventVerificationConfig is returned when event verification is
+	// misconfigured: WithEventVerification was used but the unit is incomplete
+	// (empty CRE tenant ID, no valid signers, or minRequiredSignatures not positive).
+	ErrInvalidEventVerificationConfig = errors.New("invalid event verification configuration")
 
 	// ErrListNetworks is returned when listing networks fails.
 	ErrListNetworks = errors.New("failed to list networks")
@@ -149,15 +146,15 @@ func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
 	}
 
 	// Checked before the defaulting block below, which would otherwise backfill
-	// an incomplete DON unit with the default signer set.
-	if cfg.donConfigSet {
+	// an incomplete unit with the default signer set.
+	if cfg.eventVerificationSet {
 		switch {
 		case cfg.creTenantID == "":
-			return nil, fmt.Errorf("%w: creTenantID is empty", ErrIncompleteDONConfig)
+			return nil, fmt.Errorf("%w: creTenantID is empty", ErrInvalidEventVerificationConfig)
 		case len(cfg.validSigners) == 0:
-			return nil, fmt.Errorf("%w: validSigners is empty", ErrIncompleteDONConfig)
+			return nil, fmt.Errorf("%w: validSigners is empty", ErrInvalidEventVerificationConfig)
 		case cfg.minRequiredSignatures <= 0:
-			return nil, fmt.Errorf("%w: minRequiredSignatures must be > 0", ErrIncompleteDONConfig)
+			return nil, fmt.Errorf("%w: minRequiredSignatures must be > 0", ErrInvalidEventVerificationConfig)
 		}
 	}
 
@@ -165,11 +162,6 @@ func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
 	if !cfg.disableEventVerification && len(cfg.validSigners) == 0 {
 		cfg.validSigners = DefaultValidSigners
 		cfg.minRequiredSignatures = DefaultMinRequiredSignatures
-	}
-
-	// Validate event verification configuration
-	if len(cfg.validSigners) > 0 && cfg.minRequiredSignatures <= 0 {
-		return nil, ErrInvalidEventVerificationConfig
 	}
 
 	api, err := NewAPIClient(baseURL, apiKey, opts...)

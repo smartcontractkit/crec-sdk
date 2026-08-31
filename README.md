@@ -231,7 +231,7 @@ signer set, and threshold are provided at onboarding and are set as one atomic u
 client, err := crec.NewClient(
     "https://cre-connect.api.chain.link/v1",
     "your-api-key",
-    crec.WithDONConfig("1", 2, []string{  // CRE tenant ID, then require 2 signatures
+    crec.WithEventVerification("1", 2, []string{  // CRE tenant ID, then require 2 signatures
         "0xff9b062fccb2f042311343048b9518068370f837",
         "0xe55fcaf921e76c6bbcf9415bba12b1236f07b0c3",
         // ... your DON's signer list ...
