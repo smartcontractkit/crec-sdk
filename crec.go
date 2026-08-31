@@ -145,9 +145,10 @@ func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
 		opt(cfg)
 	}
 
-	// Checked before the defaulting block below, which would otherwise backfill
-	// an incomplete unit with the default signer set.
-	if cfg.eventVerificationSet {
+	// A partially configured unit fails here, before the defaulting block below
+	// could backfill the missing pieces with mainline values.
+	configured := cfg.creTenantID != "" || len(cfg.validSigners) > 0 || cfg.minRequiredSignatures != 0
+	if configured {
 		switch {
 		case cfg.creTenantID == "":
 			return nil, fmt.Errorf("%w: creTenantID is empty", ErrInvalidEventVerificationConfig)
@@ -160,6 +161,7 @@ func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
 
 	// Apply default event verification if not disabled and not custom configured
 	if !cfg.disableEventVerification && len(cfg.validSigners) == 0 {
+		cfg.creTenantID = events.CreMainlineTenantID
 		cfg.validSigners = DefaultValidSigners
 		cfg.minRequiredSignatures = DefaultMinRequiredSignatures
 	}

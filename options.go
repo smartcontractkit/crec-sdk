@@ -36,17 +36,14 @@ var DefaultValidSigners = []string{
 
 // clientConfig holds the internal configuration for the Client.
 type clientConfig struct {
-	httpClient               *http.Client
-	logger                   *slog.Logger
-	minRequiredSignatures    int
-	validSigners             []string
-	disableEventVerification bool
-	orgID                    string
-	workflowOwner            string
-	creTenantID              string
-	// eventVerificationSet marks configuration via WithEventVerification: NewClient
-	// rejects an incomplete unit instead of backfilling it with the default signer set.
-	eventVerificationSet             bool
+	httpClient                       *http.Client
+	logger                           *slog.Logger
+	minRequiredSignatures            int
+	validSigners                     []string
+	disableEventVerification         bool
+	orgID                            string
+	workflowOwner                    string
+	creTenantID                      string
 	watcherPollInterval              time.Duration
 	watcherEventualConsistencyWindow time.Duration
 }
@@ -88,7 +85,6 @@ func WithEventVerification(creTenantID string, minRequiredSignatures int, validS
 		cfg.creTenantID = creTenantID
 		cfg.minRequiredSignatures = minRequiredSignatures
 		cfg.validSigners = validSigners
-		cfg.eventVerificationSet = true
 	}
 }
 

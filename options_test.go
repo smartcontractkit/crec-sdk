@@ -15,5 +15,4 @@ func TestWithEventVerification_AppliesAtomicUnit(t *testing.T) {
 	assert.Equal(t, "3", cfg.creTenantID)
 	assert.Equal(t, 2, cfg.minRequiredSignatures)
 	assert.Equal(t, signers, cfg.validSigners)
-	assert.True(t, cfg.eventVerificationSet)
 }
