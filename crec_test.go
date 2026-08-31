@@ -375,6 +375,100 @@ func TestNewClient_EventVerificationConfig(t *testing.T) {
 	}
 }
 
+func TestNewClient_WithDONConfig(t *testing.T) {
+	signers := []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}
+
+	t.Run("CompleteUnit_Succeeds", func(t *testing.T) {
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithDONConfig("3", 2, signers),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+	})
+
+	t.Run("CompleteUnit_WithVerificationDisabled_Succeeds", func(t *testing.T) {
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithDONConfig("3", 2, signers),
+			crec.WithoutEventVerification(),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+	})
+
+	t.Run("MissingTenantID", func(t *testing.T) {
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithDONConfig("", 2, signers),
+		)
+		require.Error(t, err)
+		assert.Nil(t, client)
+		assert.ErrorIs(t, err, crec.ErrIncompleteDONConfig)
+	})
+
+	t.Run("MissingSigners_NotBackfilledWithDefaults", func(t *testing.T) {
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithDONConfig("3", 2, nil),
+		)
+		require.Error(t, err)
+		assert.Nil(t, client)
+		assert.ErrorIs(t, err, crec.ErrIncompleteDONConfig)
+	})
+
+	t.Run("ZeroThreshold", func(t *testing.T) {
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithDONConfig("3", 0, signers),
+		)
+		require.Error(t, err)
+		assert.Nil(t, client)
+		assert.ErrorIs(t, err, crec.ErrIncompleteDONConfig)
+	})
+
+	t.Run("LegacyOptionAfterDONConfig_StillRequiresCompleteUnit", func(t *testing.T) {
+		// Options are last-write-wins per field; the completeness requirement
+		// still applies because the DON unit path was taken.
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithDONConfig("3", 2, signers),
+			crec.WithEventVerification(0, nil),
+		)
+		require.Error(t, err)
+		assert.Nil(t, client)
+		assert.ErrorIs(t, err, crec.ErrIncompleteDONConfig)
+	})
+
+	t.Run("LegacyTenantOptionOnly_StillDefaults", func(t *testing.T) {
+		// The legacy granular path keeps its defaulting behavior unchanged.
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithCRETenantID("3"),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+	})
+
+	t.Run("ThresholdExceedingSigners", func(t *testing.T) {
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithDONConfig("3", 5, signers),
+		)
+		require.Error(t, err)
+		assert.Nil(t, client)
+		assert.ErrorIs(t, err, events.ErrMinSignersExceedsUnique)
+	})
+}
+
 func TestNewClient_WatcherPollingConfig(t *testing.T) {
 	pollInterval := 5 * time.Second
 	consistencyWindow := 10 * time.Second
@@ -399,7 +493,7 @@ func TestNewClient_DefaultEventVerification(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, client)
 		// Client created successfully means defaults were applied correctly
-		// (DefaultMinRequiredSignatures=3 with DefaultValidSigners)
+		// (DefaultMinRequiredSignatures=4 with DefaultValidSigners)
 	})
 
 	t.Run("WithoutEventVerificationDisablesDefaults", func(t *testing.T) {

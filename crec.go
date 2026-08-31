@@ -51,6 +51,11 @@ var (
 	// ErrInvalidEventVerificationConfig is returned when event verification is misconfigured.
 	ErrInvalidEventVerificationConfig = errors.New("minRequiredSignatures must be > 0 when validSigners are provided")
 
+	// ErrIncompleteDONConfig is returned when WithDONConfig was used but the DON
+	// unit is incomplete: the CRE tenant ID is empty, no valid signers were given,
+	// or minRequiredSignatures is not positive.
+	ErrIncompleteDONConfig = errors.New("incomplete DON configuration")
+
 	// ErrListNetworks is returned when listing networks fails.
 	ErrListNetworks = errors.New("failed to list networks")
 )
@@ -141,6 +146,19 @@ func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
 	// Apply provided options
 	for _, opt := range opts {
 		opt(cfg)
+	}
+
+	// Checked before the defaulting block below, which would otherwise backfill
+	// an incomplete DON unit with the default signer set.
+	if cfg.donConfigSet {
+		switch {
+		case cfg.creTenantID == "":
+			return nil, fmt.Errorf("%w: creTenantID is empty", ErrIncompleteDONConfig)
+		case len(cfg.validSigners) == 0:
+			return nil, fmt.Errorf("%w: validSigners is empty", ErrIncompleteDONConfig)
+		case cfg.minRequiredSignatures <= 0:
+			return nil, fmt.Errorf("%w: minRequiredSignatures must be > 0", ErrIncompleteDONConfig)
+		}
 	}
 
 	// Apply default event verification if not disabled and not custom configured

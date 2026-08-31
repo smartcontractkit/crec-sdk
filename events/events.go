@@ -77,6 +77,16 @@ var (
 	// ErrInvalidEventHash is returned when the event hash verification fails.
 	ErrInvalidEventHash = errors.New("event hash verification failed")
 
+	// ErrWorkflowOwnerMismatch is returned when the workflow owner embedded in the
+	// OCR report does not match the expected owner. This usually means the event
+	// was produced for a different CRE tenant or org than the client is configured for.
+	ErrWorkflowOwnerMismatch = errors.New("workflow owner mismatch")
+
+	// ErrInsufficientValidSignatures is returned when the OCR proof does not reach
+	// the required threshold of signatures from the configured signer set. The error
+	// message carries the valid, unknown-signer, and required counts.
+	ErrInsufficientValidSignatures = errors.New("insufficient valid signatures")
+
 	// ErrNoOCRProofs is returned when the event has no OCR proofs.
 	ErrNoOCRProofs = errors.New("no OCR proofs found")
 	// ErrMultipleOCRProofs is returned when the event has more than one OCR proof.
@@ -468,9 +478,8 @@ func (c *Client) VerifyWithWorkflowOwner(event *apiClient.Event, workflowOwner s
 	}
 
 	// ensure locally computed event hash matches the one in the report
-	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowOwner)
-	if !eventHashValid {
-		return false, ErrInvalidEventHash
+	if err := c.verifyEventHash(ocrReport, eventHash, workflowOwner); err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
 	// decode context only after event hash verification to avoid large allocations on invalid reports
@@ -574,9 +583,8 @@ func (c *Client) VerifyOperationStatusWithWorkflowOwner(event *apiClient.Event, 
 	}
 
 	// ensure locally computed event hash matches the one in the report
-	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowOwner)
-	if !eventHashValid {
-		return false, ErrInvalidEventHash
+	if err := c.verifyEventHash(ocrReport, eventHash, workflowOwner); err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
 	// decode context only after event hash verification to avoid large allocations on invalid reports
@@ -661,9 +669,8 @@ func (c *Client) VerifyQueryStatusWithWorkflowOwner(event *apiClient.Event, work
 		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
-	eventHashValid := c.verifyEventHash(ocrReport, eventHash, workflowOwner)
-	if !eventHashValid {
-		return false, ErrInvalidEventHash
+	if err := c.verifyEventHash(ocrReport, eventHash, workflowOwner); err != nil {
+		return false, fmt.Errorf("%w: %w", ErrVerifyEvent, err)
 	}
 
 	// decode context only after event hash verification to avoid large allocations on invalid reports
@@ -688,6 +695,8 @@ func (c *Client) VerifyQueryStatusWithWorkflowOwner(event *apiClient.Event, work
 // requiring a full Event structure or validating event hash/workflow owner.
 //
 // Returns true if at least minRequiredSignatures valid signatures are found.
+// When the threshold is not met, the returned error is [ErrInsufficientValidSignatures]
+// (not wrapped in [ErrVerifyEvent]).
 func (c *Client) VerifyOCRSignatures(ocrReport, ocrContext string, signatures []string) (bool, error) {
 	if len(c.validSigners) == 0 {
 		return false, ErrVerificationNotConfigured
@@ -916,7 +925,9 @@ func (c *Client) parseOCRContext(ocrProof apiClient.OCRProof) ([]byte, error) {
 }
 
 // verifySignatures verifies that the OCR proof signatures are valid and signed by authorized signers.
-// It returns true if at least minRequiredSignatures valid signatures are found, false otherwise.
+// It returns true if at least minRequiredSignatures valid signatures are found.
+// When the threshold is not met, it returns [ErrInsufficientValidSignatures] with the
+// valid, unknown-signer, and required counts.
 func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrContext []byte) (bool, error) {
 	// Cap signature count to bound ECDSA recovery work.
 	maxSigs := c.minRequiredSignatures
@@ -934,6 +945,8 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
 
 	validSigCount := 0
+	unknownSignerCount := 0
+	unknownSignersSeen := make(map[common.Address]struct{})
 	availableSigners := make(map[common.Address]bool)
 	for _, signer := range c.validSigners {
 		availableSigners[common.HexToAddress(signer)] = true
@@ -972,7 +985,14 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 			c.logger.Debug("Signature verified successfully", "signer", signer.Hex())
 			validSigCount++
 			availableSigners[signer] = false // Mark this signer as used
+		} else if _, configured := availableSigners[signer]; !configured {
+			if _, seen := unknownSignersSeen[signer]; !seen {
+				unknownSignersSeen[signer] = struct{}{}
+				unknownSignerCount++
+			}
 		}
+		// Used signers stay in the map (value false), so duplicates count as
+		// neither valid nor unknown.
 
 		// If we have enough valid signatures, we can stop
 		if validSigCount >= c.minRequiredSignatures {
@@ -991,12 +1011,19 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 	c.logger.Warn(
 		"Not enough valid signatures",
 		"valid_signatures", validSigCount,
+		"unknown_signers", unknownSignerCount,
 		"required_signatures", c.minRequiredSignatures,
 	)
-	return false, nil
+	return false, fmt.Errorf(
+		"%w: %d valid of %d required (%d recovered from unknown signers); check that the CRE tenant ID and signer set match your Org's DON",
+		ErrInsufficientValidSignatures, validSigCount, c.minRequiredSignatures, unknownSignerCount,
+	)
 }
 
-func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowOwner string) bool {
+// verifyEventHash returns [ErrWorkflowOwnerMismatch] when the report's embedded
+// workflow owner differs from the expected owner, [ErrInvalidEventHash] when the
+// embedded event hash differs from the locally computed one, and nil when both match.
+func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowOwner string) error {
 
 	// OCR report layout:
 	// version                offset   0, size  1
@@ -1018,7 +1045,10 @@ func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workfl
 			"report_workflow_owner", reportWorkflowOwner.Hex(),
 			"expected_workflow_owner", expectedOwner.Hex(),
 		)
-		return false
+		return fmt.Errorf(
+			"%w: report owner %s, expected %s; check that the CRE tenant ID matches your Org's DON",
+			ErrWorkflowOwnerMismatch, reportWorkflowOwner.Hex(), expectedOwner.Hex(),
+		)
 	}
 
 	reportEventHash := common.BytesToHash(ocrReport[ocrReportPayloadOffset:])
@@ -1028,7 +1058,10 @@ func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workfl
 		"report_event_hash", reportEventHash.String(),
 	)
 
-	return eventHash == reportEventHash
+	if eventHash != reportEventHash {
+		return ErrInvalidEventHash
+	}
+	return nil
 }
 
 func getOCRProof(event *apiClient.Event) (apiClient.OCRProof, error) {

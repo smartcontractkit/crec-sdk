@@ -105,7 +105,7 @@
 //	    crec.WithLogger(logger),
 //	    crec.WithHTTPClient(customHTTPClient),
 //	    crec.WithOrgID("my-org-id"),
-//	    crec.WithEventVerification(2, []string{"0xSigner1", "0xSigner2", "0xSigner3"}),
+//	    crec.WithDONConfig("1", 2, []string{"0xSigner1", "0xSigner2", "0xSigner3"}),
 //	    crec.WithWatcherPolling(5*time.Second, 10*time.Second),
 //	)
 //
