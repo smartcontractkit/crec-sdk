@@ -1024,7 +1024,6 @@ func (c *Client) verifySignatures(ocrProof apiClient.OCRProof, ocrReport, ocrCon
 // workflow owner differs from the expected owner, [ErrInvalidEventHash] when the
 // embedded event hash differs from the locally computed one, and nil when both match.
 func (c *Client) verifyEventHash(ocrReport []byte, eventHash common.Hash, workflowOwner string) error {
-
 	// OCR report layout:
 	// version                offset   0, size  1
 	// workflow_execution_id  offset   1, size 32

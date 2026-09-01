@@ -150,6 +150,9 @@ func NewClient(baseURL, apiKey string, opts ...Option) (*Client, error) {
 
 	// Checked before the defaulting block below, which would otherwise backfill
 	// an incomplete DON unit with the default signer set.
+	// Threshold vs signers is left to events.NewClient, which owns its invariants
+	// for direct constructors; consider folding it into this gate when the
+	// deprecated options are removed.
 	if cfg.donConfigSet {
 		switch {
 		case cfg.creTenantID == "":

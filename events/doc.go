@@ -13,7 +13,7 @@
 //	    baseURL,
 //	    apiKey,
 //	    crec.WithOrgID("my-org-id"),
-//	    crec.WithDONConfig("1", 2, []string{
+//	    crec.WithDONConfig(events.CreMainlineTenantID, 2, []string{
 //	        "0x5db070ceabcf97e45d96b4f951a1df050ddb5559",
 //	        "0xadebb9657c04692275973230b06adfabacc899bc",
 //	        "0xc868bbb5d93e97b9d780fc93811a00ca7c016751",
