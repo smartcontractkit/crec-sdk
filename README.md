@@ -231,7 +231,7 @@ signer set, and threshold are provided at onboarding and are set as one atomic u
 client, err := crec.NewClient(
     "https://cre-connect.api.chain.link/v1",
     "your-api-key",
-    crec.WithEventVerification("1", 2, []string{  // CRE tenant ID, then require 2 signatures
+    crec.WithDONConfig("1", 2, []string{  // CRE tenant ID, then require 2 signatures
         "0xff9b062fccb2f042311343048b9518068370f837",
         "0xe55fcaf921e76c6bbcf9415bba12b1236f07b0c3",
         "0x4d6cfd44f94408a39fb1af94a53c107a730ba161",
@@ -247,7 +247,7 @@ client, err := crec.NewClient(
 )
 ```
 
-> **Note**: `WithoutEventVerification` only suppresses the default signer set; an explicit `WithEventVerification` unit still applies.
+> **Note**: `WithoutEventVerification` only suppresses the default signer set; an explicit configuration via `WithEventVerification` or `WithDONConfig` still applies.
 
 > **Note**: Keys rarely change. When they do, update the SDK to get the latest defaults.
 

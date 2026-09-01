@@ -60,7 +60,7 @@ func TestNewClient(t *testing.T) {
 			baseURL: "https://api.crec.example.com",
 			apiKey:  "test-api-key",
 			opts: []crec.Option{
-				crec.WithEventVerification("1", 2, []string{
+				crec.WithEventVerification(2, []string{
 					"0x5db070ceabcf97e45d96b4f951a1df050ddb5559",
 					"0xadebb9657c04692275973230b06adfabacc899bc",
 					"0xc868bbb5d93e97b9d780fc93811a00ca7c016751",
@@ -84,7 +84,7 @@ func TestNewClient(t *testing.T) {
 			opts: []crec.Option{
 				crec.WithLogger(slog.Default()),
 				crec.WithHTTPClient(&http.Client{Timeout: 30 * time.Second}),
-				crec.WithEventVerification("1", 2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
+				crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 				crec.WithWatcherPolling(5*time.Second, 10*time.Second),
 			},
 			wantErr: nil,
@@ -115,7 +115,7 @@ func TestNewClient(t *testing.T) {
 			baseURL: "https://api.crec.example.com",
 			apiKey:  "test-api-key",
 			opts: []crec.Option{
-				crec.WithEventVerification("1", 0, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
+				crec.WithEventVerification(0, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 			},
 			wantErr: crec.ErrInvalidEventVerificationConfig,
 		},
@@ -124,27 +124,27 @@ func TestNewClient(t *testing.T) {
 			baseURL: "https://api.crec.example.com",
 			apiKey:  "test-api-key",
 			opts: []crec.Option{
-				crec.WithEventVerification("1", -1, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559"}),
+				crec.WithEventVerification(-1, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559"}),
 			},
 			wantErr: crec.ErrInvalidEventVerificationConfig,
 		},
 		{
-			name:    "Error_ZeroMinWithNoSigners",
+			name:    "Success_ZeroMinWithNoSigners",
 			baseURL: "https://api.crec.example.com",
 			apiKey:  "test-api-key",
 			opts: []crec.Option{
-				crec.WithEventVerification("1", 0, nil),
+				crec.WithEventVerification(0, nil),
 			},
-			wantErr: crec.ErrInvalidEventVerificationConfig,
+			wantErr: nil,
 		},
 		{
-			name:    "Error_ZeroMinWithEmptySigners",
+			name:    "Success_ZeroMinWithEmptySigners",
 			baseURL: "https://api.crec.example.com",
 			apiKey:  "test-api-key",
 			opts: []crec.Option{
-				crec.WithEventVerification("1", 0, []string{}),
+				crec.WithEventVerification(0, []string{}),
 			},
-			wantErr: crec.ErrInvalidEventVerificationConfig,
+			wantErr: nil,
 		},
 		{
 			name:    "Success_WithoutEventVerification",
@@ -302,63 +302,48 @@ func TestClient_ListNetworks(t *testing.T) {
 func TestNewClient_EventVerificationConfig(t *testing.T) {
 	tests := []struct {
 		name          string
-		creTenantID   string
 		minRequired   int
 		validSigners  []string
 		expectSuccess bool
 	}{
 		{
 			name:          "Valid_ThreeSignersTwoRequired",
-			creTenantID:   "1",
 			minRequired:   2,
 			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc", "0xc868bbb5d93e97b9d780fc93811a00ca7c016751"},
 			expectSuccess: true,
 		},
 		{
 			name:          "Valid_OneSignerOneRequired",
-			creTenantID:   "1",
 			minRequired:   1,
 			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559"},
 			expectSuccess: true,
 		},
 		{
-			name:          "Invalid_NoSignersNoRequired",
-			creTenantID:   "1",
+			name:          "Valid_NoSignersNoRequired",
 			minRequired:   0,
 			validSigners:  nil,
-			expectSuccess: false,
+			expectSuccess: true,
 		},
 		{
-			name:          "Invalid_NoSignersEmptySlice",
-			creTenantID:   "1",
+			name:          "Valid_NoSignersEmptySlice",
 			minRequired:   0,
 			validSigners:  []string{},
-			expectSuccess: false,
-		},
-		{
-			name:          "Invalid_MissingTenantID",
-			creTenantID:   "",
-			minRequired:   2,
-			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559"},
-			expectSuccess: false,
+			expectSuccess: true,
 		},
 		{
 			name:          "Invalid_SignersButZeroRequired",
-			creTenantID:   "1",
 			minRequired:   0,
 			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559"},
 			expectSuccess: false,
 		},
 		{
 			name:          "Invalid_SignersButNegativeRequired",
-			creTenantID:   "1",
 			minRequired:   -5,
 			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"},
 			expectSuccess: false,
 		},
 		{
 			name:          "Invalid_DuplicateSigners",
-			creTenantID:   "1",
 			minRequired:   1,
 			validSigners:  []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0x5db070ceabcf97e45d96b4f951a1df050ddb5559"},
 			expectSuccess: false,
@@ -370,7 +355,7 @@ func TestNewClient_EventVerificationConfig(t *testing.T) {
 			client, err := crec.NewClient(
 				"https://api.crec.example.com",
 				"test-api-key",
-				crec.WithEventVerification(tt.creTenantID, tt.minRequired, tt.validSigners),
+				crec.WithEventVerification(tt.minRequired, tt.validSigners),
 			)
 
 			if tt.expectSuccess {
@@ -390,14 +375,14 @@ func TestNewClient_EventVerificationConfig(t *testing.T) {
 	}
 }
 
-func TestNewClient_EventVerificationAtomicUnit(t *testing.T) {
+func TestNewClient_WithDONConfig(t *testing.T) {
 	signers := []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}
 
 	t.Run("CompleteUnit_Succeeds", func(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification("3", 2, signers),
+			crec.WithDONConfig("3", 2, signers),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, client)
@@ -407,51 +392,88 @@ func TestNewClient_EventVerificationAtomicUnit(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification("3", 2, signers),
+			crec.WithDONConfig("3", 2, signers),
 			crec.WithoutEventVerification(),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, client)
 	})
 
+	t.Run("IncompleteUnit_WithVerificationDisabled_Fails", func(t *testing.T) {
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithDONConfig("", 2, signers),
+			crec.WithoutEventVerification(),
+		)
+		require.Error(t, err)
+		assert.Nil(t, client)
+		assert.ErrorIs(t, err, crec.ErrIncompleteDONConfig)
+	})
+
 	t.Run("MissingTenantID", func(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification("", 2, signers),
+			crec.WithDONConfig("", 2, signers),
 		)
 		require.Error(t, err)
 		assert.Nil(t, client)
-		assert.ErrorIs(t, err, crec.ErrInvalidEventVerificationConfig)
+		assert.ErrorIs(t, err, crec.ErrIncompleteDONConfig)
 	})
 
 	t.Run("MissingSigners_NotBackfilledWithDefaults", func(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification("3", 2, nil),
+			crec.WithDONConfig("3", 2, nil),
 		)
 		require.Error(t, err)
 		assert.Nil(t, client)
-		assert.ErrorIs(t, err, crec.ErrInvalidEventVerificationConfig)
+		assert.ErrorIs(t, err, crec.ErrIncompleteDONConfig)
 	})
 
 	t.Run("ZeroThreshold", func(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification("3", 0, signers),
+			crec.WithDONConfig("3", 0, signers),
 		)
 		require.Error(t, err)
 		assert.Nil(t, client)
-		assert.ErrorIs(t, err, crec.ErrInvalidEventVerificationConfig)
+		assert.ErrorIs(t, err, crec.ErrIncompleteDONConfig)
+	})
+
+	t.Run("LegacyOptionAfterDONConfig_StillRequiresCompleteUnit", func(t *testing.T) {
+		// Options are last-write-wins per field; the completeness requirement
+		// still applies because the DON unit path was taken.
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithDONConfig("3", 2, signers),
+			crec.WithEventVerification(0, nil),
+		)
+		require.Error(t, err)
+		assert.Nil(t, client)
+		assert.ErrorIs(t, err, crec.ErrIncompleteDONConfig)
+	})
+
+	t.Run("LegacyTenantOptionOnly_StillDefaults", func(t *testing.T) {
+		// The legacy granular path keeps its defaulting behavior unchanged.
+		client, err := crec.NewClient(
+			"https://api.crec.example.com",
+			"test-api-key",
+			crec.WithCRETenantID("3"),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, client)
 	})
 
 	t.Run("ThresholdExceedingSigners", func(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification("3", 5, signers),
+			crec.WithDONConfig("3", 5, signers),
 		)
 		require.Error(t, err)
 		assert.Nil(t, client)
@@ -503,7 +525,7 @@ func TestNewClient_DefaultEventVerification(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification("1", 2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, client)
@@ -516,7 +538,7 @@ func TestNewClient_DefaultEventVerification(t *testing.T) {
 		client, err := crec.NewClient(
 			"https://api.crec.example.com",
 			"test-api-key",
-			crec.WithEventVerification("1", 2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 			crec.WithoutEventVerification(),
 		)
 		require.NoError(t, err)
@@ -534,12 +556,12 @@ func TestNewClient_MultipleOptionsOrder(t *testing.T) {
 		{
 			crec.WithHTTPClient(customClient),
 			crec.WithLogger(customLogger),
-			crec.WithEventVerification("1", 2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 			crec.WithWatcherPolling(5*time.Second, 10*time.Second),
 		},
 		{
 			crec.WithWatcherPolling(5*time.Second, 10*time.Second),
-			crec.WithEventVerification("1", 2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 			crec.WithLogger(customLogger),
 			crec.WithHTTPClient(customClient),
 		},
@@ -547,7 +569,7 @@ func TestNewClient_MultipleOptionsOrder(t *testing.T) {
 			crec.WithLogger(customLogger),
 			crec.WithWatcherPolling(5*time.Second, 10*time.Second),
 			crec.WithHTTPClient(customClient),
-			crec.WithEventVerification("1", 2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
+			crec.WithEventVerification(2, []string{"0x5db070ceabcf97e45d96b4f951a1df050ddb5559", "0xadebb9657c04692275973230b06adfabacc899bc"}),
 		},
 	}
 
@@ -583,7 +605,7 @@ func TestClient_SubClientsIntegration(t *testing.T) {
 	client, err := crec.NewClient(
 		server.URL,
 		"test-api-key",
-		crec.WithEventVerification("1", 2, []string{
+		crec.WithEventVerification(2, []string{
 			"0x5db070ceabcf97e45d96b4f951a1df050ddb5559",
 			"0xadebb9657c04692275973230b06adfabacc899bc",
 		}),
