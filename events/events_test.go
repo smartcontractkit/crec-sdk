@@ -784,7 +784,45 @@ func TestClient_Verify(t *testing.T) {
 		ok, err := c.VerifyWithOrgID(event, "wrong-org-id")
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.ErrorIs(t, err, ErrInvalidEventHash)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrWorkflowOwnerMismatch)
+		assert.NotErrorIs(t, err, ErrInvalidEventHash)
+	})
+}
+
+func TestClient_Verify_SecondDON(t *testing.T) {
+	const secondDONTenant = "3"
+
+	secondDONKeys, secondDONSigners := generateTestKeys(t, 4)
+	secondDONClient := setupLocalClient(t, func(opts *Options) {
+		opts.CRETenantID = secondDONTenant
+		opts.MinRequiredSignatures = 2
+		opts.ValidSigners = secondDONSigners
+	})
+	secondDONOwner, err := secondDONClient.WorkflowOwnerFromOrgID(testOrgID)
+	require.NoError(t, err)
+
+	eventPayload := createTestEventPayload(t)
+	event := createValidEventForOwner(t, secondDONKeys, &eventPayload, secondDONOwner)
+
+	t.Run("ClientConfiguredForSecondDON_Verifies", func(t *testing.T) {
+		ok, err := secondDONClient.VerifyWithOrgID(event, testOrgID)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("DefaultTenantClient_FailsWithWorkflowOwnerMismatch", func(t *testing.T) {
+		defaultClient := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 2
+			opts.ValidSigners = secondDONSigners
+		})
+
+		ok, err := defaultClient.VerifyWithOrgID(event, testOrgID)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrWorkflowOwnerMismatch)
+		assert.NotErrorIs(t, err, ErrInvalidEventHash)
 	})
 }
 
@@ -863,8 +901,11 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 		})
 
 		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
-		require.NoError(t, err)
+		require.Error(t, err)
 		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrInsufficientValidSignatures)
+		assert.Contains(t, err.Error(), "2 valid of 3 required (0 recovered from unknown signers)")
 	})
 
 	t.Run("IncorrectSigners", func(t *testing.T) {
@@ -879,8 +920,66 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 		})
 
 		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
-		require.NoError(t, err)
+		require.Error(t, err)
 		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrInsufficientValidSignatures)
+		assert.Contains(t, err.Error(), "0 valid of 2 required (2 recovered from unknown signers)")
+	})
+
+	t.Run("MixedProof_ReportsValidAndUnknownSignerCounts", func(t *testing.T) {
+		inSetKeys, inSetAddresses := generateTestKeys(t, 3)
+		unknownKeys, _ := generateTestKeys(t, 2)
+		signingKeys := make([]*ecdsa.PrivateKey, 0, 4)
+		signingKeys = append(signingKeys, inSetKeys[:2]...)
+		signingKeys = append(signingKeys, unknownKeys...)
+
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, signingKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 3
+			opts.ValidSigners = inSetAddresses
+		})
+
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrInsufficientValidSignatures)
+		assert.Contains(t, err.Error(), "2 valid of 3 required (2 recovered from unknown signers)")
+	})
+
+	t.Run("DuplicateUnknownSigner_CountedOnce", func(t *testing.T) {
+		inSetKeys, inSetAddresses := generateTestKeys(t, 3)
+		unknownKeys, _ := generateTestKeys(t, 1)
+		signingKeys := []*ecdsa.PrivateKey{inSetKeys[0], inSetKeys[1], unknownKeys[0]}
+
+		eventPayload := createTestEventPayload(t)
+		event := createValidEventForOwner(t, signingKeys, &eventPayload, testWorkflowOwner)
+
+		// List the unknown signer's signature twice to prove duplicate
+		// out-of-set signers are counted once.
+		ocrProof, err := event.Headers.Proofs[0].AsOCRProof()
+		require.NoError(t, err)
+		ocrProof.Signatures = append(ocrProof.Signatures, ocrProof.Signatures[len(ocrProof.Signatures)-1])
+
+		proofUnion := apiClient.EventHeaders_Proofs_Item{}
+		err = proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
+		event.Headers.Proofs = []apiClient.EventHeaders_Proofs_Item{proofUnion}
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 3
+			opts.ValidSigners = inSetAddresses
+		})
+
+		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrInsufficientValidSignatures)
+		assert.Contains(t, err.Error(), "2 valid of 3 required (1 recovered from unknown signers)")
 	})
 
 	t.Run("ErrNoOCRProofs", func(t *testing.T) {
@@ -996,7 +1095,9 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.ErrorIs(t, err, ErrInvalidEventHash)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrWorkflowOwnerMismatch)
+		assert.NotErrorIs(t, err, ErrInvalidEventHash)
 	})
 
 	t.Run("ErrInvalidEventHash", func(t *testing.T) {
@@ -1051,7 +1152,9 @@ func TestClient_VerifyWithWorkflowOwner(t *testing.T) {
 		ok, err := c.VerifyWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
 		assert.ErrorIs(t, err, ErrInvalidEventHash)
+		assert.NotErrorIs(t, err, ErrWorkflowOwnerMismatch)
 	})
 
 	t.Run("ErrMultipleOCRProofs", func(t *testing.T) {
@@ -1416,7 +1519,9 @@ func TestClient_VerifyOperationStatus(t *testing.T) {
 		ok, err := c.VerifyOperationStatusWithOrgID(event, "wrong-org-id")
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.ErrorIs(t, err, ErrInvalidEventHash)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrWorkflowOwnerMismatch)
+		assert.NotErrorIs(t, err, ErrInvalidEventHash)
 	})
 }
 
@@ -1495,8 +1600,11 @@ func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
 		})
 
 		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
-		require.NoError(t, err)
+		require.Error(t, err)
 		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrInsufficientValidSignatures)
+		assert.Contains(t, err.Error(), "2 valid of 3 required (0 recovered from unknown signers)")
 	})
 
 	t.Run("IncorrectSigners", func(t *testing.T) {
@@ -1511,8 +1619,11 @@ func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
 		})
 
 		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
-		require.NoError(t, err)
+		require.Error(t, err)
 		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrInsufficientValidSignatures)
+		assert.Contains(t, err.Error(), "0 valid of 2 required (2 recovered from unknown signers)")
 	})
 
 	t.Run("ErrNoOCRProofs", func(t *testing.T) {
@@ -1627,7 +1738,9 @@ func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
 		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.ErrorIs(t, err, ErrInvalidEventHash)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrWorkflowOwnerMismatch)
+		assert.NotErrorIs(t, err, ErrInvalidEventHash)
 	})
 
 	t.Run("ErrInvalidEventHash", func(t *testing.T) {
@@ -1687,7 +1800,9 @@ func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
 		ok, err := c.VerifyOperationStatusWithWorkflowOwner(event, testWorkflowOwner)
 		require.Error(t, err)
 		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
 		assert.ErrorIs(t, err, ErrInvalidEventHash)
+		assert.NotErrorIs(t, err, ErrWorkflowOwnerMismatch)
 	})
 
 	t.Run("ErrOnlyOperationStatusSupported_WrongHeaderType", func(t *testing.T) {
@@ -1766,6 +1881,88 @@ func TestClient_VerifyOperationStatusWithWorkflowOwner(t *testing.T) {
 		assert.False(t, ok)
 		assert.ErrorIs(t, err, ErrVerifyEvent)
 		assert.ErrorIs(t, err, ErrVerifiableEventRequired)
+	})
+}
+
+func TestClient_VerifyQueryStatusWithWorkflowOwner(t *testing.T) {
+	t.Run("MixedProof_ReportsValidAndUnknownSignerCounts", func(t *testing.T) {
+		inSetKeys, inSetAddresses := generateTestKeys(t, 3)
+		unknownKeys, _ := generateTestKeys(t, 2)
+		signingKeys := make([]*ecdsa.PrivateKey, 0, 4)
+		signingKeys = append(signingKeys, inSetKeys[:2]...)
+		signingKeys = append(signingKeys, unknownKeys...)
+
+		eventPayload := createTestQueryStatusPayload(t)
+		event := createValidQueryStatusEventForOwner(t, signingKeys, &eventPayload, testWorkflowOwner)
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 3
+			opts.ValidSigners = inSetAddresses
+		})
+
+		ok, err := c.VerifyQueryStatusWithWorkflowOwner(event, testWorkflowOwner)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrInsufficientValidSignatures)
+		assert.Contains(t, err.Error(), "2 valid of 3 required (2 recovered from unknown signers)")
+	})
+
+	t.Run("ErrInvalidWorkflowOwner", func(t *testing.T) {
+		privKeys, addresses := generateTestKeys(t, 2)
+		eventPayload := createTestQueryStatusPayload(t)
+
+		ocrReport := make([]byte, 141)
+		ocrReport[0] = 0x01
+
+		// Place a wrong workflow owner at offset 87 (20 bytes)
+		wrongWorkflowOwner := common.HexToAddress("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+		copy(ocrReport[87:107], wrongWorkflowOwner.Bytes())
+
+		eventHash := crypto.Keccak256Hash([]byte(*eventPayload.VerifiableResult))
+		copy(ocrReport[109:], eventHash.Bytes())
+
+		ocrContext := []byte("test-context")
+		reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+		sig, _ := crypto.Sign(reportHash.Bytes(), privKeys[0])
+		sig[64] += 27
+
+		ocrProof := apiClient.OCRProof{
+			Alg:        "ecdsa-secp256k1",
+			OcrContext: "0x" + common.Bytes2Hex(ocrContext),
+			OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+			Signatures: []string{"0x" + common.Bytes2Hex(sig)},
+		}
+
+		proofUnion := apiClient.EventHeaders_Proofs_Item{}
+		err := proofUnion.FromOCRProof(ocrProof)
+		require.NoError(t, err)
+
+		payloadUnion := apiClient.Event_Payload{}
+		err = payloadUnion.FromQueryStatusPayload(eventPayload)
+		require.NoError(t, err)
+
+		event := &apiClient.Event{
+			Headers: apiClient.EventHeaders{
+				Type:   apiClient.EventTypeQueryStatus,
+				Offset: int64(12345),
+				Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+			},
+			Payload: payloadUnion,
+		}
+
+		c := setupLocalClient(t, func(opts *Options) {
+			opts.MinRequiredSignatures = 1
+			opts.ValidSigners = addresses
+		})
+
+		ok, err := c.VerifyQueryStatusWithWorkflowOwner(event, testWorkflowOwner)
+		require.Error(t, err)
+		assert.False(t, ok)
+		assert.ErrorIs(t, err, ErrVerifyEvent)
+		assert.ErrorIs(t, err, ErrWorkflowOwnerMismatch)
+		assert.NotErrorIs(t, err, ErrInvalidEventHash)
 	})
 }
 
@@ -1892,8 +2089,11 @@ func TestEvents_VerifyOCRSignatures(t *testing.T) {
 			"0x"+common.Bytes2Hex(ocrContext),
 			signatures,
 		)
-		require.NoError(t, err)
+		require.Error(t, err)
 		assert.False(t, valid)
+		assert.ErrorIs(t, err, ErrInsufficientValidSignatures)
+		assert.NotErrorIs(t, err, ErrVerifyEvent)
+		assert.Contains(t, err.Error(), "0 valid of 2 required (2 recovered from unknown signers)")
 	})
 
 	t.Run("ErrOCRReportTooShort", func(t *testing.T) {
@@ -2526,6 +2726,73 @@ func createValidOperationStatusEventForOwner(t *testing.T, privateKeys []*ecdsa.
 		EventId: &eventId,
 		Headers: apiClient.EventHeaders{
 			Type:   apiClient.EventTypeOperationStatus,
+			Offset: int64(12345),
+			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
+		},
+		Payload: payloadUnion,
+	}
+}
+
+// createTestQueryStatusPayload creates a standard test query.status payload.
+func createTestQueryStatusPayload(t *testing.T) apiClient.QueryStatusPayload {
+	t.Helper()
+
+	verifiableResult := base64.StdEncoding.EncodeToString([]byte(`{"queryId":"test-query-123","result":"ok"}`))
+
+	return apiClient.QueryStatusPayload{
+		ChainSelector:    "16015286601757825753",
+		QueryId:          uuid.New(),
+		Status:           apiClient.QueryStatusCompleted,
+		Target:           "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+		Timestamp:        1700000000,
+		VerifiableResult: &verifiableResult,
+	}
+}
+
+func createValidQueryStatusEventForOwner(t *testing.T, privateKeys []*ecdsa.PrivateKey, eventPayload *apiClient.QueryStatusPayload, owner string) *apiClient.Event {
+	t.Helper()
+
+	ocrReport := make([]byte, 141)
+	ocrReport[0] = 0x01
+
+	workflowOwner := common.HexToAddress(owner)
+	copy(ocrReport[87:107], workflowOwner.Bytes())
+
+	eventHash := crypto.Keccak256Hash([]byte(*eventPayload.VerifiableResult))
+	copy(ocrReport[109:], eventHash.Bytes())
+	ocrContext := []byte("test-context-data")
+
+	reportHash := crypto.Keccak256Hash(append(crypto.Keccak256(ocrReport), ocrContext...))
+
+	var signatures []string
+	for _, privKey := range privateKeys {
+		sig, err := crypto.Sign(reportHash.Bytes(), privKey)
+		require.NoError(t, err)
+		sig[64] += 27
+		signatures = append(signatures, "0x"+common.Bytes2Hex(sig))
+	}
+
+	ocrProof := apiClient.OCRProof{
+		Alg:        "ecdsa-secp256k1",
+		OcrContext: "0x" + common.Bytes2Hex(ocrContext),
+		OcrReport:  "0x" + common.Bytes2Hex(ocrReport),
+		Signatures: signatures,
+	}
+
+	proofUnion := apiClient.EventHeaders_Proofs_Item{}
+	err := proofUnion.FromOCRProof(ocrProof)
+	require.NoError(t, err)
+
+	payloadUnion := apiClient.Event_Payload{}
+	err = payloadUnion.FromQueryStatusPayload(*eventPayload)
+	require.NoError(t, err)
+
+	eventId := uuid.New()
+
+	return &apiClient.Event{
+		EventId: &eventId,
+		Headers: apiClient.EventHeaders{
+			Type:   apiClient.EventTypeQueryStatus,
 			Offset: int64(12345),
 			Proofs: []apiClient.EventHeaders_Proofs_Item{proofUnion},
 		},

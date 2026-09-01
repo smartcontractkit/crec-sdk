@@ -200,7 +200,7 @@ The SDK includes built-in mainnet DON public keys for event verification. **No c
 ### Default Configuration
 
 - **Keys**: All Zone A workflow nodes (10 keys)
-- **Required Signatures**: 3 (configurable)
+- **Required Signatures**: 4 (configurable)
 
 ## DON Keys Reference
 
@@ -218,32 +218,36 @@ The SDK includes built-in mainnet DON public keys for event verification. **No c
 | linkforest-wf-zone-a-5 | `0xd7f22fb5382ff477d2ff5c702cab0ef8abf18233` |
 | linkpool-wf-zone-a-0   | `0xcdf20f8ffd41b02c680988b20e68735cc8c1ca17` |
 | linkriver-wf-zone-a-6  | `0x4d7d71c7e584cfa1f5c06275e5d283b9d3176924` |
-| piertwo-wf-zone-a-7    | `0x1a89c98e75983ec384ad8e83eaf7d0176eeaf155` |
+| piertwo-wf-zone-a-7    | `0xedf4bc027a750d1a88b8ca3ec5e8a5506f6019be` |
 | simplyvc-wf-zone-a-8   | `0x4f99b550623e77b807df7cbed9c79d55e1163b48` |
 
 ### Customizing Verification
 
-Override the defaults if you need custom keys or signature requirements:
+Override the defaults with the configuration of your Org's DON — the CRE tenant ID,
+signer set, and threshold are provided at onboarding and are set as one atomic unit:
 
 ```go
-// Use custom keys and signature threshold
+// Configure verification for your Org's DON
 client, err := crec.NewClient(
     "https://cre-connect.api.chain.link/v1",
     "your-api-key",
-    crec.WithEventVerification(5, []string{  // Require 5 signatures
+    crec.WithDONConfig("3", 2, []string{  // CRE tenant ID, then require 2 signatures
         "0xff9b062fccb2f042311343048b9518068370f837",
         "0xe55fcaf921e76c6bbcf9415bba12b1236f07b0c3",
-        // ... custom key list ...
+        "0x4d6cfd44f94408a39fb1af94a53c107a730ba161",
+        // ... your DON's signer list ...
     }),
 )
 
-// Or disable verification entirely
+// Or skip the default signer set (verification calls will fail until signers are configured)
 client, err := crec.NewClient(
     "https://cre-connect.api.chain.link/v1",
     "your-api-key",
     crec.WithoutEventVerification(),
 )
 ```
+
+> **Note**: `WithoutEventVerification` only suppresses the default signer set; an explicit configuration via `WithEventVerification` or `WithDONConfig` still applies.
 
 > **Note**: Keys rarely change. When they do, update the SDK to get the latest defaults.
 
