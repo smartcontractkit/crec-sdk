@@ -30,21 +30,23 @@ var DefaultValidSigners = []string{
 	"0xd7f22fb5382ff477d2ff5c702cab0ef8abf18233", // linkforest-wf-zone-a-5
 	"0xcdf20f8ffd41b02c680988b20e68735cc8c1ca17", // linkpool-wf-zone-a-0
 	"0x4d7d71c7e584cfa1f5c06275e5d283b9d3176924", // linkriver-wf-zone-a-6
-	"0x1a89c98e75983ec384ad8e83eaf7d0176eeaf155", // piertwo-wf-zone-a-7 (old key; remove after prod key rotation completes)
-	"0xedf4bc027a750d1a88b8ca3ec5e8a5506f6019be", // piertwo-wf-zone-a-7 (new key; added for rotation)
+	"0xedf4bc027a750d1a88b8ca3ec5e8a5506f6019be", // piertwo-wf-zone-a-7
 	"0x4f99b550623e77b807df7cbed9c79d55e1163b48", // simplyvc-wf-zone-a-8
 }
 
 // clientConfig holds the internal configuration for the Client.
 type clientConfig struct {
-	httpClient                       *http.Client
-	logger                           *slog.Logger
-	minRequiredSignatures            int
-	validSigners                     []string
-	disableEventVerification         bool
-	orgID                            string
-	workflowOwner                    string
-	creTenantID                      string
+	httpClient               *http.Client
+	logger                   *slog.Logger
+	minRequiredSignatures    int
+	validSigners             []string
+	disableEventVerification bool
+	orgID                    string
+	workflowOwner            string
+	creTenantID              string
+	// donConfigSet marks configuration via WithDONConfig: NewClient rejects an
+	// incomplete DON unit instead of backfilling it with the default signer set.
+	donConfigSet                     bool
 	watcherPollInterval              time.Duration
 	watcherEventualConsistencyWindow time.Duration
 }
@@ -72,6 +74,9 @@ func WithLogger(logger *slog.Logger) Option {
 // By default, the SDK uses DefaultValidSigners and DefaultMinRequiredSignatures.
 // Use this option to override with custom keys or signature requirements.
 //
+// Deprecated: use [WithDONConfig] to configure the CRE tenant ID, signature
+// threshold, and signer set as one atomic unit.
+//
 // Parameters:
 //   - minRequiredSignatures: Minimum number of valid signatures required to verify an event
 //   - validSigners: List of valid signer addresses (as hex strings)
@@ -82,11 +87,38 @@ func WithEventVerification(minRequiredSignatures int, validSigners []string) Opt
 	}
 }
 
-// WithoutEventVerification disables event verification entirely.
-// Use this option if you don't need to verify event signatures.
+// WithoutEventVerification skips the default signer-set backfill, so the client
+// ends up with no signers and verification calls fail with
+// events.ErrVerificationNotConfigured. It does not override explicitly
+// configured signers: those set via WithEventVerification or WithDONConfig
+// still apply.
 func WithoutEventVerification() Option {
 	return func(cfg *clientConfig) {
 		cfg.disableEventVerification = true
+	}
+}
+
+// WithDONConfig configures event verification for a specific DON as one atomic
+// unit: the CRE tenant ID (used for workflow owner derivation), the signature
+// threshold, and the signer set. These values are provided at onboarding; they
+// are not SDK constants. The unit must be complete: [NewClient] returns
+// [ErrIncompleteDONConfig] if any part is missing.
+//
+// Prefer this option over the granular WithCRETenantID and WithEventVerification.
+// If they are combined, the last applied option wins per field; once
+// WithDONConfig is used, the completeness requirement applies regardless of
+// option order.
+//
+// Parameters:
+//   - creTenantID: CRE tenant ID of the DON (e.g., events.CreMainlineTenantID for the default DON)
+//   - minRequiredSignatures: Minimum number of valid signatures required to verify an event
+//   - validSigners: List of the DON's signer addresses (as hex strings)
+func WithDONConfig(creTenantID string, minRequiredSignatures int, validSigners []string) Option {
+	return func(cfg *clientConfig) {
+		cfg.creTenantID = creTenantID
+		cfg.minRequiredSignatures = minRequiredSignatures
+		cfg.validSigners = validSigners
+		cfg.donConfigSet = true
 	}
 }
 
@@ -111,6 +143,9 @@ func WithWorkflowOwner(workflowOwner string) Option {
 
 // WithCRETenantID sets the CRE tenant ID referring to different environments of CRE
 // for workflow owner address derivation. Defaults to events.CreMainlineTenantID ("1") if not provided.
+//
+// Deprecated: use [WithDONConfig] to configure the CRE tenant ID, signature
+// threshold, and signer set as one atomic unit.
 func WithCRETenantID(creTenantID string) Option {
 	return func(cfg *clientConfig) {
 		cfg.creTenantID = creTenantID

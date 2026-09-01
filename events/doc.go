@@ -13,7 +13,7 @@
 //	    baseURL,
 //	    apiKey,
 //	    crec.WithOrgID("my-org-id"),
-//	    crec.WithEventVerification(3, []string{
+//	    crec.WithDONConfig(events.CreMainlineTenantID, 2, []string{
 //	        "0x5db070ceabcf97e45d96b4f951a1df050ddb5559",
 //	        "0xadebb9657c04692275973230b06adfabacc899bc",
 //	        "0xc868bbb5d93e97b9d780fc93811a00ca7c016751",
@@ -26,7 +26,7 @@
 //
 //	eventsClient, err := events.NewClient(&events.Options{
 //	    CRECClient:            apiClient,
-//	    MinRequiredSignatures: 3,
+//	    MinRequiredSignatures: 2,
 //	    ValidSigners:          []string{"0x...", "0x...", "0x..."},
 //	    OrgID:                 "my-org-id", // optional; enables Verify(event) without passing org ID
 //	})
@@ -56,7 +56,9 @@
 //	for _, event := range events {
 //	    verified, err := client.Events.Verify(&event)
 //	    if err != nil {
-//	        // Handle verification error (e.g., ErrOrgIDRequired if no default org configured)
+//	        // Handle verification error (e.g., ErrOrgIDOrWorkflowOwnerReq if neither a
+//	        // default org ID nor a workflow owner is configured, or ErrVerifyEvent-chain
+//	        // failures such as ErrWorkflowOwnerMismatch or ErrInsufficientValidSignatures)
 //	        continue
 //	    }
 //	    if !verified {
@@ -190,6 +192,14 @@
 //	}
 //	if errors.Is(err, ErrInvalidEventHash) {
 //	    // Event data was tampered with
+//	}
+//	if errors.Is(err, ErrWorkflowOwnerMismatch) {
+//	    // The report's workflow owner does not match the expected owner
+//	    // (check that the CRE tenant ID matches your Org's DON)
+//	}
+//	if errors.Is(err, ErrInsufficientValidSignatures) {
+//	    // Not enough signatures from the configured signer set
+//	    // (check that the signer set matches your Org's DON)
 //	}
 //	if errors.Is(err, ErrOnlyWatcherEventsSupported) {
 //	    // Tried to verify a non-watcher event with Verify
