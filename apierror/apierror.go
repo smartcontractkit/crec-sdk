@@ -5,6 +5,8 @@ package apierror
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
@@ -13,6 +15,11 @@ import (
 // authenticated organization is not onboarded in CRE Connect (HTTP 401 with an
 // ApplicationError of type ORGANIZATION_NOT_FOUND).
 var ErrOrganizationNotFound = errors.New("organization not found")
+
+// ErrPermissionDenied is returned when the CREC API reports that the
+// authenticated principal lacks the required permission for the operation
+// (HTTP 403 with an ApplicationError of type PERMISSION_DENIED).
+var ErrPermissionDenied = errors.New("permission denied")
 
 // Canonical not-found sentinels for HTTP 404 responses. The API disambiguates
 // which resource was missing via ApplicationError.code. Packages that assign
@@ -67,6 +74,8 @@ func FromApplicationError(appErr *apiClient.ApplicationError) error {
 	switch appErr.Type {
 	case apiClient.ORGANIZATIONNOTFOUND:
 		return ErrOrganizationNotFound
+	case apiClient.PERMISSIONDENIED:
+		return ErrPermissionDenied
 	default:
 		return nil
 	}
@@ -81,6 +90,36 @@ func Wrap(appErr *apiClient.ApplicationError, opErr error, statusCode int) error
 		return fmt.Errorf("%w: %w", opErr, mapped)
 	}
 	return fmt.Errorf("%w: %w (status code %d)", opErr, ErrUnexpectedStatusCode, statusCode)
+}
+
+// HandleErrorStatus handles the common HTTP error cases shared across all SDK endpoints.
+// Endpoints handle their success and specific cases (404, 409, 429, etc.) in
+// their own switch and delegate the remaining cases to this helper via default.
+func HandleErrorStatus(
+	statusCode int,
+	json401, json403 *apiClient.ApplicationError,
+	opErr error,
+	opDesc string,
+	body []byte,
+	logger *slog.Logger,
+) error {
+	switch statusCode {
+	case http.StatusForbidden:
+		logger.Error("Permission denied when "+opDesc,
+			"status_code", statusCode,
+			"body", string(body))
+		return Wrap(json403, opErr, statusCode)
+	case http.StatusUnauthorized:
+		logger.Error("Unauthorized when "+opDesc,
+			"status_code", statusCode,
+			"body", string(body))
+		return Wrap(json401, opErr, statusCode)
+	default:
+		logger.Error("Unexpected status code when "+opDesc,
+			"status_code", statusCode,
+			"body", string(body))
+		return fmt.Errorf("%w: %w (status code %d)", opErr, ErrUnexpectedStatusCode, statusCode)
+	}
 }
 
 // NotFound maps a 404 ApplicationError to its canonical not-found sentinel based
