@@ -462,6 +462,7 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	opHash, sig2, err := transactClient.SignOperation(context.Background(), operation, vaultSignerInst, chainSelector)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig2)
+	require.Equal(t, opHash, operationHash, "Operation hash must be deterministic")
 	require.Equal(t, sig, sig2, "PKCS#1 v1.5 signatures must be deterministic")
 
 	// Verify the second signature as well

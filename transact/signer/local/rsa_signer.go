@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -24,8 +25,9 @@ var _ signerPkg.RSAPublicKeyExporter = &RSASigner{}
 // It produces PKCS#1 v1.5 signatures with SHA-256 — deterministic and
 // compatible with CREC RSA wallets and certification test infrastructure.
 //
-// The Vault RSA signer also defaults to PKCS#1 v1.5 with prehashed=false,
-// making signatures from both signers compatible with RSA wallets.
+// The input to Sign is hashed with SHA-256 before signing, matching the
+// behaviour of the Vault RSA signer with prehashed=false. Signatures from
+// both signers are interchangeable and compatible with RSA wallets.
 // Use WithRSASignatureAlgorithm(RSASigAlgPSS) on the Vault signer only when
 // the verifier explicitly expects PSS padding.
 type RSASigner struct {
@@ -75,18 +77,17 @@ func validateRSAKey(key *rsa.PrivateKey) error {
 	return nil
 }
 
-// Sign signs a pre-hashed 32-byte message using PKCS#1 v1.5 with SHA-256 as
-// the hash identifier. Signatures are deterministic (no randomness in PKCS#1 v1.5).
-// The input hash is treated as opaque pre-hashed bytes; keccak256 digests from
-// EIP-712 operations are the typical input.
+// Sign signs a message using PKCS#1 v1.5 with SHA-256. The input is treated
+// as raw bytes; it is hashed with SHA-256 before signing, matching the
+// behaviour of the Vault RSA signer with prehashed=false. This makes
+// signatures from both signers interchangeable and compatible with CREC RSA
+// wallets. Signatures are deterministic (no randomness in PKCS#1 v1.5).
 func (s *RSASigner) Sign(_ context.Context, hash []byte) ([]byte, error) {
 	if s.privateKey == nil {
 		return nil, fmt.Errorf("signer has been destroyed")
 	}
-	if len(hash) != 32 {
-		return nil, fmt.Errorf("hash must be 32 bytes, got %d", len(hash))
-	}
-	return rsa.SignPKCS1v15(rand.Reader, s.privateKey, crypto.SHA256, hash)
+	digest := sha256.Sum256(hash)
+	return rsa.SignPKCS1v15(rand.Reader, s.privateKey, crypto.SHA256, digest[:])
 }
 
 // PublicKey returns a defensive copy of the RSA public key so that callers

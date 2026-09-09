@@ -14,6 +14,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 
 	vault "github.com/hashicorp/vault/api"
 	"github.com/smartcontractkit/crec-sdk/transact/signer"
@@ -69,7 +70,10 @@ type Signer struct {
 	mount           string
 	rsaSigAlgorithm RSASignatureAlgorithm
 	rsaPrehashed    bool
-	keyType         string // cached Vault key type, lazily populated on first Sign
+
+	keyTypeOnce sync.Once
+	keyType     string
+	keyTypeErr  error
 }
 
 // Option is a functional option for configuring the Signer
@@ -145,7 +149,12 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 		"marshaling_algorithm": "asn1",
 	}
 
-	if s.isRSAKey() {
+	keyType, err := s.resolveKeyType()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrVaultSignFailed, err)
+	}
+
+	if strings.HasPrefix(keyType, "rsa") {
 		params["signature_algorithm"] = string(s.rsaSigAlgorithm)
 		params["prehashed"] = s.rsaPrehashed
 	} else {
@@ -181,19 +190,28 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	return decoded, nil
 }
 
-// isRSAKey returns true if the Vault key is an RSA key. It lazily fetches and
-// caches the key type from Vault on the first call.
-func (s *Signer) isRSAKey() bool {
-	if s.keyType == "" {
+// resolveKeyType fetches and caches the Vault key type on the first call.
+// It is concurrency-safe via sync.Once and propagates errors so that Sign()
+// can fail explicitly instead of silently falling back to the wrong padding.
+func (s *Signer) resolveKeyType() (string, error) {
+	s.keyTypeOnce.Do(func() {
 		resp, err := s.client.Logical().Read(fmt.Sprintf("%s/keys/%s", s.mount, s.keyName))
-		if err != nil || resp == nil || resp.Data == nil {
-			return false
+		if err != nil {
+			s.keyTypeErr = fmt.Errorf("failed to read key type from vault: %w", err)
+			return
 		}
-		if kt, ok := resp.Data["type"].(string); ok {
-			s.keyType = kt
+		if resp == nil || resp.Data == nil {
+			s.keyTypeErr = fmt.Errorf("key not found in vault: %s", s.keyName)
+			return
 		}
-	}
-	return strings.HasPrefix(s.keyType, "rsa")
+		kt, ok := resp.Data["type"].(string)
+		if !ok {
+			s.keyTypeErr = fmt.Errorf("key type not found in vault response for key: %s", s.keyName)
+			return
+		}
+		s.keyType = kt
+	})
+	return s.keyType, s.keyTypeErr
 }
 
 // Public retrieves the public key from Vault for this signing key
@@ -353,11 +371,13 @@ func (s *Signer) CreateKey(keyName string, keyType KeyType) (*KeyCreationResult,
 		return nil, fmt.Errorf("failed to create key in vault: %w", err)
 	}
 
-	// Create a temporary signer to get the public key
+	// Create a temporary signer to get the public key.
 	tempSigner := &Signer{
-		client:  s.client,
-		keyName: keyName,
-		mount:   s.mount,
+		client:          s.client,
+		keyName:         keyName,
+		mount:           s.mount,
+		rsaSigAlgorithm: RSASigAlgPKCS1v15,
+		rsaPrehashed:    false,
 	}
 
 	// Get the public key
