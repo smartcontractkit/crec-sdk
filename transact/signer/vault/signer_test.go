@@ -101,18 +101,22 @@ func TestSigner_Sign_Integration(t *testing.T) {
 	require.True(t, ok, "Public key should be an RSA key")
 	require.NotNil(t, rsaPubKey)
 
-	// Verify the signature using the public key
-	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, hash[:], signature, nil)
+	// Verify the signature using the public key.
+	// With prehashed=false (the default), Vault hashes the input with SHA-256
+	// before signing, so we must hash the input again to verify.
+	doubleHash := sha256.Sum256(hash[:])
+	err = rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, doubleHash[:], signature)
 	require.NoError(t, err, "Signature should be valid")
 
-	// Test that we can sign the same data multiple times and get different signatures
-	// (RSA with PKCS#1 v1.5 padding should produce deterministic signatures, but JWS might add randomness)
+	// PKCS#1 v1.5 padding is deterministic — signing the same input twice
+	// must produce identical signatures.
 	signature2, err := signer.Sign(context.Background(), hash[:])
 	require.NoError(t, err)
 	require.NotEmpty(t, signature2)
+	require.Equal(t, signature, signature2, "PKCS#1 v1.5 signatures must be deterministic")
 
 	// Verify the second signature as well
-	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, hash[:], signature2, nil)
+	err = rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, doubleHash[:], signature2)
 	require.NoError(t, err, "Second signature should also be valid")
 
 	t.Logf("First signature length: %d", len(signature))

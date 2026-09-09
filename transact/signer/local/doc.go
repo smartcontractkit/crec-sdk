@@ -25,7 +25,7 @@
 // # RSA Signing
 //
 // The RSA signer manages RSA private keys in memory and produces PKCS#1 v1.5
-// signatures for local development and testing.
+// signatures with SHA-256.
 //
 // Generate or load an RSA key and create the signer:
 //

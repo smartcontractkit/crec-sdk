@@ -21,13 +21,13 @@ var _ signerPkg.Signer = &RSASigner{}
 var _ signerPkg.RSAPublicKeyExporter = &RSASigner{}
 
 // RSASigner is an in-memory RSA signer for development and testing.
-// It produces PKCS#1 v1.5 signatures — deterministic and compatible with
-// the CREC certification test infrastructure.
+// It produces PKCS#1 v1.5 signatures with SHA-256 — deterministic and
+// compatible with CREC RSA wallets and certification test infrastructure.
 //
-// Note: the Vault RSA signer uses RSA-PSS, which is a different padding scheme.
-// Signatures from RSASigner and the Vault signer are NOT interchangeable.
-// Use RSASigner when your verifier expects PKCS#1 v1.5; use the Vault signer
-// when your verifier expects PSS.
+// The Vault RSA signer also defaults to PKCS#1 v1.5 with prehashed=false,
+// making signatures from both signers compatible with RSA wallets.
+// Use WithRSASignatureAlgorithm(RSASigAlgPSS) on the Vault signer only when
+// the verifier explicitly expects PSS padding.
 type RSASigner struct {
 	privateKey *rsa.PrivateKey
 }

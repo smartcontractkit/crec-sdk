@@ -50,11 +50,26 @@ const (
 	KeyTypeECDSAP521 KeyType = "ecdsa-p521"
 )
 
+// RSASignatureAlgorithm controls the RSA padding scheme used by Vault Transit.
+type RSASignatureAlgorithm string
+
+const (
+	// RSASigAlgPKCS1v15 uses PKCS#1 v1.5 padding. This is the default and is
+	// required by CREC RSA wallets.
+	RSASigAlgPKCS1v15 RSASignatureAlgorithm = "pkcs1v15"
+	// RSASigAlgPSS uses RSA-PSS padding. Use this only when the verifier
+	// explicitly expects PSS.
+	RSASigAlgPSS RSASignatureAlgorithm = "pss"
+)
+
 // Signer implements the signer.Signer interface using HashiCorp Vault Transit secrets engine.
 type Signer struct {
-	client  *vault.Client
-	keyName string
-	mount   string
+	client          *vault.Client
+	keyName         string
+	mount           string
+	rsaSigAlgorithm RSASignatureAlgorithm
+	rsaPrehashed    bool
+	keyType         string // cached Vault key type, lazily populated on first Sign
 }
 
 // Option is a functional option for configuring the Signer
@@ -64,6 +79,25 @@ type Option func(*Signer)
 func WithClient(client *vault.Client) Option {
 	return func(s *Signer) {
 		s.client = client
+	}
+}
+
+// WithRSASignatureAlgorithm overrides the RSA padding scheme. The default is
+// pkcs1v15, which is required by CREC RSA wallets. Use RSASigAlgPSS only when
+// the verifier explicitly expects PSS padding.
+func WithRSASignatureAlgorithm(alg RSASignatureAlgorithm) Option {
+	return func(s *Signer) {
+		s.rsaSigAlgorithm = alg
+	}
+}
+
+// WithRSAPrehashed overrides whether the input to Sign is treated as a
+// pre-hashed digest. The default is false, meaning Vault will hash the input
+// with SHA-256 before signing. Set to true only when the input is already a
+// SHA-256 digest and the verifier expects that digest to be signed directly.
+func WithRSAPrehashed(prehashed bool) Option {
+	return func(s *Signer) {
+		s.rsaPrehashed = prehashed
 	}
 }
 
@@ -85,9 +119,11 @@ func NewSigner(vaultUrl, token, mountPath, key string, opts ...Option) (*Signer,
 	client.SetToken(token)
 
 	s := &Signer{
-		client:  client,
-		keyName: key,
-		mount:   mountPath, // usually "transit"
+		client:          client,
+		keyName:         key,
+		mount:           mountPath, // usually "transit"
+		rsaSigAlgorithm: RSASigAlgPKCS1v15,
+		rsaPrehashed:    false,
 	}
 
 	for _, opt := range opts {
@@ -101,14 +137,25 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	// base64 encode the payload to sign
 	b64 := base64.StdEncoding.EncodeToString(hash)
 
+	// Build the request parameters. signature_algorithm and prehashed are
+	// RSA-specific; for ECDSA we preserve the legacy behaviour (prehashed=true)
+	// so non-RSA callers are unaffected by the RSA wallet compatibility fix.
+	params := map[string]any{
+		"input":                b64,
+		"marshaling_algorithm": "asn1",
+	}
+
+	if s.isRSAKey() {
+		params["signature_algorithm"] = string(s.rsaSigAlgorithm)
+		params["prehashed"] = s.rsaPrehashed
+	} else {
+		params["prehashed"] = true
+	}
+
 	// call vault client to sign payload
 	resp, err := s.client.Logical().WriteWithContext(
 		ctx,
-		fmt.Sprintf("%s/sign/%s", s.mount, s.keyName), map[string]any{
-			"input":                b64,
-			"prehashed":            true,
-			"marshaling_algorithm": "asn1",
-		},
+		fmt.Sprintf("%s/sign/%s", s.mount, s.keyName), params,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrVaultSignFailed, err)
@@ -132,6 +179,21 @@ func (s *Signer) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode signature: %w (signature: %s)", err, parts[2])
 	}
 	return decoded, nil
+}
+
+// isRSAKey returns true if the Vault key is an RSA key. It lazily fetches and
+// caches the key type from Vault on the first call.
+func (s *Signer) isRSAKey() bool {
+	if s.keyType == "" {
+		resp, err := s.client.Logical().Read(fmt.Sprintf("%s/keys/%s", s.mount, s.keyName))
+		if err != nil || resp == nil || resp.Data == nil {
+			return false
+		}
+		if kt, ok := resp.Data["type"].(string); ok {
+			s.keyType = kt
+		}
+	}
+	return strings.HasPrefix(s.keyType, "rsa")
 }
 
 // Public retrieves the public key from Vault for this signing key
