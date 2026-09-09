@@ -3,6 +3,19 @@
 // The vault signer integrates with HashiCorp Vault's Transit secrets engine,
 // providing enterprise-grade key management with HSM support.
 //
+// # RSA Wallet Compatibility
+//
+// By default, the Vault RSA signer produces PKCS#1 v1.5 signatures with
+// SHA-256 (prehashed=false), which is the format required by CREC RSA
+// wallets. Vault hashes the input with SHA-256 before signing.
+//
+// To override the defaults (e.g. for a verifier that expects PSS):
+//
+//	signer, err := vault.NewSigner(url, token, "transit", "my-key",
+//	    vault.WithRSASignatureAlgorithm(vault.RSASigAlgPSS),
+//	    vault.WithRSAPrehashed(true),
+//	)
+//
 // # Usage
 //
 // Create a signer connected to Vault:
@@ -14,7 +27,7 @@
 //	    "my-signing-key",                  // Key name
 //	)
 //
-// Sign a hash:
+// Sign a hash (Vault will apply SHA-256 before signing when prehashed=false):
 //
 //	hash := sha256.Sum256([]byte("message"))
 //	signature, err := signer.Sign(ctx, hash[:])
