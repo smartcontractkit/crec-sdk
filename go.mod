@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault/api v1.20.0
 	github.com/oapi-codegen/runtime v1.1.2
-	github.com/smartcontractkit/chain-selectors v1.0.89
+	github.com/smartcontractkit/chain-selectors v1.0.110
 	github.com/smartcontractkit/chainlink-common v0.10.0
 	github.com/smartcontractkit/crec-api-go v0.9.0-rc2
 	github.com/stretchr/testify v1.11.1
