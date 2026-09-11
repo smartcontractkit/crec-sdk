@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -449,21 +450,25 @@ func TestSignOperationWithVaultTransit(t *testing.T) {
 	operationHash, err := transactClient.HashOperation(operation, chainSelector)
 	require.NoError(t, err)
 
-	// Verify the signature using the public key
-	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, operationHash.Bytes(), sig, nil)
+	// Verify the signature using the public key.
+	// With prehashed=false (the default), Vault hashes the input with SHA-256
+	// before signing, so we must hash the operation hash again to verify.
+	doubleHash := sha256.Sum256(operationHash.Bytes())
+	err = rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, doubleHash[:], sig)
 	require.NoError(t, err, "Vault signature should be valid")
 
-	// Test that we can sign the same operation multiple times
+	// Test that we can sign the same operation multiple times.
+	// PKCS#1 v1.5 is deterministic, so both signatures must be identical.
 	opHash, sig2, err := transactClient.SignOperation(context.Background(), operation, vaultSignerInst, chainSelector)
 	require.NoError(t, err)
 	require.NotEmpty(t, sig2)
+	require.Equal(t, opHash, operationHash, "Operation hash must be deterministic")
+	require.Equal(t, sig, sig2, "PKCS#1 v1.5 signatures must be deterministic")
 
 	// Verify the second signature as well
-	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, opHash.Bytes(), sig2, nil)
+	doubleHash2 := sha256.Sum256(opHash.Bytes())
+	err = rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, doubleHash2[:], sig2)
 	require.NoError(t, err, "Second Vault signature should also be valid")
-
-	// Signatures might be different due to RSA-PSS randomness
-	t.Logf("Second Vault Transit signature: %s", common.Bytes2Hex(sig2))
 }
 
 func TestClient_CreateUnsignedDraftOperation_Success(t *testing.T) {

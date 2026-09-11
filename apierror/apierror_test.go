@@ -294,6 +294,7 @@ func TestApierror_Conflict(t *testing.T) {
 	notCancellableCode := apiClient.ApplicationErrorCodeOperationNotCancellable
 	deadlineCode := apiClient.ApplicationErrorCodeOperationDeadlineElapsed
 	archivedCode := apiClient.ApplicationErrorCodeWalletAlreadyArchived
+	notReadyCode := apiClient.ApplicationErrorCodeWalletNotReady
 	chainUnavailableCode := apiClient.ApplicationErrorCodeChainUnavailable
 	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_CONFLICT")
 
@@ -312,6 +313,7 @@ func TestApierror_Conflict(t *testing.T) {
 		{name: "not cancellable", appErr: &apiClient.ApplicationError{Code: &notCancellableCode}, wantErr: apierror.ErrOperationNotCancellable},
 		{name: "deadline elapsed", appErr: &apiClient.ApplicationError{Code: &deadlineCode}, wantErr: apierror.ErrOperationDeadlineElapsed},
 		{name: "already archived", appErr: &apiClient.ApplicationError{Code: &archivedCode}, wantErr: apierror.ErrWalletAlreadyArchived},
+		{name: "not ready", appErr: &apiClient.ApplicationError{Code: &notReadyCode}, wantErr: apierror.ErrWalletNotReady},
 		{name: "chain unavailable", appErr: &apiClient.ApplicationError{Code: &chainUnavailableCode}, wantErr: apierror.ErrChainUnavailable},
 		{name: "unknown future code degrades to nil", appErr: &apiClient.ApplicationError{Code: &futureCode}, wantErr: nil},
 	}

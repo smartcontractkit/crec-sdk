@@ -51,6 +51,7 @@ var (
 	ErrOperationNotCancellable  = errors.New("operation not cancellable")
 	ErrOperationDeadlineElapsed = errors.New("operation deadline elapsed")
 	ErrWalletAlreadyArchived    = errors.New("wallet already archived")
+	ErrWalletNotReady           = errors.New("wallet not ready to accept operations")
 	ErrChainUnavailable         = errors.New("chain unavailable for wallet creation")
 )
 
@@ -219,6 +220,8 @@ func Conflict(appErr *apiClient.ApplicationError) error {
 		return ErrOperationDeadlineElapsed
 	case apiClient.ApplicationErrorCodeWalletAlreadyArchived:
 		return ErrWalletAlreadyArchived
+	case apiClient.ApplicationErrorCodeWalletNotReady:
+		return ErrWalletNotReady
 	case apiClient.ApplicationErrorCodeChainUnavailable:
 		return ErrChainUnavailable
 	default:

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/vault/api"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/vault"
@@ -101,18 +102,22 @@ func TestSigner_Sign_Integration(t *testing.T) {
 	require.True(t, ok, "Public key should be an RSA key")
 	require.NotNil(t, rsaPubKey)
 
-	// Verify the signature using the public key
-	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, hash[:], signature, nil)
+	// Verify the signature using the public key.
+	// With prehashed=false (the default), Vault hashes the input with SHA-256
+	// before signing, so we must hash the input again to verify.
+	doubleHash := sha256.Sum256(hash[:])
+	err = rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, doubleHash[:], signature)
 	require.NoError(t, err, "Signature should be valid")
 
-	// Test that we can sign the same data multiple times and get different signatures
-	// (RSA with PKCS#1 v1.5 padding should produce deterministic signatures, but JWS might add randomness)
+	// PKCS#1 v1.5 padding is deterministic — signing the same input twice
+	// must produce identical signatures.
 	signature2, err := signer.Sign(context.Background(), hash[:])
 	require.NoError(t, err)
 	require.NotEmpty(t, signature2)
+	require.Equal(t, signature, signature2, "PKCS#1 v1.5 signatures must be deterministic")
 
 	// Verify the second signature as well
-	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, hash[:], signature2, nil)
+	err = rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, doubleHash[:], signature2)
 	require.NoError(t, err, "Second signature should also be valid")
 
 	t.Logf("First signature length: %d", len(signature))
@@ -866,4 +871,112 @@ func TestSigner_Public_TrailingGarbage(t *testing.T) {
 	_, err = signer.Public()
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrTrailingGarbageAfterPEM)
+}
+
+func TestSigner_Sign_PSSOverride(t *testing.T) {
+	ctx := context.Background()
+
+	vaultContainer, err := vault.Run(ctx, "hashicorp/vault:1.13.3", vault.WithToken("myroot"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	})
+
+	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
+	client, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err)
+	require.NoError(t, client.SetAddress(vaultURL))
+	client.SetToken("myroot")
+
+	err = client.Sys().Mount("transit", &api.MountInput{Type: "transit"})
+	require.NoError(t, err)
+
+	keyName := "test-pss-override-key"
+	_, err = client.Logical().Write(
+		fmt.Sprintf("transit/keys/%s", keyName), map[string]interface{}{"type": "rsa-2048"},
+	)
+	require.NoError(t, err)
+
+	// Create signer with PSS override and prehashed=true
+	signer, err := NewSigner(
+		vaultURL, "myroot", "transit", keyName,
+		WithRSASignatureAlgorithm(RSASigAlgPSS),
+		WithRSAPrehashed(true),
+	)
+	require.NoError(t, err)
+
+	testData := []byte("hello world")
+	hash := sha256.Sum256(testData)
+
+	sig, err := signer.Sign(context.Background(), hash[:])
+	require.NoError(t, err)
+	require.NotEmpty(t, sig)
+
+	pubKeyInterface, err := signer.Public()
+	require.NoError(t, err)
+	rsaPubKey, ok := pubKeyInterface.(*rsa.PublicKey)
+	require.True(t, ok)
+	require.NotNil(t, rsaPubKey)
+
+	// With prehashed=true and PSS, verify directly against the original hash
+	err = rsa.VerifyPSS(rsaPubKey, crypto.SHA256, hash[:], sig, nil)
+	require.NoError(t, err, "PSS signature with prehashed=true should verify directly")
+}
+
+func TestSigner_Sign_WithKeccak256Input(t *testing.T) {
+	ctx := context.Background()
+
+	vaultContainer, err := vault.Run(ctx, "hashicorp/vault:1.13.3", vault.WithToken("myroot"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(vaultContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	})
+
+	vaultURL, err := vaultContainer.HttpHostAddress(ctx)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
+	client, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err)
+	require.NoError(t, client.SetAddress(vaultURL))
+	client.SetToken("myroot")
+
+	err = client.Sys().Mount("transit", &api.MountInput{Type: "transit"})
+	require.NoError(t, err)
+
+	keyName := "test-keccak-input-key"
+	_, err = client.Logical().Write(
+		fmt.Sprintf("transit/keys/%s", keyName), map[string]interface{}{"type": "rsa-2048"},
+	)
+	require.NoError(t, err)
+
+	signer, err := NewSigner(vaultURL, "myroot", "transit", keyName)
+	require.NoError(t, err)
+
+	// Use keccak256 digest — the real EIP-712 production input
+	keccakHash := ethcrypto.Keccak256([]byte("test operation message"))
+	require.Len(t, keccakHash, 32)
+
+	sig, err := signer.Sign(context.Background(), keccakHash)
+	require.NoError(t, err)
+	require.NotEmpty(t, sig)
+
+	pubKeyInterface, err := signer.Public()
+	require.NoError(t, err)
+	rsaPubKey, ok := pubKeyInterface.(*rsa.PublicKey)
+	require.True(t, ok)
+	require.NotNil(t, rsaPubKey)
+
+	// With prehashed=false (default), Vault hashes the keccak256 digest with
+	// SHA-256 before signing. Verify must use the double hash.
+	doubleHash := sha256.Sum256(keccakHash)
+	err = rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, doubleHash[:], sig)
+	require.NoError(t, err, "PKCS1v15 signature with keccak256 input should verify with double hash")
 }

@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"math/big"
 	"reflect"
@@ -70,7 +71,8 @@ func TestRSASigner_Sign_Basic(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, sig)
 
-	err = rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hash, sig)
+	digest := sha256.Sum256(hash)
+	err = rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, digest[:], sig)
 	require.NoError(t, err)
 }
 
@@ -92,20 +94,26 @@ func TestRSASigner_Sign_Deterministic(t *testing.T) {
 	// Signatures must be identical (deterministic)
 	require.Equal(t, sig1, sig2)
 
-	err = rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hash, sig1)
+	digest := sha256.Sum256(hash)
+	err = rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, digest[:], sig1)
 	require.NoError(t, err)
 }
 
-func TestRSASigner_Sign_InvalidHashLength(t *testing.T) {
+func TestRSASigner_Sign_AcceptsArbitraryInputLength(t *testing.T) {
 	key, err := GenerateRSAKey(2048)
 	require.NoError(t, err)
 
 	signer, err := NewRSASigner(key)
 	require.NoError(t, err)
 
-	_, err = signer.Sign(context.Background(), []byte("short"))
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "hash must be 32 bytes")
+	short := []byte("short")
+	sig, err := signer.Sign(context.Background(), short)
+	require.NoError(t, err)
+	require.NotEmpty(t, sig)
+
+	digest := sha256.Sum256(short)
+	err = rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, digest[:], sig)
+	require.NoError(t, err)
 }
 
 func TestRSASigner_GetRSAModulus(t *testing.T) {
@@ -266,8 +274,7 @@ func TestRSASigner_Destroy(t *testing.T) {
 	signer.Destroy()
 
 	// Sign must fail after Destroy.
-	hash := make([]byte, 32)
-	_, err = signer.Sign(context.Background(), hash)
+	_, err = signer.Sign(context.Background(), []byte("anything"))
 	require.Error(t, err)
 }
 
