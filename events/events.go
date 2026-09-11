@@ -298,22 +298,8 @@ func (c *Client) Poll(
 		return nil, false, apierror.WrapChannelNotFound(
 			resp.JSON404, ErrPollEvents, "channel ID "+channelID.String(),
 		)
-	case http.StatusUnauthorized:
-		c.logger.Error(
-			"Failed to get events - unauthorized",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, false, apierror.Wrap(resp.JSON401, ErrPollEvents, resp.StatusCode())
 	default:
-		c.logger.Error(
-			"Failed to get events - unexpected status code",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, false, fmt.Errorf(
-			"%w: %w (status code %d)", ErrPollEvents, apierror.ErrUnexpectedStatusCode, resp.StatusCode(),
-		)
+		return nil, false, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrPollEvents, "polling events", resp.Body, c.logger)
 	}
 }
 
@@ -380,22 +366,8 @@ func (c *Client) SearchEvents(
 		return nil, false, fmt.Errorf(
 			"%w: %w: %s (status code %d)", ErrSearchEvents, ErrBadRequest, errorMsg, resp.StatusCode(),
 		)
-	case http.StatusUnauthorized:
-		c.logger.Error(
-			"Failed to search events - unauthorized",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, false, apierror.Wrap(resp.JSON401, ErrSearchEvents, resp.StatusCode())
 	default:
-		c.logger.Error(
-			"Failed to search events - unexpected status code",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, false, fmt.Errorf(
-			"%w: %w (status code %d)", ErrSearchEvents, apierror.ErrUnexpectedStatusCode, resp.StatusCode(),
-		)
+		return nil, false, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrSearchEvents, "searching events", resp.Body, c.logger)
 	}
 }
 

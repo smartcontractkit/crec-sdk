@@ -2,6 +2,7 @@ package apierror_test
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"testing"
 
@@ -27,6 +28,11 @@ func TestApierror_FromApplicationError(t *testing.T) {
 			name:    "organization not found maps to sentinel",
 			appErr:  &apiClient.ApplicationError{Type: apiClient.ORGANIZATIONNOTFOUND, Message: "organization not found"},
 			wantErr: apierror.ErrOrganizationNotFound,
+		},
+		{
+			name:    "permission denied maps to sentinel",
+			appErr:  &apiClient.ApplicationError{Type: apiClient.PERMISSIONDENIED, Message: "principal lacks permission crec:wallet:create"},
+			wantErr: apierror.ErrPermissionDenied,
 		},
 		{
 			name:    "unknown future type degrades to nil",
@@ -209,6 +215,15 @@ func TestApierror_Wrap(t *testing.T) {
 		assert.NotErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
 	})
 
+	t.Run("permission denied wraps opErr", func(t *testing.T) {
+		appErr := &apiClient.ApplicationError{Type: apiClient.PERMISSIONDENIED, Message: "principal lacks permission crec:wallet:create"}
+		err := apierror.Wrap(appErr, opErr, http.StatusForbidden)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrPermissionDenied)
+		assert.NotErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+	})
+
 	t.Run("unmapped type falls back to unexpected-status error", func(t *testing.T) {
 		appErr := &apiClient.ApplicationError{Type: "SOME_FUTURE_TYPE", Message: "new"}
 		err := apierror.Wrap(appErr, opErr, http.StatusUnauthorized)
@@ -221,6 +236,50 @@ func TestApierror_Wrap(t *testing.T) {
 	t.Run("nil application error falls back to unexpected-status error", func(t *testing.T) {
 		err := apierror.Wrap(nil, opErr, http.StatusUnauthorized)
 
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+	})
+}
+
+func TestApierror_HandleErrorStatus(t *testing.T) {
+	opErr := errors.New("failed to create wallet")
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("403 with PERMISSION_DENIED wraps with ErrPermissionDenied", func(t *testing.T) {
+		json403 := &apiClient.ApplicationError{Type: apiClient.PERMISSIONDENIED, Message: "principal lacks permission crec:wallet:create"}
+		err := apierror.HandleErrorStatus(http.StatusForbidden, nil, json403, opErr, "creating wallet", []byte("body"), logger)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrPermissionDenied)
+		assert.NotErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+	})
+
+	t.Run("401 with ORGANIZATION_NOT_FOUND wraps with ErrOrganizationNotFound", func(t *testing.T) {
+		json401 := &apiClient.ApplicationError{Type: apiClient.ORGANIZATIONNOTFOUND, Message: "organization not found"}
+		err := apierror.HandleErrorStatus(http.StatusUnauthorized, json401, nil, opErr, "creating wallet", []byte("body"), logger)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrOrganizationNotFound)
+		assert.NotErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+	})
+
+	t.Run("401 with unmapped type falls back to ErrUnexpectedStatusCode", func(t *testing.T) {
+		json401 := &apiClient.ApplicationError{Type: "SOME_FUTURE_TYPE", Message: "new"}
+		err := apierror.HandleErrorStatus(http.StatusUnauthorized, json401, nil, opErr, "creating wallet", []byte("body"), logger)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+	})
+
+	t.Run("500 falls back to ErrUnexpectedStatusCode", func(t *testing.T) {
+		err := apierror.HandleErrorStatus(http.StatusInternalServerError, nil, nil, opErr, "creating wallet", []byte("body"), logger)
+
+		assert.ErrorIs(t, err, opErr)
+		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+	})
+
+	t.Run("nil json401 and json403 do not panic", func(t *testing.T) {
+		err := apierror.HandleErrorStatus(http.StatusUnauthorized, nil, nil, opErr, "creating wallet", nil, logger)
 		assert.ErrorIs(t, err, opErr)
 		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
 	})
