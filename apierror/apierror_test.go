@@ -320,3 +320,28 @@ func TestApierror_ConflictCode(t *testing.T) {
 	assert.Equal(t, "", apierror.ConflictCode(nil))
 	assert.Equal(t, "CHANNEL_ALREADY_EXISTS", apierror.ConflictCode(&apiClient.ApplicationError{Code: &channelCode}))
 }
+
+func TestValidation_MapsChannelArchivedCode(t *testing.T) {
+	code := apiClient.ApplicationErrorCodeChannelArchived
+	appErr := &apiClient.ApplicationError{
+		Type:    apiClient.VALIDATIONERROR,
+		Code:    &code,
+		Message: "cannot create operations on an archived channel",
+	}
+
+	assert.ErrorIs(t, apierror.Validation(appErr), apierror.ErrChannelArchived)
+}
+
+func TestValidation_UnknownCodeOrMissingCodeReturnsNil(t *testing.T) {
+	unknown := apiClient.ApplicationErrorCode("SOME_FUTURE_CODE")
+	assert.Nil(t, apierror.Validation(&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR, Code: &unknown}))
+	assert.Nil(t, apierror.Validation(&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR}))
+}
+
+func TestWrapValidation_FallsBackToOperationErrorWithoutCode(t *testing.T) {
+	opErr := errors.New("failed to create operation")
+	wrapped := apierror.WrapValidation(&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR}, opErr, "channel ID x")
+
+	assert.ErrorIs(t, wrapped, opErr)
+	assert.NotErrorIs(t, wrapped, apierror.ErrChannelArchived)
+}

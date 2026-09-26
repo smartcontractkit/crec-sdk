@@ -270,6 +270,11 @@ func (c *Client) CreateWithService(
 		}
 		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 		return resp.JSON201, nil
+	case http.StatusBadRequest:
+		c.logger.Warn("Validation error when creating watcher with service",
+			"channel_id", channelID.String(),
+			"code", apierror.ValidationCode(resp.JSON400))
+		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateWatcherService, "channel ID "+channelID.String())
 	case http.StatusConflict:
 		c.logger.Warn("Conflict when creating watcher with service",
 			"channel_id", channelID.String(),
@@ -405,6 +410,11 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 		}
 		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 		return resp.JSON201, nil
+	case http.StatusBadRequest:
+		c.logger.Warn("Validation error when creating watcher with ABI",
+			"channel_id", channelID.String(),
+			"code", apierror.ValidationCode(resp.JSON400))
+		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateWatcherABI, "channel ID "+channelID.String())
 	case http.StatusConflict:
 		c.logger.Warn("Conflict when creating watcher with ABI",
 			"channel_id", channelID.String(),

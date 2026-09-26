@@ -245,6 +245,11 @@ func (c *Client) postCreateOperation(
 			"channel_id", channelID.String(),
 			"wallet_operation_id", walletOperationID)
 		return &operationID, nil
+	case http.StatusBadRequest:
+		c.logger.Warn("Validation error when creating operation",
+			"channel_id", channelID.String(),
+			"code", apierror.ValidationCode(resp.JSON400))
+		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateOperation, "channel ID "+channelID.String())
 	case http.StatusNotFound:
 		detail := fmt.Sprintf(
 			"channel ID %s, address %s, chain_selector %s",

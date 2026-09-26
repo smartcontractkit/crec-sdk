@@ -56,14 +56,15 @@ var (
 	// API/resource errors.
 	ErrChannelNotFound        = apierror.ErrChannelNotFound
 	ErrQueryNotFound          = apierror.ErrQueryNotFound
+	ErrChannelArchived        = apierror.ErrChannelArchived
 	ErrIdempotencyConflict    = errors.New("idempotency conflict")
 	ErrIdempotencyKeyMismatch = apierror.ErrIdempotencyKeyMismatch
 	ErrRateLimitExceeded      = errors.New("rate limit exceeded")
-	ErrCreateQuery         = errors.New("failed to create query")
-	ErrGetQuery            = errors.New("failed to get query")
-	ErrListQueries         = errors.New("failed to list queries")
-	ErrWaitQuery           = errors.New("failed waiting for query")
-	ErrWaitQueryTimeout    = errors.New("timeout waiting for query to reach a terminal status")
+	ErrCreateQuery            = errors.New("failed to create query")
+	ErrGetQuery               = errors.New("failed to get query")
+	ErrListQueries            = errors.New("failed to list queries")
+	ErrWaitQuery              = errors.New("failed waiting for query")
+	ErrWaitQueryTimeout       = errors.New("timeout waiting for query to reach a terminal status")
 
 	// Decoding/result errors.
 	ErrDecodeVerifiableResult        = errors.New("failed to decode verifiable_result")
@@ -291,6 +292,11 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 			"channel_id", input.ChannelID.String(),
 			"status", resp.JSON202.Status)
 		return resp.JSON202, nil
+	case http.StatusBadRequest:
+		c.logger.Warn("Validation error when creating query",
+			"channel_id", input.ChannelID.String(),
+			"code", apierror.ValidationCode(resp.JSON400))
+		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateQuery, "channel ID "+input.ChannelID.String())
 	case http.StatusNotFound:
 		c.logger.Warn(
 			apierror.NotFoundWarnMessage(resp.JSON404, "creating query", apierror.ErrChannelNotFound),

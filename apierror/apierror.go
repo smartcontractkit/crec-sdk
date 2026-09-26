@@ -48,6 +48,14 @@ var (
 	ErrChainUnavailable         = errors.New("chain unavailable for wallet creation")
 )
 
+// Validation sentinels for HTTP 400 responses. The API disambiguates the cause
+// via ApplicationError.code; un-coded 400s keep the operation error only.
+var (
+	// ErrChannelArchived is returned when an operation, query, or watcher is
+	// created against an archived channel.
+	ErrChannelArchived = errors.New("channel archived")
+)
+
 // ErrUnexpectedStatusCode is returned when the API responds with an HTTP status
 // the SDK does not handle explicitly.
 var ErrUnexpectedStatusCode = errors.New("unexpected status code")
@@ -212,6 +220,49 @@ func WrapConflict(appErr *apiClient.ApplicationError, opErr error, detail string
 
 // ConflictCode returns ApplicationError.code as a string, or empty when absent.
 func ConflictCode(appErr *apiClient.ApplicationError) string {
+	if appErr == nil || appErr.Code == nil {
+		return ""
+	}
+	return string(*appErr.Code)
+}
+
+// Validation maps a 400 ApplicationError to its canonical sentinel based on
+// ApplicationError.code, or returns nil when the code is missing or
+// unrecognized (forward-compatible for codes added after this SDK release).
+func Validation(appErr *apiClient.ApplicationError) error {
+	if appErr == nil || appErr.Code == nil {
+		return nil
+	}
+
+	switch *appErr.Code {
+	case apiClient.ApplicationErrorCodeChannelArchived:
+		return ErrChannelArchived
+	default:
+		return nil
+	}
+}
+
+// WrapValidation resolves a 400 ApplicationError to its canonical sentinel and
+// wraps it with opErr when ApplicationError.code is recognized. When the code is
+// missing or unknown, it returns only opErr so callers are not given a wrong
+// typed sentinel. detail is appended when the server message is absent.
+func WrapValidation(appErr *apiClient.ApplicationError, opErr error, detail string) error {
+	msg := notFoundMessage(appErr, detail)
+
+	if mapped := Validation(appErr); mapped != nil {
+		if msg != "" {
+			return fmt.Errorf("%w: %w: %s", opErr, mapped, msg)
+		}
+		return fmt.Errorf("%w: %w", opErr, mapped)
+	}
+	if msg != "" {
+		return fmt.Errorf("%w: %s", opErr, msg)
+	}
+	return opErr
+}
+
+// ValidationCode returns ApplicationError.code as a string, or empty when absent.
+func ValidationCode(appErr *apiClient.ApplicationError) string {
 	if appErr == nil || appErr.Code == nil {
 		return ""
 	}

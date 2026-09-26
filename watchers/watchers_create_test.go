@@ -582,3 +582,32 @@ func TestClient_CreateWithABI_watcherNameValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_CreateWithService_ArchivedChannel(t *testing.T) {
+	channelID := uuid.New()
+	archivedCode := apiClient.ApplicationErrorCodeChannelArchived
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+			Type:    apiClient.VALIDATIONERROR,
+			Code:    &archivedCode,
+			Message: "cannot create watchers on an archived channel",
+		}))
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	_, err := client.CreateWithService(context.Background(), channelID, CreateWithServiceInput{
+		Name:          "archived-watcher",
+		Service:       "dvp",
+		ChainSelector: "1337",
+		Address:       "0x1234567890abcdef",
+		Events:        []string{"TestEvent"},
+	})
+
+	require.Error(t, err)
+	require.True(t, errors.Is(err, apierror.ErrChannelArchived), "err=%v", err)
+}
