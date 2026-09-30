@@ -275,22 +275,8 @@ func (c *Client) CreateWithService(
 			"channel_id", channelID.String(),
 			"code", apierror.ConflictCode(resp.JSON409))
 		return nil, apierror.WrapConflict(resp.JSON409, ErrCreateWatcherService, "channel ID "+channelID.String())
-	case http.StatusUnauthorized:
-		c.logger.Error(
-			"Failed to create watcher with service - unauthorized",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, apierror.Wrap(resp.JSON401, ErrCreateWatcherService, resp.StatusCode())
 	default:
-		c.logger.Error(
-			"Failed to create watcher with service - unexpected status code",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, fmt.Errorf(
-			"%w: %w (status code %d)", ErrCreateWatcherService, apierror.ErrUnexpectedStatusCode, resp.StatusCode(),
-		)
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrCreateWatcherService, "creating watcher with service", resp.Body, c.logger)
 	}
 }
 
@@ -410,22 +396,8 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 			"channel_id", channelID.String(),
 			"code", apierror.ConflictCode(resp.JSON409))
 		return nil, apierror.WrapConflict(resp.JSON409, ErrCreateWatcherABI, "channel ID "+channelID.String())
-	case http.StatusUnauthorized:
-		c.logger.Error(
-			"Failed to create watcher with ABI - unauthorized",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, apierror.Wrap(resp.JSON401, ErrCreateWatcherABI, resp.StatusCode())
 	default:
-		c.logger.Error(
-			"Failed to create watcher with ABI - unexpected status code",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, fmt.Errorf(
-			"%w: %w (status code %d)", ErrCreateWatcherABI, apierror.ErrUnexpectedStatusCode, resp.StatusCode(),
-		)
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrCreateWatcherABI, "creating watcher with ABI", resp.Body, c.logger)
 	}
 }
 
@@ -475,20 +447,8 @@ func (c *Client) List(ctx context.Context, channelID uuid.UUID, filters ListFilt
 		return nil, apierror.WrapChannelNotFound(
 			resp.JSON404, ErrListWatchers, "channel ID "+channelID.String(),
 		)
-	case http.StatusUnauthorized:
-		c.logger.Error(
-			"Failed to list watchers - unauthorized",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, apierror.Wrap(resp.JSON401, ErrListWatchers, resp.StatusCode())
 	default:
-		c.logger.Error(
-			"Failed to list watchers - unexpected status code",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrListWatchers, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrListWatchers, "listing watchers", resp.Body, c.logger)
 	}
 }
 
@@ -535,20 +495,8 @@ func (c *Client) Get(ctx context.Context, channelID uuid.UUID, watcherID uuid.UU
 			ErrGetWatcher,
 			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
 		)
-	case http.StatusUnauthorized:
-		c.logger.Error(
-			"Failed to get watcher - unauthorized",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, apierror.Wrap(resp.JSON401, ErrGetWatcher, resp.StatusCode())
 	default:
-		c.logger.Error(
-			"Failed to get watcher - unexpected status code",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetWatcher, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrGetWatcher, "getting watcher", resp.Body, c.logger)
 	}
 }
 
@@ -616,20 +564,8 @@ func (c *Client) Update(
 			ErrUpdateWatcher,
 			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
 		)
-	case http.StatusUnauthorized:
-		c.logger.Error(
-			"Failed to update watcher - unauthorized",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, apierror.Wrap(resp.JSON401, ErrUpdateWatcher, resp.StatusCode())
 	default:
-		c.logger.Error(
-			"Failed to update watcher - unexpected status code",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrUpdateWatcher, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrUpdateWatcher, "updating watcher", resp.Body, c.logger)
 	}
 }
 
@@ -787,20 +723,8 @@ func (c *Client) Archive(ctx context.Context, channelID uuid.UUID, watcherID uui
 			ErrArchiveWatcher,
 			fmt.Sprintf("channel ID %s, watcher ID %s", channelID.String(), watcherID.String()),
 		)
-	case http.StatusUnauthorized:
-		c.logger.Error(
-			"Failed to archive watcher - unauthorized",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, apierror.Wrap(resp.JSON401, ErrArchiveWatcher, resp.StatusCode())
 	default:
-		c.logger.Error(
-			"Failed to archive watcher - unexpected status code",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body),
-		)
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrArchiveWatcher, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrArchiveWatcher, "archiving watcher", resp.Body, c.logger)
 	}
 }
 
