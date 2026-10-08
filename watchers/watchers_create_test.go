@@ -609,6 +609,7 @@ func TestClient_CreateWithService_ArchivedChannel(t *testing.T) {
 	})
 
 	require.Error(t, err)
+	require.True(t, errors.Is(err, apierror.ErrValidation), "err=%v", err)
 	require.True(t, errors.Is(err, ErrChannelArchived), "err=%v", err)
 }
 
@@ -647,6 +648,7 @@ func TestClient_CreateWithABI_ArchivedChannel(t *testing.T) {
 	})
 
 	require.Error(t, err)
+	require.True(t, errors.Is(err, apierror.ErrValidation))
 	require.True(t, errors.Is(err, ErrChannelArchived))
 }
 
@@ -660,7 +662,7 @@ func TestClient_CreateWithService_BadRequestVariants(t *testing.T) {
 		Events:        []string{"TestEvent"},
 	}
 
-	t.Run("UncodedPreservesMessage", func(t *testing.T) {
+	t.Run("MessageOnlyMapsToValidation", func(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
@@ -677,7 +679,7 @@ func TestClient_CreateWithService_BadRequestVariants(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrCreateWatcherService)
-		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+		assert.ErrorIs(t, err, apierror.ErrValidation)
 		assert.NotErrorIs(t, err, ErrChannelArchived)
 		assert.Contains(t, err.Error(), "invalid watcher configuration")
 	})

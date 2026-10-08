@@ -55,6 +55,9 @@ var (
 	// ErrChannelArchived is returned when an operation, query, or watcher is
 	// created against an archived channel.
 	ErrChannelArchived = errors.New("channel archived")
+	// ErrValidation marks any tenant 400 response; coded causes wrap it
+	// alongside their own sentinel.
+	ErrValidation = errors.New("validation error")
 )
 
 // ErrUnexpectedStatusCode is returned when the API responds with an HTTP status
@@ -243,21 +246,25 @@ func Validation(appErr *apiClient.ApplicationError) error {
 	}
 }
 
-// WrapValidation wraps opErr with the coded sentinel when ApplicationError.code
-// is recognized, and with the server message otherwise. A response with no
-// parseable ApplicationError body keeps ErrUnexpectedStatusCode and the status
-// code, so a body-less 400 is never mistaken for a classified cause.
+// WrapValidation wraps opErr with ErrValidation; when ApplicationError.code is
+// recognized the coded sentinel wraps alongside it, so callers can match any
+// 400 with ErrValidation and a specific cause with its own sentinel. Only a
+// response with no parseable ApplicationError body keeps ErrUnexpectedStatusCode
+// and the status code.
 func WrapValidation(appErr *apiClient.ApplicationError, opErr error) error {
-	if mapped := Validation(appErr); mapped != nil {
-		if appErr.Message != "" {
-			return fmt.Errorf("%w: %w: %s", opErr, mapped, appErr.Message)
-		}
-		return fmt.Errorf("%w: %w", opErr, mapped)
-	}
-	if appErr == nil || appErr.Message == "" {
+	if appErr == nil {
 		return fmt.Errorf("%w: %w (status code %d)", opErr, ErrUnexpectedStatusCode, http.StatusBadRequest)
 	}
-	return fmt.Errorf("%w: %w: %s (status code %d)", opErr, ErrUnexpectedStatusCode, appErr.Message, http.StatusBadRequest)
+	if mapped := Validation(appErr); mapped != nil {
+		if appErr.Message != "" {
+			return fmt.Errorf("%w: %w: %w: %s", opErr, ErrValidation, mapped, appErr.Message)
+		}
+		return fmt.Errorf("%w: %w: %w", opErr, ErrValidation, mapped)
+	}
+	if appErr.Message != "" {
+		return fmt.Errorf("%w: %w: %s", opErr, ErrValidation, appErr.Message)
+	}
+	return fmt.Errorf("%w: %w", opErr, ErrValidation)
 }
 
 // ValidationCode returns ApplicationError.code as a string, or empty when absent.

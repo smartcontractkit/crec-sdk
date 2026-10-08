@@ -347,7 +347,7 @@ func TestClient_Create(t *testing.T) {
 			{name: "IdempotencyConflict", statusCode: http.StatusConflict, wantErr: ErrIdempotencyConflict},
 			{name: "IdempotencyKeyMismatch", statusCode: http.StatusConflict, wantErr: ErrIdempotencyKeyMismatch},
 			{name: "ChannelArchived", statusCode: http.StatusBadRequest, wantErr: ErrChannelArchived},
-			{name: "UncodedBadRequest", statusCode: http.StatusBadRequest, wantErr: apierror.ErrUnexpectedStatusCode},
+			{name: "MessageOnlyValidation", statusCode: http.StatusBadRequest, wantErr: apierror.ErrValidation},
 			{name: "RateLimitExceeded", statusCode: http.StatusTooManyRequests, wantErr: ErrRateLimitExceeded},
 			{name: "Unexpected", statusCode: http.StatusInternalServerError, wantErr: apierror.ErrUnexpectedStatusCode},
 		}

@@ -338,14 +338,13 @@ func TestValidation_UnknownCodeOrMissingCodeReturnsNil(t *testing.T) {
 	assert.Nil(t, apierror.Validation(&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR}))
 }
 
-func TestWrapValidation_NoCodeKeepsUnexpectedStatus(t *testing.T) {
+func TestWrapValidation_NoCodeMapsToValidation(t *testing.T) {
 	opErr := errors.New("failed to create operation")
 	wrapped := apierror.WrapValidation(&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR}, opErr)
 
 	assert.ErrorIs(t, wrapped, opErr)
-	assert.ErrorIs(t, wrapped, apierror.ErrUnexpectedStatusCode)
+	assert.ErrorIs(t, wrapped, apierror.ErrValidation)
 	assert.NotErrorIs(t, wrapped, apierror.ErrChannelArchived)
-	assert.Contains(t, wrapped.Error(), "status code 400")
 }
 
 func TestWrapValidation_BodylessKeepsUnexpectedStatus(t *testing.T) {
@@ -357,7 +356,7 @@ func TestWrapValidation_BodylessKeepsUnexpectedStatus(t *testing.T) {
 	assert.Contains(t, wrapped.Error(), "status code 400")
 }
 
-func TestWrapValidation_UncodedPreservesMessage(t *testing.T) {
+func TestWrapValidation_MessageOnlyMapsToValidation(t *testing.T) {
 	opErr := errors.New("failed to create operation")
 	wrapped := apierror.WrapValidation(
 		&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR, Message: "invalid request data"},
@@ -365,7 +364,7 @@ func TestWrapValidation_UncodedPreservesMessage(t *testing.T) {
 	)
 
 	assert.ErrorIs(t, wrapped, opErr)
-	assert.ErrorIs(t, wrapped, apierror.ErrUnexpectedStatusCode)
+	assert.ErrorIs(t, wrapped, apierror.ErrValidation)
 	assert.NotErrorIs(t, wrapped, apierror.ErrChannelArchived)
 	assert.Contains(t, wrapped.Error(), "invalid request data")
 }

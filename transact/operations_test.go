@@ -183,6 +183,7 @@ func TestClient_CreateOperation(t *testing.T) {
 
 		require.Error(t, err)
 		require.True(t, errors.Is(err, ErrCreateOperation), "expected ErrCreateOperation, got: %v", err)
+		require.True(t, errors.Is(err, apierror.ErrValidation), "expected ErrValidation, got: %v", err)
 		require.True(t, errors.Is(err, ErrChannelArchived), "expected ErrChannelArchived, got: %v", err)
 	})
 
@@ -199,7 +200,7 @@ func TestClient_CreateOperation(t *testing.T) {
 			Signature: "0xsignature",
 		}
 
-		t.Run("UncodedPreservesMessage", func(t *testing.T) {
+		t.Run("MessageOnlyMapsToValidation", func(t *testing.T) {
 			handler := func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
@@ -216,7 +217,7 @@ func TestClient_CreateOperation(t *testing.T) {
 
 			require.Error(t, err)
 			assert.ErrorIs(t, err, ErrCreateOperation)
-			assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+			assert.ErrorIs(t, err, apierror.ErrValidation)
 			assert.NotErrorIs(t, err, ErrChannelArchived)
 			assert.Contains(t, err.Error(), "invalid operation data")
 		})
@@ -465,8 +466,8 @@ func TestClient_CreateOperation(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, opID)
 		assert.True(t, errors.Is(err, ErrCreateOperation), "Expected ErrCreateOperation, got: %v", err)
-		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
-		assert.False(t, errors.Is(err, apierror.ErrChannelArchived), "un-coded 400 must not map to a code sentinel, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrValidation), "Expected apierror.ErrValidation, got: %v", err)
+		assert.False(t, errors.Is(err, apierror.ErrChannelArchived), "a 400 without a code must not map to a code sentinel, got: %v", err)
 	})
 }
 
