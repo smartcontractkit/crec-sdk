@@ -650,6 +650,7 @@ func TestClient_CreateWithABI_ArchivedChannel(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, errors.Is(err, apierror.ErrValidation))
 	require.True(t, errors.Is(err, ErrChannelArchived))
+	require.True(t, errors.Is(err, ErrCreateWatcherABI))
 }
 
 func TestClient_CreateWithService_BadRequestVariants(t *testing.T) {
