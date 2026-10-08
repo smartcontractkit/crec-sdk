@@ -53,6 +53,8 @@ var (
 
 	// ErrChannelNotFound is returned when the channel does not exist (404 response).
 	ErrChannelNotFound = apierror.ErrChannelNotFound
+	// ErrChannelArchived is returned when the channel is archived (400 response).
+	ErrChannelArchived = apierror.ErrChannelArchived
 	// ErrWalletNotFound is returned when the wallet referenced by an operation does not exist (404 response).
 	ErrWalletNotFound = apierror.ErrWalletNotFound
 	// ErrOperationNotFound is returned when the operation does not exist (404 response).
@@ -246,10 +248,15 @@ func (c *Client) postCreateOperation(
 			"wallet_operation_id", walletOperationID)
 		return &operationID, nil
 	case http.StatusBadRequest:
+		var message string
+		if resp.JSON400 != nil {
+			message = resp.JSON400.Message
+		}
 		c.logger.Warn("Validation error when creating operation",
 			"channel_id", channelID.String(),
-			"code", apierror.ValidationCode(resp.JSON400))
-		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateOperation, "channel ID "+channelID.String())
+			"code", apierror.ValidationCode(resp.JSON400),
+			"message", message)
+		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateOperation)
 	case http.StatusNotFound:
 		detail := fmt.Sprintf(
 			"channel ID %s, address %s, chain_selector %s",

@@ -293,10 +293,15 @@ func (c *Client) Create(ctx context.Context, input CreateInput) (*apiClient.Quer
 			"status", resp.JSON202.Status)
 		return resp.JSON202, nil
 	case http.StatusBadRequest:
+		var message string
+		if resp.JSON400 != nil {
+			message = resp.JSON400.Message
+		}
 		c.logger.Warn("Validation error when creating query",
 			"channel_id", input.ChannelID.String(),
-			"code", apierror.ValidationCode(resp.JSON400))
-		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateQuery, "channel ID "+input.ChannelID.String())
+			"code", apierror.ValidationCode(resp.JSON400),
+			"message", message)
+		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateQuery)
 	case http.StatusNotFound:
 		c.logger.Warn(
 			apierror.NotFoundWarnMessage(resp.JSON404, "creating query", apierror.ErrChannelNotFound),

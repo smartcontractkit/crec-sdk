@@ -5,6 +5,7 @@ package apierror
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
@@ -242,23 +243,21 @@ func Validation(appErr *apiClient.ApplicationError) error {
 	}
 }
 
-// WrapValidation resolves a 400 ApplicationError to its canonical sentinel and
-// wraps it with opErr when ApplicationError.code is recognized. When the code is
-// missing or unknown, it returns only opErr so callers are not given a wrong
-// typed sentinel. detail is appended when the server message is absent.
-func WrapValidation(appErr *apiClient.ApplicationError, opErr error, detail string) error {
-	msg := notFoundMessage(appErr, detail)
-
+// WrapValidation wraps opErr with the coded sentinel when ApplicationError.code
+// is recognized, and with the server message otherwise. A response with no
+// parseable ApplicationError body keeps ErrUnexpectedStatusCode and the status
+// code, so a body-less 400 is never mistaken for a classified cause.
+func WrapValidation(appErr *apiClient.ApplicationError, opErr error) error {
 	if mapped := Validation(appErr); mapped != nil {
-		if msg != "" {
-			return fmt.Errorf("%w: %w: %s", opErr, mapped, msg)
+		if appErr.Message != "" {
+			return fmt.Errorf("%w: %w: %s", opErr, mapped, appErr.Message)
 		}
 		return fmt.Errorf("%w: %w", opErr, mapped)
 	}
-	if msg != "" {
-		return fmt.Errorf("%w: %s", opErr, msg)
+	if appErr == nil || appErr.Message == "" {
+		return fmt.Errorf("%w: %w (status code %d)", opErr, ErrUnexpectedStatusCode, http.StatusBadRequest)
 	}
-	return opErr
+	return fmt.Errorf("%w: %w: %s (status code %d)", opErr, ErrUnexpectedStatusCode, appErr.Message, http.StatusBadRequest)
 }
 
 // ValidationCode returns ApplicationError.code as a string, or empty when absent.

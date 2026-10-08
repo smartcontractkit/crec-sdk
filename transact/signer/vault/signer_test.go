@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/vault/api"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/vault"

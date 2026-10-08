@@ -24,9 +24,9 @@ const (
 
 // Sentinel errors for Privy signer configuration and HTTP responses.
 var (
-	ErrAppIDRequired    = errors.New("appID cannot be empty")
+	ErrAppIDRequired     = errors.New("appID cannot be empty")
 	ErrAppSecretRequired = errors.New("appSecret cannot be empty")
-	ErrWalletIDRequired = errors.New("walletID cannot be empty")
+	ErrWalletIDRequired  = errors.New("walletID cannot be empty")
 
 	ErrEnvPrivyAppIDNotSet     = errors.New("PRIVY_APP_ID environment variable not set")
 	ErrEnvPrivyAppSecretNotSet = errors.New("PRIVY_APP_SECRET environment variable not set")

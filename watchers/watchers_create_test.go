@@ -609,5 +609,92 @@ func TestClient_CreateWithService_ArchivedChannel(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	require.True(t, errors.Is(err, apierror.ErrChannelArchived), "err=%v", err)
+	require.True(t, errors.Is(err, ErrChannelArchived), "err=%v", err)
+}
+
+func TestClient_CreateWithABI_ArchivedChannel(t *testing.T) {
+	channelID := uuid.New()
+	archivedCode := apiClient.ApplicationErrorCodeChannelArchived
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+			Type:    apiClient.VALIDATIONERROR,
+			Code:    &archivedCode,
+			Message: "cannot create watchers on an archived channel",
+		}))
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	_, err := client.CreateWithABI(context.Background(), channelID, CreateWithABIInput{
+		Name:          "archived-watcher",
+		ChainSelector: "1337",
+		Address:       "0x1234567890abcdef",
+		Events:        []string{"Transfer"},
+		ABI: []EventABI{
+			{
+				Name:      "Transfer",
+				Type:      "event",
+				Anonymous: false,
+				Inputs: []EventABIInput{
+					{Name: "from", Type: "address", Indexed: true},
+				},
+			},
+		},
+	})
+
+	require.Error(t, err)
+	require.True(t, errors.Is(err, ErrChannelArchived))
+}
+
+func TestClient_CreateWithService_BadRequestVariants(t *testing.T) {
+	channelID := uuid.New()
+	input := CreateWithServiceInput{
+		Name:          "variant-watcher",
+		Service:       "dvp",
+		ChainSelector: "1337",
+		Address:       "0x1234567890abcdef",
+		Events:        []string{"TestEvent"},
+	}
+
+	t.Run("UncodedPreservesMessage", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Type:    apiClient.VALIDATIONERROR,
+				Message: "invalid watcher configuration",
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		_, err := client.CreateWithService(context.Background(), channelID, input)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrCreateWatcherService)
+		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+		assert.NotErrorIs(t, err, ErrChannelArchived)
+		assert.Contains(t, err.Error(), "invalid watcher configuration")
+	})
+
+	t.Run("BodylessKeepsUnexpectedStatus", func(t *testing.T) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		_, err := client.CreateWithService(context.Background(), channelID, input)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrCreateWatcherService)
+		assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+		assert.Contains(t, err.Error(), "status code 400")
+	})
 }
