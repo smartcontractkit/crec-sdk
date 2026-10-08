@@ -26,6 +26,8 @@ var (
 
 	// ErrChannelNotFound is returned when the channel does not exist (404 response).
 	ErrChannelNotFound = apierror.ErrChannelNotFound
+	// ErrChannelArchived is returned when the channel is archived (400 response).
+	ErrChannelArchived = apierror.ErrChannelArchived
 
 	// ErrChannelIDRequired is returned when the channel ID is nil or empty.
 	ErrChannelIDRequired = errors.New("channel_id cannot be empty")
@@ -270,6 +272,16 @@ func (c *Client) CreateWithService(
 		}
 		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 		return resp.JSON201, nil
+	case http.StatusBadRequest:
+		var message string
+		if resp.JSON400 != nil {
+			message = resp.JSON400.Message
+		}
+		c.logger.Warn("Validation error when creating watcher with service",
+			"channel_id", channelID.String(),
+			"code", apierror.ValidationCode(resp.JSON400),
+			"message", message)
+		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateWatcherService)
 	case http.StatusConflict:
 		c.logger.Warn("Conflict when creating watcher with service",
 			"channel_id", channelID.String(),
@@ -405,6 +417,16 @@ func (c *Client) CreateWithABI(ctx context.Context, channelID uuid.UUID, input C
 		}
 		c.logger.Info("Watcher created successfully", "watcher_id", resp.JSON201.WatcherId.String())
 		return resp.JSON201, nil
+	case http.StatusBadRequest:
+		var message string
+		if resp.JSON400 != nil {
+			message = resp.JSON400.Message
+		}
+		c.logger.Warn("Validation error when creating watcher with ABI",
+			"channel_id", channelID.String(),
+			"code", apierror.ValidationCode(resp.JSON400),
+			"message", message)
+		return nil, apierror.WrapValidation(resp.JSON400, ErrCreateWatcherABI)
 	case http.StatusConflict:
 		c.logger.Warn("Conflict when creating watcher with ABI",
 			"channel_id", channelID.String(),

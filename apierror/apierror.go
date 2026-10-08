@@ -5,6 +5,7 @@ package apierror
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	apiClient "github.com/smartcontractkit/crec-api-go/client"
 )
@@ -46,6 +47,17 @@ var (
 	ErrWalletAlreadyArchived    = errors.New("wallet already archived")
 	ErrWalletNotReady           = errors.New("wallet not ready to accept operations")
 	ErrChainUnavailable         = errors.New("chain unavailable for wallet creation")
+)
+
+// Validation sentinels for HTTP 400 responses. The API disambiguates the cause
+// via ApplicationError.code; un-coded 400s keep the operation error only.
+var (
+	// ErrChannelArchived is returned when an operation, query, or watcher is
+	// created against an archived channel.
+	ErrChannelArchived = errors.New("channel archived")
+	// ErrValidation marks any tenant 400 response; coded causes wrap it
+	// alongside their own sentinel.
+	ErrValidation = errors.New("validation error")
 )
 
 // ErrUnexpectedStatusCode is returned when the API responds with an HTTP status
@@ -212,6 +224,51 @@ func WrapConflict(appErr *apiClient.ApplicationError, opErr error, detail string
 
 // ConflictCode returns ApplicationError.code as a string, or empty when absent.
 func ConflictCode(appErr *apiClient.ApplicationError) string {
+	if appErr == nil || appErr.Code == nil {
+		return ""
+	}
+	return string(*appErr.Code)
+}
+
+// Validation maps a 400 ApplicationError to its canonical sentinel based on
+// ApplicationError.code, or returns nil when the code is missing or
+// unrecognized (forward-compatible for codes added after this SDK release).
+func Validation(appErr *apiClient.ApplicationError) error {
+	if appErr == nil || appErr.Code == nil {
+		return nil
+	}
+
+	switch *appErr.Code {
+	case apiClient.ApplicationErrorCodeChannelArchived:
+		return ErrChannelArchived
+	default:
+		return nil
+	}
+}
+
+// WrapValidation wraps opErr with ErrValidation; when ApplicationError.code is
+// recognized the coded sentinel wraps alongside it, so callers can match any
+// 400 with ErrValidation and a specific cause with its own sentinel. Only a
+// response with no parseable ApplicationError body keeps ErrUnexpectedStatusCode
+// and the status code.
+func WrapValidation(appErr *apiClient.ApplicationError, opErr error) error {
+	if appErr == nil {
+		return fmt.Errorf("%w: %w (status code %d)", opErr, ErrUnexpectedStatusCode, http.StatusBadRequest)
+	}
+	if mapped := Validation(appErr); mapped != nil {
+		if appErr.Message != "" {
+			return fmt.Errorf("%w: %w: %w: %s", opErr, ErrValidation, mapped, appErr.Message)
+		}
+		return fmt.Errorf("%w: %w: %w", opErr, ErrValidation, mapped)
+	}
+	if appErr.Message != "" {
+		return fmt.Errorf("%w: %w: %s", opErr, ErrValidation, appErr.Message)
+	}
+	return fmt.Errorf("%w: %w", opErr, ErrValidation)
+}
+
+// ValidationCode returns ApplicationError.code as a string, or empty when absent.
+func ValidationCode(appErr *apiClient.ApplicationError) string {
 	if appErr == nil || appErr.Code == nil {
 		return ""
 	}

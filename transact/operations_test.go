@@ -153,6 +153,92 @@ func TestClient_CreateOperation(t *testing.T) {
 		assert.Equal(t, operationID, *returnedOperationID)
 	})
 
+	t.Run("ArchivedChannel", func(t *testing.T) {
+		channelID := uuid.New()
+		archivedCode := apiClient.ApplicationErrorCodeChannelArchived
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Type:    apiClient.VALIDATIONERROR,
+				Code:    &archivedCode,
+				Message: "cannot create operations on an archived channel",
+			}))
+		}
+
+		client, server := setupTestClient(t, handler)
+		defer server.Close()
+
+		_, err := client.CreateOperation(context.Background(), CreateOperationInput{
+			ChannelID:         channelID,
+			ChainSelector:     "1337",
+			Address:           "0x1234",
+			WalletOperationID: "op-123",
+			Transactions: []TransactionRequest{
+				{To: "0x5678", Value: "0", Data: "0xabcd"},
+			},
+			Signature: "0xsignature",
+		})
+
+		require.Error(t, err)
+		require.True(t, errors.Is(err, ErrCreateOperation), "expected ErrCreateOperation, got: %v", err)
+		require.True(t, errors.Is(err, apierror.ErrValidation), "expected ErrValidation, got: %v", err)
+		require.True(t, errors.Is(err, ErrChannelArchived), "expected ErrChannelArchived, got: %v", err)
+	})
+
+	t.Run("BadRequestVariants", func(t *testing.T) {
+		channelID := uuid.New()
+		input := CreateOperationInput{
+			ChannelID:         channelID,
+			ChainSelector:     "1337",
+			Address:           "0x1234",
+			WalletOperationID: "op-123",
+			Transactions: []TransactionRequest{
+				{To: "0x5678", Value: "0", Data: "0xabcd"},
+			},
+			Signature: "0xsignature",
+		}
+
+		t.Run("MessageOnlyMapsToValidation", func(t *testing.T) {
+			handler := func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+					Type:    apiClient.VALIDATIONERROR,
+					Message: "invalid operation data",
+				}))
+			}
+
+			client, server := setupTestClient(t, handler)
+			defer server.Close()
+
+			_, err := client.CreateOperation(context.Background(), input)
+
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrCreateOperation)
+			assert.ErrorIs(t, err, apierror.ErrValidation)
+			assert.NotErrorIs(t, err, ErrChannelArchived)
+			assert.Contains(t, err.Error(), "invalid operation data")
+		})
+
+		t.Run("BodylessKeepsUnexpectedStatus", func(t *testing.T) {
+			handler := func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusBadRequest)
+			}
+
+			client, server := setupTestClient(t, handler)
+			defer server.Close()
+
+			_, err := client.CreateOperation(context.Background(), input)
+
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrCreateOperation)
+			assert.ErrorIs(t, err, apierror.ErrUnexpectedStatusCode)
+			assert.Contains(t, err.Error(), "status code 400")
+		})
+	})
+
 	t.Run("ValidationErrors", func(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			t.Fatal("Should not make request with invalid input")
@@ -357,8 +443,9 @@ func TestClient_CreateOperation(t *testing.T) {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
-				"error": "Invalid operation data",
+			require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+				Type:    apiClient.VALIDATIONERROR,
+				Message: "Invalid operation data",
 			}))
 		}
 
@@ -379,7 +466,8 @@ func TestClient_CreateOperation(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, opID)
 		assert.True(t, errors.Is(err, ErrCreateOperation), "Expected ErrCreateOperation, got: %v", err)
-		assert.True(t, errors.Is(err, apierror.ErrUnexpectedStatusCode), "Expected apierror.ErrUnexpectedStatusCode, got: %v", err)
+		assert.True(t, errors.Is(err, apierror.ErrValidation), "Expected apierror.ErrValidation, got: %v", err)
+		assert.False(t, errors.Is(err, apierror.ErrChannelArchived), "a 400 without a code must not map to a code sentinel, got: %v", err)
 	})
 }
 

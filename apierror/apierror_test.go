@@ -320,3 +320,51 @@ func TestApierror_ConflictCode(t *testing.T) {
 	assert.Equal(t, "", apierror.ConflictCode(nil))
 	assert.Equal(t, "CHANNEL_ALREADY_EXISTS", apierror.ConflictCode(&apiClient.ApplicationError{Code: &channelCode}))
 }
+
+func TestValidation_MapsChannelArchivedCode(t *testing.T) {
+	code := apiClient.ApplicationErrorCodeChannelArchived
+	appErr := &apiClient.ApplicationError{
+		Type:    apiClient.VALIDATIONERROR,
+		Code:    &code,
+		Message: "cannot create operations on an archived channel",
+	}
+
+	assert.ErrorIs(t, apierror.Validation(appErr), apierror.ErrChannelArchived)
+}
+
+func TestValidation_UnknownCodeOrMissingCodeReturnsNil(t *testing.T) {
+	unknown := apiClient.ApplicationErrorCode("SOME_FUTURE_CODE")
+	assert.Nil(t, apierror.Validation(&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR, Code: &unknown}))
+	assert.Nil(t, apierror.Validation(&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR}))
+}
+
+func TestWrapValidation_NoCodeMapsToValidation(t *testing.T) {
+	opErr := errors.New("failed to create operation")
+	wrapped := apierror.WrapValidation(&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR}, opErr)
+
+	assert.ErrorIs(t, wrapped, opErr)
+	assert.ErrorIs(t, wrapped, apierror.ErrValidation)
+	assert.NotErrorIs(t, wrapped, apierror.ErrChannelArchived)
+}
+
+func TestWrapValidation_BodylessKeepsUnexpectedStatus(t *testing.T) {
+	opErr := errors.New("failed to create operation")
+	wrapped := apierror.WrapValidation(nil, opErr)
+
+	assert.ErrorIs(t, wrapped, opErr)
+	assert.ErrorIs(t, wrapped, apierror.ErrUnexpectedStatusCode)
+	assert.Contains(t, wrapped.Error(), "status code 400")
+}
+
+func TestWrapValidation_MessageOnlyMapsToValidation(t *testing.T) {
+	opErr := errors.New("failed to create operation")
+	wrapped := apierror.WrapValidation(
+		&apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR, Message: "invalid request data"},
+		opErr,
+	)
+
+	assert.ErrorIs(t, wrapped, opErr)
+	assert.ErrorIs(t, wrapped, apierror.ErrValidation)
+	assert.NotErrorIs(t, wrapped, apierror.ErrChannelArchived)
+	assert.Contains(t, wrapped.Error(), "invalid request data")
+}
