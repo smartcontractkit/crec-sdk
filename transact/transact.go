@@ -775,6 +775,16 @@ func (c *Client) SendSignedDraftOperation(
 			return nil, fmt.Errorf("%w: %w", ErrSendOperation, apierror.ErrNilResponseBody)
 		}
 		return resp.JSON200, nil
+	case http.StatusBadRequest:
+		var message string
+		if resp.JSON400 != nil {
+			message = resp.JSON400.Message
+		}
+		c.logger.Warn("Validation error when sending operation",
+			"channel_id", channelID.String(),
+			"code", apierror.ValidationCode(resp.JSON400),
+			"message", message)
+		return nil, apierror.WrapValidation(resp.JSON400, ErrSendOperation)
 	case http.StatusNotFound:
 		return nil, ErrDraftNotFound
 	case http.StatusConflict:

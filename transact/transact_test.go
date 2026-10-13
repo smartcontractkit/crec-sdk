@@ -759,6 +759,36 @@ func TestClient_SendSignedDraftOperation_ConflictWithCode(t *testing.T) {
 	require.ErrorIs(t, err, apierror.ErrOperationDeadlineElapsed)
 }
 
+func TestClient_SendSignedDraftOperation_ArchivedChannel(t *testing.T) {
+	channelID := uuid.New()
+	operationID := uuid.New()
+	digest := make([]byte, 32)
+	for i := range digest {
+		digest[i] = byte(i)
+	}
+	signature := []byte{0x33, 0x44}
+
+	archivedCode := apiClient.ApplicationErrorCodeChannelArchived
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		require.NoError(t, json.NewEncoder(w).Encode(apiClient.ApplicationError{
+			Type:    apiClient.VALIDATIONERROR,
+			Code:    &archivedCode,
+			Message: "cannot use an archived channel",
+		}))
+	}
+
+	client, server := setupTestClient(t, handler)
+	defer server.Close()
+
+	_, err := client.SendSignedDraftOperation(context.Background(), channelID, operationID, digest, signature)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrSendOperation)
+	require.ErrorIs(t, err, apierror.ErrValidation)
+	require.ErrorIs(t, err, ErrChannelArchived)
+}
+
 func TestClient_ExecuteDraftOperation_SignsProvidedDigest(t *testing.T) {
 	channelID := uuid.New()
 	operationID := uuid.New()
