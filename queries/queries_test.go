@@ -346,6 +346,8 @@ func TestClient_Create(t *testing.T) {
 			{name: "ChannelNotFound", statusCode: http.StatusNotFound, wantErr: ErrChannelNotFound},
 			{name: "IdempotencyConflict", statusCode: http.StatusConflict, wantErr: ErrIdempotencyConflict},
 			{name: "IdempotencyKeyMismatch", statusCode: http.StatusConflict, wantErr: ErrIdempotencyKeyMismatch},
+			{name: "ChannelArchived", statusCode: http.StatusBadRequest, wantErr: ErrChannelArchived},
+			{name: "MessageOnlyValidation", statusCode: http.StatusBadRequest, wantErr: apierror.ErrValidation},
 			{name: "RateLimitExceeded", statusCode: http.StatusTooManyRequests, wantErr: ErrRateLimitExceeded},
 			{name: "Unexpected", statusCode: http.StatusInternalServerError, wantErr: apierror.ErrUnexpectedStatusCode},
 		}
@@ -364,6 +366,11 @@ func TestClient_Create(t *testing.T) {
 						msg = "idempotency key reused with different query request"
 						mismatchCode := apiClient.ApplicationErrorCodeIdempotencyKeyMismatch
 						code = &mismatchCode
+					}
+					if tt.wantErr == ErrChannelArchived {
+						msg = "cannot create queries on an archived channel"
+						archivedCode := apiClient.ApplicationErrorCodeChannelArchived
+						code = &archivedCode
 					}
 					writeJSON(t, w, tt.statusCode, apiClient.ApplicationError{
 						Message: msg,
