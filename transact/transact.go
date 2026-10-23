@@ -279,16 +279,8 @@ func (c *Client) postCreateOperation(
 			channelID.String(), createReq.Address, createReq.ChainSelector, walletOperationID,
 		)
 		return nil, apierror.WrapConflict(resp.JSON409, ErrCreateOperation, conflictDetail)
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when creating operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON401, ErrCreateOperation, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when creating operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrCreateOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrCreateOperation, "creating operation", resp.Body, c.logger)
 	}
 }
 
@@ -562,16 +554,8 @@ func (c *Client) GetOperation(ctx context.Context, channelID uuid.UUID, operatio
 			ErrGetOperation,
 			fmt.Sprintf("channel ID %s, operation ID %s", channelID.String(), operationID.String()),
 		)
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when getting operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON401, ErrGetOperation, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when getting operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrGetOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrGetOperation, "getting operation", resp.Body, c.logger)
 	}
 }
 
@@ -649,16 +633,8 @@ func (c *Client) ListOperations(ctx context.Context, input ListOperationsInput) 
 		return nil, false, apierror.WrapChannelNotFound(
 			resp.JSON404, ErrListOperations, "channel ID "+input.ChannelID.String(),
 		)
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when listing operations",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, apierror.Wrap(resp.JSON401, ErrListOperations, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when listing operations",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w: %w (status code %d)", ErrListOperations, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, false, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrListOperations, "listing operations", resp.Body, c.logger)
 	}
 }
 
@@ -789,16 +765,8 @@ func (c *Client) SendSignedDraftOperation(
 		return nil, ErrDraftNotFound
 	case http.StatusConflict:
 		return nil, apierror.WrapConflict(resp.JSON409, ErrDraftNotFinalizable, "operation ID "+operationID.String())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when sending operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, apierror.Wrap(resp.JSON401, ErrSendOperation, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when sending operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return nil, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrSendOperation, "sending operation", resp.Body, c.logger)
 	}
 }
 
@@ -858,15 +826,7 @@ func (c *Client) CancelDraftOperation(ctx context.Context, channelID uuid.UUID, 
 		return ErrDraftNotFound
 	case http.StatusConflict:
 		return apierror.WrapConflict(resp.JSON409, ErrDraftNotCancellable, "operation ID "+operationID.String())
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when cancelling operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return apierror.Wrap(resp.JSON401, ErrSendOperation, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when cancelling operation",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return fmt.Errorf("%w: %w (status code %d)", ErrSendOperation, apierror.ErrUnexpectedStatusCode, resp.StatusCode())
+		return apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrSendOperation, "cancelling operation", resp.Body, c.logger)
 	}
 }

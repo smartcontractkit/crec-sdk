@@ -291,18 +291,7 @@ func (c *Client) ListNetworks(ctx context.Context) ([]apiClient.Network, bool, e
 			return nil, false, ErrListNetworks
 		}
 		return resp.JSON200.Data, resp.JSON200.HasMore, nil
-	case http.StatusUnauthorized:
-		c.logger.Error("Unauthorized when listing networks",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		if mapped := apierror.FromApplicationError(resp.JSON401); mapped != nil {
-			return nil, false, fmt.Errorf("%w: %w", ErrListNetworks, mapped)
-		}
-		return nil, false, fmt.Errorf("%w (status code %d)", ErrListNetworks, resp.StatusCode())
 	default:
-		c.logger.Error("Unexpected status code when listing networks",
-			"status_code", resp.StatusCode(),
-			"body", string(resp.Body))
-		return nil, false, fmt.Errorf("%w (status code %d)", ErrListNetworks, resp.StatusCode())
+		return nil, false, apierror.HandleErrorStatus(resp.StatusCode(), resp.JSON401, resp.JSON403, ErrListNetworks, "listing networks", resp.Body, c.logger)
 	}
 }
