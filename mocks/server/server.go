@@ -22,11 +22,14 @@ type MockServer struct {
 	mu sync.RWMutex
 
 	// simple in-memory stores for the mock
-	wallets    []stdserver.Wallet
-	channels   []stdserver.Channel
-	operations []stdserver.Operation
-	queries    []stdserver.Query
-	watchers   []stdserver.Watcher
+	wallets      []stdserver.Wallet
+	channels     []stdserver.Channel
+	operations   []stdserver.Operation
+	queries      []stdserver.Query
+	watchers     []stdserver.Watcher
+	typeVersions []stdserver.WalletTypeVersion
+	upgrades     []stdserver.WalletUpgrade
+	adminOps     []stdserver.WalletAdminOperation
 }
 
 var _ stdserver.ServerInterface = (*MockServer)(nil)
@@ -35,11 +38,14 @@ var _ stdserver.ServerInterface = (*MockServer)(nil)
 // Call Close when done to shut down the HTTP server.
 func NewMockServer() *MockServer {
 	s := &MockServer{
-		wallets:    make([]stdserver.Wallet, 0),
-		channels:   make([]stdserver.Channel, 0),
-		operations: make([]stdserver.Operation, 0),
-		queries:    make([]stdserver.Query, 0),
-		watchers:   make([]stdserver.Watcher, 0),
+		wallets:      make([]stdserver.Wallet, 0),
+		channels:     make([]stdserver.Channel, 0),
+		operations:   make([]stdserver.Operation, 0),
+		queries:      make([]stdserver.Query, 0),
+		watchers:     make([]stdserver.Watcher, 0),
+		typeVersions: defaultWalletTypeCatalog(),
+		upgrades:     make([]stdserver.WalletUpgrade, 0),
+		adminOps:     make([]stdserver.WalletAdminOperation, 0),
 	}
 	r := http.NewServeMux()
 	h := stdserver.HandlerFromMux(s, r)
@@ -759,6 +765,14 @@ func (s *MockServer) CreateWallet(w http.ResponseWriter, r *http.Request) {
 	if in.AllowedRsaSigners != nil {
 		wallet.AllowedRsaSigners = *in.AllowedRsaSigners
 	}
+	// typeVersions is immutable after NewMockServer, so it is safe to read unlocked
+	for _, v := range s.typeVersions {
+		if v.WalletType == wallet.WalletType && v.IsDefault {
+			version := v.ImplementationVersion
+			wallet.ImplementationVersion = &version
+			break
+		}
+	}
 
 	s.mu.Lock()
 	s.wallets = append(s.wallets, wallet)
@@ -843,8 +857,372 @@ func (s *MockServer) UpdateWallet(w http.ResponseWriter, r *http.Request, wallet
 }
 
 // ============================================================================
+// WALLET TYPE VERSIONS ENDPOINTS
+// ============================================================================
+
+func (s *MockServer) ListWalletTypeVersions(w http.ResponseWriter, r *http.Request, walletType stdserver.WalletType, params stdserver.ListWalletTypeVersionsParams) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	versions := []stdserver.WalletTypeVersion{}
+	for _, v := range s.typeVersions {
+		if v.WalletType != walletType {
+			continue
+		}
+		if params.Status != nil && v.Status != *params.Status {
+			continue
+		}
+		if params.ChainSelector != nil {
+			// Versions with no deployment on that chain are still returned
+			deployments := []stdserver.WalletTypeVersionDeployment{}
+			for _, d := range v.Deployments {
+				if d.ChainSelector == *params.ChainSelector {
+					deployments = append(deployments, d)
+				}
+			}
+			v.Deployments = deployments
+		}
+		versions = append(versions, v)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stdserver.WalletTypeVersionList{Data: versions, HasMore: false})
+}
+
+func (s *MockServer) GetWalletTypeVersion(w http.ResponseWriter, r *http.Request, walletType stdserver.WalletType, implementationVersion string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, v := range s.typeVersions {
+		if v.WalletType == walletType && v.ImplementationVersion == implementationVersion {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(v)
+			return
+		}
+	}
+	http.Error(w, "wallet type version not found", http.StatusNotFound)
+}
+
+// ============================================================================
+// WALLET UPGRADES ENDPOINTS (under wallets)
+// ============================================================================
+
+func (s *MockServer) CreateWalletUpgrade(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
+	var request stdserver.CreateWalletUpgrade
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	walletIdx := -1
+	for i, wallet := range s.wallets {
+		if wallet.WalletId == walletId {
+			walletIdx = i
+			break
+		}
+	}
+	if walletIdx == -1 {
+		s.mu.Unlock()
+		http.Error(w, "wallet not found", http.StatusNotFound)
+		return
+	}
+
+	now := time.Now().Unix()
+	operationId := uuid.New()
+	opStatus := stdserver.OperationStatusAccepted
+	implAddress := request.ImplementationAddress
+	authorizedKey := mockAuthorizedKey(s.wallets[walletIdx])
+	upgrade := stdserver.WalletUpgrade{
+		UpgradeId:             uuid.New(),
+		WalletId:              walletId,
+		FromVersion:           s.wallets[walletIdx].ImplementationVersion,
+		ToVersion:             request.TargetVersion,
+		ImplementationAddress: &implAddress,
+		OperationId:           &operationId,
+		OperationStatus:       &opStatus,
+		Outcome:               stdserver.WalletUpgradeOutcomePending,
+		Source:                stdserver.WalletVersionChangeSourceCRECUpgrade,
+		AuthorizedKey:         &authorizedKey,
+		RequestedBy:           mockSubject,
+		CreatedAt:             now,
+		UpdatedAt:             now,
+	}
+	s.upgrades = append(s.upgrades, upgrade)
+	s.wallets[walletIdx].Status = stdserver.WalletStatusUpgrading
+	s.mu.Unlock()
+
+	// Mirror the real lifecycle: the upgrade settles asynchronously
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		s.completeWalletUpgrade(upgrade.UpgradeId)
+	}()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(upgrade)
+}
+
+func (s *MockServer) ListWalletUpgrades(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID, params stdserver.ListWalletUpgradesParams) {
+	limit := 50
+	offset := 0
+	if params.Limit != nil && *params.Limit > 0 {
+		limit = *params.Limit
+	}
+	if params.Offset != nil && *params.Offset >= 0 {
+		offset = int(*params.Offset)
+	}
+
+	s.mu.RLock()
+	upgrades := make([]stdserver.WalletUpgrade, len(s.upgrades))
+	copy(upgrades, s.upgrades)
+	s.mu.RUnlock()
+
+	filtered := []stdserver.WalletUpgrade{}
+	for _, up := range upgrades {
+		if up.WalletId != walletId {
+			continue
+		}
+		if params.Source != nil && up.Source != *params.Source {
+			continue
+		}
+		if params.Outcome != nil && up.Outcome != *params.Outcome {
+			continue
+		}
+		filtered = append(filtered, up)
+	}
+
+	end := offset + limit
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	data := []stdserver.WalletUpgrade{}
+	if offset < len(filtered) {
+		data = filtered[offset:end]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stdserver.WalletUpgradeList{Data: data, HasMore: end < len(filtered)})
+}
+
+func (s *MockServer) GetWalletUpgrade(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID, upgradeId openapiTypes.UUID) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, up := range s.upgrades {
+		if up.WalletId == walletId && up.UpgradeId == upgradeId {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(up)
+			return
+		}
+	}
+	http.Error(w, "wallet upgrade not found", http.StatusNotFound)
+}
+
+// ============================================================================
+// WALLET ADMIN OPERATIONS ENDPOINTS (under wallets)
+// ============================================================================
+
+func (s *MockServer) CreateWalletAdminOperation(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
+	var request stdserver.CreateWalletAdminOperation
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	walletIdx := -1
+	for i, wallet := range s.wallets {
+		if wallet.WalletId == walletId {
+			walletIdx = i
+			break
+		}
+	}
+	if walletIdx == -1 {
+		s.mu.Unlock()
+		http.Error(w, "wallet not found", http.StatusNotFound)
+		return
+	}
+
+	now := time.Now().Unix()
+	opStatus := stdserver.OperationStatusAccepted
+	adminOp := stdserver.WalletAdminOperation{
+		AdminOperationId: uuid.New(),
+		WalletId:         walletId,
+		Capability:       request.Capability,
+		Arguments:        request.Arguments,
+		AuthorizedKey:    mockAuthorizedKey(s.wallets[walletIdx]),
+		Outcome:          stdserver.WalletUpgradeOutcomePending,
+		OperationStatus:  &opStatus,
+		RequestedBy:      mockSubject,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	s.adminOps = append(s.adminOps, adminOp)
+	s.mu.Unlock()
+
+	// Mirror the real lifecycle: the operation settles asynchronously
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		s.completeWalletAdminOperation(adminOp.AdminOperationId)
+	}()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(adminOp)
+}
+
+func (s *MockServer) ListWalletAdminOperations(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID, params stdserver.ListWalletAdminOperationsParams) {
+	limit := 50
+	offset := 0
+	if params.Limit != nil && *params.Limit > 0 {
+		limit = *params.Limit
+	}
+	if params.Offset != nil && *params.Offset >= 0 {
+		offset = int(*params.Offset)
+	}
+
+	s.mu.RLock()
+	adminOps := make([]stdserver.WalletAdminOperation, len(s.adminOps))
+	copy(adminOps, s.adminOps)
+	s.mu.RUnlock()
+
+	filtered := []stdserver.WalletAdminOperation{}
+	for _, op := range adminOps {
+		if op.WalletId != walletId {
+			continue
+		}
+		filtered = append(filtered, op)
+	}
+
+	end := offset + limit
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	data := []stdserver.WalletAdminOperation{}
+	if offset < len(filtered) {
+		data = filtered[offset:end]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stdserver.WalletAdminOperationList{Data: data, HasMore: end < len(filtered)})
+}
+
+func (s *MockServer) GetWalletAdminOperation(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID, adminOperationId openapiTypes.UUID) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, op := range s.adminOps {
+		if op.WalletId == walletId && op.AdminOperationId == adminOperationId {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(op)
+			return
+		}
+	}
+	http.Error(w, "wallet admin operation not found", http.StatusNotFound)
+}
+
+// ============================================================================
 // HELPER METHODS (INTERNAL)
 // ============================================================================
+
+// mockDefaultWalletTypeVersion is the version label the mock's catalog seeds
+// as the default for every known wallet type. Taken from the API spec examples.
+const mockDefaultWalletTypeVersion = "2025.06.0"
+
+// mockSubject is the fixed actor the mock attributes records to, since the
+// mock has no auth context.
+var mockSubject = stdserver.Subject{
+	SubjectId:   "mock",
+	SubjectName: "Mock Server",
+	SubjectType: stdserver.SubjectTypeApiKey,
+}
+
+// defaultWalletTypeCatalog seeds one active default version per known wallet
+// type. The catalog is operator-managed (there is no create endpoint), so the
+// mock pre-populates it.
+func defaultWalletTypeCatalog() []stdserver.WalletTypeVersion {
+	now := time.Now().Unix()
+	walletTypes := []stdserver.WalletType{
+		stdserver.WalletTypeECDSA,
+		stdserver.WalletTypeProtectedECDSA,
+		stdserver.WalletTypeProtectedRSA,
+		stdserver.WalletTypeRSA,
+	}
+	versions := make([]stdserver.WalletTypeVersion, 0, len(walletTypes))
+	for _, wt := range walletTypes {
+		versions = append(versions, stdserver.WalletTypeVersion{
+			WalletType:            wt,
+			ImplementationVersion: mockDefaultWalletTypeVersion,
+			IsDefault:             true,
+			IsUpgradeable:         true,
+			Status:                stdserver.WalletTypeVersionStatusActive,
+			Capabilities:          []stdserver.WalletCapabilityDescriptor{},
+			Deployments:           []stdserver.WalletTypeVersionDeployment{},
+			CreatedAt:             now,
+		})
+	}
+	return versions
+}
+
+// mockAuthorizedKey picks a plausible signing key for the wallet: the first
+// allowed ECDSA signer when present, otherwise the wallet owner address. The
+// mock does not recover signers from signatures.
+func mockAuthorizedKey(wallet stdserver.Wallet) stdserver.EthereumAddress {
+	if len(wallet.AllowedEcdsaSigners) > 0 {
+		return wallet.AllowedEcdsaSigners[0]
+	}
+	return wallet.WalletOwnerAddress
+}
+
+// completeWalletUpgrade transitions a pending upgrade to "succeeded" and moves
+// the wallet onto the target version.
+func (s *MockServer) completeWalletUpgrade(upgradeId uuid.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, up := range s.upgrades {
+		if up.UpgradeId != upgradeId || up.Outcome != stdserver.WalletUpgradeOutcomePending {
+			continue
+		}
+		now := time.Now().Unix()
+		opStatus := stdserver.OperationStatusConfirmed
+		s.upgrades[i].Outcome = stdserver.WalletUpgradeOutcomeSucceeded
+		s.upgrades[i].OperationStatus = &opStatus
+		s.upgrades[i].UpdatedAt = now
+		for j, wallet := range s.wallets {
+			if wallet.WalletId == up.WalletId && wallet.Status == stdserver.WalletStatusUpgrading {
+				toVersion := s.upgrades[i].ToVersion
+				s.wallets[j].Status = stdserver.WalletStatusDeployed
+				s.wallets[j].ImplementationVersion = &toVersion
+			}
+		}
+		return
+	}
+}
+
+// completeWalletAdminOperation transitions a pending admin operation to "succeeded".
+func (s *MockServer) completeWalletAdminOperation(adminOperationId uuid.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, op := range s.adminOps {
+		if op.AdminOperationId == adminOperationId && op.Outcome == stdserver.WalletUpgradeOutcomePending {
+			now := time.Now().Unix()
+			opStatus := stdserver.OperationStatusConfirmed
+			s.adminOps[i].Outcome = stdserver.WalletUpgradeOutcomeSucceeded
+			s.adminOps[i].OperationStatus = &opStatus
+			s.adminOps[i].UpdatedAt = now
+			return
+		}
+	}
+}
 
 // scheduleWatcherArchive schedules the transition of a watcher from "archiving" to "archived" after a delay.
 func scheduleWatcherArchive(id uuid.UUID, delay time.Duration, archiveFn func(uuid.UUID) bool) {
