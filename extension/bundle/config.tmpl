@@ -38,3 +38,6 @@ detectEventTriggerConfig:
             topic4: null
         {{- end }}
 {{- end }}
+{{- if $config.redeployCount }}
+redeployCount: {{ $config.redeployCount }}
+{{- end }}
