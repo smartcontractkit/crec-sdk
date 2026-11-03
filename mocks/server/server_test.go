@@ -117,15 +117,33 @@ func TestMockServer_WalletVersions_Upgrades_AdminOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetWalletTypeVersion: %v", err)
 	}
-	if version.StatusCode() != http.StatusOK || version.JSON200 == nil || !version.JSON200.IsDefault {
+	if version.StatusCode() != http.StatusOK || version.JSON200 == nil ||
+		len(version.JSON200.Deployments) != 1 ||
+		version.JSON200.Deployments[0].ChainSelector != mockDefaultChainSelector ||
+		!version.JSON200.Deployments[0].IsDefault {
 		t.Fatalf("unexpected wallet type version response")
 	}
 
-	// Wallet creation picks up the type's default implementation version
+	// Defaults are per network: a chain with no default deployment yields no version
 	walletCfg := apiClient.WalletConfiguration{"allowed_signers": []string{}}
+	noDefault, err := c.CreateWalletWithResponse(ctx, apiClient.CreateWallet{
+		WalletOwnerAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+		ChainSelector:      "1338",
+		Name:               "No Default Wallet",
+		WalletType:         apiClient.WalletTypeECDSA,
+		Configuration:      &walletCfg,
+	})
+	if err != nil {
+		t.Fatalf("CreateWallet: %v", err)
+	}
+	if noDefault.StatusCode() != http.StatusCreated || noDefault.JSON201 == nil || noDefault.JSON201.ImplementationVersion != nil {
+		t.Fatalf("wallet on a chain without a default got a version: %+v", noDefault.JSON201)
+	}
+
+	// Wallet creation picks up the type's default implementation version on its network
 	wallet, err := c.CreateWalletWithResponse(ctx, apiClient.CreateWallet{
 		WalletOwnerAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-		ChainSelector:      "1337",
+		ChainSelector:      mockDefaultChainSelector,
 		Name:               "Upgradeable Wallet",
 		WalletType:         apiClient.WalletTypeECDSA,
 		Configuration:      &walletCfg,

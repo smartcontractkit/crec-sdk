@@ -766,12 +766,8 @@ func (s *MockServer) CreateWallet(w http.ResponseWriter, r *http.Request) {
 		wallet.AllowedRsaSigners = *in.AllowedRsaSigners
 	}
 	// typeVersions is immutable after NewMockServer, so it is safe to read unlocked
-	for _, v := range s.typeVersions {
-		if v.WalletType == wallet.WalletType && v.IsDefault {
-			version := v.ImplementationVersion
-			wallet.ImplementationVersion = &version
-			break
-		}
+	if version, ok := s.defaultVersion(wallet.WalletType, wallet.ChainSelector); ok {
+		wallet.ImplementationVersion = &version
 	}
 
 	s.mu.Lock()
@@ -1136,6 +1132,15 @@ func (s *MockServer) GetWalletAdminOperation(w http.ResponseWriter, r *http.Requ
 // as the default for every known wallet type. Taken from the API spec examples.
 const mockDefaultWalletTypeVersion = "2025.06.0"
 
+// mockDefaultChainSelector is the only network the seeded catalog deploys to.
+// Defaults are per network, so wallets created on any other chain get no
+// implementation version, as with a network that has no default.
+const mockDefaultChainSelector = "1337"
+
+// mockDefaultImplementationAddress is the seeded deployment's implementation
+// address. Lowercase hex, as the API returns it.
+const mockDefaultImplementationAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3"
+
 // mockSubject is the fixed actor the mock attributes records to, since the
 // mock has no auth context.
 var mockSubject = stdserver.Subject{
@@ -1160,15 +1165,35 @@ func defaultWalletTypeCatalog() []stdserver.WalletTypeVersion {
 		versions = append(versions, stdserver.WalletTypeVersion{
 			WalletType:            wt,
 			ImplementationVersion: mockDefaultWalletTypeVersion,
-			IsDefault:             true,
 			IsUpgradeable:         true,
 			Status:                stdserver.WalletTypeVersionStatusActive,
 			Capabilities:          []stdserver.WalletCapabilityDescriptor{},
-			Deployments:           []stdserver.WalletTypeVersionDeployment{},
-			CreatedAt:             now,
+			Deployments: []stdserver.WalletTypeVersionDeployment{{
+				ChainSelector:         mockDefaultChainSelector,
+				ImplementationAddress: mockDefaultImplementationAddress,
+				IsDefault:             true,
+			}},
+			CreatedAt: now,
 		})
 	}
 	return versions
+}
+
+// defaultVersion returns the version new wallets of walletType deploy at on
+// chainSelector. typeVersions is immutable after NewMockServer, so it is safe
+// to read unlocked.
+func (s *MockServer) defaultVersion(walletType stdserver.WalletType, chainSelector stdserver.ChainSelector) (string, bool) {
+	for _, v := range s.typeVersions {
+		if v.WalletType != walletType {
+			continue
+		}
+		for _, d := range v.Deployments {
+			if d.ChainSelector == chainSelector && d.IsDefault {
+				return v.ImplementationVersion, true
+			}
+		}
+	}
+	return "", false
 }
 
 // mockAuthorizedKey picks a plausible signing key for the wallet: the first
