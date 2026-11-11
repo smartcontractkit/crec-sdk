@@ -292,6 +292,8 @@ func TestBundle_DefaultConfigTemplate(t *testing.T) {
 	assert.Contains(t, string(tmpl), "detectEventTriggerConfig")
 	assert.Contains(t, string(tmpl), "contractName")
 	assert.Contains(t, string(tmpl), "contractReaderConfig")
+	// Rendered only above zero, so a first deploy keeps its config and workflow ID.
+	assert.Contains(t, string(tmpl), "{{- if $config.redeployCount }}\nredeployCount: {{ $config.redeployCount }}")
 }
 
 func TestBundle_ResolveConfigTemplate(t *testing.T) {
