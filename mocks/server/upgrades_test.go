@@ -213,6 +213,48 @@ func (m *mockTestClient) buildAdminOpSubmission(
 	}
 }
 
+// awaitMockUpgrade polls the upgrade until its outcome is terminal,
+// synchronizing on the public read instead of sleeping a fixed duration.
+func awaitMockUpgrade(t *testing.T, c *apiClient.ClientWithResponses, walletId, upgradeId uuid.UUID) *apiClient.WalletUpgrade {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		resp, err := c.GetWalletUpgradeWithResponse(context.Background(), walletId, upgradeId)
+		if err != nil {
+			t.Fatalf("GetWalletUpgrade: %v", err)
+		}
+		if resp.StatusCode() == http.StatusOK && resp.JSON200 != nil &&
+			resp.JSON200.Outcome != apiClient.WalletUpgradeOutcomePending {
+			return resp.JSON200
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("upgrade %s did not reach a terminal outcome", upgradeId)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// awaitMockAdminOperation polls the administrative operation until its outcome
+// is terminal.
+func awaitMockAdminOperation(t *testing.T, c *apiClient.ClientWithResponses, walletId, adminOperationId uuid.UUID) *apiClient.WalletAdminOperation {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		resp, err := c.GetWalletAdminOperationWithResponse(context.Background(), walletId, adminOperationId)
+		if err != nil {
+			t.Fatalf("GetWalletAdminOperation: %v", err)
+		}
+		if resp.StatusCode() == http.StatusOK && resp.JSON200 != nil &&
+			resp.JSON200.Outcome != apiClient.WalletUpgradeOutcomePending {
+			return resp.JSON200
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("admin operation %s did not reach a terminal outcome", adminOperationId)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestMockServer_WalletVersions_Upgrades_AdminOperations(t *testing.T) {
 	s := NewMockServer()
 	defer s.Close()
@@ -304,16 +346,10 @@ func TestMockServer_WalletVersions_Upgrades_AdminOperations(t *testing.T) {
 		t.Fatalf("unexpected upgrades list response")
 	}
 
-	time.Sleep(150 * time.Millisecond)
-
-	settled, err := m.client.GetWalletUpgradeWithResponse(ctx, walletId, upgrade.JSON202.UpgradeId)
-	if err != nil {
-		t.Fatalf("GetWalletUpgrade: %v", err)
+	settled := awaitMockUpgrade(t, m.client, walletId, upgrade.JSON202.UpgradeId)
+	if settled.Outcome != apiClient.WalletUpgradeOutcomeSucceeded {
+		t.Fatalf("upgrade should have succeeded, got %+v", settled)
 	}
-	if settled.StatusCode() != http.StatusOK || settled.JSON200 == nil || settled.JSON200.Outcome != apiClient.WalletUpgradeOutcomeSucceeded {
-		t.Fatalf("upgrade should have succeeded, got %+v", settled.JSON200)
-	}
-
 	// The wallet moved onto the target version
 	after, err := m.client.GetWalletWithResponse(ctx, walletId)
 	if err != nil {
@@ -357,14 +393,9 @@ func TestMockServer_WalletVersions_Upgrades_AdminOperations(t *testing.T) {
 		t.Fatalf("admin operation should start pending, got %q", adminOp.JSON202.Outcome)
 	}
 
-	time.Sleep(150 * time.Millisecond)
-
-	settledOp, err := m.client.GetWalletAdminOperationWithResponse(ctx, walletId, adminOp.JSON202.AdminOperationId)
-	if err != nil {
-		t.Fatalf("GetWalletAdminOperation: %v", err)
-	}
-	if settledOp.StatusCode() != http.StatusOK || settledOp.JSON200 == nil || settledOp.JSON200.Outcome != apiClient.WalletUpgradeOutcomeSucceeded {
-		t.Fatalf("admin operation should have succeeded, got %+v", settledOp.JSON200)
+	settledOp := awaitMockAdminOperation(t, m.client, walletId, adminOp.JSON202.AdminOperationId)
+	if settledOp.Outcome != apiClient.WalletUpgradeOutcomeSucceeded {
+		t.Fatalf("admin operation should have succeeded, got %+v", settledOp)
 	}
 
 	adminOps, err := m.client.ListWalletAdminOperationsWithResponse(ctx, walletId, nil)
@@ -512,7 +543,7 @@ func TestMockServer_AdminOperationRejections(t *testing.T) {
 	if upgrade.StatusCode() != http.StatusAccepted {
 		t.Fatalf("upgrade rejected: %s", string(upgrade.Body))
 	}
-	time.Sleep(150 * time.Millisecond)
+	awaitMockUpgrade(t, m.client, walletId, upgrade.JSON202.UpgradeId)
 
 	upgraded, err := m.client.GetWalletTypeVersionWithResponse(ctx, apiClient.WalletTypeECDSA, mockNextWalletTypeVersion)
 	if err != nil || upgraded.JSON200 == nil {

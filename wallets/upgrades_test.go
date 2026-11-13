@@ -232,17 +232,7 @@ func TestClient_ResolveUpgradeTarget_And_UpgradeWallet(t *testing.T) {
 
 	t.Run("NoDeploymentOnNetwork", func(t *testing.T) {
 		env := setupMockEnv(t)
-		// A wallet on a chain the mock catalog does not deploy 2025.09.0 to.
-		wallet, err := env.client.Create(context.Background(), CreateInput{
-			Name:               "other-chain-" + uuid8(),
-			ChainSelector:      "1337",
-			WalletOwnerAddress: env.address.Hex(),
-			WalletType:         apiClient.WalletTypeECDSA,
-			Configuration:      apiClient.WalletConfiguration{},
-		})
-		require.NoError(t, err)
-		// 2025.09.0 is deployed on 1337 too; ask for a version that is not on
-		// this chain by upgrading on a chain with no deployments at all.
+		// A wallet on a chain the mock catalog deploys nothing to.
 		other, err := env.client.Create(context.Background(), CreateInput{
 			Name:               "no-deploy-" + uuid8(),
 			ChainSelector:      "1338",
@@ -251,7 +241,6 @@ func TestClient_ResolveUpgradeTarget_And_UpgradeWallet(t *testing.T) {
 			Configuration:      apiClient.WalletConfiguration{},
 		})
 		require.NoError(t, err)
-		_ = wallet
 
 		_, err = env.client.ResolveUpgradeTarget(context.Background(), other.WalletId, "2025.09.0")
 		require.ErrorIs(t, err, ErrNoDeploymentOnNetwork)

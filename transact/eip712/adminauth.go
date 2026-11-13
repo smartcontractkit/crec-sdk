@@ -36,6 +36,12 @@ var (
 	ErrInvalidArgumentValue = errors.New("invalid authorization argument value")
 	// ErrSignAuthorization is returned when signing the authorization fails.
 	ErrSignAuthorization = errors.New("failed to sign authorization")
+	// ErrCreateAuthorizationTypedData is returned when creating the EIP-712
+	// typed data for the authorization fails.
+	ErrCreateAuthorizationTypedData = errors.New("failed to create typed data for authorization")
+	// ErrComputeAuthorizationHash is returned when computing the EIP-712 hash
+	// of the authorization fails.
+	ErrComputeAuthorizationHash = errors.New("failed to compute authorization hash")
 )
 
 // UpgradeAuthorizationType is the pinned EIP-712 type string the wallet
@@ -264,11 +270,11 @@ func (h *Handler) HashAdminAuthorization(auth *AdminAuthorization, walletAddress
 	}
 	typedData, err := auth.typedData(walletAddress, chainID)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("%w: %w", ErrCreateTypedData, err)
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrCreateAuthorizationTypedData, err)
 	}
 	hashBytes, _, err := apitypes.TypedDataAndHash(*typedData)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("%w: %w", ErrComputeOperationHash, err)
+		return common.Hash{}, fmt.Errorf("%w: %w", ErrComputeAuthorizationHash, err)
 	}
 	return common.BytesToHash(hashBytes), nil
 }

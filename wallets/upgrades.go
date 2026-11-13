@@ -26,10 +26,11 @@ var (
 	ErrCapabilityRequired            = errors.New("capability is required")
 	ErrAuthorizationDeadline         = errors.New("authorization deadline must be positive")
 	ErrAuthorizationSignature        = errors.New("authorization signature is required")
+	ErrOperationSignatureRequired    = errors.New("the relayed operation must be signed")
 	ErrOperationDeadlineRequired     = errors.New("operation deadline must be positive")
 	ErrOperationDeadlineMismatch     = errors.New("operation deadline must equal the authorization deadline")
 	ErrOperationIDCollision          = errors.New("authorization wallet_operation_id must differ from the operation's")
-	ErrSingleTransactionRequired     = errors.New("an administrative operation carries exactly one transaction")
+	ErrSingleTransactionRequired     = errors.New("the relayed operation carries exactly one transaction")
 	ErrArgumentsRequired             = errors.New("arguments are required")
 
 	// API operation errors
@@ -81,7 +82,7 @@ func validateRelayConstraints(
 		return ErrOperationIDCollision
 	}
 	if operation.Signature == nil || *operation.Signature == "" {
-		return fmt.Errorf("%w: the operation must be signed", ErrAuthorizationSignature)
+		return ErrOperationSignatureRequired
 	}
 	if len(operation.Transactions) != 1 {
 		return ErrSingleTransactionRequired

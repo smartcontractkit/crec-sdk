@@ -938,6 +938,17 @@ func writeValidationError(w http.ResponseWriter, message string) {
 	})
 }
 
+// writeConflictError emits an uncoded conflict error, the shape courier uses
+// for the cross-kind in-flight rejections that carry no machine-readable code.
+func writeConflictError(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusConflict)
+	_ = json.NewEncoder(w).Encode(stdserver.ApplicationError{
+		Type:    stdserver.CONFLICT,
+		Message: message,
+	})
+}
+
 // findWalletIdx returns the index of the wallet in the store, or -1.
 // Callers hold the lock.
 func (s *MockServer) findWalletIdx(walletId openapiTypes.UUID) int {
@@ -1003,7 +1014,7 @@ func validateRelayShape(wallet stdserver.Wallet, operation stdserver.CreateOpera
 		return fmt.Sprintf("an %s operation carries exactly one transaction", kind)
 	case !strings.EqualFold(operation.Transactions[0].To, wallet.Address):
 		return fmt.Sprintf("the %s transaction must target the wallet itself", kind)
-	case operation.Transactions[0].Value != "" && operation.Transactions[0].Value != "0":
+	case !isZeroValue(operation.Transactions[0].Value):
 		return fmt.Sprintf("the %s transaction must carry no value", kind)
 	case auth.Deadline <= 0:
 		return "authorization deadline must be non-zero"
@@ -1017,6 +1028,13 @@ func validateRelayShape(wallet stdserver.Wallet, operation stdserver.CreateOpera
 		return "authorization signature is required"
 	}
 	return ""
+}
+
+// isZeroValue mirrors courier: an empty value or any decimal string parsing to
+// zero carries no value.
+func isZeroValue(value string) bool {
+	v, ok := new(big.Int).SetString(strings.TrimSpace(value), 10)
+	return strings.TrimSpace(value) == "" || (ok && v.Sign() == 0)
 }
 
 func (s *MockServer) CreateWalletUpgrade(w http.ResponseWriter, r *http.Request, walletId openapiTypes.UUID) {
@@ -1049,9 +1067,9 @@ func (s *MockServer) CreateWalletUpgrade(w http.ResponseWriter, r *http.Request,
 		return
 	case s.hasPendingAdminOperation(walletId):
 		s.mu.Unlock()
-		writeApplicationError(w, http.StatusConflict, stdserver.CONFLICT,
-			stdserver.ApplicationErrorCodeWalletUpgradeInProgress,
-			"an administrative operation of the wallet is in flight")
+		// Courier rejects this with an uncoded 409: the code
+		// WALLET_UPGRADE_IN_PROGRESS names only an upgrade in flight.
+		writeConflictError(w, "an administrative operation of the wallet is in flight; wait for it to resolve before upgrading")
 		return
 	}
 
@@ -1116,7 +1134,7 @@ func (s *MockServer) CreateWalletUpgrade(w http.ResponseWriter, r *http.Request,
 
 	// The calldata must be the canonical upgradeToWithAuthorization call
 	// carrying the submitted authorization, byte for byte.
-	if msg := s.checkUpgradeCalldata(request, wallet); msg != "" {
+	if msg := checkUpgradeCalldata(request); msg != "" {
 		s.mu.Unlock()
 		writeApplicationError(w, http.StatusBadRequest, stdserver.VALIDATIONERROR,
 			stdserver.ApplicationErrorCodeWalletUpgradePayloadMismatch, msg)
@@ -1161,7 +1179,7 @@ func (s *MockServer) CreateWalletUpgrade(w http.ResponseWriter, r *http.Request,
 // checkUpgradeCalldata re-packs the canonical upgradeToWithAuthorization call
 // from the submission and compares it against the operation's transaction
 // calldata, byte for byte. Returns the mismatch detail, or "".
-func (s *MockServer) checkUpgradeCalldata(request stdserver.CreateWalletUpgrade, wallet stdserver.Wallet) string {
+func checkUpgradeCalldata(request stdserver.CreateWalletUpgrade) string {
 	opID, ok := new(big.Int).SetString(request.Authorization.WalletOperationId, 10)
 	if !ok {
 		return "authorization wallet_operation_id must be a decimal integer"
@@ -1290,9 +1308,8 @@ func (s *MockServer) CreateWalletAdminOperation(w http.ResponseWriter, r *http.R
 		return
 	case s.hasPendingAdminOperation(walletId):
 		s.mu.Unlock()
-		writeApplicationError(w, http.StatusConflict, stdserver.CONFLICT,
-			stdserver.ApplicationErrorCodeWalletUpgradeInProgress,
-			"an administrative operation of the wallet is in flight")
+		// Uncoded 409, as courier: the in-flight guard is cross-kind.
+		writeConflictError(w, "an administrative operation of the wallet is in flight; wait for it to resolve")
 		return
 	}
 

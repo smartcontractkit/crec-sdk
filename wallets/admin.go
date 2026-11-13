@@ -32,6 +32,12 @@ var (
 	ErrAdminOperationExpired = errors.New("wallet admin operation expired")
 	ErrNoVersionRecorded     = errors.New("wallet has no recorded implementation version")
 	ErrAwaitTimeout          = errors.New("timed out waiting for a terminal outcome")
+	// ErrNoDeploymentOnNetwork is returned when the resolved version has no
+	// deployment on the wallet's network.
+	ErrNoDeploymentOnNetwork = errors.New("version not deployed on the wallet's network")
+	// ErrCapabilityNotPublished is returned when the wallet's recorded version
+	// does not publish the named capability in the catalog.
+	ErrCapabilityNotPublished = errors.New("capability not published by the wallet's recorded version")
 )
 
 // UpgradeTarget is the resolved, inspectable fact an upgrade commits to: the
@@ -39,6 +45,8 @@ var (
 // with [Client.ResolveUpgradeTarget], inspect it, then pass it to
 // [Client.UpgradeWallet]; what the owner inspects is what they sign.
 type UpgradeTarget struct {
+	// WalletType is the wallet type the target version belongs to.
+	WalletType apiClient.WalletType
 	// Version is the target implementation version label.
 	Version string
 	// ImplementationAddress is the version's implementation address on the
@@ -83,7 +91,10 @@ func (c *Client) ResolveUpgradeTarget(
 		return nil, err
 	}
 
-	target := &UpgradeTarget{Version: version.ImplementationVersion}
+	target := &UpgradeTarget{
+		WalletType: version.WalletType,
+		Version:    version.ImplementationVersion,
+	}
 	if wallet.ImplementationVersion != nil {
 		target.CurrentVersion = *wallet.ImplementationVersion
 	}
@@ -100,10 +111,6 @@ func (c *Client) ResolveUpgradeTarget(
 	}
 	return target, nil
 }
-
-// ErrNoDeploymentOnNetwork is returned when the resolved version has no
-// deployment on the wallet's network.
-var ErrNoDeploymentOnNetwork = errors.New("version not deployed on the wallet's network")
 
 // UpgradeOptions configures [Client.UpgradeWallet].
 //   - OwnerSigner: Signs the upgrade authorization. Required; the wallet's
@@ -174,6 +181,10 @@ func (c *Client) UpgradeWallet(
 	}
 	if wallet.Address == "" {
 		return nil, ErrWalletAddressMissing
+	}
+	if target.WalletType != "" && target.WalletType != wallet.WalletType {
+		return nil, fmt.Errorf("%w: target is for wallet type %s, wallet is %s",
+			ErrTargetTypeMismatch, target.WalletType, wallet.WalletType)
 	}
 	walletAddress := common.HexToAddress(wallet.Address)
 
@@ -521,10 +532,6 @@ func (c *Client) AwaitAdminOperation(
 		}
 	}
 }
-
-// ErrCapabilityNotPublished is returned when the wallet's recorded version does
-// not publish the named capability in the catalog.
-var ErrCapabilityNotPublished = errors.New("capability not published by the wallet's recorded version")
 
 // randomUint256 draws a uniformly random uint256 for caller-chosen operation
 // namespaces. Constructing an authorization never requires reading chain state.
