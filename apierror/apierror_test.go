@@ -60,6 +60,9 @@ func TestApierror_NotFound(t *testing.T) {
 	operationCode := apiClient.ApplicationErrorCodeOperationNotFound
 	watcherCode := apiClient.ApplicationErrorCodeWatcherNotFound
 	queryCode := apiClient.ApplicationErrorCodeQueryNotFound
+	typeVersionCode := apiClient.ApplicationErrorCodeWalletTypeVersionNotFound
+	upgradeCode := apiClient.ApplicationErrorCodeWalletUpgradeNotFound
+	adminOperationCode := apiClient.ApplicationErrorCodeWalletAdminOperationNotFound
 	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_NOT_FOUND")
 
 	tests := []struct {
@@ -74,6 +77,9 @@ func TestApierror_NotFound(t *testing.T) {
 		{name: "operation", appErr: &apiClient.ApplicationError{Code: &operationCode}, wantErr: apierror.ErrOperationNotFound},
 		{name: "watcher", appErr: &apiClient.ApplicationError{Code: &watcherCode}, wantErr: apierror.ErrWatcherNotFound},
 		{name: "query", appErr: &apiClient.ApplicationError{Code: &queryCode}, wantErr: apierror.ErrQueryNotFound},
+		{name: "wallet type version", appErr: &apiClient.ApplicationError{Code: &typeVersionCode}, wantErr: apierror.ErrWalletTypeVersionNotFound},
+		{name: "wallet upgrade", appErr: &apiClient.ApplicationError{Code: &upgradeCode}, wantErr: apierror.ErrWalletUpgradeNotFound},
+		{name: "wallet admin operation", appErr: &apiClient.ApplicationError{Code: &adminOperationCode}, wantErr: apierror.ErrWalletAdminOperationNotFound},
 		{name: "unknown future code degrades to nil", appErr: &apiClient.ApplicationError{Code: &futureCode}, wantErr: nil},
 	}
 
@@ -296,6 +302,12 @@ func TestApierror_Conflict(t *testing.T) {
 	archivedCode := apiClient.ApplicationErrorCodeWalletAlreadyArchived
 	notReadyCode := apiClient.ApplicationErrorCodeWalletNotReady
 	chainUnavailableCode := apiClient.ApplicationErrorCodeChainUnavailable
+	upgradeInProgressCode := apiClient.ApplicationErrorCodeWalletUpgradeInProgress
+	notUpgradeableCode := apiClient.ApplicationErrorCodeWalletNotUpgradeable
+	targetRecordedCode := apiClient.ApplicationErrorCodeWalletUpgradeTargetAlreadyRecorded
+	versionDeprecatedCode := apiClient.ApplicationErrorCodeWalletTypeVersionDeprecated
+	versionNotDeployedCode := apiClient.ApplicationErrorCodeWalletTypeVersionNotDeployed
+	capabilityNotSupportedCode := apiClient.ApplicationErrorCodeWalletCapabilityNotSupported
 	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_CONFLICT")
 
 	tests := []struct {
@@ -315,6 +327,12 @@ func TestApierror_Conflict(t *testing.T) {
 		{name: "already archived", appErr: &apiClient.ApplicationError{Code: &archivedCode}, wantErr: apierror.ErrWalletAlreadyArchived},
 		{name: "not ready", appErr: &apiClient.ApplicationError{Code: &notReadyCode}, wantErr: apierror.ErrWalletNotReady},
 		{name: "chain unavailable", appErr: &apiClient.ApplicationError{Code: &chainUnavailableCode}, wantErr: apierror.ErrChainUnavailable},
+		{name: "upgrade in progress", appErr: &apiClient.ApplicationError{Code: &upgradeInProgressCode}, wantErr: apierror.ErrWalletUpgradeInProgress},
+		{name: "not upgradeable", appErr: &apiClient.ApplicationError{Code: &notUpgradeableCode}, wantErr: apierror.ErrWalletNotUpgradeable},
+		{name: "target already recorded", appErr: &apiClient.ApplicationError{Code: &targetRecordedCode}, wantErr: apierror.ErrWalletUpgradeTargetAlreadyRecorded},
+		{name: "version deprecated", appErr: &apiClient.ApplicationError{Code: &versionDeprecatedCode}, wantErr: apierror.ErrWalletTypeVersionDeprecated},
+		{name: "version not deployed", appErr: &apiClient.ApplicationError{Code: &versionNotDeployedCode}, wantErr: apierror.ErrWalletTypeVersionNotDeployed},
+		{name: "capability not supported", appErr: &apiClient.ApplicationError{Code: &capabilityNotSupportedCode}, wantErr: apierror.ErrWalletCapabilityNotSupported},
 		{name: "unknown future code degrades to nil", appErr: &apiClient.ApplicationError{Code: &futureCode}, wantErr: nil},
 	}
 
@@ -426,4 +444,38 @@ func TestWrapValidation_MessageOnlyMapsToValidation(t *testing.T) {
 	assert.ErrorIs(t, wrapped, apierror.ErrValidation)
 	assert.NotErrorIs(t, wrapped, apierror.ErrChannelArchived)
 	assert.Contains(t, wrapped.Error(), "invalid request data")
+}
+
+func TestApierror_Validation(t *testing.T) {
+	channelArchivedCode := apiClient.ApplicationErrorCodeChannelArchived
+	upgradePayloadCode := apiClient.ApplicationErrorCodeWalletUpgradePayloadMismatch
+	upgradeTypeMismatchCode := apiClient.ApplicationErrorCodeWalletUpgradeTypeMismatch
+	adminPayloadCode := apiClient.ApplicationErrorCodeWalletAdminOperationPayloadMismatch
+	futureCode := apiClient.ApplicationErrorCode("SOME_FUTURE_VALIDATION")
+
+	tests := []struct {
+		name    string
+		appErr  *apiClient.ApplicationError
+		wantErr error
+	}{
+		{name: "nil application error returns nil", appErr: nil, wantErr: nil},
+		{name: "nil code returns nil", appErr: &apiClient.ApplicationError{Type: apiClient.VALIDATIONERROR}, wantErr: nil},
+		{name: "channel archived", appErr: &apiClient.ApplicationError{Code: &channelArchivedCode}, wantErr: apierror.ErrChannelArchived},
+		{name: "upgrade payload mismatch", appErr: &apiClient.ApplicationError{Code: &upgradePayloadCode}, wantErr: apierror.ErrWalletUpgradePayloadMismatch},
+		{name: "upgrade type mismatch", appErr: &apiClient.ApplicationError{Code: &upgradeTypeMismatchCode}, wantErr: apierror.ErrWalletUpgradeTypeMismatch},
+		{name: "admin operation payload mismatch", appErr: &apiClient.ApplicationError{Code: &adminPayloadCode}, wantErr: apierror.ErrWalletAdminOperationPayloadMismatch},
+		{name: "unknown future code degrades to nil", appErr: &apiClient.ApplicationError{Code: &futureCode}, wantErr: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := apierror.Validation(tt.appErr)
+
+			if tt.wantErr == nil {
+				assert.NoError(t, got)
+				return
+			}
+			assert.ErrorIs(t, got, tt.wantErr)
+		})
+	}
 }

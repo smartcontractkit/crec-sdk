@@ -36,6 +36,14 @@ var (
 	ErrWatcherNotFound = errors.New("watcher not found")
 	// ErrQueryNotFound is returned when the query does not exist.
 	ErrQueryNotFound = errors.New("query not found")
+	// ErrWalletTypeVersionNotFound is returned when no version with the given
+	// label is published for the wallet type.
+	ErrWalletTypeVersionNotFound = errors.New("wallet type version not found")
+	// ErrWalletUpgradeNotFound is returned when the wallet upgrade does not exist.
+	ErrWalletUpgradeNotFound = errors.New("wallet upgrade not found")
+	// ErrWalletAdminOperationNotFound is returned when the administrative
+	// wallet operation does not exist.
+	ErrWalletAdminOperationNotFound = errors.New("wallet admin operation not found")
 )
 
 // Canonical conflict sentinels for HTTP 409 responses. The API disambiguates
@@ -53,6 +61,24 @@ var (
 	ErrWalletAlreadyArchived    = errors.New("wallet already archived")
 	ErrWalletNotReady           = errors.New("wallet not ready to accept operations")
 	ErrChainUnavailable         = errors.New("chain unavailable for wallet creation")
+	// ErrWalletUpgradeInProgress is returned when an upgrade or administrative
+	// operation is already in flight for the wallet.
+	ErrWalletUpgradeInProgress = errors.New("wallet upgrade in progress")
+	// ErrWalletNotUpgradeable is returned when the wallet's recorded version
+	// cannot be upgraded through CREC.
+	ErrWalletNotUpgradeable = errors.New("wallet not upgradeable")
+	// ErrWalletUpgradeTargetAlreadyRecorded is returned when the upgrade target
+	// is the version the wallet is already recorded on.
+	ErrWalletUpgradeTargetAlreadyRecorded = errors.New("wallet upgrade target already recorded")
+	// ErrWalletTypeVersionDeprecated is returned when the target version is
+	// deprecated and not a supported upgrade target.
+	ErrWalletTypeVersionDeprecated = errors.New("wallet type version deprecated")
+	// ErrWalletTypeVersionNotDeployed is returned when the target version has
+	// no deployment on the wallet's network.
+	ErrWalletTypeVersionNotDeployed = errors.New("wallet type version not deployed on network")
+	// ErrWalletCapabilityNotSupported is returned when the wallet's recorded
+	// version does not publish the named capability.
+	ErrWalletCapabilityNotSupported = errors.New("wallet capability not supported")
 )
 
 // Validation sentinels for HTTP 400 responses. The API disambiguates the cause
@@ -61,6 +87,16 @@ var (
 	// ErrChannelArchived is returned when an operation, query, or watcher is
 	// created against an archived channel.
 	ErrChannelArchived = errors.New("channel archived")
+	// ErrWalletUpgradePayloadMismatch is returned when the declared or packed
+	// implementation address disagrees with the catalog.
+	ErrWalletUpgradePayloadMismatch = errors.New("wallet upgrade payload mismatch")
+	// ErrWalletUpgradeTypeMismatch is returned when the target version belongs
+	// to a different wallet type.
+	ErrWalletUpgradeTypeMismatch = errors.New("wallet upgrade type mismatch")
+	// ErrWalletAdminOperationPayloadMismatch is returned when the operation's
+	// calldata is not the published capability packed with the submitted
+	// arguments and authorization.
+	ErrWalletAdminOperationPayloadMismatch = errors.New("wallet admin operation payload mismatch")
 	// ErrValidation marks any tenant 400 response; coded causes wrap it
 	// alongside their own sentinel.
 	ErrValidation = errors.New("validation error")
@@ -153,6 +189,12 @@ func NotFound(appErr *apiClient.ApplicationError) error {
 		return ErrWatcherNotFound
 	case apiClient.ApplicationErrorCodeQueryNotFound:
 		return ErrQueryNotFound
+	case apiClient.ApplicationErrorCodeWalletTypeVersionNotFound:
+		return ErrWalletTypeVersionNotFound
+	case apiClient.ApplicationErrorCodeWalletUpgradeNotFound:
+		return ErrWalletUpgradeNotFound
+	case apiClient.ApplicationErrorCodeWalletAdminOperationNotFound:
+		return ErrWalletAdminOperationNotFound
 	default:
 		return nil
 	}
@@ -235,6 +277,18 @@ func Conflict(appErr *apiClient.ApplicationError) error {
 		return ErrWalletNotReady
 	case apiClient.ApplicationErrorCodeChainUnavailable:
 		return ErrChainUnavailable
+	case apiClient.ApplicationErrorCodeWalletUpgradeInProgress:
+		return ErrWalletUpgradeInProgress
+	case apiClient.ApplicationErrorCodeWalletNotUpgradeable:
+		return ErrWalletNotUpgradeable
+	case apiClient.ApplicationErrorCodeWalletUpgradeTargetAlreadyRecorded:
+		return ErrWalletUpgradeTargetAlreadyRecorded
+	case apiClient.ApplicationErrorCodeWalletTypeVersionDeprecated:
+		return ErrWalletTypeVersionDeprecated
+	case apiClient.ApplicationErrorCodeWalletTypeVersionNotDeployed:
+		return ErrWalletTypeVersionNotDeployed
+	case apiClient.ApplicationErrorCodeWalletCapabilityNotSupported:
+		return ErrWalletCapabilityNotSupported
 	default:
 		return nil
 	}
@@ -279,6 +333,12 @@ func Validation(appErr *apiClient.ApplicationError) error {
 	switch *appErr.Code {
 	case apiClient.ApplicationErrorCodeChannelArchived:
 		return ErrChannelArchived
+	case apiClient.ApplicationErrorCodeWalletUpgradePayloadMismatch:
+		return ErrWalletUpgradePayloadMismatch
+	case apiClient.ApplicationErrorCodeWalletUpgradeTypeMismatch:
+		return ErrWalletUpgradeTypeMismatch
+	case apiClient.ApplicationErrorCodeWalletAdminOperationPayloadMismatch:
+		return ErrWalletAdminOperationPayloadMismatch
 	default:
 		return nil
 	}
